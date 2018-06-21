@@ -1839,6 +1839,7 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_state_s *priv,
       if (ret != OK)
         {
           ferr("ERROR: mmcsd_recvR1 for CMD24 failed: %d\n", ret);
+          SDIO_CANCEL(priv->dev);
           return ret;
         }
     }
@@ -2044,6 +2045,7 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
       if (ret != OK)
         {
           ferr("ERROR: mmcsd_recvR1 for CMD25 failed: %d\n", ret);
+          SDIO_CANCEL(priv->dev);
           return ret;
         }
     }
