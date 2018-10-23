@@ -1,0 +1,27 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+menu "Deivce-specific networking stack API"
+
+config NET_DEV_SPEC_SOCK
+	bool "Deivce-specific networking stack API"
+	default n
+	depends on NET
+	---help---
+		Enable or disable deivce-specific networking stack support.
+		Implement socket interface depending on device specification
+		and register that using devspecsock_register.
+
+if NET_DEV_SPEC_SOCK
+
+config NET_DEV_SPEC_SOCK_CONNS
+	int "Number of deivce-specific connections"
+	default 10
+	---help---
+		Maximum number of deivce-specific connections (all tasks).
+
+endif # NET_DEV_SPEC_SOCK
+
+endmenu # Deivce-specific networking stack API

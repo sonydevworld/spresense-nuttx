@@ -294,6 +294,7 @@ source "net/arp/Kconfig"
 source "net/loopback/Kconfig"
 source "net/procfs/Kconfig"
 source "net/usrsock/Kconfig"
+source "net/devspecsock/Kconfig"
 source "net/utils/Kconfig"
 
 config NET_STATISTICS

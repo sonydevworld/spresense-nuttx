@@ -75,6 +75,7 @@ include loopback/Make.defs
 include route/Make.defs
 include procfs/Make.defs
 include usrsock/Make.defs
+include devspecsock/Make.defs
 include utils/Make.defs
 endif
 

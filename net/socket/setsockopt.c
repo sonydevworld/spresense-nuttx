@@ -53,6 +53,7 @@
 
 #include "socket/socket.h"
 #include "usrsock/usrsock.h"
+#include "devspecsock/devspecsock.h"
 #include "utils/utils.h"
 
 /****************************************************************************
@@ -150,6 +151,37 @@ int psock_setsockopt(FAR struct socket *psock, int level, int option,
         }
     }
 #endif
+
+#ifdef CONFIG_NET_DEV_SPEC_SOCK
+  if (psock->s_type == SOCK_DEVSPECSOCK_TYPE)
+    {
+      int ret;
+
+      /* Some of the socket options are handled from this function. */
+
+      switch (option)
+        {
+          case SO_RCVTIMEO: /* Rx timeouts can be handled at NuttX side, thus
+                             * simplify device implementation. */
+          case SO_SNDTIMEO: /* Rx timeouts can be handled at NuttX side, thus
+                             * simplify device implementation. */
+            break;
+
+          default:          /* Other options are passed to
+                             * device-specific stack. */
+            {
+              ret = devspecsock_setsockopt(psock, level, option, value, value_len);
+              if (ret < 0)
+                {
+                  errcode = -ret;
+                  goto errout;
+                }
+
+              return OK;
+            }
+        }
+    }
+#endif /* CONFIG_NET_DEV_SPEC_SOCK */
 
   /* Process the option */
 
