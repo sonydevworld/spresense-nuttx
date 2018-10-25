@@ -59,6 +59,7 @@
 #include "igmp/igmp.h"
 #include "route/route.h"
 #include "usrsock/usrsock.h"
+#include "devspecsock/devspecsock.h"
 #include "utils/utils.h"
 
 /****************************************************************************
@@ -176,6 +177,12 @@ void net_setup(void)
   /* Initialize the user-space socket API */
 
   usrsock_initialize();
+#endif
+
+#ifdef CONFIG_NET_DEV_SPEC_SOCK
+  /* Initialize the device-specific socket API */
+
+  devspecsock_initialize();
 #endif
 }
 

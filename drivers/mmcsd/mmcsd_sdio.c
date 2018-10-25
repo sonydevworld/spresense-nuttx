@@ -83,7 +83,7 @@
 #define MMCSD_POWERUP_DELAY     ((useconds_t)250)    /* 74 clock cycles @ 400KHz = 185uS */
 #define MMCSD_IDLE_DELAY        ((useconds_t)50000)  /* Short delay to allow change to IDLE state */
 #define MMCSD_DSR_DELAY         ((useconds_t)100000) /* Time to wait after setting DSR */
-#define MMCSD_CLK_DELAY         ((useconds_t)500000) /* Delay after changing clock speeds */
+#define MMCSD_CLK_DELAY         ((useconds_t)5000) /* Delay after changing clock speeds */
 
 /* Data delays (all in units of milliseconds).
  *
@@ -2474,7 +2474,7 @@ static int mmcsd_widebus(FAR struct mmcsd_state_s *priv)
       priv->widebus = true;
 
       SDIO_CLOCK(priv->dev, CLOCK_SD_TRANSFER_4BIT);
-      up_udelay(MMCSD_CLK_DELAY);
+      usleep(MMCSD_CLK_DELAY);
       return OK;
     }
 
@@ -2575,7 +2575,7 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
   /* Select high speed MMC clocking (which may depend on the DSR setting) */
 
   SDIO_CLOCK(priv->dev, CLOCK_MMC_TRANSFER);
-  up_udelay(MMCSD_CLK_DELAY);
+  usleep(MMCSD_CLK_DELAY);
   return OK;
 }
 #endif

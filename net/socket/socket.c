@@ -45,6 +45,7 @@
 #include <debug.h>
 
 #include "usrsock/usrsock.h"
+#include "devspecsock/devspecsock.h"
 #include "socket/socket.h"
 
 #ifdef CONFIG_NET
@@ -134,6 +135,26 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
         }
     }
 #endif /* CONFIG_NET_USRSOCK */
+
+#ifdef CONFIG_NET_DEV_SPEC_SOCK
+  if (domain != PF_LOCAL && domain != PF_UNSPEC)
+    {
+      /* Handle special setup for device-specific sockets
+       * (device-specific networking stack).
+       */
+
+      ret = g_devspecsock_sockif.si_setup(psock, protocol);
+      if (ret < 0)
+        {
+          errcode = -ret;
+          goto errout;
+        }
+
+      psock->s_sockif = &g_devspecsock_sockif;
+
+      return ret;
+    }
+#endif /* CONFIG_NET_DEV_SPEC_SOCK */
 
   /* Get the socket interface */
 
