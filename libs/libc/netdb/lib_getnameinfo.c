@@ -103,9 +103,10 @@ int getnameinfo(FAR const struct sockaddr *addr, socklen_t addrlen,
 #else
       struct hostent hostent;
       int h_errno;
+      FAR struct hostent *result;
 
       ret = gethostbyaddr_r(saddr, saddr_len, addr->sa_family, &hostent, host,
-                            hostlen, &h_errno);
+                            hostlen, &result, &h_errno);
 
       if (ret == OK)
         {

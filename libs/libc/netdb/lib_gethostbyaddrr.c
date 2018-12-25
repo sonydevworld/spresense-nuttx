@@ -382,6 +382,7 @@ errorout_with_herrnocode:
  *   buf - Caller provided buffer to hold string data associated with the
  *     host data.
  *   buflen - The size of the caller-provided buffer
+ *   result - Point to the result on success.
  *   h_errnop - There h_errno value returned in the event of a failure.
  *
  * Returned Value:
@@ -392,7 +393,8 @@ errorout_with_herrnocode:
 
 int gethostbyaddr_r(FAR const void *addr, socklen_t len, int type,
                     FAR struct hostent *host, FAR char *buf,
-                    size_t buflen, int *h_errnop)
+                    size_t buflen, FAR struct hostent **result,
+                    int *h_errnop)
 {
   DEBUGASSERT(addr != NULL && host != NULL && buf != NULL);
   DEBUGASSERT(type == AF_INET || type == AF_INET6);
@@ -403,12 +405,21 @@ int gethostbyaddr_r(FAR const void *addr, socklen_t len, int type,
     {
       *h_errnop = 0;
     }
+  if (result)
+    {
+      *result = NULL;
+    }
 
 #ifdef CONFIG_NET_LOOPBACK
   /* Check for the local loopback address */
 
   if (lib_localhost(addr, len, type, host, buf, buflen, h_errnop) == 0)
     {
+      if (result)
+        {
+          *result = host;
+        }
+
       /* Yes.. we are done */
 
       return OK;
@@ -426,7 +437,18 @@ int gethostbyaddr_r(FAR const void *addr, socklen_t len, int type,
 
   /* Search the hosts file for a match */
 
-  return lib_hostfile_lookup(addr, len, type, host, buf, buflen, h_errnop);
+  if (lib_hostfile_lookup(addr, len, type, host, buf, buflen, h_errnop) == 0)
+    {
+      if (result)
+        {
+          *result = host;
+        }
+
+      /* Found the address in the hosts file */
+
+      return OK;
+    }
+  return ERROR;
 }
 
 #endif /* CONFIG_NETDB_HOSTFILE */

@@ -304,13 +304,15 @@ void                 setprotoent(int stayopen);
 void                 setservent(int);
 #endif /* None of these are yet supported */
 
-/* Non-standard interfaces similar to Glibc 2 interfaces */
+/* Standard Glibc 2 interfaces */
 
 int gethostbyaddr_r(FAR const void *addr, socklen_t len, int type,
                     FAR struct hostent *host, FAR char *buf,
-                    size_t buflen, int *h_errnop);
+                    size_t buflen, FAR struct hostent **result,
+                    int *h_errnop);
 int gethostbyname_r(FAR const char *name, FAR struct hostent *host,
-                    FAR char *buf, size_t buflen, int *h_errnop);
+                    FAR char *buf, size_t buflen,
+                    FAR struct hostent **result, int *h_errnop);
 int getservbyport_r(int port, FAR const char *proto,
                     FAR struct servent *result_buf, FAR char *buf,
                     size_t buflen, FAR struct servent **result);
