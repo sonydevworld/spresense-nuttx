@@ -263,20 +263,20 @@ EXTERN int h_errno;
  * Public Function Prototypes
  ****************************************************************************/
 
-#ifdef CONFIG_LIBC_NETDB
+/* #ifdef CONFIG_LIBC_NETDB */
 #if 0 /* None of these are yet supported */
 
 void                 endhostent(void);
 void                 endnetent(void);
 void                 endprotoent(void);
 void                 endservent(void);
-void                 freeaddrinfo(FAR struct addrinfo *);
-FAR const char      *gai_strerror(int);
-int                  getaddrinfo(FAR const char *restrict,
-                                 FAR const char *restrict,
-                                 FAR const struct addrinfo *restrict,
-                                 FAR struct addrinfo **restrict);
 #endif
+void                 freeaddrinfo(FAR struct addrinfo *ai);
+FAR const char      *gai_strerror(int);
+int                  getaddrinfo(FAR const char *nodename,
+                                 FAR const char *servname,
+                                 FAR const struct addrinfo *hints,
+                                 FAR struct addrinfo **res);
 
 FAR struct hostent  *gethostbyaddr(FAR const void *addr, socklen_t len,
                                    int type);
@@ -311,7 +311,7 @@ int gethostbyaddr_r(FAR const void *addr, socklen_t len, int type,
 int gethostbyname_r(FAR const char *name, FAR struct hostent *host,
                     FAR char *buf, size_t buflen, int *h_errnop);
 
-#endif /* CONFIG_LIBC_NETDB */
+/* #endif */ /* CONFIG_LIBC_NETDB */
 
 #undef EXTERN
 #ifdef __cplusplus
