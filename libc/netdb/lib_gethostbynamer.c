@@ -719,6 +719,7 @@ errorout_with_herrnocode:
  *   buf - Caller provided buffer to hold string data associated with the
  *     host data.
  *   buflen - The size of the caller-provided buffer
+ *   result - Point to the result on success.
  *   h_errnop - There h_errno value returned in the event of a failure.
  *
  * Returned Value:
@@ -728,7 +729,8 @@ errorout_with_herrnocode:
  ****************************************************************************/
 
 int gethostbyname_r(FAR const char *name, FAR struct hostent *host,
-                    FAR char *buf, size_t buflen, int *h_errnop)
+                    FAR char *buf, size_t buflen,
+                    FAR struct hostent **result, int *h_errnop)
 {
 #ifdef CONFIG_NETDB_DNSCLIENT
   int ret;
@@ -747,6 +749,8 @@ int gethostbyname_r(FAR const char *name, FAR struct hostent *host,
 
   if (lib_numeric_address(name, host, buf, buflen) == 0)
     {
+      *result = host;
+
       /* Yes.. we are done */
 
       return OK;
@@ -757,6 +761,8 @@ int gethostbyname_r(FAR const char *name, FAR struct hostent *host,
 
   if (lib_localhost(name, host, buf, buflen) == 0)
     {
+      *result = host;
+
       /* Yes.. we are done */
 
       return OK;
@@ -773,6 +779,8 @@ int gethostbyname_r(FAR const char *name, FAR struct hostent *host,
   ret = lib_find_answer(name, host, buf, buflen);
   if (ret >= 0)
     {
+      *result = host;
+
       /* Found the address mapping in the cache */
 
       return OK;
@@ -784,6 +792,8 @@ int gethostbyname_r(FAR const char *name, FAR struct hostent *host,
   ret = lib_dns_lookup(name, host, buf, buflen);
   if (ret >= 0)
     {
+      *result = host;
+
       /* Successful DNS lookup! */
 
       return OK;
@@ -793,8 +803,15 @@ int gethostbyname_r(FAR const char *name, FAR struct hostent *host,
 #ifdef CONFIG_NETDB_HOSTFILE
   /* Search the hosts file for a match */
 
-  return lib_hostfile_lookup(name, host, buf, buflen, h_errnop);
+  if (lib_hostfile_lookup(name, host, buf, buflen, h_errnop) == 0)
+    {
+      *result = host;
 
+      /* Found the address in the hosts file */
+
+      return OK;
+    }
+  return ERROR;
 #else
   /* The host file file is not supported.  The host name mapping was not
    * found from any lookup heuristic
