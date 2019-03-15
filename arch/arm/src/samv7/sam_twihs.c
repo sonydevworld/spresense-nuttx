@@ -595,7 +595,7 @@ static int twi_interrupt(int irq, FAR void *context, FAR void *arg)
            * restart?
            */
 
-          if (priv->msgc <= 1 || (next->flags & I2C_M_NORESTART) == 0)
+          if (priv->msgc <= 1 || (next->flags & I2C_M_NOSTART) == 0)
             {
               /* The transfer is complete.  Disable the RXRDY interrupt and
                * enable the TXCOMP interrupt
@@ -628,7 +628,7 @@ static int twi_interrupt(int irq, FAR void *context, FAR void *arg)
            * restart?
            */
 
-          if (priv->msgc <= 1 || (next->flags & I2C_M_NORESTART) == 0)
+          if (priv->msgc <= 1 || (next->flags & I2C_M_NOSTART) == 0)
             {
               /* This is the last message OR a restart is required before
                * the next mesage.  Send the stop signal.
@@ -682,7 +682,7 @@ static int twi_interrupt(int irq, FAR void *context, FAR void *arg)
            * restart?
            */
 
-          if (priv->msgc <= 1 || (next->flags & I2C_M_NORESTART) == 0)
+          if (priv->msgc <= 1 || (next->flags & I2C_M_NOSTART) == 0)
             {
               /* The transfer is complete.  Disable the TXRDY interrupt and
                * enable the TXCOMP interrupt

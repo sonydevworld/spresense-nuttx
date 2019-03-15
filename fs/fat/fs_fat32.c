@@ -113,7 +113,7 @@ static int     fat_stat_common(FAR struct fat_mountpt_s *fs,
 static int     fat_stat_file(FAR struct fat_mountpt_s *fs,
                  FAR uint8_t *direntry, FAR struct stat *buf);
 static int     fat_stat_root(FAR struct fat_mountpt_s *fs,
-                 FAR uint8_t *direntry, FAR struct stat *buf);
+                 FAR struct stat *buf);
 static int     fat_stat(struct inode *mountpt, const char *relpath,
                  FAR struct stat *buf);
 
@@ -2668,8 +2668,7 @@ static int fat_stat_file(FAR struct fat_mountpt_s *fs,
  *
  ****************************************************************************/
 
-static int fat_stat_root(FAR struct fat_mountpt_s *fs,
-                         FAR uint8_t *direntry, FAR struct stat *buf)
+static int fat_stat_root(FAR struct fat_mountpt_s *fs, FAR struct stat *buf)
 {
   /* Clear the "struct stat"  */
 
@@ -2680,7 +2679,7 @@ static int fat_stat_root(FAR struct fat_mountpt_s *fs,
   buf->st_mode = S_IFDIR | S_IROTH | S_IRGRP | S_IRUSR | S_IWOTH |
                  S_IWGRP | S_IWUSR;
 
-  return fat_stat_common(fs, direntry, buf);
+  return OK;
 }
 
 /****************************************************************************
@@ -2726,18 +2725,18 @@ static int fat_stat(FAR struct inode *mountpt, FAR const char *relpath,
       goto errout_with_semaphore;
     }
 
-  /* Get a pointer to the directory entry */
-
-  direntry = &fs->fs_buffer[dirinfo.fd_seq.ds_offset];
-
   /* Get the FAT attribute and map it so some meaningful mode_t values */
 
   if (dirinfo.fd_root)
     {
-      ret = fat_stat_root(fs, direntry, buf);
+      ret = fat_stat_root(fs, buf);
     }
   else
     {
+      /* Get a pointer to the directory entry */
+
+      direntry = &fs->fs_buffer[dirinfo.fd_seq.ds_offset];
+
       /* Call fat_stat_file() to create the buf and to save information to
        * the stat buffer.
        */

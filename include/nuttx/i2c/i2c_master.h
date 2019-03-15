@@ -73,12 +73,48 @@
 #define I2C_READADDR10H(a)   (I2C_ADDR10H(a) | I2C_READBIT)
 #define I2C_READADDR10L(a)   I2C_ADDR10L(a)
 
-/* Bit definitions for the flags field in struct i2c_msg_s */
+/* Bit definitions for the flags field in struct i2c_msg_s
+ *
+ * START/STOP Rules:
+ *
+ * 1. The lower half I2C driver will always issue the START condition at the
+ *    beginning of a message unless I2C_M_NOSTART flag is set in the
+ *    message.
+ *
+ * 2. The lower half I2C driver will always issue the STOP condition at the
+ *    end of the messages unless:
+ *
+ *    a. The I2C_M_NOSTOP flag is set in the message, OR
+ *    b. The following message has the I2C_M_NOSTART flag set (meaning
+ *       that following message is simply a continuation of the transfer).
+ *
+ * A proper I2C repeated start would then have I2C_M_NOSTOP set on msg[n]
+ * and I2C_M_NOSTART *not* set on msg[n+1].  See the following table:
+ *
+ *   msg[n].flags  msg[n+1].flags Behavior
+ *   ------------ --------------- -----------------------------------------
+ *   0            0                Two normal, separate messages with STOP
+ *                                 on msg[n] then START on msg[n+1]
+ *   0*           I2C_M_NOSTART    Continuation of the same transfer (must
+ *                                 be the same direction).  See NOTE below.
+ *   NO_STOP      0                No STOP on msg[n]; repeated START on
+ *                                 msg[n+1].
+ *
+ * * NOTE: NO_STOP is implied in this case and may or not be explicitly
+ *   included in the msg[n] flags
+ */
 
 #define I2C_M_READ           0x0001 /* Read data, from slave to master */
 #define I2C_M_TEN            0x0002 /* Ten bit address */
-#define I2C_M_NORESTART      0x0080 /* Message should not begin with
-                                     * (re-)start of transfer */
+#define I2C_M_NOSTOP         0x0040 /* Message should not end with a STOP */
+#define I2C_M_NOSTART        0x0080 /* Message should not begin with a START */
+
+/* I2c bus speed */
+
+#define I2C_SPEED_STANDARD   100000  /* Standard speed (100Khz) */
+#define I2C_SPEED_FAST       400000  /* Fast speed     (400Khz) */
+#define I2C_SPEED_FAST_PLUS  1000000 /* Fast+ speed    (  1Mhz) */
+#define I2C_SPEED_HIGH       3400000 /* High speed     (3.4Mhz) */
 
 /* I2C Character Driver IOCTL Commands **************************************/
 /* The I2C driver is intended to support application testing of the I2C bus.
@@ -112,7 +148,7 @@
  * Description:
  *   Perform a sequence of I2C transfers, each transfer is started with a
  *   START and the final transfer is completed with a STOP. Each sequence
- *   will be an 'atomic'  operation in the sense that any other I2C actions
+ *   will be an 'atomic' operation in the sense that any other I2C actions
  *   will be serialized and pend until this sequence of transfers completes.
  *
  * Input Parameters:
@@ -121,7 +157,10 @@
  *   count - The number of transfers to perform
  *
  * Returned Value:
- *   The number of transfers completed
+ *   Zero (OK) or positive on success; a negated errno value on failure.
+ *
+ *   Note : some implementations of this interface return the number of
+ *          transfers completed, but others return OK on success.
  *
  ****************************************************************************/
 
@@ -149,7 +188,7 @@
  * Public Types
  ****************************************************************************/
 
-/* The I2C vtable */
+/* The I2C lower half driver interface */
 
 struct i2c_master_s;
 struct i2c_msg_s;
@@ -174,7 +213,7 @@ struct i2c_config_s
   uint8_t addrlen;             /* I2C address length (7 or 10 bits) */
 };
 
-/* I2C transaction segment beginning with a START.  A number of these can
+/* I2C transaction segment beginning with a START. A number of these can
  * be transferred together to form an arbitrary sequence of write/read transfer
  * to an I2C slave device.
  */

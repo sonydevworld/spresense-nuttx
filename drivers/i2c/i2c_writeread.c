@@ -81,32 +81,34 @@ int i2c_writeread(FAR struct i2c_master_s *dev,
   DEBUGASSERT(config->addrlen == 10 || config->addrlen == 7);
   flags = (config->addrlen == 10) ? I2C_M_TEN : 0;
 
-  /* Format two messages: The first is a write */
+  /* Format two messages: The first is a write which is never terminated
+   * with STOP condition.
+   */
 
-  msg[0].frequency = config->frequency,
-  msg[0].addr      = config->address;
-  msg[0].flags     = flags;
-  msg[0].buffer    = (FAR uint8_t *)wbuffer;  /* Override const */
-  msg[0].length =    wbuflen;
+  msg[0].frequency  = config->frequency,
+  msg[0].addr       = config->address;
+  msg[0].flags      = flags | I2C_M_NOSTOP;
+  msg[0].buffer     = (FAR uint8_t *)wbuffer;  /* Override const */
+  msg[0].length     = wbuflen;
 
-  /* The second is either a read (rbuflen > 0) or a write (rbuflen < 0) with
-   * no restart.
+  /* The second is either a read (rbuflen > 0) with a repeated start or a
+   * write (rbuflen < 0) with no restart.
    */
 
   if (rbuflen > 0)
     {
-      msg[1].flags = (flags | I2C_M_READ);
+      msg[1].flags  = (flags | I2C_M_READ);
     }
   else
     {
-      msg[1].flags = (flags | I2C_M_NORESTART);
-      rbuflen = -rbuflen;
+      msg[1].flags  = (flags | I2C_M_NOSTART);
+      rbuflen       = -rbuflen;
     }
 
-  msg[1].frequency = config->frequency,
-  msg[1].addr      = config->address;
-  msg[1].buffer    = rbuffer;
-  msg[1].length    = rbuflen;
+  msg[1].frequency  = config->frequency,
+  msg[1].addr       = config->address;
+  msg[1].buffer     = rbuffer;
+  msg[1].length     = rbuflen;
 
   /* Then perform the transfer. */
 
