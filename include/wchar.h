@@ -79,27 +79,6 @@
 #  define NULL ((FAR void *)0)
 #endif
 
-/****************************************************************************
- * Type Definitions
- ****************************************************************************/
-/* "The <wchar.h> header defines the following data types through
- *
- * wchar_t
- *   As described in <stddef.h>.
- *
- * wint_t
- *   An integral type capable of storing any valid value of wchar_t, or WEOF.
- */
-
-typedef int wint_t;
-
-/* wctype_t
- *   A scalar type of a data object that can hold values which represent
- *   locale-specific character classification.
- */
-
-typedef int wctype_t;
-
 /* mbstate_t
  *   An object type other than an array type that can hold the conversion
  *   state information necessary to convert between sequences of (possibly
