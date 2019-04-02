@@ -236,6 +236,26 @@ int board_uniqueid(FAR uint8_t *uniqueid);
 #endif
 
 /****************************************************************************
+ * Name:  board_timerhook
+ *
+ * Description:
+ *   If the system is not configured for Tickless operation, then a system
+ *   timer interrupt will be used.  If CONFIG_SYSTEMTICK_HOOK is selected
+ *   then the OS will call out to this user-provided function on every
+ *   timer interrupt.  This permits custom actions that may be performed on
++ *   each by boad-specific, OS internal logic.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None.
+ *
+ ****************************************************************************/
+
+void board_timerhook();
+
+/****************************************************************************
  * Name:  board_<usbdev>_initialize
  *
  * Description:

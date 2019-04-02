@@ -222,4 +222,5 @@ void sched_process_timer(void)
    */
 
   sched_process_scheduler();
+  board_timerhook();
 }
