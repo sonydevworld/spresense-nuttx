@@ -222,5 +222,7 @@ void sched_process_timer(void)
    */
 
   sched_process_scheduler();
+  #ifdef CONFIG_SYSTEMTICK_HOOK
   board_timerhook();
+  #endif
 }

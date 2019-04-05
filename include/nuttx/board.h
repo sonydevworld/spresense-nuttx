@@ -253,7 +253,9 @@ int board_uniqueid(FAR uint8_t *uniqueid);
  *
  ****************************************************************************/
 
-void board_timerhook();
+#ifdef CONFIG_SYSTEMTICK_HOOK
+void board_timerhook(void);
+#endif
 
 /****************************************************************************
  * Name:  board_<usbdev>_initialize
