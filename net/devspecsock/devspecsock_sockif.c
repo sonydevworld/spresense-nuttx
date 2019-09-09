@@ -807,6 +807,7 @@ static int devspecsock_sockif_close(FAR struct socket *psock)
 
       conn->crefs = 0;
       devspecsock_free(conn);
+      psock->s_conn = NULL;
 
       if (ret < 0)
         {
