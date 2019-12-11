@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/risc-v/src/fe310/fe310_init.c
+ * arch/arm/src/fe310/fe310_clockconfig.h
  *
  *   Copyright (C) 2019 Masayuki Ishikawa. All rights reserved.
  *   Author: Masayuki Ishikawa <masayuki.ishikawa@gmail.com>
@@ -14,6 +14,9 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
+ * 3. Neither the name NuttX nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -30,106 +33,48 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_RISCV_SRC_FE310_FE310_CLOCKCONFIG_H
+#define __ARCH_RISCV_SRC_FE310_FE310_CLOCKCONFIG_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-
-#include <arch/board/board.h>
-
-#include "fe310_clockconfig.h"
-#include "fe310.h"
-#include "chip.h"
+#include "fe310_memorymap.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_DEBUG_FEATURES
-#  define showprogress(c) up_lowputc(c)
-#else
-#  define showprogress(c)
-#endif
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+#ifndef __ASSEMBLY__
 
 /****************************************************************************
  * Public Data
  ****************************************************************************/
 
-/* g_idle_topstack: _sbss is the start of the BSS region as defined by the
- * linker script. _ebss lies at the end of the BSS region. The idle task
- * stack starts at the end of BSS and is of size CONFIG_IDLETHREAD_STACKSIZE.
- * The IDLE thread is the thread that the system boots on and, eventually,
- * becomes the IDLE, do nothing task that runs only when there is nothing
- * else to run.  The heap continues from there until the end of memory.
- * g_idle_topstack is a read-only variable the provides this computed
- * address.
- */
-
-uint32_t g_idle_topstack = FE310_IDLESTACK_TOP;
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: fe310_start
- ****************************************************************************/
+EXTERN uint32_t fe310_get_hfclk(void);
+EXTERN void fe310_clockconfig(void);
 
-void __fe310_start(void)
-{
-  const uint32_t *src;
-  uint32_t *dest;
-
-  /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
-   * certain that there are no issues with the state of global variables.
-   */
-
-  for (dest = &_sbss; dest < &_ebss; )
-    {
-      *dest++ = 0;
-    }
-
-  /* Move the initialized data section from his temporary holding spot in
-   * FLASH into the correct place in SRAM.  The correct place in SRAM is
-   * give by _sdata and _edata.  The temporary location is in FLASH at the
-   * end of all of the other read-only data (.text, .rodata) at _eronly.
-   */
-
-  for (src = &_eronly, dest = &_sdata; dest < &_edata; )
-    {
-      *dest++ = *src++;
-    }
-
-  /* Setup PLL */
-
-  fe310_clockconfig();
-
-  /* Configure the UART so we can get debug output */
-
-  fe310_lowsetup();
-
-  showprogress('A');
-
-#ifdef USE_EARLYSERIALINIT
-  up_earlyserialinit();
-#endif
-
-  showprogress('B');
-
-  /* Do board initialization */
-
-  fe310_boardinitialize();
-
-  showprogress('C');
-
-  /* Call nx_start() */
-
-  nx_start();
-
-  /* Shouldn't get here */
-
-  for (; ; );
+#if defined(__cplusplus)
 }
+#endif
+#undef EXTERN
 
-
+#endif /* __ASSEMBLY__ */
+#endif /* __ARCH_RISCV_SRC_FE310_FE310_CLOCKCONFIG_H */

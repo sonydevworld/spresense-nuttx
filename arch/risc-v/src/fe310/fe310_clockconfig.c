@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/risc-v/src/fe310/fe310_init.c
+ * arch/arm/src/fe310/fe310_clockconfig.c
  *
  *   Copyright (C) 2019 Masayuki Ishikawa. All rights reserved.
  *   Author: Masayuki Ishikawa <masayuki.ishikawa@gmail.com>
@@ -14,6 +14,9 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
+ * 3. Neither the name NuttX nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -36,100 +39,114 @@
 
 #include <nuttx/config.h>
 
+#include <stdint.h>
+#include <assert.h>
+#include <debug.h>
+
+#include <nuttx/arch.h>
 #include <arch/board/board.h>
 
+#include "up_arch.h"
 #include "fe310_clockconfig.h"
-#include "fe310.h"
-#include "chip.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_DEBUG_FEATURES
-#  define showprogress(c) up_lowputc(c)
-#else
-#  define showprogress(c)
-#endif
+#define EXT_OSC 16000000
 
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/* g_idle_topstack: _sbss is the start of the BSS region as defined by the
- * linker script. _ebss lies at the end of the BSS region. The idle task
- * stack starts at the end of BSS and is of size CONFIG_IDLETHREAD_STACKSIZE.
- * The IDLE thread is the thread that the system boots on and, eventually,
- * becomes the IDLE, do nothing task that runs only when there is nothing
- * else to run.  The heap continues from there until the end of memory.
- * g_idle_topstack is a read-only variable the provides this computed
- * address.
- */
-
-uint32_t g_idle_topstack = FE310_IDLESTACK_TOP;
+#define PLL_64M  (1 + (31 << 4) + (3 << 10)) /* R:2 F:64 Q:8 8M/512M/64M  */
+#define PLL_128M (1 + (31 << 4) + (2 << 10)) /* R:2 F:64 Q:8 8M/512M/128M */
+#define PLL_256M (1 + (31 << 4) + (1 << 10)) /* R:2 F:64 Q:8 8M/512M/256M */
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: fe310_start
+ * Name: fe310_get_hfclk
  ****************************************************************************/
 
-void __fe310_start(void)
+uint32_t fe310_get_hfclk(void)
 {
-  const uint32_t *src;
-  uint32_t *dest;
+  uint32_t val;
+  uint32_t freq = 0;
 
-  /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
-   * certain that there are no issues with the state of global variables.
-   */
+  /* Check pllbypass */
 
-  for (dest = &_sbss; dest < &_ebss; )
+  if (0 != (getreg32(FE310_PLLCFG) & PLLCFG_PLLBYPASS))
     {
-      *dest++ = 0;
+      freq = EXT_OSC;
+      goto out;
     }
 
-  /* Move the initialized data section from his temporary holding spot in
-   * FLASH into the correct place in SRAM.  The correct place in SRAM is
-   * give by _sdata and _edata.  The temporary location is in FLASH at the
-   * end of all of the other read-only data (.text, .rodata) at _eronly.
-   */
+  /* Check pllsel */
 
-  for (src = &_eronly, dest = &_sdata; dest < &_edata; )
+  if (0 != ((val = getreg32(FE310_PLLCFG)) & PLLCFG_PLLSEL))
     {
-      *dest++ = *src++;
+      freq = EXT_OSC;
+      freq /= ((val & 0x3) + 1);               /* R: 2bit */
+      freq *= ((((val >> 4) & 0x3f) + 1) * 2); /* F: 6bit */
+      freq /= (1 << ((val >> 10) & 0x3));      /* Q: 2bit */
+      goto out;
     }
 
-  /* Setup PLL */
+  /* TODO: HFROSC */
 
-  fe310_clockconfig();
+  ASSERT(false);
 
-  /* Configure the UART so we can get debug output */
-
-  fe310_lowsetup();
-
-  showprogress('A');
-
-#ifdef USE_EARLYSERIALINIT
-  up_earlyserialinit();
-#endif
-
-  showprogress('B');
-
-  /* Do board initialization */
-
-  fe310_boardinitialize();
-
-  showprogress('C');
-
-  /* Call nx_start() */
-
-  nx_start();
-
-  /* Shouldn't get here */
-
-  for (; ; );
+out:
+  return freq;
 }
 
+/****************************************************************************
+ * Name: fe310_clockconfig
+ ****************************************************************************/
 
+void fe310_clockconfig(void)
+{
+  uint32_t val;
+  uint32_t pllsel;
+
+  /* NOTE: These are workarounds to avoid a bug with debugger */
+
+  pllsel   = 0x1;
+  pllsel <<= 16;
+
+  /* Disable PLL by setting pllbypass and clear pllsel */
+
+  modifyreg32(FE310_PLLCFG, pllsel, PLLCFG_PLLBYPASS);
+
+  /* Enable HFXOSC (external Xtal OSC 16MHz) and wait */
+
+  putreg32(HFXOSCCFG_HFXOSCEN, FE310_HFXOSCCFG);
+
+  while ((getreg32(FE310_HFXOSCCFG) & HFXOSCCFG_HFXOSCRDY)
+         != HFXOSCCFG_HFXOSCRDY)
+    {
+    }
+
+  val  = PLL_256M;
+  val |= (PLLCFG_PLLREFSEL);   /* Set PLLREFSEL (XOSCOUT) */
+  val |= PLLCFG_PLLBYPASS;     /* But Still disable PLL */
+
+  putreg32(val, FE310_PLLCFG); /* Set PLL config */
+
+  /* Set plloutdiv to pass-through */
+
+  putreg32(0x1 << 8, FE310_PLLOUTDIV);
+
+  /* Enable PLL by clearing pllbypass and wait */
+
+  modifyreg32(FE310_PLLCFG, PLLCFG_PLLBYPASS, 0);
+
+  while ((getreg32(FE310_PLLCFG) & PLLCFG_PLLLOCK) == 0x0)
+    {
+    }
+
+  /* TODO: Set QSPI divider if needed */
+
+  /* Select PLL as hfclk */
+
+  modifyreg32(FE310_PLLCFG, 0, pllsel);
+}

@@ -44,6 +44,7 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/clock.h>
 #include <arch/board/board.h>
 
 #include "up_arch.h"
@@ -56,6 +57,12 @@
 
 #define getreg64(a)   (*(volatile uint64_t *)(a))
 #define putreg64(v,a) (*(volatile uint64_t *)(a) = (v))
+
+#ifdef CONFIG_ARCH_CHIP_FE310_QEMU
+#define TICK_COUNT (10000000 / TICK_PER_SEC)
+#else
+#define TICK_COUNT (32768 / TICK_PER_SEC)
+#endif
 
 /****************************************************************************
  * Private Data
@@ -88,9 +95,7 @@ static void fe310_reload_mtimecmp(void)
       current = getreg64(FE310_CLINT_MTIMECMP);
     }
 
-  uint64_t tick = 100000; /* TODO */
-  next = current + tick;
-
+  next = current + TICK_COUNT;
   putreg64(next, FE310_CLINT_MTIMECMP);
 
   spin_unlock_irqrestore(flags);
