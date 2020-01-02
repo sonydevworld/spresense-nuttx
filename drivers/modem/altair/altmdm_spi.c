@@ -1909,11 +1909,11 @@ int altmdm_spi_init(FAR struct altmdm_dev_s *priv)
 
   /* SPI settings */
 
-  (void)SPI_LOCK(priv->spi, true);
+  SPI_LOCK(priv->spi, true);
   SPI_SETMODE(priv->spi, SPIDEV_MODE0);
   SPI_SETBITS(priv->spi, 8);
   SPI_SETFREQUENCY(priv->spi, priv->lower->spi_maxfreq());
-  (void)SPI_LOCK(priv->spi, false);
+  SPI_LOCK(priv->spi, false);
 
   priv->lower->sready_irqattach(true, altmdm_spi_gpioreadyisr);
 

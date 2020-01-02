@@ -214,7 +214,7 @@ int work_notifier_setup(FAR struct work_notifier_s *info)
       ret = notifier->key;
     }
 
-  (void)nxsem_post(&g_notifier_sem);
+  nxsem_post(&g_notifier_sem);
   return ret;
 }
 
@@ -275,7 +275,7 @@ int work_notifier_teardown(int key)
       ret = OK;
     }
 
-  (void)nxsem_post(&g_notifier_sem);
+  nxsem_post(&g_notifier_sem);
   return ret;
 }
 
@@ -306,16 +306,10 @@ void work_notifier_signal(enum work_evtype_e evtype,
   FAR struct work_notifier_entry_s *notifier;
   FAR dq_entry_t *entry;
   FAR dq_entry_t *next;
-  int ret;
 
   /* Get exclusive access to the notifier data structure */
 
-  do
-    {
-      ret = nxsem_wait(&g_notifier_sem);
-      DEBUGASSERT(ret >= 0 || ret == -EINTR || ret == -ECANCELED);
-    }
-  while (ret < 0);
+  nxsem_wait_uninterruptible(&g_notifier_sem);
 
   /* Don't let any newly started threads block this thread until all of
    * the notifications and been sent.
@@ -365,7 +359,7 @@ void work_notifier_signal(enum work_evtype_e evtype,
     }
 
   sched_unlock();
-  (void)nxsem_post(&g_notifier_sem);
+  nxsem_post(&g_notifier_sem);
 }
 
 #endif /* CONFIG_WQUEUE_NOTIFIER */

@@ -350,7 +350,7 @@ struct cxd56_sdhcregs_s
 /* Low-level helpers ********************************************************/
 
 static void cxd56_takesem(struct cxd56_sdiodev_s *priv);
-#define     cxd56_givesem(priv) (sem_post(&(priv)->waitsem))
+#define     cxd56_givesem(priv) (nxsem_post(&(priv)->waitsem))
 static void cxd56_configwaitints(struct cxd56_sdiodev_s *priv,
               uint32_t waitints, sdio_eventset_t waitevents,
               sdio_eventset_t wkupevents);
@@ -565,16 +565,7 @@ static FAR uint32_t cxd56_sdhci_adma_dscr[CXD56_SDIO_MAX_LEN_ADMA_DSCR * 2];
 
 static void cxd56_takesem(struct cxd56_sdiodev_s *priv)
 {
-  /* Take the semaphore (perhaps waiting) */
-
-  while (sem_wait(&priv->waitsem) != 0)
-    {
-      /* The only case that an error should occr here is if the wait was
-       * awakened by a signal.
-       */
-
-      ASSERT(errno == EINTR);
-    }
+  nxsem_wait_uninterruptible(&priv->waitsem);
 }
 
 /****************************************************************************
@@ -1070,7 +1061,7 @@ static void cxd56_endwait(struct cxd56_sdiodev_s *priv,
 {
   /* Cancel the watchdog timeout */
 
-  (void)wd_cancel(priv->waitwdog);
+  wd_cancel(priv->waitwdog);
 
   /* Disable event-related interrupts */
 
@@ -1275,8 +1266,8 @@ static int cxd56_interrupt(int irq, FAR void *context, FAR void *arg)
       putreg32(getreg32(CXD56_SDHCI_IRQSTATEN) & (~SDHCI_INT_CINT),
                         CXD56_SDHCI_IRQSTATEN);
       work_cancel(HPWORK, &priv->cbwork);
-      (void)work_queue(HPWORK, &priv->cbwork,
-                      (worker_t)cxd56_sdhci_irq_handler, &priv->dev, 0);
+      work_queue(HPWORK, &priv->cbwork,
+                 (worker_t)cxd56_sdhci_irq_handler, &priv->dev, 0);
     }
 #endif /* CONFIG_CXD56_SDIO_ENABLE_MULTIFUNCTION */
 
@@ -1427,13 +1418,13 @@ static void cxd56_sdio_sdhci_reset(FAR struct sdio_dev_s *dev)
 
   /* Initialize semaphores */
 
-  sem_init(&priv->waitsem, 0, 0);
+  nxsem_init(&priv->waitsem, 0, 0);
 
   /* The waitsem semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
 
   /* Create a watchdog timer */
 
@@ -2149,7 +2140,7 @@ static int cxd56_sdio_cancel(FAR struct sdio_dev_s *dev)
 
   /* Cancel any watchdog timeout */
 
-  (void)wd_cancel(priv->waitwdog);
+  wd_cancel(priv->waitwdog);
 
   /* If this was a DMA transfer, make sure that DMA is stopped */
 
@@ -3227,8 +3218,8 @@ static void cxd56_sdio_callback(void *arg)
 
           work_cancel(HPWORK, &priv->cbwork);
           mcinfo("Queuing callback to %p(%p)\n", priv->callback, priv->cbarg);
-          (void)work_queue(HPWORK, &priv->cbwork, (worker_t)priv->callback,
-                           priv->cbarg, delay);
+          work_queue(HPWORK, &priv->cbwork, (worker_t)priv->callback,
+                     priv->cbarg, delay);
         }
       else
         {
@@ -3244,18 +3235,7 @@ static void cxd56_sdio_callback(void *arg)
 #ifdef CONFIG_CXD56_SDIO_ENABLE_MULTIFUNCTION
 static void cxd56_sdio_takesem(FAR struct cxd56_sdiodev_s *priv)
 {
-  /* Take the semaphore, giving exclusive access to the driver (perhaps
-   * waiting)
-   */
-
-  while (sem_wait(&priv->sc.sem) != 0)
-    {
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      ASSERT(errno == EINTR);
-    }
+  nxsem_wait_uninterruptible(&priv->sc.sem);
 }
 
 /****************************************************************************
@@ -3772,13 +3752,13 @@ static int cxd56_sdio_register_irq(FAR struct sdio_dev_s *dev, int func_num,
       goto REG_IRQ_FAIL;
     }
 
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return ret;
 
 REG_IRQ_FAIL:
   sf->irq_callback = NULL;
   mcerr("ERROR: Ret: %d\n", ret);
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return ret;
 }
 
@@ -3881,11 +3861,11 @@ static int cxd56_sdio_function_disable(FAR struct sdio_dev_s *dev,
       goto FUNC_DIS_ERR;
     }
 
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return 0;
 FUNC_DIS_ERR:
   mcerr("ERROR: Io fail ret %u\n", ret);
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return ret;
 }
 
@@ -3948,13 +3928,13 @@ static int cxd56_sdio_function_enable(FAR struct sdio_dev_s *dev,
 
   if (0 == ret)
     {
-      sem_post(&priv->sc.sem);
+      nxsem_post(&priv->sc.sem);
       return 0;
     }
 
 FUNC_EN_ERR:
   mcerr("ERROR: Io fail ret %u\n", ret);
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return -EIO;
 }
 
@@ -3982,7 +3962,7 @@ static int cxd56_sdio_readb(FAR struct sdio_dev_s *dev, int func_num,
 
   cxd56_sdio_takesem(priv);
   ret = cxd56_sdio_readb_internal(priv->sc.fn[func_num], addr, rdata);
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return ret;
 }
 
@@ -4010,7 +3990,7 @@ static int cxd56_sdio_writeb(FAR struct sdio_dev_s *dev, int func_num,
 
   cxd56_sdio_takesem(priv);
   ret = cxd56_sdio_writeb_internal(priv->sc.fn[func_num], addr, data, rdata);
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return ret;
 }
 
@@ -4141,13 +4121,13 @@ static int cxd56_sdio_write(FAR struct sdio_dev_s *dev, int func_num,
       addr += size;
     }
 
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return 0;
 WRITE_TIME_OUT:
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return wkupevent & SDIOWAIT_TIMEOUT ? -ETIMEDOUT : -EIO;
 WRITE_ERR:
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return ret;
 }
 
@@ -4278,13 +4258,13 @@ static int cxd56_sdio_read(FAR struct sdio_dev_s *dev, int func_num,
       addr += size;
     }
 
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return 0;
 READ_TIME_OUT:
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return wkupevent & SDIOWAIT_TIMEOUT ? -ETIMEDOUT : -EIO;
 READ_ERR:
-  sem_post(&priv->sc.sem);
+  nxsem_post(&priv->sc.sem);
   return ret;
 }
 
@@ -4329,7 +4309,7 @@ static int cxd56_sdio_initialize(struct cxd56_sdiodev_s *priv)
   priv->sc.full_speed = false;
   priv->blocksize = SDIO_BLOCK_SIZE;
 
-  sem_init(&priv->sc.sem, 0, 1);
+  nxsem_init(&priv->sc.sem, 0, 1);
 #ifdef CONFIG_SDIO_DMA
   priv->sc.dma = true;
 #endif

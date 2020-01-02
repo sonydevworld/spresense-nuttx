@@ -289,7 +289,7 @@ static void governor_activity(int domain, int count)
           pdomstate->stime = now;
           pdomstate->accum = 0;
 
-          (void)governor_update(domain, tmp);
+          governor_update(domain, tmp);
         }
 
       leave_critical_section(flags);
@@ -518,7 +518,7 @@ static enum pm_state_e governor_checkstate(int domain)
       pdomstate->stime = now;
       pdomstate->accum = 0;
 
-      (void)governor_update(domain, accum);
+      governor_update(domain, accum);
     }
 
   /* Consider the possible power state lock here */

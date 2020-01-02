@@ -755,8 +755,8 @@ int bcmf_bus_sdio_initialize(FAR struct bcmf_dev_s *priv,
 
   /* Start the waitdog timer */
 
-  (void)wd_start(sbus->waitdog, BCMF_WAITDOG_TIMEOUT_TICK,
-                 bcmf_sdio_waitdog_timeout, (wdparm_t)priv);
+  wd_start(sbus->waitdog, BCMF_WAITDOG_TIMEOUT_TICK,
+           bcmf_sdio_waitdog_timeout, 1, (wdparm_t)priv);
 
   /* Spawn bcmf daemon thread */
 
@@ -864,8 +864,13 @@ int bcmf_sdio_thread(int argc, char **argv)
 
       /* Restart the waitdog timer */
 
+<<<<<<< c5442015ad644ef8b771121ba5cf53713c0e5fd6
       (void)wd_start(sbus->waitdog, BCMF_WAITDOG_TIMEOUT_TICK,
                      bcmf_sdio_waitdog_timeout, (wdparm_t)priv);
+=======
+      wd_start(sbus->waitdog, BCMF_WAITDOG_TIMEOUT_TICK,
+               bcmf_sdio_waitdog_timeout, 1, (wdparm_t)priv);
+>>>>>>> Fix wait loop and void cast (#24)
 
       /* Wake up device */
 

@@ -93,7 +93,7 @@ int stm32_bringup(void)
 
 #ifdef CONFIG_CAN_MCP2515
 #ifdef CONFIG_STM32_SPI1
-  (void)stm32_configgpio(GPIO_MCP2515_CS);    /* MEMS chip select */
+  stm32_configgpio(GPIO_MCP2515_CS);    /* MEMS chip select */
 #endif
 
   /* Configure and initialize the MCP2515 CAN device */

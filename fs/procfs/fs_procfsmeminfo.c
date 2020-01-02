@@ -314,7 +314,7 @@ static ssize_t meminfo_read(FAR struct file *filep, FAR char *buffer,
 #ifdef CONFIG_CAN_PASS_STRUCTS
       mem        = kmm_mallinfo();
 #else
-      (void)kmm_mallinfo(&mem);
+      kmm_mallinfo(&mem);
 #endif
 
       linesize   = snprintf(procfile->line, MEMINFO_LINELEN,
@@ -340,7 +340,7 @@ static ssize_t meminfo_read(FAR struct file *filep, FAR char *buffer,
 #ifdef CONFIG_CAN_PASS_STRUCTS
       mem        = kumm_mallinfo();
 #else
-      (void)kumm_mallinfo(&mem);
+      kumm_mallinfo(&mem);
 #endif
 
       linesize   = snprintf(procfile->line, MEMINFO_LINELEN,

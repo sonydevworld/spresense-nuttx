@@ -393,7 +393,7 @@ static int ak09912_close(FAR struct file *filep)
 
   g_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->id, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->id, SCUIOC_STOP, 0);
 
   if (g_refcnt == 0)
     {
@@ -407,7 +407,7 @@ static int ak09912_close(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->id, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->id, SCUIOC_FREEFIFO, 0);
     }
 
   return OK;
@@ -570,7 +570,7 @@ int ak09912_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_ak09912fops, 0666, priv);
   if (ret < 0)
     {

@@ -678,7 +678,7 @@ void weak_function up_dma_initialize(void)
       g_dmach[i].chan = i;
     }
 
-  sem_init(&g_dmaexc, 0, 1);
+  nxsem_init(&g_dmaexc, 0, 1);
 }
 
 /****************************************************************************
@@ -712,7 +712,7 @@ DMA_HANDLE cxd56_dmachannel(int ch, ssize_t maxsize)
 
   /* Get exclusive access to allocate channel */
 
-  sem_wait(&g_dmaexc);
+  nxsem_wait(&g_dmaexc);
 
   if (ch < 0 || ch >= NCHANNELS)
     {
@@ -755,12 +755,12 @@ DMA_HANDLE cxd56_dmachannel(int ch, ssize_t maxsize)
 
   dmach->inuse  = true;
 
-  sem_post(&g_dmaexc);
+  nxsem_post(&g_dmaexc);
 
   return (DMA_HANDLE)dmach;
 
 err:
-  sem_post(&g_dmaexc);
+  nxsem_post(&g_dmaexc);
   return NULL;
 }
 
@@ -794,7 +794,7 @@ void cxd56_dmafree(DMA_HANDLE handle)
       return;
     }
 
-  sem_wait(&g_dmaexc);
+  nxsem_wait(&g_dmaexc);
 
   if (!dmach->inuse)
     {
@@ -812,7 +812,7 @@ void cxd56_dmafree(DMA_HANDLE handle)
   dmach->inuse = false;
 
 err:
-  sem_post(&g_dmaexc);
+  nxsem_post(&g_dmaexc);
 }
 
 /****************************************************************************

@@ -475,7 +475,7 @@ static int charger_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   FAR struct charger_dev_s *priv  = inode->i_private;
   int ret = -ENOTTY;
 
-  sem_wait(&priv->batsem);
+  nxsem_wait(&priv->batsem);
 
   switch (cmd)
     {
@@ -619,7 +619,7 @@ static int charger_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         break;
     }
 
-  sem_post(&priv->batsem);
+  nxsem_post(&priv->batsem);
 
   return ret;
 }
@@ -648,7 +648,7 @@ int cxd56_charger_initialize(FAR const char *devpath)
 
   /* Initialize the CXD5247 device structure */
 
-  sem_init(&priv->batsem, 0, 1);
+  nxsem_init(&priv->batsem, 0, 1);
 
   /* Register battery driver */
 
@@ -678,8 +678,7 @@ int cxd56_charger_initialize(FAR const char *devpath)
 
 int cxd56_charger_uninitialize(FAR const char *devpath)
 {
-  (void) unregister_driver(devpath);
-
+  unregister_driver(devpath);
   return OK;
 }
 

@@ -500,7 +500,7 @@ static int lt1pa01_close_als(FAR struct file *filep)
 
   g_als_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
 
   if (g_als_refcnt == 0)
     {
@@ -516,7 +516,7 @@ static int lt1pa01_close_als(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
     }
 
   return OK;
@@ -538,7 +538,7 @@ static int lt1pa01_close_prox(FAR struct file *filep)
 
   g_prox_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
 
   if (g_prox_refcnt == 0)
     {
@@ -551,7 +551,7 @@ static int lt1pa01_close_prox(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
     }
 #endif
 
@@ -826,7 +826,7 @@ int lt1pa01als_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_lt1pa01alsfops, 0666, priv);
   if (ret < 0)
     {
@@ -880,7 +880,7 @@ int lt1pa01prox_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_lt1pa01proxfops, 0666, priv);
   if (ret < 0)
     {

@@ -763,9 +763,6 @@ static int sx127x_open(FAR struct file *filep)
   ret = nxsem_wait(&dev->dev_sem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was canceled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -821,9 +818,6 @@ static int sx127x_close(FAR struct file *filep)
   ret = nxsem_wait(&dev->dev_sem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was canceled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -867,9 +861,6 @@ static ssize_t sx127x_read(FAR struct file *filep, FAR char *buffer,
   ret = nxsem_wait(&dev->dev_sem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was canceled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -885,9 +876,6 @@ static ssize_t sx127x_read(FAR struct file *filep, FAR char *buffer,
 
   if (ret < 0)
     {
-      /* This should only happen if the wait was canceled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -928,9 +916,6 @@ static ssize_t sx127x_write(FAR struct file *filep, FAR const char *buffer,
   ret = nxsem_wait(&dev->dev_sem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was canceled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1006,9 +991,6 @@ static int sx127x_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   ret = nxsem_wait(&dev->dev_sem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was canceled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1125,7 +1107,7 @@ static int sx127x_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               = (FAR struct sx127x_chanscan_ioc_s *)((uintptr_t)arg);
           DEBUGASSERT(ptr != NULL);
 
-          (void)sx127x_channel_scan(dev, ptr);
+          sx127x_channel_scan(dev, ptr);
           break;
         }
 
@@ -1222,9 +1204,6 @@ static int sx127x_poll(FAR struct file *filep, FAR struct pollfd *fds,
   ret = nxsem_wait(&dev->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was canceled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1257,7 +1236,7 @@ static int sx127x_poll(FAR struct file *filep, FAR struct pollfd *fds,
        * don't wait for RX.
        */
 
-      (void)nxsem_wait(&dev->rx_buffer_sem);
+      nxsem_wait(&dev->rx_buffer_sem);
       if (dev->rx_fifo_len > 0)
         {
           /* Data available for input */
@@ -1756,9 +1735,6 @@ static ssize_t sx127x_rxfifo_get(FAR struct sx127x_dev_s *dev,
   ret = nxsem_wait(&dev->rx_buffer_sem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was canceled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1813,9 +1789,6 @@ static void sx127x_rxfifo_put(FAR struct sx127x_dev_s *dev,
   ret = nxsem_wait(&dev->rx_buffer_sem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was canceled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return;
     }
 

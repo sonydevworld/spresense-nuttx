@@ -98,7 +98,7 @@ static void setrawmode(void)
 
   /* Get the current stdin terminal mode */
 
-  (void)tcgetattr(0, &g_cooked);
+  tcgetattr(0, &g_cooked);
 
   /* Switch to raw mode */
 
@@ -110,7 +110,18 @@ static void setrawmode(void)
   raw.c_cflag &= ~(CSIZE | PARENB);
   raw.c_cflag |= CS8;
 
-  (void)tcsetattr(0, TCSANOW, &raw);
+  tcsetattr(0, TCSANOW, &raw);
+}
+
+/****************************************************************************
+ * Name: restoremode
+ ****************************************************************************/
+
+static void restoremode(void)
+{
+  /* Restore the original terminal mode */
+
+  tcsetattr(0, TCSANOW, &g_cooked);
 }
 
 /****************************************************************************
@@ -216,7 +227,7 @@ void simuart_start(void)
    * checking.
    */
 
-  (void)pthread_create(&tid, NULL, simuart_thread, NULL);
+  pthread_create(&tid, NULL, simuart_thread, NULL);
 }
 
 /****************************************************************************

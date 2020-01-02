@@ -857,24 +857,11 @@ static int imxrt_lpspi_lock(FAR struct spi_dev_s *dev, bool lock)
 
   if (lock)
     {
-      /* Take the semaphore (perhaps waiting) */
-
-      do
-        {
-          ret = nxsem_wait(&priv->exclsem);
-
-          /* The only case that an error should occur here is if the wait was
-           * awakened by a signal.
-           */
-
-          DEBUGASSERT(ret == OK || ret == -EINTR);
-        }
-      while (ret == -EINTR);
+      ret = nxsem_wait_uninterruptible(&priv->exclsem);
     }
   else
     {
-      (void)nxsem_post(&priv->exclsem);
-      ret = OK;
+      ret = nxsem_post(&priv->exclsem);
     }
 
   return ret;
@@ -1583,9 +1570,9 @@ FAR struct spi_dev_s *imxrt_lpspibus_initialize(int bus)
         {
           /* Configure SPI1 pins: SCK, MISO, and MOSI */
 
-          (void)imxrt_config_gpio(GPIO_LPSPI1_SCK);
-          (void)imxrt_config_gpio(GPIO_LPSPI1_MISO);
-          (void)imxrt_config_gpio(GPIO_LPSPI1_MOSI);
+          imxrt_config_gpio(GPIO_LPSPI1_SCK);
+          imxrt_config_gpio(GPIO_LPSPI1_MISO);
+          imxrt_config_gpio(GPIO_LPSPI1_MOSI);
 
           putreg32(0x1, IMXRT_INPUT_LPSPI1_SCK);
           putreg32(0x1, IMXRT_INPUT_LPSPI1_SDI);
@@ -1611,9 +1598,9 @@ FAR struct spi_dev_s *imxrt_lpspibus_initialize(int bus)
         {
           /* Configure SPI2 pins: SCK, MISO, and MOSI */
 
-          (void)imxrt_config_gpio(GPIO_LPSPI2_SCK);
-          (void)imxrt_config_gpio(GPIO_LPSPI2_MISO);
-          (void)imxrt_config_gpio(GPIO_LPSPI2_MOSI);
+          imxrt_config_gpio(GPIO_LPSPI2_SCK);
+          imxrt_config_gpio(GPIO_LPSPI2_MISO);
+          imxrt_config_gpio(GPIO_LPSPI2_MOSI);
 
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -1635,9 +1622,9 @@ FAR struct spi_dev_s *imxrt_lpspibus_initialize(int bus)
         {
           /* Configure SPI3 pins: SCK, MISO, and MOSI */
 
-          (void)imxrt_config_gpio(GPIO_LPSPI3_SCK);
-          (void)imxrt_config_gpio(GPIO_LPSPI3_MISO);
-          (void)imxrt_config_gpio(GPIO_LPSPI3_MOSI);
+          imxrt_config_gpio(GPIO_LPSPI3_SCK);
+          imxrt_config_gpio(GPIO_LPSPI3_MISO);
+          imxrt_config_gpio(GPIO_LPSPI3_MOSI);
 
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -1659,9 +1646,9 @@ FAR struct spi_dev_s *imxrt_lpspibus_initialize(int bus)
         {
           /* Configure SPI4 pins: SCK, MISO, and MOSI */
 
-          (void)imxrt_config_gpio(GPIO_LPSPI4_SCK);
-          (void)imxrt_config_gpio(GPIO_LPSPI4_MISO);
-          (void)imxrt_config_gpio(GPIO_LPSPI4_MOSI);
+          imxrt_config_gpio(GPIO_LPSPI4_SCK);
+          imxrt_config_gpio(GPIO_LPSPI4_MISO);
+          imxrt_config_gpio(GPIO_LPSPI4_MOSI);
 
           /* Set up default configuration: Master, 8-bit, etc. */
 

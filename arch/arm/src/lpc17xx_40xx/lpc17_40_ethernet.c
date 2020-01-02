@@ -699,8 +699,8 @@ static int lpc17_40_transmit(struct lpc17_40_driver_s *priv)
 
   /* Setup the TX timeout watchdog (perhaps restarting the timer) */
 
-  (void)wd_start(priv->lp_txtimeout, LPC17_40_TXTIMEOUT,
-                 lpc17_40_txtimeout_expiry, 1, (uint32_t)priv);
+  wd_start(priv->lp_txtimeout, LPC17_40_TXTIMEOUT,
+           lpc17_40_txtimeout_expiry, 1, (uint32_t)priv);
   return OK;
 }
 
@@ -1151,7 +1151,7 @@ static void lpc17_40_txdone_work(FAR void *arg)
 
   else
     {
-      (void)devif_poll(&priv->lp_dev, lpc17_40_txpoll);
+      devif_poll(&priv->lp_dev, lpc17_40_txpoll);
     }
 
   net_unlock();
@@ -1233,7 +1233,7 @@ static int lpc17_40_interrupt(int irq, void *context, FAR void *arg)
 
           /* ifup() will reset the EMAC and bring it back up */
 
-           (void)lpc17_40_ifup(&priv->lp_dev);
+           lpc17_40_ifup(&priv->lp_dev);
         }
       else
         {
@@ -1392,11 +1392,11 @@ static void lpc17_40_txtimeout_work(FAR void *arg)
        * it back up.
        */
 
-      (void)lpc17_40_ifup(&priv->lp_dev);
+      lpc17_40_ifup(&priv->lp_dev);
 
       /* Then poll the network layer for new XMIT data */
 
-      (void)devif_poll(&priv->lp_dev, lpc17_40_txpoll);
+      devif_poll(&priv->lp_dev, lpc17_40_txpoll);
     }
 
   net_unlock();
@@ -1479,7 +1479,7 @@ static void lpc17_40_poll_work(FAR void *arg)
        * transmit in progress, we will missing TCP time state updates?
        */
 
-      (void)devif_timer(&priv->lp_dev, LPC17_40_WDDELAY, lpc17_40_txpoll);
+      devif_timer(&priv->lp_dev, LPC17_40_WDDELAY, lpc17_40_txpoll);
     }
 
   /* Simulate a fake receive to relaunch the data exchanges when a receive
@@ -1499,8 +1499,8 @@ static void lpc17_40_poll_work(FAR void *arg)
 
   /* Setup the watchdog poll timer again */
 
-  (void)wd_start(priv->lp_txpoll, LPC17_40_WDDELAY, lpc17_40_poll_expiry,
-                1, priv);
+  wd_start(priv->lp_txpoll, LPC17_40_WDDELAY, lpc17_40_poll_expiry,
+           1, priv);
   net_unlock();
 }
 
@@ -1583,7 +1583,7 @@ static void lpc17_40_ipv6multicast(FAR struct lpc17_40_driver_s *priv)
   ninfo("IPv6 Multicast: %02x:%02x:%02x:%02x:%02x:%02x\n",
         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-  (void)lpc17_40_addmac(dev, mac);
+  lpc17_40_addmac(dev, mac);
 
 #ifdef CONFIG_NET_ICMPv6_AUTOCONF
   /* Add the IPv6 all link-local nodes Ethernet address.  This is the
@@ -1591,7 +1591,7 @@ static void lpc17_40_ipv6multicast(FAR struct lpc17_40_driver_s *priv)
    * packets.
    */
 
-  (void)lpc17_40_addmac(dev, g_ipv6_ethallnodes.ether_addr_octet);
+  lpc17_40_addmac(dev, g_ipv6_ethallnodes.ether_addr_octet);
 
 #endif /* CONFIG_NET_ICMPv6_AUTOCONF */
 #ifdef CONFIG_NET_ICMPv6_ROUTER
@@ -1600,7 +1600,7 @@ static void lpc17_40_ipv6multicast(FAR struct lpc17_40_driver_s *priv)
    * packets.
    */
 
-  (void)lpc17_40_addmac(dev, g_ipv6_ethallrouters.ether_addr_octet);
+  lpc17_40_addmac(dev, g_ipv6_ethallrouters.ether_addr_octet);
 
 #endif /* CONFIG_NET_ICMPv6_ROUTER */
 }
@@ -1751,8 +1751,8 @@ static int lpc17_40_ifup(struct net_driver_s *dev)
 
   /* Set and activate a timer process */
 
-  (void)wd_start(priv->lp_txpoll, LPC17_40_WDDELAY, lpc17_40_poll_expiry, 1,
-                (uint32_t)priv);
+  wd_start(priv->lp_txpoll, LPC17_40_WDDELAY, lpc17_40_poll_expiry, 1,
+           (uint32_t)priv);
 
   /* Finally, make the interface up and enable the Ethernet interrupt at
    * the interrupt controller
@@ -1838,7 +1838,7 @@ static void lpc17_40_txavail_work(FAR void *arg)
         {
           /* If so, then poll the network layer for new XMIT data */
 
-          (void)devif_poll(&priv->lp_dev, lpc17_40_txpoll);
+          devif_poll(&priv->lp_dev, lpc17_40_txpoll);
         }
     }
 
@@ -3257,7 +3257,7 @@ static inline int lpc17_40_ethinitialize(int intf)
 
   for (i = 0; i < GPIO_NENET_PINS; i++)
     {
-      (void)lpc17_40_configgpio(g_enetpins[i]);
+      lpc17_40_configgpio(g_enetpins[i]);
     }
 
   lpc17_40_showpins();
@@ -3316,7 +3316,7 @@ static inline int lpc17_40_ethinitialize(int intf)
 
   /* Register the device with the OS so that socket IOCTLs can be performed */
 
-  (void)netdev_register(&priv->lp_dev, NET_LL_ETHERNET);
+  netdev_register(&priv->lp_dev, NET_LL_ETHERNET);
   return OK;
 }
 
@@ -3334,7 +3334,7 @@ static inline int lpc17_40_ethinitialize(int intf)
 #if CONFIG_LPC17_40_NINTERFACES == 1 && !defined(CONFIG_NETDEV_LATEINIT)
 void up_netinitialize(void)
 {
-  (void)lpc17_40_ethinitialize(0);
+  lpc17_40_ethinitialize(0);
 }
 #endif
 #endif /* LPC17_40_NETHCONTROLLERS > 0 */
