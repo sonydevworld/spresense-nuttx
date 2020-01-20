@@ -3437,11 +3437,10 @@ static int mmcsd_probe(FAR struct mmcsd_state_s *priv)
               finfo("Capacity: %lu Kbytes\n", (unsigned long)(priv->capacity / 1024));
               priv->mediachanged = true;
             }
+          /* When the card is identified, we have probed this card */
+
+          priv->probed = true;
         }
-
-      /* In any event, we have probed this card */
-
-      priv->probed = true;
 
       /* Regardless of whether or not a card was successfully initialized, there
        * is appartently a card inserted. If it wasn't successfully initialized,
