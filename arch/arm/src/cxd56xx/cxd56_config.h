@@ -130,9 +130,13 @@
 
 #define GET_SBL_VERSION()           (BKUP->sbl_version)
 #define GET_SYSFW_VERSION()         (BKUP->sysfw_version)
+#define GET_GNSSFW_VERSION()        (BKUP->gnssfw_version)
 #define GET_SYSFW_VERSION_MAJOR()   ((GET_SYSFW_VERSION() >> 28) & 0xf)
 #define GET_SYSFW_VERSION_MINOR()   ((GET_SYSFW_VERSION() >> 20) & 0xff)
 #define GET_SYSFW_VERSION_BUILD()   (GET_SYSFW_VERSION() & 0xfffff)
+#define GET_GNSSFW_VERSION_MAJOR()  ((GET_GNSSFW_VERSION() >> 28) & 0xf)
+#define GET_GNSSFW_VERSION_MINOR()  ((GET_GNSSFW_VERSION() >> 20) & 0xff)
+#define GET_GNSSFW_VERSION_BUILD()  (GET_GNSSFW_VERSION() & 0xfffff)
 
 /****************************************************************************
  * Public Types
