@@ -185,7 +185,7 @@ enum board_power_device
 
   POWER_AUDIO_AVDD      = PMIC_GPO(1),
   POWER_AUDIO_MUTE      = PMIC_GPO(6),
-  POWER_IMAGE_SENSOR    = PMIC_GPO(4) | PMIC_GPO(5) | PMIC_GPO(7),
+  POWER_IMAGE_SENSOR    = PMIC_GPO(4),
 
   POWER_BTBLE           = PMIC_NONE,
   POWER_SENSOR          = PMIC_NONE,
