@@ -102,7 +102,7 @@
 #endif
 
 #ifdef CONFIG_PWM
-#  include "cxd56_pwm.h"
+#  include <arch/board/cxd56_pwm.h>
 #endif
 
 #ifdef CONFIG_CXD56_ADC
