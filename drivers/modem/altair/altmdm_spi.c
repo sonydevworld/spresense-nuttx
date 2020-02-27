@@ -105,9 +105,6 @@
 
 #define SPI_MAXFREQUENCY            (13000000) /* 13MHz. */
 
-#define GPIO_SREQ_INT_POLARITY      (ALTMDM_GPIOINT_LEVEL_HIGH)
-#define GPIO_SREQ_INT_NOISE_FILTER  (ALTMDM_GPIOINT_NOISE_FILTER_DISABLE)
-
 /* Defines for transfer mode */
 
 #define MODE_RXDATA             (0)   /* Data receive mode. */
@@ -800,6 +797,9 @@ static int do_xferheader(FAR struct altmdm_dev_s *priv,
 
   if ((is_sleepreq) || (is_txreq))
     {
+      DEBUGASSERT(priv->lower);
+      priv->lower->master_request(true);
+
       if (is_sleepreq)
         {
           set_txheader_sleepreq(priv);
@@ -1304,6 +1304,9 @@ static int do_xfersleep(FAR struct altmdm_dev_s *priv, uint32_t is_rcvrready)
     {
       ret = SLEEP_NG;
     }
+
+  DEBUGASSERT(priv && priv->lower);
+  priv->lower->master_request(false);
 
   if (is_reset)
     {
@@ -1814,7 +1817,11 @@ static int xfer_task(int argc, char *argv[])
                         __LINE__, xfer_mode);
                   break;
                 }
-
+              if (is_txreq)
+                {
+                  DEBUGASSERT(priv->lower);
+                  priv->lower->master_request(false);
+                }
               m_info("m=%d\n", xfer_mode);
               done_xfer(priv, xfer_mode, ret);
               start_svtimer(priv);
@@ -1884,6 +1891,7 @@ int altmdm_spi_init(FAR struct altmdm_dev_s *priv)
 
   g_privdata = priv;
 
+
   /* Initalize modem power management driver */
 
   altmdm_pm_init(priv);
@@ -1911,6 +1919,9 @@ int altmdm_spi_init(FAR struct altmdm_dev_s *priv)
   SPI_SETBITS(priv->spi, 8);
   (void)SPI_SETFREQUENCY(priv->spi, SPI_MAXFREQUENCY);
   (void)SPI_LOCK(priv->spi, false);
+
+  DEBUGASSERT(priv->lower);
+  priv->lower->sready_irqattach(true, altmdm_spi_gpioreadyisr);
 
   priv->spidev.task_id = task_create(XFER_TASK_NAME, XFER_TASK_PRI,
                                      XFER_TASK_STKSIZE, xfer_task, NULL);
@@ -1962,6 +1973,9 @@ int altmdm_spi_uninit(FAR struct altmdm_dev_s *priv)
 
   destroy_rxbufffifo(priv);
 
+  DEBUGASSERT(priv->lower);
+  priv->lower->sready_irqattach(false, NULL);
+
   /* Uninitalize modem power management driver */
 
   altmdm_pm_uninit(priv);
@@ -1979,6 +1993,9 @@ int altmdm_spi_uninit(FAR struct altmdm_dev_s *priv)
 
 int altmdm_spi_enable(FAR struct altmdm_dev_s *priv)
 {
+  DEBUGASSERT(priv && priv->lower);
+  priv->lower->sready_irqenable(true);
+
   return 0;
 }
 
@@ -1993,6 +2010,9 @@ int altmdm_spi_enable(FAR struct altmdm_dev_s *priv)
 int altmdm_spi_disable(FAR struct altmdm_dev_s *priv)
 {
   FAR struct altmdm_spi_dev_s *spidev = &priv->spidev;
+
+  DEBUGASSERT(priv->lower);
+  priv->lower->sready_irqenable(false);
 
   spidev->is_xferready = false;
 

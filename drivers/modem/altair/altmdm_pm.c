@@ -182,6 +182,9 @@ static int uninit_d2h_gpio(FAR struct altmdm_dev_s *priv)
 
 static int set_mreq_gpio(FAR struct altmdm_dev_s *priv, bool value)
 {
+  DEBUGASSERT(priv && priv->lower);
+  priv->lower->master_request(value);
+
   return 0;
 }
 #  endif
@@ -196,6 +199,9 @@ static int set_mreq_gpio(FAR struct altmdm_dev_s *priv, bool value)
 
 static int set_h2d_gpio(FAR struct altmdm_dev_s *priv, bool value)
 {
+  DEBUGASSERT(priv && priv->lower);
+  priv->lower->wakeup(value);
+
   return 0;
 }
 
@@ -209,6 +215,9 @@ static int set_h2d_gpio(FAR struct altmdm_dev_s *priv, bool value)
 
 static int get_d2h_gpio(FAR struct altmdm_dev_s *priv, FAR bool * value)
 {
+  DEBUGASSERT(priv && priv->lower && value);
+  *value = priv->lower->sready();
+
   return 0;
 }
 
@@ -1157,12 +1166,18 @@ static int pm_task(int argc, FAR char *argv[])
             {
               /* Modem power on. */
 
+              DEBUGASSERT(priv->lower);
+              priv->lower->poweron();
+
               send_modem_poweron_done(priv);
             }
 
           if (ptn & EVENT_MODEM_POWEROFF_REQ)
             {
               /* Modem power off. */
+
+              DEBUGASSERT(priv->lower);
+              priv->lower->poweroff();
 
               sleep_modem_itself(priv);
 
