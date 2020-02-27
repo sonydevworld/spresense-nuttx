@@ -103,8 +103,6 @@
 #define WRITE_WAIT_TIMEOUT    (ALTMDM_SYS_FLAG_TMOFEVR)
 #define SREQ_WAIT_TIMEOUT     (ALTMDM_SYS_FLAG_TMOFEVR)
 
-#define SPI_MAXFREQUENCY            (13000000) /* 13MHz. */
-
 /* Defines for transfer mode */
 
 #define MODE_RXDATA             (0)   /* Data receive mode. */
@@ -1912,15 +1910,16 @@ int altmdm_spi_init(FAR struct altmdm_dev_s *priv)
 
   create_rxbufffifo(priv);
 
+  DEBUGASSERT(priv->lower);
+
   /* SPI settings */
 
   (void)SPI_LOCK(priv->spi, true);
   SPI_SETMODE(priv->spi, SPIDEV_MODE0);
   SPI_SETBITS(priv->spi, 8);
-  (void)SPI_SETFREQUENCY(priv->spi, SPI_MAXFREQUENCY);
+  SPI_SETFREQUENCY(priv->spi, priv->lower->spi_maxfreq());
   (void)SPI_LOCK(priv->spi, false);
 
-  DEBUGASSERT(priv->lower);
   priv->lower->sready_irqattach(true, altmdm_spi_gpioreadyisr);
 
   priv->spidev.task_id = task_create(XFER_TASK_NAME, XFER_TASK_PRI,
