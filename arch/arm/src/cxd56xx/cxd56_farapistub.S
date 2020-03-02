@@ -449,6 +449,10 @@ _modulelist_rtc_mgr:
     nop
     nop
 
+    /* GNSP_PoffLNA */
+    nop
+    nop
+
     /* GNSP_Sleep */
     nop
     nop
@@ -501,6 +505,14 @@ _modulelist_rtc_mgr:
     nop
     nop
 
+    /* GNSP_ChangeClockGPSCPUClkup */
+    nop
+    nop
+
+    /* GNSP_ChangeClockGPSCPUClkdwn */
+    nop
+    nop
+
     /* GNSP_GetBootCause */
     nop
     nop
@@ -521,11 +533,23 @@ _modulelist_rtc_mgr:
     nop
     nop
 
+    /* GNSP_Start_KeepITPOut */
+    nop
+    nop
+
+    /* GNSP_Stop_KeepITPOut */
+    nop
+    nop
+
     /* GNSP_SetSleepState */
     nop
     nop
 
     /* GNSP_FreeSysMemory */
+    nop
+    nop
+
+    /* GNSP_ReadAlmanacFile */
     nop
     nop
 
@@ -1152,6 +1176,36 @@ GD_RtkSetEphNotify:
     .global	GD_RtkGetEphNotify
     .thumb_func
 GD_RtkGetEphNotify:
+    mov     r12, pc
+    b       1b
+
+    .global	GD_SetUseCase
+    .thumb_func
+GD_SetUseCase:
+    mov     r12, pc
+    b       1b
+
+    .global	GD_SetUseCaseBitmap
+    .thumb_func
+GD_SetUseCaseBitmap:
+    mov     r12, pc
+    b       1b
+
+    .global	GD_GetUseCase
+    .thumb_func
+GD_GetUseCase:
+    mov     r12, pc
+    b       1b
+
+    .global	GD_Set1ppsOutput
+    .thumb_func
+GD_Set1ppsOutput:
+    mov     r12, pc
+    b       1b
+
+    .global	GD_Get1ppsOutput
+    .thumb_func
+GD_Get1ppsOutput:
     mov     r12, pc
     b       1b
 
