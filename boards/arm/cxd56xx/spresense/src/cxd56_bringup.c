@@ -429,7 +429,7 @@ int cxd56_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_SENSORS_BMI160_I2C
+#if defined(CONFIG_SENSORS_BMI160) || defined(CONFIG_SENSORS_BMI160_SCU)
   ret = board_bmi160_initialize(0);
   if (ret < 0)
     {

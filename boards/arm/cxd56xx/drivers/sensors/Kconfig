@@ -86,6 +86,7 @@ endif # SENSORS_BM1422GMV_SCU
 config SENSORS_BMI160_SCU
 	bool "Bosch BMI160 Sensor support"
 	default n
+	depends on !SENSORS_BMI160
 	select CXD56_SCU
 	---help---
 		Enable driver support for the Bosch BMI160 sensor.
