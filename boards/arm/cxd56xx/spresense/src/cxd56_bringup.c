@@ -429,11 +429,11 @@ int cxd56_bringup(void)
     }
 #endif
 
-#if defined(CONFIG_SENSORS_BMI160) || defined(CONFIG_SENSORS_BMI160_SCU)
-  ret = board_bmi160_initialize(0);
+#ifdef CONFIG_SENSORS
+  ret = board_sensors_initialize();
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialze BMI160. \n");
+      _err("ERROR: Failed to initialze sensors.\n");
     }
 #endif
 
