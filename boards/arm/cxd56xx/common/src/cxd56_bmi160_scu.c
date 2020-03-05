@@ -54,13 +54,13 @@
 #include "cxd56_i2c.h"
 #endif
 
-#ifdef CONFIG_CXD56_DECI_GYRO
+#ifdef CONFIG_SENSORS_BMI160_SCU_DECI_GYRO
 #  define GYRO_NR_SEQS 3
 #else
 #  define GYRO_NR_SEQS 1
 #endif
 
-#ifdef CONFIG_CXD56_DECI_ACCEL
+#ifdef CONFIG_SENSORS_BMI160_SCU_DECI_ACCEL
 #  define ACCEL_NR_SEQS 3
 #else
 #  define ACCEL_NR_SEQS 1

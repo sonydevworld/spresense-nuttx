@@ -59,7 +59,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_CXD56_DECI_BM1422GMV
+#ifdef CONFIG_SENSORS_BM1422GMV_SCU_DECI
 #  define BM1422GMV_SEQ_TYPE SEQ_TYPE_DECI
 #else
 #  define BM1422GMV_SEQ_TYPE SEQ_TYPE_NORMAL

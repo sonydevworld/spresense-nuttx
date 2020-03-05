@@ -48,18 +48,6 @@
 
 #include "cxd56_i2c.h"
 
-#ifdef CONFIG_CXD56_DECI_GYRO
-#define GYRO_NR_SEQS 3
-#else
-#define GYRO_NR_SEQS 1
-#endif
-
-#ifdef CONFIG_CXD56_DECI_ACCEL
-#define ACCEL_NR_SEQS 3
-#else
-#define ACCEL_NR_SEQS 1
-#endif
-
 int board_bmi160_initialize(int bus)
 {
   int ret;

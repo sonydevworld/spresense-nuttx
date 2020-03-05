@@ -16,6 +16,14 @@ config SENSORS_AK09912_SCU
 		Enable driver for AK09911/AK09912 Compass sensor.
 		NOTE: This sensor is connected to the SCU unit
 
+if SENSORS_AK09912_SCU
+
+config SENSORS_AK09912_SCU_DECI
+	bool "AK09912 Magnetometer to decimator"
+	default n
+
+endif
+
 config SENSORS_APDS9930_SCU
 	bool "Avago APDS9930 Proximity and Ambient light Sensor"
 	default n
@@ -76,6 +84,10 @@ config BM1422GMV_SLAVE_ADDRESS_0F
 
 endchoice
 
+config SENSORS_BM1422GMV_SCU_DECI
+	bool "BM1422GMV Magnetometer to decimator"
+	default n
+
 endif # SENSORS_BM1422GMV_SCU
 
 config SENSORS_BMI160_SCU
@@ -105,6 +117,14 @@ config SENSORS_BMI160_SCU_I2C
 
 endchoice
 
+config SENSORS_BMI160_SCU_DECI_GYRO
+	bool "BMI160 Gyroscope to decimator"
+	default n
+
+config SENSORS_BMI160_SCU_DECI_ACCEL
+	bool "BMI160 Accelerometer to decimator"
+	default n
+
 endif # SENSORS_BMI160_SCU
 
 config SENSORS_BMP280_SCU
@@ -113,6 +133,18 @@ config SENSORS_BMP280_SCU
 	depends on !SENSORS_BMP280 && (CXD56_I2C0_SCUSEQ || CXD56_I2C1_SCUSEQ)
 	---help---
 		Enable driver for the Bosch BMP280 barometic pressure sensor.
+
+if SENSORS_BMP280_SCU
+
+config SENSORS_BMP280_SCU_DECI_PRESS
+	bool "BMP280 Pressure to decimator"
+	default n
+
+config SENSORS_BMP280_SCU_DECI_TEMP
+	bool "BMI280 Temperature to decimator"
+	default n
+
+endif
 
 config SENSORS_KX022_SCU
 	bool "Kionix KX022/KX122 Acceleration Sensor"
@@ -128,6 +160,10 @@ config SENSORS_KX122
 	default n
 	---help---
 		Use KX122 which has the register upper compatibility with KX022.
+
+config SENSORS_KX022_SCU_DECI
+	bool "KX022 Accelerometer to decimator"
+	default n
 
 endif # SENSORS_KX022
 

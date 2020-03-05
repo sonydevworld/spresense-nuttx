@@ -57,12 +57,12 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_CXD56_DECI_PRESS
+#ifdef CONFIG_SENSORS_BMI280_SCU_DECI_PRESS
 #  define PRESS_SEQ_TYPE SEQ_TYPE_DECI
 #else
 #  define PRESS_SEQ_TYPE SEQ_TYPE_NORMAL
 #endif
-#ifdef CONFIG_CXD56_DECI_TEMP
+#ifdef CONFIG_SENSORS_BMI280_SCU_DECI_TEMP
 #  define TEMP_SEQ_TYPE SEQ_TYPE_DECI
 #else
 #  define TEMP_SEQ_TYPE SEQ_TYPE_NORMAL
