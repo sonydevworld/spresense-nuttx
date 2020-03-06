@@ -154,6 +154,10 @@ ifeq ($(CONFIG_CXD56_IMAGEPROC),y)
   CSRCS += cxd56_imageproc.c
 endif
 
+ifeq ($(CONFIG_BCM20706),y)
+  CSRCS += cxd56_bcm20706.c
+endif
+
 DEPPATH += --dep-path src
 VPATH += :src
 CFLAGS += $(shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)board$(DELIM)src)

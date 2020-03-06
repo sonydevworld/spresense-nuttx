@@ -61,6 +61,7 @@
 #include "cxd56_ak09912.h"
 #include "cxd56_apds9930.h"
 #include "cxd56_apds9960.h"
+#include "cxd56_bcm20706.h"
 #include "cxd56_bh1721fvc.h"
 #include "cxd56_bh1745nuc.h"
 #include "cxd56_bm1383glv.h"
