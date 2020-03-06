@@ -132,7 +132,7 @@ context: .tzbuilt romfs
 
 # Create dependencies
 
-.depend: Makefile $(SRCS)
+.depend: Makefile $(SRCS) $(TOPDIR)$(DELIM).config
 	$(Q) $(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
 	$(Q) touch $@
 

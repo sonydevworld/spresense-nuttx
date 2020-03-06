@@ -103,7 +103,7 @@ $(CXXOBJS): %$(OBJEXT): %.cxx
 $(BIN): $(OBJS)
 	$(call ARCHIVE, $@, $(OBJS))
 
-.depend: Makefile $(SRCS)
+.depend: Makefile $(SRCS) $(TOPDIR)$(DELIM).config
 ifneq ($(SRCS),)
 	$(Q) $(MKDEP) --dep-path . "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
 endif

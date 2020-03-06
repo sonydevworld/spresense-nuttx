@@ -260,7 +260,7 @@ endif
 
 # Dependencies
 
-.depend: Makefile gensources $(SRCS)
+.depend: Makefile gensources $(SRCS) $(TOPDIR)$(DELIM).config
 ifeq ($(CONFIG_BUILD_FLAT),y)
 	$(Q) $(MKDEP) --obj-suffix $(OBJEXT) $(DEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >bin/Make.dep
 else

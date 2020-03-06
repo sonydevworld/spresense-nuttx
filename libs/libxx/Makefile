@@ -110,7 +110,7 @@ $(CXXOBJS): %$(OBJEXT): %.cxx
 $(BIN):	$(OBJS)
 	$(call ARCHIVE, $@, $(OBJS))
 
-.depend: Makefile $(SRCS)
+.depend: Makefile $(SRCS) $(TOPDIR)$(DELIM).config
 	$(Q) $(MKDEP) $(DEPPATH) "$(CXX)" -- $(CXXFLAGS) -- $(SRCS) >Make.dep
 	$(Q) touch $@
 

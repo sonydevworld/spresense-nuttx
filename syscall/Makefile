@@ -79,7 +79,7 @@ $(BIN1): $(PROXY_OBJS)
 $(BIN2): $(STUB_OBJS)
 	$(call ARCHIVE, $@, $(STUB_OBJS))
 
-.depend: Makefile $(SRCS)
+.depend: Makefile $(SRCS) $(TOPDIR)$(DELIM).config
 	$(Q) $(MKDEP) $(ROOTDEPPATH) $(PROXYDEPPATH) $(STUBDEPPATH) \
 	  "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
 	$(Q) touch $@

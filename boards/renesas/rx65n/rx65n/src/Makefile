@@ -61,7 +61,7 @@ $(COBJS) $(LINKOBJS): %$(OBJEXT): %.c
 libboard$(LIBEXT): $(OBJS)
 	$(call ARCHIVE, $@, $(OBJS))
 
-.depend: Makefile $(SRCS)
+.depend: Makefile $(SRCS) $(TOPDIR)$(DELIM).config
 	$(Q) $(MKDEP) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
 	$(Q) touch $@
 
