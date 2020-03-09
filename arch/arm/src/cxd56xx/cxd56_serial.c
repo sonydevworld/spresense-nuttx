@@ -66,6 +66,7 @@
 
 #include "cxd56_config.h"
 #include "cxd56_serial.h"
+#include "cxd56_powermgr.h"
 
 /****************************************************************************
  * Pre-processor definitions
@@ -329,6 +330,29 @@ static inline void up_enablebreaks(FAR struct up_dev_s *priv, bool enable)
 }
 
 /****************************************************************************
+ * Name: cxd56_serial2_pm_event
+ ****************************************************************************/
+
+#ifdef CONFIG_CXD56_UART2
+static int cxd56_serial2_pm_event(uint8_t id)
+{
+  FAR struct up_dev_s *priv = (FAR struct up_dev_s *)&g_uart2priv;
+
+  switch (id)
+    {
+      case CXD56_PM_CALLBACK_ID_CLK_CHG_START:
+        break;
+      case CXD56_PM_CALLBACK_ID_CLK_CHG_END:
+        cxd56_setbaud(priv->uartbase, priv->basefreq, priv->baud);
+        break;
+      default:
+        break;
+    }
+  return 0;
+}
+#endif
+
+/****************************************************************************
  * Name: up_setup
  *
  * Description:
@@ -429,6 +453,14 @@ static int up_setup(FAR struct uart_dev_s *dev)
   up_serialout(priv, CXD56_UART_CR, cr);
 #endif
 
+#if defined(CONFIG_CXD56_UART2) && !defined(CONFIG_UART2_SERIAL_CONSOLE)
+  if ((!priv->pmhandle) && (priv->uartbase == CXD56_UART2_BASE))
+    {
+      priv->pmhandle = cxd56_pm_register_callback(PM_CLOCK_APP_UART,
+                                                  cxd56_serial2_pm_event);
+    }
+#endif
+
   return OK;
 }
 
@@ -461,6 +493,14 @@ static void up_shutdown(FAR struct uart_dev_s *dev)
       default:
         break;
     }
+
+#ifndef CONFIG_UART2_SERIAL_CONSOLE
+  if ((priv->pmhandle) && (priv->uartbase == CXD56_UART2_BASE))
+    {
+      cxd56_pm_unregister_callback(priv->pmhandle);
+      priv->pmhandle = NULL;
+    }
+#endif
 }
 
 /****************************************************************************
