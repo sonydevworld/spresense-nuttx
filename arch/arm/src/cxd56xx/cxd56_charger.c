@@ -69,11 +69,9 @@
 /* Debug ********************************************************************/
 
 #ifdef CONFIG_CXD56_CHARGER_DEBUG
-#define baterr(fmt, ...) logerr(fmt, ## __VA_ARGS__)
-#define batdbg(fmt, ...) logdebug(fmt, ## __VA_ARGS__)
+#define baterr(fmt, ...) _err(fmt, ## __VA_ARGS__)
 #else
 #define baterr(fmt, ...)
-#define batdbg(fmt, ...)
 #endif
 
 /* Configuration */
@@ -81,7 +79,7 @@
 #undef USE_FLOAT_CONVERSION
 
 #ifdef CONFIG_CXD56_CHARGER_TEMP_PRECISE
-#if !defined(CONFIG_LIBM) && !defined(CONFIG_LIBM_NEWLIB)
+#if !defined(CONFIG_LIBM) && !defined(CONFIG_ARCH_MATH_H)
 #  error Temperature conversion in float requires math library.
 #endif
 #define USE_FLOAT_CONVERSION 1
