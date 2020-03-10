@@ -3035,9 +3035,6 @@ static int mmcsd_probe(FAR struct mmcsd_state_s *priv)
       if (ret != OK)
         {
           ferr("ERROR: Failed to initialize card: %d\n", ret);
-#ifdef CONFIG_MMCSD_HAVECARDDETECT
-          SDIO_CALLBACKENABLE(priv->dev, SDIOMEDIA_INSERTED);
-#endif
         }
       else
         {
@@ -3079,14 +3076,14 @@ static int mmcsd_probe(FAR struct mmcsd_state_s *priv)
 #endif
             }
 
+          /* When the card is identified, we have probed this card */
+
+          priv->probed = true;
+
           /* REVISIT: There is a problem here.  If mmcsd_initialize() returns a
            * failure, then no events are initialized.
            */
         }
-
-      /* In any event, we have probed this card */
-
-      priv->probed = true;
     }
   else
     {
