@@ -38,8 +38,6 @@
 #ifndef __ARCH_ARM_INCLUDE_CXD56XX_AUDIO_H
 #define __ARCH_ARM_INCLUDE_CXD56XX_AUDIO_H
 
-/* API Documents creater with Doxgen */
-
 /* cxd56_audio_api Audio Driver API
  *
  *
@@ -742,7 +740,7 @@ CXD56_AUDIO_ECODE cxd56_audio_free_dmahandle(FAR cxd56_audio_dma_t handle);
 
 /* Set internal data path
  *
- *  sig: Internal singal type
+ *  sig: Internal signal type
  *  sel: Internal selector type
  *
  * CXD56_AUDIO_ECODE return code

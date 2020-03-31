@@ -92,9 +92,11 @@ enum audio_irq_reg_type_e
 #define DMA_SMP_WAIT_HIRES   10 /* usec per sample. */
 #define DMA_SMP_WAIT_NORMALT 40 /* usec per sample. */
 
-/***************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
+/* Private Macros */
+
+#define SET_DMA_ACT(_path_)  g_dma_act_status |= (1 << _path_)
+#define CLR_DMA_ACT(_path_)  g_dma_act_status &= ~(1 << _path_)
+#define IS_DMA_ACT(_path_)   ((g_dma_act_status & (1 << _path_)) != 0)
 
 /***************************************************************************
  * Private Data
@@ -109,18 +111,6 @@ static bool s_work_arroud_dmac[DMA_HANDLE_MAX_NUM] =
   true,
   true
 };
-
-/***************************************************************************
- * Private Macro
- ****************************************************************************/
-
-#define SET_DMA_ACT(_path_)  g_dma_act_status |= (1 << _path_)
-#define CLR_DMA_ACT(_path_)  g_dma_act_status &= ~(1 << _path_)
-#define IS_DMA_ACT(_path_)   ((g_dma_act_status & (1 << _path_)) != 0)
-
-/***************************************************************************
- * Public Data
- ****************************************************************************/
 
 /***************************************************************************
  * Private Functions
@@ -506,7 +496,7 @@ CXD56_AUDIO_ECODE cxd56_audio_dma_en_dmaint(void)
 
   write_int_reg(INT_EN1_REG, int_en);
 
-  /* Enalbe bus error interrupt. */
+  /* Enable bus error interrupt. */
 
   cxd56_audio_bca_reg_en_bus_err_int();
 
@@ -526,7 +516,7 @@ CXD56_AUDIO_ECODE cxd56_audio_dma_dis_dmaint(void)
 
   write_int_reg(INT_EN1_REG, int_en);
 
-  /* Disalbe bus error interrupt. */
+  /* Disable bus error interrupt. */
 
   cxd56_audio_bca_reg_dis_bus_err_int();
 
