@@ -235,7 +235,7 @@ static void clock_semtake(sem_t *id)
 {
   if (!up_interrupt_context())
     {
-      nxsem_wait(id);
+      nxsem_wait_uninterruptible(id);
     }
 }
 

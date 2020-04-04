@@ -1593,12 +1593,12 @@ static void spi_dmatrxwait(FAR struct cxd56_spidev_s *priv)
 {
   uint32_t val;
 
-  if (nxsem_wait(&priv->dmasem) != OK)
+  if (nxsem_wait_uninterruptible(&priv->dmasem) != OK)
     {
       spierr("dma error\n");
     }
 
-  if (nxsem_wait(&priv->dmasem) != OK)
+  if (nxsem_wait_uninterruptible(&priv->dmasem) != OK)
     {
       spierr("dma error\n");
     }

@@ -325,7 +325,7 @@ int board_xtal_power_control(bool en)
 
   /* Get exclusive access to the lna / tcxo power control */
 
-  nxsem_wait(&g_ltsem);
+  nxsem_wait_uninterruptible(&g_ltsem);
 
   if (en)
     {
@@ -383,7 +383,7 @@ int board_lna_power_control(bool en)
 
   /* Get exclusive access to the lna / tcxo power control */
 
-  nxsem_wait(&g_ltsem);
+  nxsem_wait_uninterruptible(&g_ltsem);
 
   if (en)
     {
