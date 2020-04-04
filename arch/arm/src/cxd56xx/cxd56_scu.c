@@ -2009,6 +2009,8 @@ static int seq_fifoinit(FAR struct seq_s *seq, int fifoid, uint16_t fsize)
   /* Initialize DMA done wait semaphore */
 
   nxsem_init(&fifo->dmawait, 0, 0);
+  nxsem_setprotocol(&fifo->dmawait, SEM_PRIO_NONE);
+
   fifo->dmaresult = -1;
 #endif
 
@@ -3444,12 +3446,14 @@ void scu_initialize(void)
 
   memset(priv, 0, sizeof(struct cxd56_scudev_s));
 
-  nxsem_init(&priv->syncwait, 0, 0);
   nxsem_init(&priv->syncexc, 0, 1);
+  nxsem_init(&priv->syncwait, 0, 0);
+  nxsem_setprotocol(&priv->syncwait, SEM_PRIO_NONE);
 
   for (i = 0; i < 3; i++)
     {
       nxsem_init(&priv->oneshotwait[i], 0, 0);
+      nxsem_setprotocol(&priv->oneshotwait[i], SEM_PRIO_NONE);
     }
 
   scufifo_initialize();

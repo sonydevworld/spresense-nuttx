@@ -2642,6 +2642,8 @@ static int cxd56_gnss_open(FAR struct file *filep)
           goto _err0;
         }
 
+      nxsem_setprotocol(&priv->syncsem, SEM_PRIO_NONE);
+
       ret = PM_LoadImage(CXD56_GNSS_GPS_CPUID, CXD56_GNSS_FWNAME);
       if (ret < 0)
         {
@@ -3055,6 +3057,8 @@ static int cxd56_gnss_register(FAR const char *devpath)
       gnsserr("Failed to initialize gnss apiwait!\n");
       goto _err0;
     }
+
+  nxsem_setprotocol(&priv->apiwait, SEM_PRIO_NONE);
 
   ret = nxsem_init(&priv->ioctllock, 0, 1);
   if (ret < 0)

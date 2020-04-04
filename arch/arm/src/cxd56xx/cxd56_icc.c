@@ -381,6 +381,7 @@ static FAR struct iccdev_s *icc_devnew(void)
   priv->rxtimeout = wd_create();
 
   nxsem_init(&priv->rxwait, 0, 0);
+  nxsem_setprotocol(&priv->rxwait, SEM_PRIO_NONE);
 
   /* Initialize receive queue and free list */
 

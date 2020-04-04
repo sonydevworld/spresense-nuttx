@@ -1048,6 +1048,7 @@ struct i2c_master_s *cxd56_i2cbus_initialize(int port)
 
   nxsem_init(&priv->mutex, 0, 1);
   nxsem_init(&priv->wait, 0, 0);
+  nxsem_setprotocol(&priv->wait, SEM_PRIO_NONE);
 
   priv->timeout = wd_create();
 
