@@ -192,11 +192,24 @@ menuconfig CXD56_PM
 
 if CXD56_PM
 
+config CPUFREQ_RELEASE_LOCK
+	bool "Dynamic clock control"
+	default n
+	---help---
+		CPU frequency lock allows the system clock to be changed dynamically.
+		Acquiring the higher frequency lock will improve the performance, but
+		will increase the power consumption. If this is enabled, the system
+		clock is the lower frequency unless the frequency lock is acquired.
+		If disabled, the system clock will not change and will remain at the
+		maximum system clock.
+
 config CXD56_PM_PROCFS
 	bool "Power Management PROCFS support"
 	default n
 	---help---
 		Enable the power domain status or the clock frequency monitor.
+
+endif # CXD56_PM
 
 config CXD56_GAUGE
 	bool "CXD5247 battery gauge"
@@ -241,7 +254,6 @@ config CXD56_CHARGER_DEBUG
 		Enable battery charger driver debug messages.
 
 endif
-endif # CXD56_PM
 
 comment "Peripheral Support"
 
