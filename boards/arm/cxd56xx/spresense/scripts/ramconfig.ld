@@ -106,6 +106,8 @@ SECTIONS
     PROVIDE(__stack = ORIGIN(ram) + LENGTH(ram));
     __stack -= DEFINED(__reserved_ramsize) ? __reserved_ramsize : 0;
 
+    ASSERT(_ebss < __stack, "Error: Out of memory")
+
     /* Stabs debugging sections.    */
     .stab 0 : { *(.stab) }
     .stabstr 0 : { *(.stabstr) }
