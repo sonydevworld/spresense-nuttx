@@ -69,7 +69,11 @@
 
 /* SCU firmware (iSoP) binary */
 
+#ifdef CONFIG_CXD56_HPADC0_HIGHSPEED
+#include "hardware/cxd5602_isop_hadc0_highspeed.h"
+#else
 #include "hardware/cxd5602_isop.h"
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions

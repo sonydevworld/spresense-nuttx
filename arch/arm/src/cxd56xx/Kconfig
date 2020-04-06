@@ -627,6 +627,17 @@ config CXD56_HPADC0_FSIZE
 	---help---
 		SCU FIFO size
 
+config CXD56_HPADC0_HIGHSPEED
+	bool "High speed support"
+	default n
+	depends on !CXD56_LPADC && !CXD56_HPADC1 && !CXD56_I2C0_SCUSEQ && !CXD56_I2C1_SCUSEQ && !CXD56_SPI3_SCUSEQ
+	---help---
+		Enable high-speed ADC. It supports a sampling rate of up to 512kHz
+		only for HPADC0. In other to use the 512kHz sampling rate, SCU clock
+		mode should be selected CXD56_SCU_XOSC, and Coefficient of sampling
+		frequency CXD56_HPADC0_FREQ should be set 2. When this is enabled,
+		other ADC channels and SCU sequencers cannot be used at the same time.
+
 endif # CXD56_HPADC0
 
 menuconfig CXD56_HPADC1
