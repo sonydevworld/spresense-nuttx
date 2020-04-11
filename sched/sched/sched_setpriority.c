@@ -247,17 +247,25 @@ static void nxsched_readytorun_setpriority(FAR struct tcb_s *tcb,
 
   else
     {
-      /* Remove the TCB from the ready-to-run task list that it resides in */
+      /* Remove the TCB from the ready-to-run task list that it resides in.
+       * It should not be at the head of the list.
+       */
 
-      DEBUGASSERT(!sched_removereadytorun(tcb));
+      bool check = sched_removereadytorun(tcb);
+      DEBUGASSERT(check == false);
+      UNUSED(check);
 
       /* Change the task priority */
 
       tcb->sched_priority = (uint8_t)sched_priority;
 
-      /* Put it back into the correct ready-to-run task list */
+      /* Put it back into the correct ready-to-run task list.  It must not
+       * end up at the head of the list.
+       */
 
-      DEBUGASSERT(!sched_addreadytorun(tcb));
+      check = sched_addreadytorun(tcb);
+      DEBUGASSERT(check == false);
+      UNUSED(check);
     }
 }
 
@@ -358,7 +366,9 @@ int nxsched_setpriority(FAR struct tcb_s *tcb, int sched_priority)
 
   flags = enter_critical_section();
 
-  /* There are three major cases (and two sub-cases) that must be considered: */
+  /* There are three major cases (and two sub-cases) that must be
+   * considered:
+   */
 
   switch (tcb->task_state)
     {
