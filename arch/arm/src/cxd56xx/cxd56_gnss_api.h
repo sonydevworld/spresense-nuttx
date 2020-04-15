@@ -357,10 +357,6 @@ int GD_GetVarEphemeris(uint32_t satellite, uint32_t* ephemeris,
 
 int GD_SetUseCase(uint32_t usecase);
 
-/* Set usecase mode as bitmap */
-
-int GD_SetUseCaseBitmap(uint32_t bitmap, uint8_t mode);
-
 /* Get usecase mode */
 
 int GD_GetUseCase(uint32_t *usecase);

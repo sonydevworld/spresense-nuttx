@@ -270,8 +270,6 @@ static int cxd56_gnss_set_var_ephemeris(FAR struct file *filep,
                                         unsigned long arg);
 static int cxd56_gnss_set_usecase(FAR struct file *filep,
                                   unsigned long arg);
-static int cxd56_gnss_set_usecase_bitmap(FAR struct file *filep,
-                                         unsigned long arg);
 static int cxd56_gnss_get_usecase(FAR struct file *filep,
                                   unsigned long arg);
 static int cxd56_gnss_set_1pps_output(FAR struct file *filep,
@@ -373,7 +371,6 @@ static int (*g_cmdlist[CXD56_GNSS_IOCTL_MAX])(FAR struct file *filep,
   cxd56_gnss_set_var_ephemeris,
   cxd56_gnss_get_var_ephemeris,
   cxd56_gnss_set_usecase,
-  cxd56_gnss_set_usecase_bitmap,
   cxd56_gnss_get_usecase,
   cxd56_gnss_set_1pps_output,
   cxd56_gnss_get_1pps_output,
@@ -1957,36 +1954,6 @@ static int cxd56_gnss_set_usecase(FAR struct file *filep,
                                   unsigned long arg)
 {
   return GD_SetUseCase(arg);
-}
-
-/****************************************************************************
- * Name: cxd56_gnss_set_usecase_bitmap
- *
- * Description:
- *   Set usecase mode as bitmap
- *
- * Input Parameters:
- *   filep - File structure pointer
- *   arg   - Data for command
- *
- * Returned Value:
- *   Zero (OK) on success; a negated errno value on failure.
- *
- ****************************************************************************/
-
-static int cxd56_gnss_set_usecase_bitmap(FAR struct file *filep,
-                                         unsigned long arg)
-{
-  FAR struct cxd56_gnss_usecase_param_s *param;
-
-  if (!arg)
-    {
-      return -EINVAL;
-    }
-
-  param = (FAR struct cxd56_gnss_usecase_param_s *)arg;
-
-  return GD_SetUseCaseBitmap(param->bitmap, param->mode);
 }
 
 /****************************************************************************

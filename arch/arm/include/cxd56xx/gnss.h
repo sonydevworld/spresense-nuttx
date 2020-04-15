@@ -534,22 +534,13 @@ extern "C"
 
 #define CXD56_GNSS_IOCTL_SET_USECASE 50
 
-/* Set usecase mode as bitmap
- * This command must be issued in idle mode.
- *
- * param[in] arg
- * Address pointing to struct #cxd56_gnss_usecase_param_s object.
- */
-
-#define CXD56_GNSS_IOCTL_SET_USECASE_BITMAP 51
-
 /* Get usecase mode
  *
  * param[out] arg
  * The usecase definitions
  */
 
-#define CXD56_GNSS_IOCTL_GET_USECASE 52
+#define CXD56_GNSS_IOCTL_GET_USECASE 51
 
 /* Set enable or disable of 1PPS output
  * This command must be issued in idle mode.
@@ -558,7 +549,7 @@ extern "C"
  * enable(1) or disable(0)
  */
 
-#define CXD56_GNSS_IOCTL_SET_1PPS_OUTPUT 53
+#define CXD56_GNSS_IOCTL_SET_1PPS_OUTPUT 52
 
 /**
  * Get the current 1PPS output setting
@@ -567,12 +558,12 @@ extern "C"
  * enable(1) or disable(0)
  */
 
-#define CXD56_GNSS_IOCTL_GET_1PPS_OUTPUT 54
+#define CXD56_GNSS_IOCTL_GET_1PPS_OUTPUT 53
 
 /* check macros for GNSS commands */
 
 #define CXD56_GNSS_IOCTL_INVAL 0
-#define CXD56_GNSS_IOCTL_MAX   55
+#define CXD56_GNSS_IOCTL_MAX   54
 
 /* Same value to GD Start mode CXD56_GNSS_STMOD_XXXX for GD_Start */
 
@@ -911,12 +902,6 @@ struct cxd56_gnss_get_var_ephemeris_s
   uint32_t  type; /* One of #CXD56_GNSS_DATA_GPS, #CXD56_GNSS_DATA_GLONASS. */
   uint32_t *data; /* Address pointing to ephemeris data buffer */
   uint32_t  size; /* ephemeris data buffer size */
-};
-
-struct cxd56_gnss_usecase_param_s
-{
-  uint32_t bitmap;
-  uint8_t  mode;
 };
 
 #undef EXTERN
