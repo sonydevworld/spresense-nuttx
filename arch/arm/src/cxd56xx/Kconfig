@@ -610,6 +610,27 @@ config CXD56_HPADC0_FREQ
 			RCOSC  : 0 to 7 (0 ~ 6 : over-sampling mode)
 			XOSC   : 0 to 7 (0 ~ 6 : over-sampling mode)
 
+choice
+	prompt "Input Gain"
+	default CXD56_HPADC0_INPUT_GAIN_0DB
+
+config CXD56_HPADC0_INPUT_GAIN_M6DB
+	bool "-6 dB"
+
+config CXD56_HPADC0_INPUT_GAIN_0DB
+	bool "0 dB"
+
+config CXD56_HPADC0_INPUT_GAIN_6DB
+	bool "+6 dB"
+
+config CXD56_HPADC0_INPUT_GAIN_12DB
+	bool "+12 dB"
+
+config CXD56_HPADC0_INPUT_GAIN_14DB
+	bool "+14 dB"
+
+endchoice
+
 config CXD56_HPADC0_OFFSET
 	int "Offset"
 	default 0
@@ -664,6 +685,27 @@ config CXD56_HPADC1_FREQ
 			SCU32K : 9 to 11
 			RCOSC  : 0 to 7 (0 ~ 6 : over-sampling mode)
 			XOSC   : 0 to 7 (0 ~ 6 : over-sampling mode)
+
+choice
+	prompt "Input Gain"
+	default CXD56_HPADC1_INPUT_GAIN_0DB
+
+config CXD56_HPADC1_INPUT_GAIN_M6DB
+	bool "-6 dB"
+
+config CXD56_HPADC1_INPUT_GAIN_0DB
+	bool "0 dB"
+
+config CXD56_HPADC1_INPUT_GAIN_6DB
+	bool "+6 dB"
+
+config CXD56_HPADC1_INPUT_GAIN_12DB
+	bool "+12 dB"
+
+config CXD56_HPADC1_INPUT_GAIN_14DB
+	bool "+14 dB"
+
+endchoice
 
 config CXD56_HPADC1_OFFSET
 	int "Offset"
