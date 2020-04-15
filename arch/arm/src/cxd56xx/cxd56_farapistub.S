@@ -1185,12 +1185,6 @@ GD_SetUseCase:
     mov     r12, pc
     b       1b
 
-    .global	GD_SetUseCaseBitmap
-    .thumb_func
-GD_SetUseCaseBitmap:
-    mov     r12, pc
-    b       1b
-
     .global	GD_GetUseCase
     .thumb_func
 GD_GetUseCase:
