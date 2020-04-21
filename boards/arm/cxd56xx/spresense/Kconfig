@@ -5,6 +5,19 @@
 
 if ARCH_BOARD_SPRESENSE
 
+config BOARD_CUSTOM_PINCONFIG
+	bool
+	default y
+
+config BOARD_USB_DISABLE_IN_DEEP_SLEEPING
+	bool
+	default y
+	---help---
+		Due to the system specification, it's impossible to enter the deep
+		sleeping mode for the power saving as long as USB is attached. As
+		the workaround for this restriction, this configuration forces to be
+		disable the USB function in deep sleeping.
+
 config CXD56_SPIFLASHSIZE
 	hex
 	default 0x400000
