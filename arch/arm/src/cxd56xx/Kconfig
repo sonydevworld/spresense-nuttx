@@ -26,6 +26,18 @@ config CXD56_WLCSP
 
 endchoice
 
+choice
+	prompt "CXD56xx core selection"
+	default CXD56_MAINCORE
+
+config CXD56_MAINCORE
+	bool "Main Core"
+
+config CXD56_SUBCORE
+	bool "Sub Core"
+
+endchoice
+
 config CXD56_CUSTOM_PINCONFIG
 	bool "Board-specific pin configuration"
 	default n
@@ -60,10 +72,12 @@ config CXD56_SPH
 
 config CXD56_PMIC
 	bool
-	default y
+	default y if CXD56_MAINCORE
+	default n if CXD56_SUBCORE
 
 config CXD56_CPUFIFO
 	bool
+	default y
 
 config CXD56_ICC
 	bool
@@ -81,8 +95,8 @@ config CXD56_CPUFIFO_NBUFFERS
 
 config CXD56_FARAPI
 	bool
-	default y
-	select CXD56_CPUFIFO
+	default y if CXD56_MAINCORE
+	default n if CXD56_SUBCORE
 
 menu "Far API Configuration"
 	depends on CXD56_FARAPI

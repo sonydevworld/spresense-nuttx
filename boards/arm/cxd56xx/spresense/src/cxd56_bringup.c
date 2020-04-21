@@ -280,6 +280,7 @@ int cxd56_bringup(void)
     }
 #endif
 
+#ifndef CONFIG_CXD56_SUBCORE
   /* Initialize CPU clock to max frequency */
 
   board_clock_initialize();
@@ -287,6 +288,7 @@ int cxd56_bringup(void)
   /* Setup the power of external device */
 
   board_power_setup(0);
+#endif
 
 #ifdef CONFIG_CXD56_SCU
   scu_initialize();
