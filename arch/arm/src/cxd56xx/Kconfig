@@ -508,6 +508,7 @@ endif
 
 config CXD56_I2C
 	bool "I2C"
+	select I2C
 
 if CXD56_I2C
 
@@ -748,7 +749,7 @@ if CXD56_LPADC
 
 choice
 	prompt "Select LPADC channel"
-	default CXD56_LPADC0
+	default CXD56_LPADC_ALL
 
 config CXD56_LPADC0
 	bool "LPADC channel 0"
@@ -792,7 +793,8 @@ menu "LPADC0"
 
 config CXD56_LPADC0_FREQ
 	int "Coefficient of sampling frequency"
-	default 12
+	default 12 if CXD56_SCU_32K
+	default 7 if CXD56_SCU_RCOSC || CXD56_SCU_XOSC
 	range 11 15 if CXD56_SCU_32K && CXD56_LPADC0
 	range 3 15 if CXD56_SCU_RCOSC && CXD56_LPADC0
 	range 2 15 if CXD56_SCU_XOSC && CXD56_LPADC0
@@ -846,7 +848,8 @@ menu "LPADC1"
 
 config CXD56_LPADC1_FREQ
 	int "Coefficient of sampling frequency"
-	default 12
+	default 12 if CXD56_SCU_32K
+	default 7 if CXD56_SCU_RCOSC || CXD56_SCU_XOSC
 	range 11 15 if CXD56_SCU_32K && CXD56_LPADC1
 	range 3 15 if CXD56_SCU_RCOSC && CXD56_LPADC1
 	range 2 15 if CXD56_SCU_XOSC && CXD56_LPADC1
@@ -900,7 +903,8 @@ menu "LPADC2"
 
 config CXD56_LPADC2_FREQ
 	int "Coefficient of sampling frequency"
-	default 12
+	default 12 if CXD56_SCU_32K
+	default 7 if CXD56_SCU_RCOSC || CXD56_SCU_XOSC
 	range 11 15 if CXD56_SCU_32K && CXD56_LPADC2
 	range 3 15 if CXD56_SCU_RCOSC && CXD56_LPADC2
 	range 2 15 if CXD56_SCU_XOSC && CXD56_LPADC2
@@ -946,7 +950,8 @@ menu "LPADC3"
 
 config CXD56_LPADC3_FREQ
 	int "Coefficient of sampling frequency"
-	default 12
+	default 12 if CXD56_SCU_32K
+	default 7 if CXD56_SCU_RCOSC || CXD56_SCU_XOSC
 	range 11 15 if CXD56_SCU_32K && CXD56_LPADC3
 	range 3 15 if CXD56_SCU_RCOSC && CXD56_LPADC3
 	range 2 15 if CXD56_SCU_XOSC && CXD56_LPADC3
@@ -1114,7 +1119,7 @@ menuconfig CXD56_SDIO
 	default n
 	select ARCH_HAVE_SDIO
 	select SDIO_BLOCKSETUP
-	select SCHED_HPWORK
+	depends on SCHED_HPWORK
 
 if CXD56_SDIO
 

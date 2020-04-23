@@ -35,7 +35,7 @@ if SENSORS_APDS9930_SCU
 
 config SENSORS_APDS9930_PROXIMITY_INTERRUPT
 	bool "Use Proximity interrupt"
-	default y
+	default n
 	---help---
 		Use Interrupt when the threshold is exceeded.
 		In this case, SCU sequencer is not used.
@@ -178,7 +178,7 @@ if SENSORS_LT1PA01_SCU
 
 config LT1PA01_PROXIMITY_INTERRUPT
 	bool "Use Proximity interrupt"
-	default y
+	default n
 	---help---
 		Use Interrupt when the threshold is exceeded.
 		In this case, SCU sequencer is not used.
@@ -196,7 +196,7 @@ if SENSORS_RPR0521RS_SCU
 
 config RPR0521RS_PROXIMITY_INTERRUPT
 	bool "Use Proximity interrupt"
-	default y
+	default n
 	---help---
 		Use Interrupt when the threshold is exceeded.
 		In this case, SCU sequencer is not used.
