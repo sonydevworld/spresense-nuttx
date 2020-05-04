@@ -121,6 +121,10 @@
 #  include "cxd56_geofence.h"
 #endif
 
+#ifdef CONFIG_VIDEO_FB
+#  include <nuttx/video/fb.h>
+#endif
+
 #include "spresense.h"
 
 /****************************************************************************
@@ -428,6 +432,14 @@ int cxd56_bringup(void)
   if (ret < 0)
     {
       _err("ERROR: Failed to initialize sensors.\n");
+    }
+#endif
+
+#ifdef CONFIG_VIDEO_FB
+  ret = fb_register(0,0);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize Frame Buffer Driver.\n");
     }
 #endif
 
