@@ -34,6 +34,15 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * gs2200m driver.
+ *
+ * See "GS2200MS2W Adapter Command Reference Guide" for the explanation
+ * of AT commands. You can find the document at:
+ * https://telit.com/m2m-iot-products/wifi-bluetooth-modules/wi-fi-gs2200m/
+ *
+ ****************************************************************************/
+
+/****************************************************************************
  * Included Files
  ****************************************************************************/
 
@@ -54,6 +63,7 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/semaphore.h>
+#include <nuttx/signal.h>
 #include <nuttx/wireless/gs2200m.h>
 #include <nuttx/net/netdev.h>
 
@@ -87,6 +97,8 @@
 #define RD_RESP_NOK  0x14
 
 #define LED_GPIO     30
+#define HAL_TIMEOUT  5000000  /* in us */
+#define WR_MAX_RETRY 100
 
 /****************************************************************************
  * Private Data Types
@@ -394,6 +406,14 @@ static void _notif_q_push(FAR struct gs2200m_dev_s *dev, char cid)
   dev->notif_q.wpos++;
   dev->notif_q.count++;
 
+  if (dev->pfd)
+    {
+      /* If poll() waits and cid has been pushed to the queue, notify  */
+
+      dev->pfd->revents |= POLLIN;
+      nxsem_post(dev->pfd->sem);
+    }
+
   wlinfo("+++ pushed %c count=%d \n", cid, dev->notif_q.count);
 }
 
@@ -624,7 +644,7 @@ static bool _copy_data_from_pkt(FAR struct gs2200m_dev_s *dev,
       goto errout;
     }
 
-  /* Copy the pkt data to msg buffer upto MIN(request - len, remain) */
+  /* Copy the pkt data to msg buffer up to MIN(request - len, remain) */
 
   len = MIN(msg->reqlen - msg->len, pkt_dat->remain);
   off = pkt_dat->len - pkt_dat->remain;
@@ -663,9 +683,9 @@ errout:
  * Name: gs2200m_lock
  ****************************************************************************/
 
-static void gs2200m_lock(FAR struct gs2200m_dev_s *dev)
+static int gs2200m_lock(FAR struct gs2200m_dev_s *dev)
 {
-  nxsem_wait_uninterruptible(&dev->dev_sem);
+  return nxsem_wait_uninterruptible(&dev->dev_sem);
 }
 
 /****************************************************************************
@@ -704,6 +724,7 @@ static ssize_t gs2200m_read(FAR struct file *filep, FAR char *buffer,
 {
   FAR struct inode *inode;
   FAR struct gs2200m_dev_s *dev;
+  int ret;
 
   DEBUGASSERT(filep);
   inode = filep->f_inode;
@@ -713,7 +734,15 @@ static ssize_t gs2200m_read(FAR struct file *filep, FAR char *buffer,
 
   ASSERT(1 == len);
 
-  gs2200m_lock(dev);
+  ret = nxsem_wait(&dev->dev_sem);
+  if (ret < 0)
+    {
+      /* Return if a signal is received or if the the task was canceled
+       * while we were waiting.
+       */
+
+      return ret;
+    }
 
   ASSERT(0 < _notif_q_count(dev));
   char cid = _notif_q_pop(dev);
@@ -735,7 +764,7 @@ static ssize_t gs2200m_read(FAR struct file *filep, FAR char *buffer,
 static ssize_t gs2200m_write(FAR struct file *filep, FAR const char *buffer,
                              size_t len)
 {
-  return 0;
+  return 0;  /* REVISIT:  Zero is not a legal return value from write() */
 }
 
 /****************************************************************************
@@ -800,15 +829,8 @@ static void _write_data(FAR struct gs2200m_dev_s *dev,
                         FAR uint8_t *buf,
                         FAR uint16_t len)
 {
-  int i;
-
   SPI_SELECT(dev->spi, SPIDEV_WIRELESS(0), true);
-
-  for (i = 0; i < len; i++, buf++)
-    {
-      SPI_SEND(dev->spi, *buf);
-    }
-
+  SPI_SNDBLOCK(dev->spi, buf, len);
   SPI_SELECT(dev->spi, SPIDEV_WIRELESS(0), false);
 }
 
@@ -821,18 +843,12 @@ static void _read_data(FAR struct gs2200m_dev_s *dev,
                        FAR uint8_t  *buff,
                        FAR uint16_t len)
 {
-  int i;
   uint8_t req = 0xf5; /* idle character */
 
   memset(buff, 0, len);
 
   SPI_SELECT(dev->spi, SPIDEV_WIRELESS(0), true);
-
-  for (i = 0; i < len; i++, buff++)
-    {
-      SPI_EXCHANGE(dev->spi, &req, buff, 1);
-    }
-
+  SPI_EXCHANGE(dev->spi, &req, buff, len);
   SPI_SELECT(dev->spi, SPIDEV_WIRELESS(0), false);
 }
 
@@ -862,15 +878,13 @@ retry:
   while (!dev->lower->dready(NULL))
     {
       /* TODO: timeout */
-
-      usleep(10);
     }
 
-  /* NOTE: wait 100us
-   * workaround to avoid realy receiving an invalid frame response
+  /* NOTE: busy wait 50us
+   * workaround to avoid an invalid frame response
    */
 
-  up_udelay(100);
+  up_udelay(50);
 
   /* Read frame response */
 
@@ -972,7 +986,7 @@ retry:
       wlwarn("*** warning: WR_RESP_NOK received.. retrying. (n=%d) \n", n);
       nxsig_usleep(10 * 1000);
 
-      if (9 < n)
+      if (WR_MAX_RETRY < n)
         {
           return SPI_TIMEOUT;
         }
@@ -1012,17 +1026,19 @@ enum spi_status_e gs2200m_hal_read(FAR struct gs2200m_dev_s *dev,
 
   /* NOTE: need to wait for data ready even if we use irq */
 
-  for (i = 0; i < 500; i++)
+  for (i = 0; i < HAL_TIMEOUT; i++)
     {
       if (dev->lower->dready(NULL))
         {
           break;
         }
 
-      nxsig_usleep(10 * 1000);
+      /* Busy wait 1us */
+
+      up_udelay(1);
     }
 
-  if (500 == i)
+  if (HAL_TIMEOUT == i)
     {
       wlerr("***** error: timeout! \n");
       r = SPI_TIMEOUT;
@@ -1589,7 +1605,7 @@ static enum pkt_type_e gs2200m_join_network(FAR struct gs2200m_dev_s *dev,
     }
   else
     {
-      /* In AP mode, we can specify chennel to use */
+      /* In AP mode, we can specify channel to use */
 
       snprintf(cmd, sizeof(cmd), "AT+WA=%s,,%d\r\n", ssid, ch);
     }
@@ -1711,12 +1727,12 @@ errout:
 
 /****************************************************************************
  * Name: gs2200m_create_tcpc
- * NOTE: See 7.5.1.1 Create TCP Clients
+ * NOTE: See 7.5.1.1 Create TCP Clients and 7.5.1.2 Create UDP Client
  ****************************************************************************/
 
-static enum pkt_type_e gs2200m_create_tcpc(FAR struct gs2200m_dev_s *dev,
+static enum pkt_type_e gs2200m_create_clnt(FAR struct gs2200m_dev_s *dev,
                                            FAR char *address, FAR char *port,
-                                           FAR char *cid)
+                                           int type, FAR char *cid)
 {
   enum pkt_type_e  r;
   struct pkt_dat_s pkt_dat;
@@ -1726,7 +1742,18 @@ static enum pkt_type_e gs2200m_create_tcpc(FAR struct gs2200m_dev_s *dev,
 
   *cid = 'z'; /* Invalidate cid */
 
-  snprintf(cmd, sizeof(cmd), "AT+NCTCP=%s,%s\r\n", address, port);
+  if (SOCK_STREAM == type)
+    {
+      snprintf(cmd, sizeof(cmd), "AT+NCTCP=%s,%s\r\n", address, port);
+    }
+  else if (SOCK_DGRAM == type)
+    {
+      snprintf(cmd, sizeof(cmd), "AT+NCUDP=%s,%s\r\n", address, port);
+    }
+  else
+    {
+      ASSERT(false);
+    }
 
   /* Initialize pkt_dat and send  */
 
@@ -1958,10 +1985,26 @@ static enum pkt_type_e gs2200m_set_gpio(FAR struct gs2200m_dev_s *dev,
 #endif
 
 /****************************************************************************
+ * Name: gs2200m_set_loglevel
+ * NOTE: See 11.3.1 Log Level
+ ****************************************************************************/
+
+#if CONFIG_WL_GS2200M_LOGLEVEL > 0
+static enum pkt_type_e gs2200m_set_loglevel(FAR struct gs2200m_dev_s *dev,
+                                            int level)
+{
+  char cmd[16];
+
+  snprintf(cmd, sizeof(cmd), "AT+LOGLVL=%d\r\n", level);
+  return gs2200m_send_cmd(dev, cmd, NULL);
+}
+#endif
+
+/****************************************************************************
  * Name: gs2200m_get_version
  ****************************************************************************/
 
-#ifdef CHECK_VERSION
+#ifdef CONFIG_WL_GS2200M_CHECK_VERSION
 static enum pkt_type_e gs2200m_get_version(FAR struct gs2200m_dev_s *dev)
 {
   char cmd[16];
@@ -2022,9 +2065,9 @@ static int gs2200m_ioctl_connect(FAR struct gs2200m_dev_s *dev,
 
   wlinfo("++ start: addr=%s port=%s \n", msg->addr, msg->port);
 
-  /* Create TCP connection */
+  /* Create TCP or UDP connection */
 
-  type = gs2200m_create_tcpc(dev, msg->addr, msg->port, &cid);
+  type = gs2200m_create_clnt(dev, msg->addr, msg->port, msg->type, &cid);
 
   msg->type = type;
 
@@ -2273,7 +2316,7 @@ static int gs2200m_ioctl_accept(FAR struct gs2200m_dev_s *dev,
   msg->type = TYPE_OK;
   msg->cid  = c_cid; /* NOTE: override new client cid */
 
-  /* Disalbe accept in progress */
+  /* Disable accept in progress */
 
   _enable_cid(&dev->aip_cid_bits, c_cid, false);
 
@@ -2503,7 +2546,13 @@ static int gs2200m_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   /* Lock the device */
 
-  gs2200m_lock(dev);
+  ret = gs2200m_lock(dev);
+  if (ret < 0)
+    {
+      /* Return only if the task was canceled */
+
+      return ret;
+    }
 
   /* Disable gs2200m irq to poll dready */
 
@@ -2624,7 +2673,13 @@ static int gs2200m_poll(FAR struct file *filep, FAR struct pollfd *fds,
   DEBUGASSERT(inode && inode->i_private);
   dev = (FAR struct gs2200m_dev_s *)inode->i_private;
 
-  gs2200m_lock(dev);
+  ret = gs2200m_lock(dev);
+  if (ret < 0)
+    {
+      /* Return if the task was canceled */
+
+      return ret;
+    }
 
   /* Are we setting up the poll?  Or tearing it down? */
 
@@ -2677,17 +2732,27 @@ static void gs2200m_irq_worker(FAR void *arg)
   enum pkt_type_e t = TYPE_ERROR;
   struct pkt_dat_s *pkt_dat;
   bool ignored = false;
-  bool pushed  = false;
   uint8_t c;
   char s_cid;
   char c_cid;
   int n;
   int ec;
+  int ret;
 
   DEBUGASSERT(arg != NULL);
   dev = (FAR struct gs2200m_dev_s *)arg;
 
-  gs2200m_lock(dev);
+  do
+    {
+      ret = gs2200m_lock(dev);
+
+      /* The only failure would be if the worker thread were canceled.  That
+       * is very unlikely, however.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -ECANCELED);
+    }
+  while (ret < 0);
 
   n = dev->lower->dready(&ec);
   wlinfo("== start (dready=%d, ec=%d) \n", n, ec);
@@ -2752,7 +2817,6 @@ static void gs2200m_irq_worker(FAR void *arg)
   if (!_cid_is_set(&dev->aip_cid_bits, pkt_dat->cid))
     {
       _notif_q_push(dev, pkt_dat->cid);
-      pushed = true;
     }
 
   /* Check if the packet is CONNECT event from client */
@@ -2776,14 +2840,6 @@ static void gs2200m_irq_worker(FAR void *arg)
       /* Enable accept in progress */
 
       _enable_cid(&dev->aip_cid_bits, c_cid, true);
-    }
-
-  if (dev->pfd && pushed)
-    {
-      /* If poll() waits and cid has been pushed to the queue, notify  */
-
-      dev->pfd->revents |= POLLIN;
-      nxsem_post(dev->pfd->sem);
     }
 
 errout:
@@ -2866,7 +2922,14 @@ static int gs2200m_start(FAR struct gs2200m_dev_s *dev)
   t = gs2200m_enable_echo(dev, 0);
   ASSERT(TYPE_OK == t);
 
-#ifdef CHECK_VERSION
+#if CONFIG_WL_GS2200M_LOGLEVEL > 0
+  /* Set log level */
+
+  t = gs2200m_set_loglevel(dev, CONFIG_WL_GS2200M_LOGLEVEL);
+  ASSERT(TYPE_OK == t);
+#endif
+
+#ifdef CONFIG_WL_GS2200M_CHECK_VERSION
   /* Version */
 
   t = gs2200m_get_version(dev);
