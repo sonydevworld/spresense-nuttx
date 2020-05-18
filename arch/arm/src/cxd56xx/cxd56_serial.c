@@ -439,6 +439,7 @@ static void up_set_format(struct uart_dev_s *dev)
   /* Enable Auto-RTS and Auto-CS Flow Control in the Modem Control Register */
 
   cr &= ~(UART_CR_RTSEN | UART_CR_CTSEN);
+  cr |= UART_CR_RTS;
 
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
   if ((priv->iflow) && (priv->uartbase == CXD56_UART2_BASE))
