@@ -198,12 +198,12 @@ static void altmdm_poweron(void)
 
   /* Input enable */
 
-  cxd56_gpio_config(ALTMDM_SLAVE_REQ, false);
+  cxd56_gpio_config(ALTMDM_SLAVE_REQ, true);
 
   /* Output enable */
 
   cxd56_gpio_config(ALTMDM_MASTER_REQ, false);
-  cxd56_gpio_config(ALTMDM_WAKEUP, true);
+  cxd56_gpio_config(ALTMDM_WAKEUP, false);
 
   /* Write a default value for output pin */
 
