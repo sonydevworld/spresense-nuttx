@@ -71,7 +71,12 @@
                             EVENT_SV_TIMER_EXP)
 #define EVENT_TRANS_WAIT   (EVENT_TXREQ | EVENT_RXREQ | EVENT_RXBUFRDY | \
                             EVENT_SLEEPREQ | EVENT_SV_TIMER_EXP | EVENT_EXIT)
-#define XFER_TASK_PRI      (90)
+#if defined(CONFIG_MODEM_ALTMDM_XFER_TASK_PRIORITY)
+#  define XFER_TASK_PRI    (CONFIG_MODEM_ALTMDM_XFER_TASK_PRIORITY)
+#else
+#  define XFER_TASK_PRI    (170)
+#endif
+
 #define XFER_TASK_STKSIZE  (1536)
 #define XFER_TASK_NAME     "altmdm_xfer_task"
 #if defined(CONFIG_MODEM_ALTMDM_MAX_PACKET_SIZE)
@@ -102,6 +107,7 @@
 #endif
 #define WRITE_WAIT_TIMEOUT    (ALTMDM_SYS_FLAG_TMOFEVR)
 #define SREQ_WAIT_TIMEOUT     (ALTMDM_SYS_FLAG_TMOFEVR)
+#define YIELD_TASK_NOBUFF     (100 * 1000) /* microsecond */
 
 /* Defines for transfer mode */
 
@@ -172,8 +178,13 @@ static void svtimer_handler(int signo, FAR siginfo_t * info,
 {
   FAR struct altmdm_dev_s *priv =
     (FAR struct altmdm_dev_s *)(info->si_value.sival_ptr);
+  struct altmdm_sys_flagstate_s flag_status;
 
-  altmdm_sys_setflag(&priv->spidev.xfer_flag, EVENT_SV_TIMER_EXP);
+  altmdm_sys_referflag(&priv->spidev.xfer_flag, &flag_status);
+  if (!(flag_status.flag_pattern & EVENT_SV_TIMER_EXP))
+    {
+      altmdm_sys_setflag(&priv->spidev.xfer_flag, EVENT_SV_TIMER_EXP);
+    }
 }
 
 /****************************************************************************
@@ -284,7 +295,8 @@ static int get_dmasize(FAR struct altmdm_dev_s *priv, int data_size)
  *
  ****************************************************************************/
 
-static int wait_receiverready(FAR struct altmdm_dev_s *priv)
+static int wait_receiverready(FAR struct altmdm_dev_s *priv,
+                              uint32_t timeout_ms)
 {
   int ret;
   uint32_t ptn;
@@ -292,7 +304,7 @@ static int wait_receiverready(FAR struct altmdm_dev_s *priv)
 
   ret = altmdm_sys_waitflag(&spidev->xfer_flag, EVENT_RXREQ,
                             ALTMDM_SYS_FLAG_WMODEOR, &ptn,
-                            WAIT_RXREQ_TIMEOUT);
+                            timeout_ms);
   if (ret != 0)
     {
       m_err("receiver ready timeout.\n");
@@ -823,7 +835,7 @@ static int do_xferheader(FAR struct altmdm_dev_s *priv,
 
   if ((!is_rxreq) && (!is_rcvrready))
     {
-      ret = wait_receiverready(priv);
+      ret = wait_receiverready(priv, WAIT_RXREQ_TIMEOUT);
       if (ret < 0)
         {
           goto trans_header_error;
@@ -871,7 +883,7 @@ static int do_receivedata(FAR struct altmdm_dev_s *priv)
 
   /* Wait for Receiver Ready to receive. */
 
-  ret = wait_receiverready(priv);
+  ret = wait_receiverready(priv, WAIT_RXREQ_TIMEOUT);
   if (ret >= 0)
     {
       /* Get DMA transfer size */
@@ -910,7 +922,7 @@ static int do_senddata(FAR struct altmdm_dev_s *priv)
 
   /* Wait for Receiver Ready to receive. */
 
-  ret = wait_receiverready(priv);
+  ret = wait_receiverready(priv, WAIT_RXREQ_TIMEOUT);
   if (ret >= 0)
     {
       /* Get DMA transfer size */
@@ -950,7 +962,7 @@ static int do_trxdata(FAR struct altmdm_dev_s *priv)
 
   /* Wait for Receiver Ready to receive. */
 
-  ret = wait_receiverready(priv);
+  ret = wait_receiverready(priv, WAIT_RXREQ_TIMEOUT);
   if (ret >= 0)
     {
       /* Choose the larger one. */
@@ -1003,7 +1015,7 @@ static int do_receivedata_nobuff(FAR struct altmdm_dev_s *priv)
 
   /* Wait for Receiver Ready to receive. */
 
-  ret = wait_receiverready(priv);
+  ret = wait_receiverready(priv, WAIT_RXREQ_TIMEOUT);
   if (ret >= 0)
     {
       /* Get DMA transfer size */
@@ -1046,7 +1058,7 @@ static int do_trxdata_norxbuff(FAR struct altmdm_dev_s *priv)
 
   /* Wait for Receiver Ready to receive. */
 
-  ret = wait_receiverready(priv);
+  ret = wait_receiverready(priv, WAIT_RXREQ_TIMEOUT);
   if (ret >= 0)
     {
       /* Choose the larger one. */
@@ -1100,7 +1112,7 @@ static int do_receivesleepdata(FAR struct altmdm_dev_s *priv, FAR int *resp)
 
   /* Wait for Receiver Ready to receive. */
 
-  ret = wait_receiverready(priv);
+  ret = wait_receiverready(priv, WAIT_RXREQ_TIMEOUT);
   if (ret >= 0)
     {
       /* Get DMA transfer size */
@@ -1153,7 +1165,7 @@ static int do_receivereset(FAR struct altmdm_dev_s *priv)
 
   /* Wait for Receiver Ready to receive. */
 
-  ret = wait_receiverready(priv);
+  ret = wait_receiverready(priv, WAIT_RXREQ_TIMEOUT);
   if (ret >= 0)
     {
       /* Get DMA transfer size */
@@ -1227,7 +1239,7 @@ static int do_trxreset(FAR struct altmdm_dev_s *priv)
 
   /* Wait for Receiver Ready to receive. */
 
-  ret = wait_receiverready(priv);
+  ret = wait_receiverready(priv, WAIT_RXREQ_TIMEOUT);
   if (ret >= 0)
     {
       /* If a conflict occurs with the reset packet,
@@ -1545,6 +1557,13 @@ static void done_xfer(FAR struct altmdm_dev_s *priv, uint32_t xfer_mode,
         }
 
       altmdm_sys_setflag(&spidev->tx_param.done_flag, EVENT_TX_DONE);
+
+      /* Yield the CPU so that the upper layer can execute
+       * the receiving process.
+       */
+
+      usleep(YIELD_TASK_NOBUFF);
+
       break;
 
     case MODE_TRXHEADERFAILTXREQ:
@@ -1585,8 +1604,16 @@ static void done_xfer(FAR struct altmdm_dev_s *priv, uint32_t xfer_mode,
       altmdm_sys_setflag(&spidev->tx_param.done_flag, EVENT_TX_DONE);
       break;
 
-    case MODE_TRXHEADERFAILRXREQ:
     case MODE_RXDATANOBUFF:
+
+      /* Yield the CPU so that the upper layer can execute
+       * the receiving process.
+       */
+
+      usleep(YIELD_TASK_NOBUFF);
+      break;
+
+    case MODE_TRXHEADERFAILRXREQ:
     case MODE_RXINVALID:
       break;
 
@@ -1731,35 +1758,37 @@ static int xfer_task(int argc, char *argv[])
             {
               stop_svtimer(priv);
 
-              if (is_txreq)
-                {
-                  /* Wakeup modem before data transfer */
+              /* Wakeup modem before data transfer */
 
-                  res_code = altmdm_pm_wakeup(priv);
-                  if (res_code == MODEM_PM_WAKEUP_FAIL)
-                    {
-                      done_xfer(priv, MODE_TXDATA, TRANS_WAITRCVRTMO);
-                      start_svtimer(priv);
-                      continue;
-                    }
-#ifdef CONFIG_MODEM_ALTMDM_PROTCOL_V2_1
-                  else if (res_code == MODEM_PM_WAKEUP_DONE)
-                    {
-                      is_rcvrready = 1;
-                    }
-#endif
+              if (is_rxreq)
+                {
+                  res_code = altmdm_pm_wakeup(priv, NULL);
+                }
+              else
+                {
+                  res_code = altmdm_pm_wakeup(priv, wait_receiverready);
+                }
+
+              if (res_code == MODEM_PM_WAKEUP_FAIL)
+                {
+                  done_xfer(priv, MODE_TXDATA, TRANS_WAITRCVRTMO);
+                  start_svtimer(priv);
+                  continue;
+                }
+              else if (res_code == MODEM_PM_WAKEUP_DONE)
+                {
+                  is_rcvrready = 1;
                 }
 
               /* transfer header */
 
               ret = do_xferheader(priv, is_rxreq, is_txreq, 0, is_rcvrready);
 
-#ifdef CONFIG_MODEM_ALTMDM_PROTCOL_V2_1
               if (is_rcvrready)
                 {
                   is_rcvrready = 0;
                 }
-#endif
+
               xfer_mode = decide_xfermode(priv, is_rxreq, is_txreq, ret);
 
               switch (xfer_mode)
@@ -1842,25 +1871,10 @@ static int xfer_task(int argc, char *argv[])
 
 int altmdm_spi_gpioreadyisr(int irq, FAR void *context, FAR void *arg)
 {
-  uint32_t modem_state;
   FAR struct altmdm_dev_s *priv = g_privdata;
   FAR struct altmdm_spi_dev_s *spidev = &priv->spidev;
 
-#ifdef CONFIG_MODEM_ALTMDM_PROTCOL_V2_1
-  modem_state = altmdm_pm_getinternalstate();
-  if ((modem_state == MODEM_PM_INTERNAL_STATE_GOING_TO_SLEEP) ||
-      (modem_state == MODEM_PM_INTERNAL_STATE_GOING_TO_WAKE) ||
-      (modem_state == MODEM_PM_INTERNAL_STATE_SLEEP))
-    {
-      altmdm_pm_callgpiohandler(priv);
-    }
-  else
-    {
-      altmdm_sys_setflag(&spidev->xfer_flag, EVENT_RXREQ);
-    }
-#else
   altmdm_sys_setflag(&spidev->xfer_flag, EVENT_RXREQ);
-#endif
 
   return 0;
 }
@@ -2256,8 +2270,6 @@ int altmdm_spi_sleepmodem(FAR struct altmdm_dev_s *priv)
   return ret;
 }
 
-#ifdef CONFIG_MODEM_ALTMDM_PROTCOL_V2_1
-
 /****************************************************************************
  * Name: altmdm_spi_setreceiverready
  *
@@ -2313,6 +2325,5 @@ int altmdm_spi_clearreceiverready(FAR struct altmdm_dev_s *priv)
 
   return 0;
 }
-#endif
 
 #endif  /* CONFIG_MODEM_ALTMDM */
