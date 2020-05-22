@@ -380,8 +380,10 @@ static void cxd56_dataconfig(struct cxd56_sdiodev_s *priv, bool bwrite,
                                unsigned int blocksize, unsigned int nblocks,
                                unsigned int timeout);
 static void cxd56_datadisable(void);
+#ifndef CONFIG_SDIO_DMA
 static void cxd56_transmit(struct cxd56_sdiodev_s *priv);
 static void cxd56_receive(struct cxd56_sdiodev_s *priv);
+#endif
 static void cxd56_eventtimeout(int argc, uint32_t arg);
 static void cxd56_endwait(struct cxd56_sdiodev_s *priv,
               sdio_eventset_t wkupevent);
@@ -417,10 +419,12 @@ static int  cxd56_sdio_sendcmd(FAR struct sdio_dev_s *dev,
               uint32_t cmd, uint32_t arg);
 static void cxd56_blocksetup(FAR struct sdio_dev_s *dev,
               unsigned int blocklen, unsigned int nblocks);
+#ifndef CONFIG_SDIO_DMA
 static int  cxd56_sdio_recvsetup(FAR struct sdio_dev_s *dev,
               FAR uint8_t *buffer, size_t nbytes);
 static int  cxd56_sdio_sendsetup(FAR struct sdio_dev_s *dev,
               FAR const uint8_t *buffer, uint32_t nbytes);
+#endif
 static int  cxd56_sdio_cancel(FAR struct sdio_dev_s *dev);
 
 static int  cxd56_sdio_waitresponse(FAR struct sdio_dev_s *dev, uint32_t cmd);
@@ -496,8 +500,13 @@ struct cxd56_sdiodev_s g_sdhcdev =
       .attach           = cxd56_sdio_attach,
       .sendcmd          = cxd56_sdio_sendcmd,
       .blocksetup       = cxd56_blocksetup,
+#ifndef CONFIG_SDIO_DMA
       .recvsetup        = cxd56_sdio_recvsetup,
       .sendsetup        = cxd56_sdio_sendsetup,
+#else
+      .recvsetup        = cxd56_sdio_dmarecvsetup,
+      .sendsetup        = cxd56_sdio_dmasendsetup,
+#endif
       .cancel           = cxd56_sdio_cancel,
       .waitresponse     = cxd56_sdio_waitresponse,
       .recvR1           = cxd56_sdio_recvshortcrc,
@@ -514,6 +523,9 @@ struct cxd56_sdiodev_s g_sdhcdev =
 #ifdef CONFIG_SDIO_DMA
       .dmarecvsetup     = cxd56_sdio_dmarecvsetup,
       .dmasendsetup     = cxd56_sdio_dmasendsetup,
+#else
+      .dmarecvsetup     = cxd56_sdio_recvsetup,
+      .dmasendsetup     = cxd56_sdio_sendsetup,
 #endif
 #ifdef CONFIG_CXD56_SDIO_ENABLE_MULTIFUNCTION
       .register_irq     = cxd56_sdio_register_irq,
@@ -850,6 +862,7 @@ static void cxd56_datadisable(void)
  *
  ****************************************************************************/
 
+#ifndef CONFIG_SDIO_DMA
 static void cxd56_transmit(struct cxd56_sdiodev_s *priv)
 {
   union
@@ -920,6 +933,7 @@ static void cxd56_transmit(struct cxd56_sdiodev_s *priv)
   mcinfo("Exit: remaining: %d IRQSTAT: %08x\n",
           priv->remaining, getreg32(CXD56_SDHCI_IRQSTAT));
 }
+#endif
 
 /****************************************************************************
  * Name: cxd56_receive
@@ -935,6 +949,7 @@ static void cxd56_transmit(struct cxd56_sdiodev_s *priv)
  *
  ****************************************************************************/
 
+#ifndef CONFIG_SDIO_DMA
 static void cxd56_receive(struct cxd56_sdiodev_s *priv)
 {
   union
@@ -996,6 +1011,7 @@ static void cxd56_receive(struct cxd56_sdiodev_s *priv)
         }
     }
 }
+#endif
 
 /****************************************************************************
  * Name: cxd56_eventtimeout
@@ -1192,16 +1208,19 @@ static int cxd56_interrupt(int irq, FAR void *context, FAR void *arg)
 
   /* Disable card interrupts to clear the card interrupt to the host system. */
 
-  regval &= ~(SDHCI_INT_CINT | enabled);
+  regval &= ~SDHCI_INT_CINT;
   putreg32(regval, CXD56_SDHCI_IRQSIGEN);
 
   /* Clear all pending interrupts */
+
+  putreg32(enabled, CXD56_SDHCI_IRQSTAT);
 
   /* Handle in progress, interrupt driven data transfers ********************/
 
   pending  = enabled & priv->xfrints;
   if (pending != 0)
     {
+#ifndef CONFIG_SDIO_DMA
       /* Is the RX buffer read ready?  Is so then we must be processing a
        * non-DMA receive transaction.
        */
@@ -1224,6 +1243,7 @@ static int cxd56_interrupt(int irq, FAR void *context, FAR void *arg)
 
           cxd56_transmit(priv);
         }
+#endif
 
       /* Handle transfer complete events */
 
@@ -1309,7 +1329,7 @@ static int cxd56_interrupt(int irq, FAR void *context, FAR void *arg)
   /* Re-enable card interrupts */
 
   regval  = getreg32(CXD56_SDHCI_IRQSIGEN);
-  regval |= SDHCI_INT_CINT | enabled;
+  regval |= SDHCI_INT_CINT;
   putreg32(regval, CXD56_SDHCI_IRQSIGEN);
 
   return OK;
@@ -2004,6 +2024,7 @@ static void cxd56_blocksetup(FAR struct sdio_dev_s *dev,
  *
  ****************************************************************************/
 
+#ifndef CONFIG_SDIO_DMA
 static int cxd56_sdio_recvsetup(FAR struct sdio_dev_s *dev,
                                 FAR uint8_t *buffer, size_t nbytes)
 {
@@ -2037,6 +2058,7 @@ static int cxd56_sdio_recvsetup(FAR struct sdio_dev_s *dev,
   cxd56_sample(priv, SAMPLENDX_AFTER_SETUP);
   return OK;
 }
+#endif
 
 /****************************************************************************
  * Name: cxd56_sdio_sendsetup
@@ -2058,6 +2080,7 @@ static int cxd56_sdio_recvsetup(FAR struct sdio_dev_s *dev,
  *
  ****************************************************************************/
 
+#ifndef CONFIG_SDIO_DMA
 static int cxd56_sdio_sendsetup(FAR struct sdio_dev_s *dev,
                                 FAR const uint8_t *buffer, size_t nbytes)
 {
@@ -2091,6 +2114,7 @@ static int cxd56_sdio_sendsetup(FAR struct sdio_dev_s *dev,
   cxd56_sample(priv, SAMPLENDX_AFTER_SETUP);
   return OK;
 }
+#endif
 
 /****************************************************************************
  * Name: cxd56_sdio_cancel
