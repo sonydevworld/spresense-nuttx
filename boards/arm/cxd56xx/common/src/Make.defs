@@ -162,6 +162,10 @@ ifeq ($(CONFIG_CXD56_EMMC),y)
   CSRCS += cxd56_emmcdev.c
 endif
 
+ifeq ($(CONFIG_CXD56_SPISD),y)
+  CSRCS += cxd56_spisd.c
+endif
+
 DEPPATH += --dep-path src
 VPATH += :src
 CFLAGS += $(shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)board$(DELIM)src)

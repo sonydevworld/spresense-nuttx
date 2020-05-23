@@ -69,6 +69,7 @@
 #include "cxd56_bmi160.h"
 #include "cxd56_bmp280.h"
 #include "cxd56_emmcdev.h"
+#include "cxd56_spisd.h"
 #include "cxd56_kx022.h"
 #include "cxd56_lt1pa01.h"
 #include "cxd56_rpr0521rs.h"

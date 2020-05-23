@@ -364,6 +364,7 @@ int cxd56_bringup(void)
     }
 #endif /* CONFIG_VIDEO_ISX012 */
 
+#if defined(CONFIG_CXD56_SDIO)
   /* In order to prevent Hi-Z from being input to the SD Card controller,
    * Initialize SDIO pins to GPIO low output with internal pull-down.
    */
@@ -376,11 +377,21 @@ int cxd56_bringup(void)
   cxd56_gpio_write(PIN_SDIO_DATA2, false);
   cxd56_gpio_write(PIN_SDIO_DATA3, false);
 
-#if defined(CONFIG_CXD56_SDIO)
   ret = board_sdcard_initialize();
   if (ret < 0)
     {
       _err("ERROR: Failed to initialize sdhci. \n");
+    }
+#endif
+
+#ifdef CONFIG_CXD56_SPISD
+  /* Mount the SPI-based MMC/SD block driver */
+
+  ret = board_spisd_initialize(0, CONFIG_CXD56_SPISD_SPI_CH);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize SPI device to MMC/SD: %d\n",
+           ret);
     }
 #endif
 

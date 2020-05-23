@@ -1161,6 +1161,13 @@ config CXD56_SPISD_SLOT_NO
 	---help---
 		Select spi sd card slot number.
 
+config CXD56_SPISD_SPI_CH
+	int "SPI channel number"
+	default 5
+	range 4 5
+	---help---
+		Select spi channel number to use spi sd card.
+
 endif # SPISD Configuration
 
 config CXD56_EMMC
