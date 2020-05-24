@@ -32,6 +32,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+/**
+ * @file cxd56_gpioif.h
+ */
 
 #ifndef __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_GPIOIF_H
 #define __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_GPIOIF_H
@@ -56,14 +59,19 @@ extern "C"
 #define EXTERN extern
 #endif
 
-/* gpioif GPIO Interface driver */
+/**
+ * @defgroup gpioif GPIO Interface driver
+ * @{
+ */
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Pin Pull Setting
+/**
+ * @name Pin Pull Setting
  * Pin floating, pull up, pull down definitions
+ * @{
  */
 
 #define PIN_FLOAT               (0) /**< Floating */
@@ -71,8 +79,12 @@ extern "C"
 #define PIN_PULLDOWN            (2) /**< Internal Weak Pull Down */
 #define PIN_BUSKEEPER           (3) /**< Internal Bus-Keeper */
 
-/* GPIO Interrupt Setting
+/* @} */
+
+/**
+ * @name GPIO Interrupt Setting
  * GPIO interrupt level and edge trigger types
+ * @{
  */
 
 #define INT_HIGH_LEVEL          (2) /**< High Level */
@@ -81,109 +93,120 @@ extern "C"
 #define INT_FALLING_EDGE        (5) /**< Falling Edge */
 #define INT_BOTH_EDGE           (7) /**< Both Edge */
 
+/* @} */
+
 #ifndef __ASSEMBLY__
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-/* GPIO Configure
+/**
+ * GPIO Configure
  *
- * [in] pin: Pin number
- * [in] mode: Function mode 0=GPIO
- * [in] input: Input Enable true=enable, false=disable
- * [in] drive: Drive Strength true=High Drive(4mA), false=Normal(2mA)
- * [in] pull: 0=float, 1=pullup, 2=pulldown, 3=buskeeper
- *          - PIN_FLOAT
- *          - PIN_PULLUP
- *          - PIN_PULLDOWN
- *          - PIN_BUSKEEPER
+ * @param [in] pin: Pin number
+ * @param [in] mode: Function mode 0=GPIO
+ * @param [in] input: Input Enable true=enable, false=disable
+ * @param [in] drive: Drive Strength true=High Drive(4mA), false=Normal(2mA)
+ * @param [in] pull: 0=float, 1=pullup, 2=pulldown, 3=buskeeper
+ *          - #PIN_FLOAT
+ *          - #PIN_PULLUP
+ *          - #PIN_PULLDOWN
+ *          - #PIN_BUSKEEPER
  *
- *  return: OK(0) is success. negative value is failure.
+ * @return  OK(0) is success. negative value is failure.
  */
 
 int board_gpio_config(uint32_t pin, int mode, bool input, bool drive,
                       int pull);
 
-/* GPIO Status
+/**
+ * GPIO Status
  *
- * [in] pin: Pin number
- * [out] input: Input Enable true=enable, false=disable
- * [out] output: Output Enable true=enable, false=disable
- * [out] drive: Drive Strength true=HighDrive(4mA), false=Normal(2mA)
- * [out] pull: 0=float, 1=pullup, 2=pulldown, 3=buskeeper
- *          - PIN_FLOAT
- *          - PIN_PULLUP
- *          - PIN_PULLDOWN
- *          - PIN_BUSKEEPER
+ * @param [in] pin: Pin number
+ * @param [out] input: Input Enable true=enable, false=disable
+ * @param [out] output: Output Enable true=enable, false=disable
+ * @param [out] drive: Drive Strength true=HighDrive(4mA), false=Normal(2mA)
+ * @param [out] pull: 0=float, 1=pullup, 2=pulldown, 3=buskeeper
+ *          - #PIN_FLOAT
+ *          - #PIN_PULLUP
+ *          - #PIN_PULLDOWN
+ *          - #PIN_BUSKEEPER
  *
- * return: Pin function mode. negative value is failure.
+ * @return  Pin function mode. negative value is failure.
  */
 
 int board_gpio_status(uint32_t pin, bool *input, bool *output, bool *drive,
                       int *pull);
 
-/* GPIO Write
+/**
+ * GPIO Write
  *
- * [in] pin: Pin number
- * [in] value: Write Value 0<high, 0=low, 0>hiz
+ * @param [in] pin: Pin number
+ * @param [in] value: Write Value 0<high, 0=low, 0>hiz
  */
 
 void board_gpio_write(uint32_t pin, int value);
 
-/* GPIO Read
+/**
+ * GPIO Read
  *
- * param: [in] pin: Pin number
+ * @param [in] pin: Pin number
  *
- * return:  read value 1=high, 0=low
+ * @return  read value 1=high, 0=low
  */
 
 int board_gpio_read(uint32_t pin);
 
-/* GPIO Interrupt Configure
+/**
+ * GPIO Interrupt Configure
  *
- * [in] pin: Pin number
- * [in] mode: Interrupt polarity
+ * @param [in] pin: Pin number
+ * @param [in] mode: Interrupt polarity
  *          - #INT_HIGH_LEVEL
  *          - #INT_LOW_LEVEL
  *          - #INT_RISING_EDGE
  *          - #INT_FALLING_EDGE
  *          - #INT_BOTH_EDGE
- * [in] filter: Noise Filter true=enable, false=disable
- * [in] isr: Interrupt Service Routine
+ * @param [in] filter: Noise Filter true=enable, false=disable
+ * @param [in] isr: Interrupt Service Routine
  *
- *  IRQ number. negative value is failure.
+ * @return  IRQ number. negative value is failure.
  */
 
 int board_gpio_intconfig(uint32_t pin, int mode, bool filter, xcpt_t isr);
 
-/* GPIO Interrupt Configure
+/**
+ * GPIO Interrupt Configure
  *
- * [in] pin: Pin number
- * [out] mode: Interrupt polarity
+ * @param [in] pin: Pin number
+ * @param [out] mode: Interrupt polarity
  *          - #INT_HIGH_LEVEL
  *          - #INT_LOW_LEVEL
  *          - #INT_RISING_EDGE
  *          - #INT_FALLING_EDGE
  *          - #INT_BOTH_EDGE
- * [out] filter: Noise Filter true=enable, false=disable
- * [out] enabled: Interrupt true=enable, false=disable
+ * @param [out] filter: Noise Filter true=enable, false=disable
+ * @param [out] enabled: Interrupt true=enable, false=disable
  *
- *  IRQ number. negative value is failure.
+ * @return  IRQ number. negative value is failure.
  */
 
 int board_gpio_intstatus(uint32_t pin, int *mode,
                          bool *filter, bool *enabled);
 
-/* GPIO Interrupt Enable/Disable
+/**
+ * GPIO Interrupt Enable/Disable
  *
- * [in] pin: Pin number
- * [in] enable: Interrupt true=enable, false=disable
+ * @param [in] pin: Pin number
+ * @param [in] enable: Interrupt true=enable, false=disable
  *
- *  IRQ number. negative value is failure.
+ * @return  IRQ number. negative value is failure.
  */
 
 int board_gpio_int(uint32_t pin, bool enable);
+
+/* @} gpioif */
 
 #undef EXTERN
 #if defined(__cplusplus)

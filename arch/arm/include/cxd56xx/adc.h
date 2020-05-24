@@ -32,9 +32,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+/**
+ * @file       adc.h
+ */
 
 #ifndef __ARCH_ARM_INCLUDE_CXD56XX_ADC_H
 #define __ARCH_ARM_INCLUDE_CXD56XX_ADC_H
+
+/**
+ * @defgroup adc ADC driver
+ * @{
+ */
 
 /****************************************************************************
  * include files
@@ -48,49 +56,69 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/**
+ * @defgroup adc_ioctl IOCTL commands
+ * @{
+ */
+
 #define ANIOC_USER                 (AN_FIRST + AN_NCMDS)
 
-/* Start sampling
+/**
+ * Start sampling
  *
- * param None
- * return ioctl return value provides success/failure indication
+ * @param None
+ * @return ioctl return value provides success/failure indication
  */
 
 #define ANIOC_CXD56_START          _ANIOC(ANIOC_USER + 0)
 
-/* Stop sampling
+/**
+ * Stop sampling
  *
- * param None
- * return ioctl return value provides success/failure indication
+ * @param None
+ * @return ioctl return value provides success/failure indication
  */
 
 #define ANIOC_CXD56_STOP           _ANIOC(ANIOC_USER + 1)
 
-/* Set sampling frequency
+/**
+ * Set sampling frequency
  *
- * param None
- * return ioctl return value provides success/failure indication
+ * @param None
+ * @return ioctl return value provides success/failure indication
  */
 
 #define ANIOC_CXD56_FREQ           _ANIOC(ANIOC_USER + 2)
 
-/* Set fifo size
+/**
+ * Set fifo size
  *
- * param None
- * return ioctl return value provides success/failure indication
+ * @param None
+ * @return ioctl return value provides success/failure indication
  */
 
 #define ANIOC_CXD56_FIFOSIZE       _ANIOC(ANIOC_USER + 3)
 
+/** @} adc_ioctl */
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+/**
+ * @defgroup adc_funcs Functions
+ * @{
+ */
 
-/* Initialize valid ADC channels
+/**
+ * Initialize valid ADC channels
  *
- * return OK(0) is success. negative value is failure.
+ * @return OK(0) is success. negative value is failure.
  */
 
 int cxd56_adcinitialize(void);
+
+/** @} adc_funcs */
+
+/** @} adc */
 
 #endif /* __ARCH_ARM_INCLUDE_CXD56XX_ADC_H */
