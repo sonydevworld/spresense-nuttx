@@ -1146,12 +1146,6 @@ config CXD56_SDIO_DISABLE_CD_WP
 		Disable the CD and WP pin for Embedded SDIO.If the CD pin is not disable,
 		the SDIO initialization will be failed.
 
-config CXD56_SDIO_ENABLE_MULTIFUNCTION
-	bool "Enable SDIO multi-function"
-	default n
-	---help---
-		Support multi-function with SDIO interfaced peripheral other than SD Card.
-
 endif # SDIO Configuration
 
 menuconfig CXD56_SPISD
