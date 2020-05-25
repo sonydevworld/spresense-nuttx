@@ -140,7 +140,7 @@ uint8_t cxd56_spi4status(FAR struct spi_dev_s *dev, uint32_t devid)
 {
   uint8_t ret = 0;
 
-#  if CONFIG_CXD56_SPISD_SPI_CH == 4
+#  if defined(CONFIG_CXD56_SPISD) && (CONFIG_CXD56_SPISD_SPI_CH == 4)
   ret = board_spisd_status(dev, devid);
 #  endif
   return ret;
@@ -159,7 +159,7 @@ uint8_t cxd56_spi5status(FAR struct spi_dev_s *dev, uint32_t devid)
 {
   uint8_t ret = 0;
 
-#  if CONFIG_CXD56_SPISD_SPI_CH == 5
+#  if defined(CONFIG_CXD56_SPISD) && (CONFIG_CXD56_SPISD_SPI_CH == 5)
   ret = board_spisd_status(dev, devid);
 #  endif
   return ret;
