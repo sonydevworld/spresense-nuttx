@@ -298,6 +298,30 @@ int cxd56_bringup(void)
   #endif
 #endif
 
+#ifdef CONFIG_SYSTEM_SPITOOL
+#  ifdef CONFIG_CXD56_SPI3
+  ret = board_spidev_initialize(3);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize SPI3.\n");
+    }
+#  endif
+#  ifdef CONFIG_CXD56_SPI4
+  ret = board_spidev_initialize(4);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize SPI4.\n");
+    }
+#  endif
+#  ifdef CONFIG_CXD56_SPI5
+  ret = board_spidev_initialize(5);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize SPI5.\n");
+    }
+#  endif
+#endif
+
 #ifdef CONFIG_FS_PROCFS
 
 #if defined(CONFIG_USBDEV) && defined(CONFIG_FS_PROCFS_REGISTER)

@@ -52,6 +52,7 @@
 #include "cxd56_charger.h"
 #include "cxd56_gs2200m.h"
 #include "cxd56_i2cdev.h"
+#include "cxd56_spidev.h"
 #include "cxd56_sdcard.h"
 #include "cxd56_wdt.h"
 #include "cxd56_gpioif.h"

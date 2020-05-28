@@ -146,6 +146,10 @@ ifeq ($(CONFIG_CXD56_I2C_DRIVER),y)
 CSRCS += cxd56_i2cdev.c
 endif
 
+ifeq ($(CONFIG_CXD56_SPI_DRIVER),y)
+CSRCS += cxd56_spidev.c
+endif
+
 ifeq ($(CONFIG_VIDEO_ISX012),y)
 CSRCS += cxd56_isx012.c
 endif

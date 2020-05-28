@@ -347,6 +347,15 @@ config CXD56_SPI
 
 if CXD56_SPI
 
+config CXD56_SPI_DRIVER
+	bool "SPI character driver"
+	default y
+	select SPI_DRIVER
+	---help---
+		Build in support for a character driver at /dev/spi[N] that may be
+		used to perform SPI bus transfers from applications.  The intent of
+		this driver is to support SPI testing.
+
 config CXD56_SPI0
 	bool "SPI0"
 
