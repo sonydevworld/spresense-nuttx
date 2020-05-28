@@ -247,6 +247,31 @@ int cxd56_bringup(void)
     }
 #endif
 
+  cxd56_uart_initialize();
+  cxd56_timerisr_initialize();
+
+#ifdef CONFIG_CXD56_CPUFIFO
+  ret = cxd56_pm_bootup();
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to powermgr bootup.\n");
+    }
+#endif
+
+#ifndef CONFIG_CXD56_SUBCORE
+  /* Initialize CPU clock to max frequency */
+
+  board_clock_initialize();
+
+  /* Setup the power of external device */
+
+  board_power_setup(0);
+#endif
+
+#ifdef CONFIG_CXD56_SCU
+  scu_initialize();
+#endif
+
 #ifdef CONFIG_CXD56_I2C_DRIVER
   #ifdef CONFIG_CXD56_I2C0
   ret = board_i2cdev_initialize(0);
@@ -271,31 +296,6 @@ int cxd56_bringup(void)
       _err("ERROR: Failed to initialize I2C2.\n");
     }
   #endif
-#endif
-
-  cxd56_uart_initialize();
-  cxd56_timerisr_initialize();
-
-#ifdef CONFIG_CXD56_CPUFIFO
-  ret = cxd56_pm_bootup();
-  if (ret < 0)
-    {
-      _err("ERROR: Failed to powermgr bootup.\n");
-    }
-#endif
-
-#ifndef CONFIG_CXD56_SUBCORE
-  /* Initialize CPU clock to max frequency */
-
-  board_clock_initialize();
-
-  /* Setup the power of external device */
-
-  board_power_setup(0);
-#endif
-
-#ifdef CONFIG_CXD56_SCU
-  scu_initialize();
 #endif
 
 #ifdef CONFIG_FS_PROCFS
