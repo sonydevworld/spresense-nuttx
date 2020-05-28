@@ -831,7 +831,7 @@ int imageproc_alpha_blend(imageproc_imginfo_t *dst, int pos_x, int pos_y,
         break;
 
       case IMAGEPROC_IMGTYPE_BINARY:
-        fixed_alpha = 0x0800 | (uint8_t)alpha->img.binary.multiplier;
+        fixed_alpha = (uint8_t)alpha->img.binary.multiplier;
         options |= ALPHA1BPP;
 
         break;
