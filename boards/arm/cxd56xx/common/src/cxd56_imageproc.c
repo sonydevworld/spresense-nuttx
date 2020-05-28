@@ -458,8 +458,8 @@ static void get_rect_info(imageproc_imginfo_t *imginfo,
     {
       *offset = (imginfo->rect->y1 * imginfo->w)
               + imginfo->rect->x1;
-      *w      = imginfo->rect->x2 - imginfo->rect->x1;
-      *h      = imginfo->rect->y2 - imginfo->rect->y1;
+      *w      = imginfo->rect->x2 - imginfo->rect->x1 + 1;
+      *h      = imginfo->rect->y2 - imginfo->rect->y1 + 1;
     }
   else
     {
