@@ -891,12 +891,14 @@ int imageproc_alpha_blend(imageproc_imginfo_t *dst, int pos_x, int pos_y,
       return 0;  /* Not blend due to no overlapped area */
     }
 
-  src_offset += (blendarea_top * src->w) + blendarea_left;
   dst_offset += ((blendarea_top + pos_y) * dst->w) + (blendarea_left + pos_x);
+  src_offset += (blendarea_top * src->w) + blendarea_left;
+  a_offset   += (blendarea_top * alpha->w) + blendarea_left;
 
-  src_addr = get_blendarea(src,   src_offset);
+
   dst_addr = get_blendarea(dst,   dst_offset);
-  a_addr   = get_blendarea(alpha, src_offset);
+  src_addr = get_blendarea(src,   src_offset);
+  a_addr   = get_blendarea(alpha, a_offset);
 
   ret = ip_semtake(&g_abexc);
   if (ret)
