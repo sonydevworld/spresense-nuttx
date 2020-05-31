@@ -156,6 +156,8 @@ static void cxd56_pm_do_hotsleep(uint32_t idletime);
 static void cxd56_pm_intc_suspend(void);
 static void cxd56_pm_intc_resume(void);
 #endif
+static int cxd56_pmmsghandler(int cpuid, int protoid, uint32_t pdata,
+                              uint32_t data, FAR void *userdata);
 
 /****************************************************************************
  * Private Data
@@ -163,6 +165,7 @@ static void cxd56_pm_intc_resume(void);
 
 static struct cxd56_pm_target_id_s g_target_id_table;
 static mqd_t      g_queuedesc;
+static sem_t      g_bootsync;
 static sem_t      g_regcblock;
 static sem_t      g_freqlock;
 static sem_t      g_freqlockwait;
@@ -418,6 +421,29 @@ static int cxd56_pm_maintask(int argc, FAR char *argv[])
 {
   int size;
   struct cxd56_pm_message_s message;
+  struct mq_attr attr;
+
+  attr.mq_maxmsg  = 8;
+  attr.mq_msgsize = sizeof(struct cxd56_pm_message_s);
+  attr.mq_curmsgs = 0;
+  attr.mq_flags   = 0;
+
+  g_queuedesc = mq_open("cxd56_pm_message", O_RDWR | O_CREAT, 0666, &attr);
+  DEBUGASSERT((int)g_queuedesc != ERROR);
+  if (g_queuedesc < 0)
+    {
+      pmerr("Failed to create message queue\n");
+    }
+
+  /* Register power manager messaging protocol handler. */
+
+  cxd56_iccinit(CXD56_PROTO_PM);
+
+  cxd56_iccregisterhandler(CXD56_PROTO_PM, cxd56_pmmsghandler, NULL);
+
+  /* Notify that cxd56_pm_maintask is ready */
+
+  nxsem_post(&g_bootsync);
 
   while (1)
     {
@@ -773,15 +799,8 @@ int cxd56_pm_hotsleep(int idletime)
 
 int cxd56_pm_initialize(void)
 {
-  struct mq_attr attr;
   int taskid;
   int ret;
-
-  cxd56_iccinit(CXD56_PROTO_PM);
-
-  /* Register power manager messaging protocol handler. */
-
-  cxd56_iccregisterhandler(CXD56_PROTO_PM, cxd56_pmmsghandler, NULL);
 
   dq_init(&g_cbqueue);
   sq_init(&g_freqlockqueue);
@@ -806,14 +825,11 @@ int cxd56_pm_initialize(void)
       return ret;
     }
 
-  attr.mq_maxmsg  = 8;
-  attr.mq_msgsize = sizeof(struct cxd56_pm_message_s);
-  attr.mq_curmsgs = 0;
-  attr.mq_flags   = 0;
-  g_queuedesc = mq_open("cxd56_pm_message", O_RDWR | O_CREAT, 0666, &attr);
-  if (g_queuedesc < 0)
+  ret = nxsem_init(&g_bootsync, 0, 0);
+  nxsem_setprotocol(&g_bootsync, SEM_PRIO_NONE);
+  if (ret < 0)
     {
-      return -EPERM;
+      return ret;
     }
 
   taskid = task_create("cxd56_pm_task", CXD56_PM_TASK_PRIO,
@@ -823,6 +839,10 @@ int cxd56_pm_initialize(void)
     {
       return -EPERM;
     }
+
+  /* wait until cxd56_pm_maintask thread is ready */
+
+  cxd56_pm_semtake(&g_bootsync);
 
   return OK;
 }
