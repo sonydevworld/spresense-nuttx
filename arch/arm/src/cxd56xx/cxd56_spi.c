@@ -1422,7 +1422,6 @@ static void spi_dmaexchange(FAR struct spi_dev_s *dev,
   uint32_t regval                 = 0;
 
   DEBUGASSERT(priv && priv->spibase);
-  DEBUGASSERT(txbuffer || rxbuffer);
 
   /* Disable clock gating (clock enable) */
 
