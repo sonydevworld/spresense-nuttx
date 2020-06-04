@@ -32,6 +32,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+/**
+ * @file video_controls.h
+ */
 
 #ifndef __INCLUDE_NUTTX_VIDEO_CONTROLS_H
 #define __INCLUDE_NUTTX_VIDEO_CONTROLS_H
@@ -40,9 +43,18 @@
  * Included Files
  ****************************************************************************/
 
+/**
+ * @defgroup video Video driver
+ * @{ */
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+/**
+ * @defgroup video_ctrl_class Video control class
+ * @{
+ */
 
 /* Control classes */
 
@@ -50,6 +62,18 @@
 #define V4L2_CTRL_CLASS_CAMERA    (0x0001) /**< Camera class controls */
 #define V4L2_CTRL_CLASS_FLASH     (0x0002) /**< Camera flash controls */
 #define V4L2_CTRL_CLASS_JPEG      (0x0003) /**< JPEG-compression controls */
+
+/* @} video_ctrl_class */
+
+/**
+ * @defgroup video_ctrl_id Video control ID
+ * @{
+ */
+
+/**
+ * @defgroup video_ctrl_id_user Video control ID(V4L2_CTRL_CLASS_USER)
+ * @{
+ */
 
 /* User-class control IDs */
 
@@ -96,7 +120,14 @@ enum v4l2_colorfx
 #define V4L2_CID_AUTOBRIGHTNESS     (17)   /**< Auto brightness */
 #define V4L2_CID_ROTATE             (18)   /**< Rotation */
 
-/**  Camera class control IDs */
+/* @} video_ctrl_id_user */
+
+/**
+ * @defgroup video_ctrl_id_camera Video control ID(V4L2_CTRL_CLASS_CAMERA)
+ * @{
+ */
+
+/*  Camera class control IDs */
 
 #define V4L2_CID_EXPOSURE_AUTO      (0)    /**< Auto exposure */
 
@@ -217,8 +248,14 @@ enum v4l2_scene_mode
 #define V4L2_3A_STATUS_AWB_OPERATING (1 << 1) /**< AWB is operating */
 #define V4L2_3A_STATUS_AF_OPERATING  (1 << 2) /**< AF  is operating */
 
+/* @} video_ctrl_id_camera */
 
-/** Flash and privacy (indicator) light controls */
+/**
+ * @defgroup video_ctrl_id_flash Video control ID(V4L2_CTRL_CLASS_FLASH)
+ * @{
+ */
+
+/* Flash and privacy (indicator) light controls */
 
 #define V4L2_CID_FLASH_LED_MODE   (0)
 
@@ -231,8 +268,18 @@ enum v4l2_flash_led_mode
   V4L2_FLASH_LED_MODE_TORCH, /**< Torch mode */
 };
 
+/* @} video_ctrl_id_flash */
+
+/**
+ * @defgroup video_ctrl_id_jpeg Video control ID(V4L2_CTRL_CLASS_JPEG)
+ * @{
+ */
+
 /* JPEG-class control IDs */
 
 #define	V4L2_CID_JPEG_COMPRESSION_QUALITY (0) /**< JPEG quality */
+
+/* @} video_ctrl_id_jpeg */
+/* @} video_ctrl_id */
 
 #endif /* __INCLUDE_NUTTX_VIDEO_CONTROLS_H */
