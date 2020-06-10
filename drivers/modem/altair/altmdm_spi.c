@@ -96,6 +96,7 @@
 /* Timeout is counted in units of millisecond. */
 
 #define WAIT_RXREQ_TIMEOUT    (5)
+#define WAIT_RXREQ_HEADER_TIMEOUT (5 * 1000)
 #define WAIT_XFERRDY_TIMEOUT  (25 * 1000)
 #if defined(CONFIG_MODEM_ALTMDM_SLEEP_TIMER_VAL)
 #  if (CONFIG_MODEM_ALTMDM_SLEEP_TIMER_VAL < 20)
@@ -835,7 +836,7 @@ static int do_xferheader(FAR struct altmdm_dev_s *priv,
 
   if ((!is_rxreq) && (!is_rcvrready))
     {
-      ret = wait_receiverready(priv, WAIT_RXREQ_TIMEOUT);
+      ret = wait_receiverready(priv, WAIT_RXREQ_HEADER_TIMEOUT);
       if (ret < 0)
         {
           goto trans_header_error;
