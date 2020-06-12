@@ -45,7 +45,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
 #include <debug.h>
@@ -228,19 +227,7 @@ static void tmpfs_lock_reentrant(FAR struct tmpfs_sem_s *sem)
 
   else
     {
-      int ret;
-
-      do
-        {
-          ret = nxsem_wait(&sem->ts_sem);
-
-          /* The only case that an error should occur here is if the wait
-           * was awakened by a signal.
-           */
-
-          DEBUGASSERT(ret == OK || ret == -EINTR);
-        }
-      while (ret == -EINTR);
+      nxsem_wait_uninterruptible(&sem->ts_sem);
 
       /* No we hold the semaphore */
 

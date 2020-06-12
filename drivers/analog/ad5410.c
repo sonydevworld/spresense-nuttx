@@ -45,7 +45,6 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -135,10 +134,10 @@ static struct dac_dev_s g_dacdev =
 
 static void dac_lock(FAR struct spi_dev_s *spi)
 {
-  (void)SPI_LOCK(spi, true);
+  SPI_LOCK(spi, true);
   SPI_SETMODE(spi, SPIDEV_MODE0);
   SPI_SETBITS(spi, 8);
-  (void)SPI_HWFEATURES(spi, 0);
+  SPI_HWFEATURES(spi, 0);
   SPI_SETFREQUENCY(spi, 400000);
 }
 
@@ -152,7 +151,7 @@ static void dac_lock(FAR struct spi_dev_s *spi)
 
 static void dac_unlock(FAR struct spi_dev_s *spi)
 {
-  (void)SPI_LOCK(spi, false);
+  SPI_LOCK(spi, false);
 }
 
 /****************************************************************************

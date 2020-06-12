@@ -52,13 +52,13 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
 
 #include <nuttx/mtd/nand_model.h>
 #include <nuttx/mtd/nand_scheme.h>
+#include <nuttx/semaphore.h>
 
 #include "sam_pmecc.h"
 #include "sam_nand.h"
@@ -1236,14 +1236,7 @@ int pmecc_configure(struct sam_nandcs_s *priv, bool protected)
 #if NAND_NPMECC_BANKS > 1
 void pmecc_lock(void)
 {
-  int ret;
-
-  do
-    {
-      ret = nxsem_wait(&g_pmecc.exclsem);
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&g_pmecc.exclsem);
 }
 #endif
 

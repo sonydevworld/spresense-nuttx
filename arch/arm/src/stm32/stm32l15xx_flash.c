@@ -50,9 +50,9 @@
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
+#include <nuttx/semaphore.h>
 
 #include <stdbool.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 
@@ -99,21 +99,7 @@ static sem_t g_sem = SEM_INITIALIZER(1);
 
 static void sem_lock(void)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&g_sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&g_sem);
 }
 
 static inline void sem_unlock(void)

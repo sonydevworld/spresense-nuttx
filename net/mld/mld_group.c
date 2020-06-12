@@ -49,7 +49,6 @@
 #include <nuttx/arch.h>
 #include <nuttx/wdog.h>
 #include <nuttx/kmalloc.h>
-#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/ip.h>
@@ -166,7 +165,7 @@ FAR struct mld_group_s *mld_grpalloc(FAR struct net_driver_s *dev,
   return group;
 
 errout_with_sem:
-  (void)nxsem_destroy(&group->sem);
+  nxsem_destroy(&group->sem);
   kmm_free(group);
   return NULL;
 }
@@ -260,7 +259,7 @@ void mld_grpfree(FAR struct net_driver_s *dev, FAR struct mld_group_s *group)
 
   /* Destroy the wait semaphore */
 
-  (void)nxsem_destroy(&group->sem);
+  nxsem_destroy(&group->sem);
 
   /* Destroy the timers */
 

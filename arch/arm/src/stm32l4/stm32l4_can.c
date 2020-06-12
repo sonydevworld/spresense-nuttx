@@ -50,7 +50,6 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -1531,7 +1530,7 @@ static int stm32l4can_txinterrupt(int irq, FAR void *context, FAR void *arg)
         {
           /* Tell the upper half that the tansfer is finished. */
 
-          (void)can_txdone(dev);
+          can_txdone(dev);
         }
     }
 
@@ -1551,7 +1550,7 @@ static int stm32l4can_txinterrupt(int irq, FAR void *context, FAR void *arg)
         {
           /* Tell the upper half that the tansfer is finished. */
 
-          (void)can_txdone(dev);
+          can_txdone(dev);
         }
     }
 
@@ -1571,7 +1570,7 @@ static int stm32l4can_txinterrupt(int irq, FAR void *context, FAR void *arg)
         {
           /* Tell the upper half that the tansfer is finished. */
 
-          (void)can_txdone(dev);
+          can_txdone(dev);
         }
     }
 

@@ -50,14 +50,12 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
-#include <semaphore.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <debug.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/signal.h>
-#include <nuttx/semaphore.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/analog/dac.h>
 
@@ -359,15 +357,11 @@ static ssize_t dac_write(FAR struct file *filep, FAR const char *buffer, size_t 
 
           /* Wait for a message to be sent */
 
-          do
+          ret = nxsem_wait_uninterruptible(&fifo->af_sem);
+          if (ret < 0)
             {
-              ret = nxsem_wait(&fifo->af_sem);
-              if (ret < 0 && ret != -EINTR)
-                {
-                  goto return_with_irqdisabled;
-                }
+              goto return_with_irqdisabled;
             }
-          while (ret < 0);
 
           /* Re-check the FIFO state */
 

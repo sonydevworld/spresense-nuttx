@@ -52,7 +52,6 @@
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/wqueue.h>
-#include <nuttx/semaphore.h>
 
 #include <nuttx/mm/iob.h>
 
@@ -195,7 +194,7 @@ int mac802154_txdesc_alloc(FAR struct ieee802154_privmac_s *priv,
           /* MAC is already released */
 
           wlwarn("WARNING: mac802154_takesem failed: %d\n", ret);
-          return -EINTR;
+          return ret;
         }
 
       /* If we've taken a count from the semaphore, we have "reserved" the
@@ -209,7 +208,7 @@ int mac802154_txdesc_alloc(FAR struct ieee802154_privmac_s *priv,
           wlwarn("WARNING: mac802154_lock failed: %d\n", ret);
 
           mac802154_givesem(&priv->txdesc_sem);
-          return -EINTR;
+          return ret;
         }
 
       /* We can now safely unlink the next free structure from the free list */

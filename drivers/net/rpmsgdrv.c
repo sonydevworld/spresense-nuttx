@@ -255,21 +255,7 @@ static const rpmsg_ept_cb g_net_rpmsg_drv_handler[] =
 
 static void net_rpmsg_drv_wait(FAR sem_t *sem)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = net_lockedwait(sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  net_lockedwait_uninterruptible(sem);
 }
 
 /****************************************************************************
@@ -847,7 +833,7 @@ static void net_rpmsg_drv_poll_work(FAR void *arg)
        * progress, we will missing TCP time state updates?
        */
 
-      devif_timer(dev, net_rpmsg_drv_txpoll);
+      devif_timer(dev, NET_RPMSG_DRV_WDDELAY, net_rpmsg_drv_txpoll);
     }
 
   /* Setup the watchdog poll timer again */

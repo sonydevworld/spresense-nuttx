@@ -51,12 +51,12 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <debug.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/signal.h>
 #include <nuttx/net/phy.h>
 
@@ -143,21 +143,7 @@ static struct phy_notify_s g_notify_clients[CONFIG_PHY_NOTIFICATION_NCLIENTS];
 
 static void phy_semtake(void)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&g_notify_clients_sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&g_notify_clients_sem);
 }
 
 #define phy_semgive() nxsem_post(&g_notify_clients_sem);
@@ -384,7 +370,7 @@ int phy_notify_unsubscribe(FAR const char *intf, pid_t pid)
   /* Detach and disable the PHY interrupt */
 
   phy_semtake();
-  (void)arch_phy_irq(intf, NULL, NULL, NULL);
+  arch_phy_irq(intf, NULL, NULL, NULL);
 
   /* Cancel any pending notification */
 

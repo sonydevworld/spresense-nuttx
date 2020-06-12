@@ -193,7 +193,7 @@ endif
 
 # Dependencies
 
-.depend: Makefile $(SRCS)
+.depend: Makefile $(SRCS) $(TOPDIR)$(DELIM).config
 ifeq ($(CONFIG_BUILD_FLAT),y)
 	$(Q) $(MKDEP) --obj-suffix $(OBJEXT) $(DEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >bin/Make.dep
 else

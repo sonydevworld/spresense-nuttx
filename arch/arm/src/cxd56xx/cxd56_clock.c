@@ -138,13 +138,13 @@ struct power_domain
 
 static void cxd56_img_clock_enable(void);
 static void cxd56_img_clock_disable(void);
-static void cxd56_scu_clock_ctrl(\
+static void cxd56_scu_clock_ctrl(
    uint32_t block, uint32_t intr, int on);
-static void cxd56_scu_peri_clock_enable(\
+static void cxd56_scu_peri_clock_enable(
    FAR const struct scu_peripheral *p) __unused;
-static void cxd56_scu_peri_clock_disable(\
+static void cxd56_scu_peri_clock_disable(
    FAR const struct scu_peripheral *p) __unused;
-static void cxd56_scu_peri_clock_gating(\
+static void cxd56_scu_peri_clock_gating(
    FAR const struct scu_peripheral *p, int enable) __unused;
 
 /****************************************************************************
@@ -177,7 +177,7 @@ static sem_t g_clockexc = SEM_INITIALIZER(1);
  *  swreset    : SWRESET_SCU
  *  crgintmask : CRG_INT_CLR0, CRG_INT_STAT_RAW0
  *
- * Each member values are indicated the number of bit in apropriate registers.
+ * Each member values are indicated the number of bit in appropriate registers.
  */
 
 #if defined(CONFIG_CXD56_SPI3)
@@ -235,7 +235,7 @@ static void clock_semtake(sem_t *id)
 {
   if (!up_interrupt_context())
     {
-      sem_wait(id);
+      nxsem_wait_uninterruptible(id);
     }
 }
 
@@ -243,7 +243,7 @@ static void clock_semgive(sem_t *id)
 {
   if (!up_interrupt_context())
     {
-      sem_post(id);
+      nxsem_post(id);
     }
 }
 
@@ -1993,7 +1993,7 @@ static void cxd56_scu_peri_clock_disable(FAR const struct scu_peripheral *p)
   disable_pwd(PDID_SCU);
 }
 
-static void cxd56_scu_peri_clock_gating(\
+static void cxd56_scu_peri_clock_gating(
   FAR const struct scu_peripheral *p, int enable)
 {
   uint32_t cken = 1u << p->cken;

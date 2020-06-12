@@ -46,7 +46,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -328,9 +327,10 @@ static int smartfs_open(FAR struct file *filep, const char *relpath,
 
   /* When using sector buffering, current sector with its header should always
    * be present in sf->buffer. Otherwise data corruption may arise when writing.
+   * However, this does not apply when overwriting without append mode.
    */
 
-  if (sf->currsector != SMARTFS_ERASEDSTATE_16BIT)
+  if ((sf->currsector != SMARTFS_ERASEDSTATE_16BIT) && (oflags & O_APPEND))
     {
       readwrite.logsector = sf->currsector;
       readwrite.offset    = 0;
@@ -383,6 +383,9 @@ errout_with_buffer:
       sf->entry.name = NULL;
     }
 
+#ifdef CONFIG_SMARTFS_USE_SECTOR_BUFFER
+  kmm_free(sf->buffer);
+#endif  /* CONFIG_SMARTFS_USE_SECTOR_BUFFER */
   kmm_free(sf);
 
 errout_with_semaphore:
@@ -671,20 +674,6 @@ static ssize_t smartfs_write(FAR struct file *filep, const char *buffer,
     {
       ret = -EACCES;
       goto errout_with_semaphore;
-    }
-
-  /* Test if we opened for APPEND mode.  If we did, then seek to the
-   * end of the file.
-   */
-
-  if (sf->oflags & O_APPEND)
-    {
-      ret = smartfs_seek_internal(fs, sf, 0, SEEK_END);
-      if (ret < 0)
-        {
-          ret = -EIO;
-          goto errout_with_semaphore;
-        }
     }
 
   /* First test if we are overwriting an existing location or writing to

@@ -67,7 +67,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -854,24 +853,11 @@ static int s32k1xx_lpspi_lock(FAR struct spi_dev_s *dev, bool lock)
 
   if (lock)
     {
-      /* Take the semaphore (perhaps waiting) */
-
-      do
-        {
-          ret = nxsem_wait(&priv->exclsem);
-
-          /* The only case that an error should occur here is if the wait was
-           * awakened by a signal.
-           */
-
-          DEBUGASSERT(ret == OK || ret == -EINTR);
-        }
-      while (ret == -EINTR);
+      ret = nxsem_wait_uninterruptible(&priv->exclsem);
     }
   else
     {
-      (void)nxsem_post(&priv->exclsem);
-      ret = OK;
+      ret = nxsem_post(&priv->exclsem);
     }
 
   return ret;
@@ -1501,9 +1487,9 @@ FAR struct spi_dev_s *s32k1xx_lpspibus_initialize(int bus)
         {
           /* Configure SPI0 pins: SCK, MISO, and MOSI */
 
-          (void)s32k1xx_pinconfig(PIN_LPSPI0_SCK);
-          (void)s32k1xx_pinconfig(PIN_LPSPI0_MISO);
-          (void)s32k1xx_pinconfig(PIN_LPSPI0_MOSI);
+          s32k1xx_pinconfig(PIN_LPSPI0_SCK);
+          s32k1xx_pinconfig(PIN_LPSPI0_MISO);
+          s32k1xx_pinconfig(PIN_LPSPI0_MOSI);
 
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -1525,9 +1511,9 @@ FAR struct spi_dev_s *s32k1xx_lpspibus_initialize(int bus)
         {
           /* Configure SPI1 pins: SCK, MISO, and MOSI */
 
-          (void)s32k1xx_pinconfig(PIN_LPSPI1_SCK);
-          (void)s32k1xx_pinconfig(PIN_LPSPI1_MISO);
-          (void)s32k1xx_pinconfig(PIN_LPSPI1_MOSI);
+          s32k1xx_pinconfig(PIN_LPSPI1_SCK);
+          s32k1xx_pinconfig(PIN_LPSPI1_MISO);
+          s32k1xx_pinconfig(PIN_LPSPI1_MOSI);
 
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -1549,9 +1535,9 @@ FAR struct spi_dev_s *s32k1xx_lpspibus_initialize(int bus)
         {
           /* Configure SPI2 pins: SCK, MISO, and MOSI */
 
-          (void)s32k1xx_pinconfig(PIN_LPSPI2_SCK);
-          (void)s32k1xx_pinconfig(PIN_LPSPI2_MISO);
-          (void)s32k1xx_pinconfig(PIN_LPSPI2_MOSI);
+          s32k1xx_pinconfig(PIN_LPSPI2_SCK);
+          s32k1xx_pinconfig(PIN_LPSPI2_MISO);
+          s32k1xx_pinconfig(PIN_LPSPI2_MOSI);
 
           /* Set up default configuration: Master, 8-bit, etc. */
 

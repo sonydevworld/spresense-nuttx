@@ -43,7 +43,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
@@ -579,10 +578,37 @@ void up_serialinit(void)
 #ifdef HAVE_UART_CONSOLE
   /* Register the serial console */
 
-  (void)uart_register("/dev/console", &CONSOLE_DEV);
+  uart_register("/dev/console", &CONSOLE_DEV);
 #endif
 
-  (void)uart_register("/dev/ttyS0", &TTYS0_DEV);
+  uart_register("/dev/ttyS0", &TTYS0_DEV);
+  minor = 1;
+
+  /* Register all remaining UARTs */
+
+  strcpy(devname, "/dev/ttySx");
+
+  for (i = 0; i < NRF52_NUART; i++)
+    {
+      /* Don't create a device for non-configured ports. */
+
+      if (g_uart_devs[i] == 0)
+        {
+          continue;
+        }
+
+      /* Don't create a device for the console - we did that above */
+
+      if (g_uart_devs[i]->isconsole)
+        {
+          continue;
+        }
+
+      /* Register USARTs as devices in increasing order */
+
+      devname[9] = '0' + minor++;
+      uart_register(devname, g_uart_devs[i]);
+    }
 }
 
 /****************************************************************************

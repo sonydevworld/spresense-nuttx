@@ -39,7 +39,6 @@
 
 #include <nuttx/config.h>
 
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -757,8 +756,8 @@ static void sim_interrupt_work(void *arg)
                 {
                   /* Yes.. perform the callback */
 
-                  (void)priv->cb[i].cbfunc(&priv->dev, match,
-                                           priv->cb[i].cbarg);
+                  priv->cb[i].cbfunc(&priv->dev, match,
+                                     priv->cb[i].cbarg);
                 }
             }
         }

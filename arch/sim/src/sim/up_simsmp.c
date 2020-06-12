@@ -41,7 +41,6 @@
 
 #include <stdint.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <signal.h>
 #include <errno.h>
 
@@ -203,7 +202,7 @@ static void *sim_idle_trampoline(void *arg)
 
   /* Let up_cpu_start() continue */
 
-  (void)pthread_mutex_unlock(&cpuinfo->mutex);
+  pthread_mutex_unlock(&cpuinfo->mutex);
 
   /* Give control to the IDLE task via the nasty little sim_smp_hook().
    * sim_smp_hook() is logically a part of this function but needs to be
@@ -236,7 +235,7 @@ static void sim_handle_signal(int signo, siginfo_t *info, void *context)
 {
   int cpu = (int)((uintptr_t)pthread_getspecific(g_cpukey));
 
-  (void)up_cpu_paused(cpu);
+  up_cpu_paused(cpu);
 }
 
 /****************************************************************************
@@ -329,7 +328,7 @@ void sim_cpu0_start(void)
        * wait just in case.
        */
 
-      (void)pthread_join(g_sim_cputhread[0], &value);
+      pthread_join(g_sim_cputhread[0], &value);
     }
 }
 
@@ -427,10 +426,10 @@ int up_cpu_start(int cpu)
     }
 
 errout_with_lock:
-  (void)pthread_mutex_unlock(&cpuinfo.mutex);
+  pthread_mutex_unlock(&cpuinfo.mutex);
 
 errout_with_mutex:
-  (void)pthread_mutex_destroy(&cpuinfo.mutex);
+  pthread_mutex_destroy(&cpuinfo.mutex);
   return ret;
 }
 

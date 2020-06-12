@@ -52,7 +52,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
-#include <semaphore.h>
 #include <poll.h>
 #include <errno.h>
 #include <assert.h>
@@ -704,11 +703,6 @@ static inline int mxt_waitsample(FAR struct mxt_dev_s *priv)
 
       if (ret < 0)
         {
-          /* If we are awakened by a signal, then we need to return
-           * the failure now.
-           */
-
-          DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
           goto errout;
         }
     }
@@ -989,12 +983,7 @@ static void mxt_worker(FAR void *arg)
 
   /* Get exclusive access to the MXT driver data structure */
 
-  do
-    {
-      ret = nxsem_wait(&priv->devsem);
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&priv->devsem);
 
   /* Loop, processing each message from the maXTouch */
 
@@ -1136,9 +1125,6 @@ static int mxt_open(FAR struct file *filep)
   ret = nxsem_wait(&priv->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was cancelled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1217,9 +1203,6 @@ static int mxt_close(FAR struct file *filep)
   ret = nxsem_wait(&priv->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was cancelled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1288,9 +1271,6 @@ static ssize_t mxt_read(FAR struct file *filep, FAR char *buffer, size_t len)
   ret = nxsem_wait(&priv->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was cancelled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1510,9 +1490,6 @@ static int mxt_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   ret = nxsem_wait(&priv->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was cancelled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1570,9 +1547,6 @@ static int mxt_poll(FAR struct file *filep, FAR struct pollfd *fds,
   ret = nxsem_wait(&priv->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was cancelled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1927,7 +1901,7 @@ int mxt_register(FAR struct i2c_master_s *i2c,
 
   /* Register the device as an input device */
 
-  (void)snprintf(devname, DEV_NAMELEN, DEV_FORMAT, minor);
+  snprintf(devname, DEV_NAMELEN, DEV_FORMAT, minor);
   iinfo("Registering %s\n", devname);
 
   ret = register_driver(devname, &mxt_fops, 0666, priv);

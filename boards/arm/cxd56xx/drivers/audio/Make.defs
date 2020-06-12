@@ -1,5 +1,5 @@
 ############################################################################
-# drivers/platform/audio/Make.defs
+# boards/arm/cxd56xx/drivers/audio/Make.defs
 #
 #   Copyright 2018 Sony Semiconductor Solutions Corporation
 #
@@ -32,6 +32,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
+
+ARCH_SRCDIR = $(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src
+CFLAGS += $(shell $(INCDIR) $(INCDIROPT) "$(CC)" $(ARCH_SRCDIR)$(DELIM)chip)
+CFLAGS += $(shell $(INCDIR) $(INCDIROPT) "$(CC)" $(ARCH_SRCDIR)$(DELIM)common)
 
 ifeq ($(CONFIG_CXD56_AUDIO),y)
 CSRCS += cxd56_audio.c

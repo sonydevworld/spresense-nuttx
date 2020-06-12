@@ -42,13 +42,13 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
 #include <debug.h>
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/semaphore.h>
 
 #include "up_internal.h"
 #include "up_arch.h"
@@ -389,17 +389,11 @@ void lpc17_40_dmaconfigure(uint8_t dmarequest, bool alternate)
 DMA_HANDLE lpc17_40_dmachannel(void)
 {
   struct lpc17_40_dmach_s *dmach = NULL;
-  int ret;
   int i;
 
   /* Get exclusive access to the GPDMA state structure */
 
-  do
-    {
-      ret = nxsem_wait(&g_gpdma.exclsem);
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&g_gpdma.exclsem);
 
   /* Find an available DMA channel */
 

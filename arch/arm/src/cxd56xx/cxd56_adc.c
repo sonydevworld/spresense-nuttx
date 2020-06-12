@@ -124,6 +124,40 @@
 #define ADC_BYTESPERSAMPLE   2
 #define ADC_ELEMENTSIZE      0
 
+/* Input Gain setting */
+
+#define INPUT_GAIN(a, g2, g1) (((a) << 24) | ((g2) << 16) | ((g1) << 12))
+#define INPUT_GAIN_MASK         INPUT_GAIN(3, 15, 15)
+#define INPUT_GAIN_MINUS_6DB    INPUT_GAIN(2, 0, 0)
+#define INPUT_GAIN_THROUGH      INPUT_GAIN(0, 0, 0)
+#define INPUT_GAIN_PLUS_6DB     INPUT_GAIN(0, 4, 0)
+#define INPUT_GAIN_PLUS_12DB    INPUT_GAIN(0, 12, 0)
+#define INPUT_GAIN_PLUS_14DB    INPUT_GAIN(0, 4, 8)
+
+#if defined(CONFIG_CXD56_HPADC0_INPUT_GAIN_M6DB)
+#define HPADC0_INPUT_GAIN       INPUT_GAIN_MINUS_6DB
+#elif defined(CONFIG_CXD56_HPADC0_INPUT_GAIN_6DB)
+#define HPADC0_INPUT_GAIN       INPUT_GAIN_PLUS_6DB
+#elif defined(CONFIG_CXD56_HPADC0_INPUT_GAIN_12DB)
+#define HPADC0_INPUT_GAIN       INPUT_GAIN_PLUS_12DB
+#elif defined(CONFIG_CXD56_HPADC0_INPUT_GAIN_14DB)
+#define HPADC0_INPUT_GAIN       INPUT_GAIN_PLUS_14DB
+#else
+#define HPADC0_INPUT_GAIN       INPUT_GAIN_THROUGH
+#endif
+
+#if defined(CONFIG_CXD56_HPADC1_INPUT_GAIN_M6DB)
+#define HPADC1_INPUT_GAIN       INPUT_GAIN_MINUS_6DB
+#elif defined(CONFIG_CXD56_HPADC1_INPUT_GAIN_6DB)
+#define HPADC1_INPUT_GAIN       INPUT_GAIN_PLUS_6DB
+#elif defined(CONFIG_CXD56_HPADC1_INPUT_GAIN_12DB)
+#define HPADC1_INPUT_GAIN       INPUT_GAIN_PLUS_12DB
+#elif defined(CONFIG_CXD56_HPADC1_INPUT_GAIN_14DB)
+#define HPADC1_INPUT_GAIN       INPUT_GAIN_PLUS_14DB
+#else
+#define HPADC1_INPUT_GAIN       INPUT_GAIN_THROUGH
+#endif
+
 typedef enum adc_ch
 {
   CH0 = 0,    /* LPADC0 */
@@ -143,7 +177,7 @@ typedef enum adc_ch
 
 struct cxd56adc_dev_s
 {
-  adc_ch_t         ch;            /* adc cnannel number */
+  adc_ch_t         ch;            /* adc channel number */
   FAR struct seq_s *seq;          /* sequencer */
   uint8_t          freq;          /* coefficient of adc sampling frequency */
   uint16_t         fsize;         /* SCU FIFO size */
@@ -516,6 +550,15 @@ static int adc_start(adc_ch_t ch, uint8_t freq, FAR struct seq_s *seq,
                            (uint32_t *)SCUADCIF_HPADC1_A2;
       putreg32(1, addr);
 
+      /* HPADC.A3 */
+
+      addr = (ch == CH4) ? (uint32_t *)SCUADCIF_HPADC0_A3 :
+                           (uint32_t *)SCUADCIF_HPADC1_A3;
+
+      val = getreg32(addr) & ~INPUT_GAIN_MASK;
+      val |= (ch == CH4) ? HPADC0_INPUT_GAIN : HPADC1_INPUT_GAIN;
+      putreg32(val, addr);
+
       /* HPADC.D0 */
 
       addr = (ch == CH4) ? (uint32_t *)SCUADCIF_HPADC0_D0 :
@@ -585,7 +628,7 @@ static int adc_stop(adc_ch_t ch, FAR struct seq_s *seq)
       return OK;
     }
 
-  (void) seq_ioctl(seq, 0, SCUIOC_STOP, 0);
+  seq_ioctl(seq, 0, SCUIOC_STOP, 0);
 
   if (ch <= CH3)
     {
@@ -1006,11 +1049,7 @@ void cxd56_adc_getinterval(int adctype, uint32_t *interval, uint16_t *adjust)
 
 int cxd56_adcinitialize(void)
 {
-  int ret;
-
-  /* Avoid warnings when no ADC options enabled */
-
-  (void) ret;
+  int ret = OK;
 
 #if defined (CONFIG_CXD56_LPADC0) || defined (CONFIG_CXD56_LPADC0_1) || defined (CONFIG_CXD56_LPADC_ALL)
   ret = register_driver("/dev/lpadc0", &g_adcops, 0666, &g_lpadc0priv);
@@ -1061,5 +1100,5 @@ int cxd56_adcinitialize(void)
     }
 #endif
 
-  return OK;
+  return ret;
 }

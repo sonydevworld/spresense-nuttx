@@ -1,9 +1,8 @@
 /****************************************************************************
- * arch/arm/src/cxd56xx/cxd56_dmac_common.h
+ * arch/risc-v/src/k210/k210_cpuindex.c
  *
- *   Copyright (C) 2009, 2011-2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   Copyright (C) 2020 Masayuki Ishikawa. All rights reserved.
+ *   Author: Masayuki Ishikawa <masayuki.ishikawa@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,44 +33,44 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_CXD56XX_CXD56_DMAC_COMMON_H
-#define __ARCH_ARM_SRC_CXD56XX_CXD56_DMAC_COMMON_H
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
 
+#include <nuttx/config.h>
 #include <stdint.h>
+#include <nuttx/arch.h>
 
-/************************************************************************************
- * Public Types
- ************************************************************************************/
+#include "up_arch.h"
 
-/* DMA_HANDLE provides an opaque are reference that can be used to represent a DMA
- * channel.
- */
+#ifdef CONFIG_SMP
 
-typedef FAR void *DMA_HANDLE;
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
 
-/* Description:
- *   This is the type of the callback that is used to inform the user of the the
- *   completion of the DMA.
+/****************************************************************************
+ * Name: up_cpu_index
+ *
+ * Description:
+ *   Return an index in the range of 0 through (CONFIG_SMP_NCPUS-1) that
+ *   corresponds to the currently executing CPU.
  *
  * Input Parameters:
- *   handle - Refers tot he DMA channel or stream
- *   status - A bit encoded value that provides the completion status.  See the
- *            DMASTATUS_* definitions above.
- *   arg    - A user-provided value that was provided when cxd56_dmastart() was
- *            called.
- */
+ *   None
+ *
+ * Returned Value:
+ *   An integer index in the range of 0 through (CONFIG_SMP_NCPUS-1) that
+ *   corresponds to the currently executing CPU.
+ *
+ ****************************************************************************/
 
-typedef void (*dma_callback_t)(DMA_HANDLE handle, uint8_t status, void *arg);
+int up_cpu_index(void)
+{
+  int mhartid;
 
-/* Type of 'config' argument passed to cxd56_rxdmasetup() and cxd56_txdmasetup.
- * See CXD56_DMA_* encodings above.  If these encodings exceed 16-bits, then this
- * should be changed to a uint32_t.
- */
+  asm volatile ("csrr %0, mhartid": "=r" (mhartid));
+  return mhartid;
+}
 
-typedef struct {
-    uint16_t channel_cfg;
-    uint8_t dest_width;
-    uint8_t src_width;
-} dma_config_t;
-
-#endif /* __ARCH_ARM_SRC_CXD56XX_CXD56_DMAC_COMMON_H */
+#endif /* CONFIG_SMP */

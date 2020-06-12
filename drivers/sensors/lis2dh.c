@@ -1154,7 +1154,7 @@ static int lis2dh_handle_selftest(FAR struct lis2dh_dev_s *priv)
     }
 
 out:
-  (void)lis2dh_clear_registers(priv);
+  lis2dh_clear_registers(priv);
   lis2dh_powerdown(priv);
 
   return ret;
@@ -1653,9 +1653,9 @@ static int lis2dh_reboot(FAR struct lis2dh_dev_s *dev)
   /* Prefer monotonic for timeout calculation when enabled. */
 
 #ifdef CONFIG_CLOCK_MONOTONIC
-  (void)clock_gettime(CLOCK_MONOTONIC, &start);
+  clock_gettime(CLOCK_MONOTONIC, &start);
 #else
-  (void)clock_gettime(CLOCK_REALTIME, &start);
+  clock_gettime(CLOCK_REALTIME, &start);
 #endif
 
   /* Reboot to reset chip. */
@@ -1682,9 +1682,9 @@ static int lis2dh_reboot(FAR struct lis2dh_dev_s *dev)
         }
 
 #ifdef CONFIG_CLOCK_MONOTONIC
-      (void)clock_gettime(CLOCK_MONOTONIC, &curr);
+      clock_gettime(CLOCK_MONOTONIC, &curr);
 #else
-      (void)clock_gettime(CLOCK_REALTIME, &curr);
+      clock_gettime(CLOCK_REALTIME, &curr);
 #endif
 
       diff_msec = (curr.tv_sec - start.tv_sec) * 1000;
@@ -1755,7 +1755,7 @@ static int lis2dh_setup(FAR struct lis2dh_dev_s * dev,
    * not get cleared, and lis2dh_reboot() times out. Anyway, chip accepts
    * new configuration and functions correctly. */
 
-  (void)lis2dh_reboot(dev);
+  lis2dh_reboot(dev);
 
   /* TEMP_CFG_REG */
 

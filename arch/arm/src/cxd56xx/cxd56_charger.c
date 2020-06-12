@@ -69,11 +69,9 @@
 /* Debug ********************************************************************/
 
 #ifdef CONFIG_CXD56_CHARGER_DEBUG
-#define baterr(fmt, ...) logerr(fmt, ## __VA_ARGS__)
-#define batdbg(fmt, ...) logdebug(fmt, ## __VA_ARGS__)
+#define baterr(fmt, ...) _err(fmt, ## __VA_ARGS__)
 #else
 #define baterr(fmt, ...)
-#define batdbg(fmt, ...)
 #endif
 
 /* Configuration */
@@ -81,7 +79,7 @@
 #undef USE_FLOAT_CONVERSION
 
 #ifdef CONFIG_CXD56_CHARGER_TEMP_PRECISE
-#if !defined(CONFIG_LIBM) && !defined(CONFIG_LIBM_NEWLIB)
+#if !defined(CONFIG_LIBM) && !defined(CONFIG_ARCH_MATH_H)
 #  error Temperature conversion in float requires math library.
 #endif
 #define USE_FLOAT_CONVERSION 1
@@ -477,7 +475,7 @@ static int charger_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   FAR struct charger_dev_s *priv  = inode->i_private;
   int ret = -ENOTTY;
 
-  sem_wait(&priv->batsem);
+  nxsem_wait_uninterruptible(&priv->batsem);
 
   switch (cmd)
     {
@@ -621,7 +619,7 @@ static int charger_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         break;
     }
 
-  sem_post(&priv->batsem);
+  nxsem_post(&priv->batsem);
 
   return ret;
 }
@@ -650,7 +648,7 @@ int cxd56_charger_initialize(FAR const char *devpath)
 
   /* Initialize the CXD5247 device structure */
 
-  sem_init(&priv->batsem, 0, 1);
+  nxsem_init(&priv->batsem, 0, 1);
 
   /* Register battery driver */
 
@@ -680,8 +678,7 @@ int cxd56_charger_initialize(FAR const char *devpath)
 
 int cxd56_charger_uninitialize(FAR const char *devpath)
 {
-  (void) unregister_driver(devpath);
-
+  unregister_driver(devpath);
   return OK;
 }
 

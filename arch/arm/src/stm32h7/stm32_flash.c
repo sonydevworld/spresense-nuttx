@@ -58,9 +58,9 @@
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
+#include <nuttx/semaphore.h>
 
 #include <stdbool.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 
@@ -239,21 +239,7 @@ static inline void stm32h7_flash_modifyreg32(FAR struct stm32h7_flash_priv_s
 
 static void stm32h7_flash_sem_lock(FAR struct stm32h7_flash_priv_s *priv)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = sem_wait(&priv->sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&priv->sem);
 }
 
 /*****************************************************************************
@@ -267,7 +253,7 @@ static void stm32h7_flash_sem_lock(FAR struct stm32h7_flash_priv_s *priv)
 static inline void stm32h7_flash_sem_unlock(FAR struct stm32h7_flash_priv_s
                                             *priv)
 {
-  sem_post(&priv->sem);
+  nxsem_post(&priv->sem);
 }
 
 /*****************************************************************************

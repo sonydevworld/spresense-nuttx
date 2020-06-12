@@ -1,5 +1,5 @@
 /***************************************************************************
- * arch/arm/src/cxd56xx/cxd56_audio_irq.c
+ * boards/arm/cxd56xx/drivers/audio/cxd56_audio_irq.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -42,28 +42,7 @@
 #include <nuttx/arch.h>
 
 #include "cxd56_audio_irq.h"
-
-/***************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/***************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-
-extern void CXD56_audio_dma_int_handler(void);
-
-/***************************************************************************
- * Private Data
- ****************************************************************************/
-
-/***************************************************************************
- * Public Data
- ****************************************************************************/
-
-/***************************************************************************
- * Private Functions
- ****************************************************************************/
+#include "cxd56_audio_dma.h"
 
 /***************************************************************************
  * Public Functions
@@ -71,10 +50,10 @@ extern void CXD56_audio_dma_int_handler(void);
 
 void cxd56_audio_irq_attach(void)
 {
-  irq_attach(CXD56_IRQ_AUDIO_0, (xcpt_t)CXD56_audio_dma_int_handler, NULL);
-  irq_attach(CXD56_IRQ_AUDIO_1, (xcpt_t)CXD56_audio_dma_int_handler, NULL);
-  irq_attach(CXD56_IRQ_AUDIO_2, (xcpt_t)CXD56_audio_dma_int_handler, NULL);
-  irq_attach(CXD56_IRQ_AUDIO_3, (xcpt_t)CXD56_audio_dma_int_handler, NULL);
+  irq_attach(CXD56_IRQ_AUDIO_0, (xcpt_t)cxd56_audio_dma_int_handler, NULL);
+  irq_attach(CXD56_IRQ_AUDIO_1, (xcpt_t)cxd56_audio_dma_int_handler, NULL);
+  irq_attach(CXD56_IRQ_AUDIO_2, (xcpt_t)cxd56_audio_dma_int_handler, NULL);
+  irq_attach(CXD56_IRQ_AUDIO_3, (xcpt_t)cxd56_audio_dma_int_handler, NULL);
 }
 
 void cxd56_audio_irq_detach(void)

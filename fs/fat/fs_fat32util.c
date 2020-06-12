@@ -52,7 +52,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -368,21 +367,7 @@ void fat_putuint32(FAR uint8_t *ptr, uint32_t value32)
 
 void fat_semtake(struct fat_mountpt_s *fs)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&fs->fs_sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&fs->fs_sem);
 }
 
 /****************************************************************************

@@ -210,6 +210,14 @@ enum v4l2_scene_mode
 #define V4L2_CID_AUTO_FOCUS_START (18)    /**< Start single AF */
 #define V4L2_CID_AUTO_FOCUS_STOP  (19)    /**< Stop single AF */
 
+#define V4L2_CID_3A_PARAMETER        (20)     /**< 3A parameter     */
+#define V4L2_CID_3A_STATUS           (21)     /**< 3A status        */
+#define V4L2_3A_STATUS_STABLE        (0)      /**< 3A  is stable    */
+#define V4L2_3A_STATUS_AE_OPERATING  (1 << 0) /**< AE  is operating */
+#define V4L2_3A_STATUS_AWB_OPERATING (1 << 1) /**< AWB is operating */
+#define V4L2_3A_STATUS_AF_OPERATING  (1 << 2) /**< AF  is operating */
+
+
 /** Flash and privacy (indicator) light controls */
 
 #define V4L2_CID_FLASH_LED_MODE   (0)

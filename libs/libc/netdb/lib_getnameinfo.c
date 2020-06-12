@@ -99,13 +99,14 @@ int getnameinfo(FAR const struct sockaddr *addr, socklen_t addrlen,
       /* Fall-back to numeric for the host name. */
 
       flags |= NI_NUMERICHOST;
-      (void)saddr_len;
+      UNUSED(saddr_len);
 #else
       struct hostent hostent;
       int h_errno;
+      FAR struct hostent *result;
 
       ret = gethostbyaddr_r(saddr, saddr_len, addr->sa_family, &hostent, host,
-                            hostlen, &h_errno);
+                            hostlen, &result, &h_errno);
 
       if (ret == OK)
         {

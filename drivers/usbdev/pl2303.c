@@ -47,7 +47,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <queue.h>
@@ -639,7 +638,7 @@ static int usbclass_sndpacket(FAR struct pl2303_dev_s *priv)
         {
           /* Remove the empty container from the request list */
 
-          (void)sq_remfirst(&priv->reqlist);
+          sq_remfirst(&priv->reqlist);
           priv->nwrq--;
 
           /* Then submit the request to the endpoint */

@@ -54,7 +54,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -625,7 +624,7 @@ fat_read_restart:
            * the safest thing to do is just invalidate it
            */
 
-          (void)fat_ffcacheinvalidate(fs, ff);
+          fat_ffcacheinvalidate(fs, ff);
 
           /* Read all of the sectors directly into user memory */
 
@@ -885,7 +884,7 @@ fat_write_restart:
            * and invalidate the current cache content.
            */
 
-          (void)fat_ffcacheinvalidate(fs, ff);
+          fat_ffcacheinvalidate(fs, ff);
 
           /* Write all of the sectors directly from user memory */
 
@@ -1236,7 +1235,7 @@ static off_t fat_seek(FAR struct file *filep, off_t offset, int whence)
        * into the cluster from the position
        */
 
-      (void)fat_currentsector(fs, ff, filep->f_pos);
+      fat_currentsector(fs, ff, filep->f_pos);
 
       /* Load the sector corresponding to the position */
 
@@ -2181,7 +2180,7 @@ static int fat_unbind(FAR void *handle, FAR struct inode **blkdriver,
         {
           if (inode->u.i_bops && inode->u.i_bops->close)
             {
-              (void)inode->u.i_bops->close(inode);
+              inode->u.i_bops->close(inode);
             }
 
           /* We hold a reference to the block driver but should not but

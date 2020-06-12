@@ -49,7 +49,6 @@
 #include <arch/irq.h>
 
 #include <sys/socket.h>
-#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
 
@@ -236,8 +235,6 @@ int usrsock_connect(FAR struct socket *psock,
       ret = net_lockedwait(&state.recvsem);
       if (ret < 0)
         {
-          DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
-
           /* Wait interrupted, exit early. */
 
           goto errout_teardown;

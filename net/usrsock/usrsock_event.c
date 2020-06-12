@@ -49,7 +49,6 @@
 #include <arch/irq.h>
 
 #include <sys/socket.h>
-#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
 
@@ -127,7 +126,7 @@ int usrsock_event(FAR struct usrsock_conn_s *conn, uint16_t events)
 
   /* Send events to callbacks */
 
-  (void)devif_conn_event(NULL, conn, events, conn->list);
+  devif_conn_event(NULL, conn, events, conn->list);
   net_unlock();
 
   return OK;

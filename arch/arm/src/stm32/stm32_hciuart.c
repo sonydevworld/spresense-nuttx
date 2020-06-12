@@ -43,7 +43,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
@@ -1799,7 +1798,7 @@ static int hciuart_interrupt(int irq, void *context, void *arg)
            * good byte will be lost.
            */
 
-          (void)hciuart_getreg32(config, STM32_USART_RDR_OFFSET);
+          hciuart_getreg32(config, STM32_USART_RDR_OFFSET);
 #endif
         }
 
@@ -2095,9 +2094,7 @@ static ssize_t hciuart_read(const struct btuart_lowerhalf_s *lower,
               state->rxwaiting = true;
               do
                 {
-                  int ret = nxsem_wait(&state->rxwait);
-                  DEBUGASSERT(ret == 0 || ret == -EINTR);
-                  UNUSED(ret);
+                  nxsem_wait_uninterruptible(&state->rxwait);
                 }
               while (state->rxwaiting);
             }
@@ -2259,9 +2256,7 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
           state->txwaiting = true;
           do
             {
-              int ret = nxsem_wait(&state->txwait);
-              DEBUGASSERT(ret == 0 || ret == -EINTR);
-              UNUSED(ret);
+              nxsem_wait_uninterruptible(&state->txwait);
             }
           while (state->txwaiting);
 

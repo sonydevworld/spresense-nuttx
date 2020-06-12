@@ -91,12 +91,10 @@ ssize_t psock_send(FAR struct socket *psock, FAR const void *buf, size_t len,
 
   /* Verify that non-NULL pointers were passed */
 
-#ifdef CONFIG_DEBUG_FEATURES
   if (buf == NULL)
     {
       return -EINVAL;
     }
-#endif
 
   /* Verify that the sockfd corresponds to valid, allocated socket */
 
@@ -229,7 +227,7 @@ ssize_t send(int sockfd, FAR const void *buf, size_t len, int flags)
 
   /* send() is a cancellation point */
 
-  (void)enter_cancellation_point();
+  enter_cancellation_point();
 
   /* Let nx_send() and psock_send() do all of the work */
 

@@ -297,6 +297,16 @@ config ARCH_BOARD_GAPUINO
 	---help---
 		Nuttx port for gapuino, a GAP8 evaluation board.
 
+config ARCH_BOARD_HIFIVE1_REVB
+	bool "HiFive1 Rev B board"
+	depends on ARCH_CHIP_FE310
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		This is the board configuration for the port of NuttX to the SiFive HiFive1
+		Rev B board.  This board features the RISC-V FE310-G002
+
 config ARCH_BOARD_HYMINI_STM32V
 	bool "HY-Mini STM32v board"
 	depends on ARCH_CHIP_STM32F103VC
@@ -528,6 +538,13 @@ config ARCH_BOARD_LX_CPU
 		http://pikron.com/pages/products/cpu_boards/lx_cpu.html
 		for further information.  This board features the NXP LPC4088
 		(compatible with LPC1788) and Xilinx Spartan 6 XC6SLX9
+
+config ARCH_BOARD_MAIX_BIT
+	bool "Sipeed Maix Bit board"
+	depends on ARCH_CHIP_K210
+	---help---
+		This is the board configuration for the port of NuttX to the
+		Sipeed Maix Bit board. This board features the RISC-V K210
 
 config ARCH_BOARD_MAX32660_EVSYS
 	bool "Maxim Integrated MAX32660-EVSYS"
@@ -1987,6 +2004,7 @@ config ARCH_BOARD
 	default "freedom-kl25z"            if ARCH_BOARD_FREEDOM_KL25Z
 	default "freedom-kl26z"            if ARCH_BOARD_FREEDOM_KL26Z
 	default "gapuino"                  if ARCH_BOARD_GAPUINO
+	default "hifive1-revb"             if ARCH_BOARD_HIFIVE1_REVB
 	default "hymini-stm32v"            if ARCH_BOARD_HYMINI_STM32V
 	default "imxrt1020-evk"            if ARCH_BOARD_IMXRT1020_EVK
 	default "imxrt1050-evk"            if ARCH_BOARD_IMXRT1050_EVK
@@ -2010,6 +2028,7 @@ config ARCH_BOARD
 	default "lpcxpresso-lpc1768"       if ARCH_BOARD_LPCXPRESSO
 	default "lpcxpresso-lpc54628"      if ARCH_BOARD_LPCXPRESSO_LPC54628
 	default "lx_cpu"                   if ARCH_BOARD_LX_CPU
+	default "maix-bit"                 if ARCH_BOARD_MAIX_BIT
 	default "maple"                    if ARCH_BOARD_MAPLE
 	default "makerlisp"                if ARCH_BOARD_MAKERLISP
 	default "max32660-evsys"           if ARCH_BOARD_MAX32660_EVSYS
@@ -2694,6 +2713,12 @@ source "boards/risc-v/gap8/gapuino/Kconfig"
 endif
 if ARCH_BOARD_NR5M100_NEXYS4
 source "boards/risc-v/nr5m100/nr5m100-nexys4/Kconfig"
+endif
+if ARCH_BOARD_HIFIVE_REVB
+source "boards/risc-v/fe310/hifive1-revb/Kconfig"
+endif
+if ARCH_BOARD_MAIX_BIT
+source "boards/risc-v/k210/maix-bit/Kconfig"
 endif
 if ARCH_BOARD_SIM
 source "boards/sim/sim/sim/Kconfig"

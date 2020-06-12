@@ -43,7 +43,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <semaphore.h>
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
@@ -53,6 +52,7 @@
 #include <nuttx/irq.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/power/pm.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/wdog.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/timers/watchdog.h>
@@ -687,11 +687,11 @@ void watchdog_unregister(FAR void *handle)
   /* Disable the watchdog timer */
 
   DEBUGASSERT(lower->ops->stop); /* Required */
-  (void)lower->ops->stop(lower);
+  lower->ops->stop(lower);
 
   /* Unregister the watchdog timer device */
 
-  (void)unregister_driver(upper->path);
+  unregister_driver(upper->path);
 
   /* Then free all of the driver resources */
 

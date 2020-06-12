@@ -46,7 +46,6 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -1559,7 +1558,7 @@ static int stm32can_txinterrupt(int irq, FAR void *context, FAR void *arg)
 
       /* Tell the upper half that the transfer is finished. */
 
-      (void)can_txdone(dev);
+      can_txdone(dev);
     }
 
   /* Check for RQCP1: Request completed mailbox 1 */
@@ -1574,7 +1573,7 @@ static int stm32can_txinterrupt(int irq, FAR void *context, FAR void *arg)
 
       /* Tell the upper half that the transfer is finished. */
 
-      (void)can_txdone(dev);
+      can_txdone(dev);
     }
 
   /* Check for RQCP2: Request completed mailbox 2 */
@@ -1589,7 +1588,7 @@ static int stm32can_txinterrupt(int irq, FAR void *context, FAR void *arg)
 
       /* Tell the upper half that the transfer is finished. */
 
-      (void)can_txdone(dev);
+      can_txdone(dev);
     }
 
   return OK;

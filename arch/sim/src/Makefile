@@ -317,7 +317,7 @@ export_startup: board/libboard$(LIBEXT) up_head.o $(HOSTOBJS)
 
 # Dependencies
 
-.depend: Makefile $(SRCS)
+.depend: Makefile $(SRCS) $(TOPDIR)$(DELIM).config
 	$(Q) if [ -e board/Makefile ]; then \
 		$(MAKE) -C board TOPDIR="$(TOPDIR)" depend ; \
 	fi

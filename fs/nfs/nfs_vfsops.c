@@ -59,7 +59,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <time.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -2226,7 +2225,7 @@ static int nfs_statfs(FAR struct inode *mountpt, FAR struct statfs *sbp)
 
   sbp->f_type = NFS_SUPER_MAGIC;
 
-  (void)nfs_fsinfo(nmp);
+  nfs_fsinfo(nmp);
 
   fsstat = &nmp->nm_msgbuffer.fsstat;
   fsstat->fs.fsroot.length = txdr_unsigned(nmp->nm_fhsize);

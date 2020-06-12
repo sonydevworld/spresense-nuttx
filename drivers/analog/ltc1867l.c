@@ -48,7 +48,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
 #include <debug.h>
@@ -58,6 +57,7 @@
 #include <nuttx/analog/adc.h>
 #include <nuttx/analog/ioctl.h>
 #include <nuttx/analog/ltc1867l.h>
+#include <nuttx/semaphore.h>
 
 #if defined(CONFIG_ADC_LTC1867L)
 
@@ -128,10 +128,10 @@ static const struct adc_ops_s g_adcops =
 
 static void adc_lock(FAR struct spi_dev_s *spi)
 {
-  (void)SPI_LOCK(spi, true);
+  SPI_LOCK(spi, true);
   SPI_SETMODE(spi, LTC1867L_SPI_MODE);
   SPI_SETBITS(spi, 16);
-  (void)SPI_HWFEATURES(spi, 0);
+  SPI_HWFEATURES(spi, 0);
   SPI_SETFREQUENCY(spi, CONFIG_LTC1867L_FREQUENCY);
 }
 
@@ -145,7 +145,7 @@ static void adc_lock(FAR struct spi_dev_s *spi)
 
 static void adc_unlock(FAR struct spi_dev_s *spi)
 {
-  (void)SPI_LOCK(spi, false);
+  SPI_LOCK(spi, false);
 }
 
 /****************************************************************************

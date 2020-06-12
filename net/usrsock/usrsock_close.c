@@ -49,7 +49,6 @@
 #include <arch/irq.h>
 
 #include <sys/socket.h>
-#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
 
@@ -179,10 +178,7 @@ int usrsock_close(FAR struct usrsock_conn_s *conn)
     {
       /* Wait for completion of request. */
 
-      while ((ret = net_lockedwait(&state.recvsem)) < OK)
-        {
-          DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
-        }
+      net_lockedwait_uninterruptible(&state.recvsem);
 
       ret = state.result;
       if (ret < 0)

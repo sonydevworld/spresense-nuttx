@@ -80,12 +80,13 @@
 FAR struct hostent *gethostbyaddr(FAR const void *addr, socklen_t len, int type)
 {
   int ret;
+  FAR struct hostent *result;
 
   DEBUGASSERT(addr != NULL);
   DEBUGASSERT(type == AF_INET || type == AF_INET6);
 
   ret = gethostbyaddr_r(addr, len, type, &g_hostent, g_hostbuffer,
-                        CONFIG_NETDB_BUFSIZE, &h_errno);
+                        CONFIG_NETDB_BUFSIZE, &result, &h_errno);
   return ret == 0 ? &g_hostent : NULL;
 }
 

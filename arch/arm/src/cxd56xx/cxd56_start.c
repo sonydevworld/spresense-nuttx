@@ -49,7 +49,7 @@
  * chip is disabled at reset.  The boot ROM determines the boot mode based on
  * the OTP BOOT_SRC value or reset state pins.  For flash-based parts,
  * the part boots from internal flash by default.
- * Otherwse, the boot ROM copies the image to internal SRAM at location
+ * Otherwise, the boot ROM copies the image to internal SRAM at location
  * 0x1000:0000, sets the ARM's shadow pointer to 0x1000:0000,
  *  and jumps to that location.
  *
@@ -274,10 +274,14 @@ void fpuconfig(void)
  *   This is the reset entry point.
  *
  ****************************************************************************/
+#define CPU_ID (CXD56_CPU_BASE + 0x40)
 
 void __start(void)
 {
   uint32_t *dest;
+#ifndef CONFIG_CXD56_SUBCORE
+  uint32_t cpuid;
+#endif
 
   /* Set MSP/PSP to IDLE stack */
 
@@ -287,6 +291,17 @@ void __start(void)
   __asm__ __volatile__("\tmsr psp, %0\n" :
                        : "r" ((uint32_t)&_ebss +
                               CONFIG_IDLETHREAD_STACKSIZE - 4));
+
+#ifndef CONFIG_CXD56_SUBCORE
+  cpuid = getreg32(CPU_ID);
+  if (cpuid != 2)
+    {
+      for (;;)
+        {
+          __asm__ __volatile__("wfi\n");
+        }
+    }
+#endif
 
   up_irq_disable();
 
@@ -319,6 +334,12 @@ void __start(void)
   /* Initialize the FPU (if configured) */
 
   fpuconfig();
+
+#ifdef CONFIG_ARMV7M_ITMSYSLOG
+  /* Perform ARMv7-M ITM SYSLOG initialization */
+
+  itm_syslog_initialize();
+#endif
 
   /* Perform early serial initialization */
 

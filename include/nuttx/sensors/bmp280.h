@@ -114,22 +114,22 @@ extern "C"
 
 struct bmp280_press_adj_s
 {
-  uint16_t  dig_p1; /* calibration P1 data */
-  int16_t   dig_p2; /* calibration P2 data */
-  int16_t   dig_p3; /* calibration P3 data */
-  int16_t   dig_p4; /* calibration P4 data */
-  int16_t   dig_p5; /* calibration P5 data */
-  int16_t   dig_p6; /* calibration P6 data */
-  int16_t   dig_p7; /* calibration P7 data */
-  int16_t   dig_p8; /* calibration P8 data */
-  int16_t   dig_p9; /* calibration P9 data */
+  uint16_t  dig_P1; /* calibration P1 data */
+  int16_t   dig_P2; /* calibration P2 data */
+  int16_t   dig_P3; /* calibration P3 data */
+  int16_t   dig_P4; /* calibration P4 data */
+  int16_t   dig_P5; /* calibration P5 data */
+  int16_t   dig_P6; /* calibration P6 data */
+  int16_t   dig_P7; /* calibration P7 data */
+  int16_t   dig_P8; /* calibration P8 data */
+  int16_t   dig_P9; /* calibration P9 data */
 };
 
 struct bmp280_temp_adj_s
 {
-  uint16_t  dig_t1; /* calibration T1 data */
-  int16_t   dig_t2; /* calibration T2 data */
-  int16_t   dig_t3; /* calibration T3 data */
+  uint16_t  dig_T1; /* calibration T1 data */
+  int16_t   dig_T2; /* calibration T2 data */
+  int16_t   dig_T3; /* calibration T3 data */
 };
 
 struct bmp280_meas_s

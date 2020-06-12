@@ -1,5 +1,5 @@
 ############################################################################
-# boards/arm/cxd56xx/spresense/nsh/Make.defs
+# boards/arm/cxd56xx/spresense/scripts/Make.defs
 #
 #   Copyright (C) 2014 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -49,12 +49,14 @@ ifeq ($(WINTOOL),y)
   ARCHINCLUDES = -I. -isystem "${shell cygpath -w $(TOPDIR)/include}"
   ARCHXXINCLUDES = -I. -isystem "${shell cygpath -w $(TOPDIR)/include}" -isystem "${shell cygpath -w $(TOPDIR)/include/cxx}"
   ARCHSCRIPT = -T "${shell cygpath -w $(TOPDIR)/boards/$(CONFIG_ARCH)/$(CONFIG_ARCH_CHIP)/$(CONFIG_ARCH_BOARD)/scripts/$(LDSCRIPT)}"
+  HOSTEXEEXT = .exe
 else
   # Linux/Cygwin-native toolchain
   MKDEP = $(TOPDIR)/tools/mkdeps$(HOSTEXEEXT)
   ARCHINCLUDES = -I. -isystem $(TOPDIR)/include
   ARCHXXINCLUDES = -I. -isystem $(TOPDIR)/include -isystem $(TOPDIR)/include/cxx
   ARCHSCRIPT = -T$(TOPDIR)/boards/$(CONFIG_ARCH)/$(CONFIG_ARCH_CHIP)/$(CONFIG_ARCH_BOARD)/scripts/$(LDSCRIPT)
+  HOSTEXEEXT =
 endif
 
 CC = $(CROSSDEV)gcc
@@ -144,6 +146,10 @@ ifeq ($(WINTOOL),y)
   LDFLAGS += -Map="${shell cygpath -w $(TOPDIR)/nuttx.map}" --cref
 else
   LDFLAGS += -Map=$(TOPDIR)/nuttx.map --cref
+endif
+
+ifneq ($(CONFIG_ASMP_MEMSIZE),)
+  LDFLAGS += --defsym=__reserved_ramsize=$(CONFIG_ASMP_MEMSIZE)
 endif
 
 HOSTCC = gcc

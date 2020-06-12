@@ -44,12 +44,11 @@
 #include <errno.h>
 #include <debug.h>
 #include <string.h>
-#include <semaphore.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/wqueue.h>
-
 #include <nuttx/fs/fs.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/sensors/bmg160.h>
 #include <nuttx/random.h>
 
@@ -230,7 +229,6 @@ static void bmg160_read_measurement_data(FAR struct bmg160_dev_s *dev)
   if (ret < 0)
     {
       snerr("ERROR: Could not aquire dev->datasem: %d\n", ret);
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return;
     }
 
@@ -460,7 +458,6 @@ static ssize_t bmg160_read(FAR struct file *filep, FAR char *buffer,
   if (ret < 0)
     {
       snerr("ERROR: Could not aquire priv->datasem: %d\n", ret);
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 

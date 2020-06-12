@@ -60,7 +60,7 @@
  * however, the stack must be aligned to 8-byte addresses.
  */
 
-#ifdef CONFIG_LIBC_FLOATINGPOINT
+#if defined(CONFIG_LIBC_FLOATINGPOINT) || defined (CONFIG_ARCH_RV64GC)
 #  define STACK_ALIGNMENT   8
 #else
 #  define STACK_ALIGNMENT   4
@@ -175,22 +175,13 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
       size_t top_of_stack;
       size_t size_of_stack;
 
-      /* Yes.. If stack debug is enabled, then fill the stack with a
-       * recognizable value that we can use later to test for high
-       * water marks.
-       */
-
-#ifdef CONFIG_STACK_COLORATION
-      memset(tcb->stack_alloc_ptr, 0xaa, stack_size);
-#endif
-
       /* MIPS uses a push-down stack:  the stack grows toward lower
        * addresses in memory.  The stack pointer register points to the
        * lowest, valid working address (the "top" of the stack).  Items on
        * the stack are referenced as positive word offsets from sp.
        */
 
-      top_of_stack = (uint32_t)tcb->stack_alloc_ptr + stack_size - 4;
+      top_of_stack = (uintptr_t)tcb->stack_alloc_ptr + stack_size - 4;
 
       /* The MIPS stack must be aligned at word (4 byte) boundaries; for
        * floating point use, the stack must be aligned to 8-byte addresses.
@@ -199,16 +190,51 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
        */
 
       top_of_stack = STACK_ALIGN_DOWN(top_of_stack);
-      size_of_stack = top_of_stack - (uint32_t)tcb->stack_alloc_ptr + 4;
+      size_of_stack = top_of_stack - (uintptr_t)tcb->stack_alloc_ptr + 4;
 
       /* Save the adjusted stack values in the struct tcb_s */
 
       tcb->adj_stack_ptr  = (FAR uint32_t *)top_of_stack;
       tcb->adj_stack_size = size_of_stack;
 
+      /* Yes.. If stack debug is enabled, then fill the stack with a
+       * recognizable value that we can use later to test for high
+       * water marks.
+       */
+
+#ifdef CONFIG_STACK_COLORATION
+      up_stack_color(tcb->stack_alloc_ptr, tcb->adj_stack_size);
+#endif
+
       board_autoled_on(LED_STACKCREATED);
       return OK;
     }
 
-   return ERROR;
+  return ERROR;
 }
+
+/****************************************************************************
+ * Name: up_stack_color
+ *
+ * Description:
+ *   Write a well know value into the stack
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_STACK_COLORATION
+void up_stack_color(FAR void *stackbase, size_t nbytes)
+{
+  /* Take extra care that we do not write outsize the stack boundaries */
+
+  uint32_t *stkptr = (uint32_t *)(((uintptr_t)stackbase + 3) & ~3);
+  uintptr_t stkend = (((uintptr_t)stackbase + nbytes) & ~3);
+  size_t    nwords = (stkend - (uintptr_t)stackbase) >> 2;
+
+  /* Set the entire stack to the coloration value */
+
+  while (nwords-- > 0)
+    {
+      *stkptr++ = STACK_COLOR;
+    }
+}
+#endif

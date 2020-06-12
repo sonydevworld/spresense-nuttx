@@ -42,12 +42,12 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <debug.h>
 #include <errno.h>
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/semaphore.h>
 #include <arch/stm32f7/chip.h>
 
 #include "up_arch.h"
@@ -250,26 +250,12 @@ static inline void dmast_putreg(struct stm32_dma_s *dmast, uint32_t offset, uint
 
 static void stm32_dmatake(FAR struct stm32_dma_s *dmast)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&dmast->sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&dmast->sem);
 }
 
 static inline void stm32_dmagive(FAR struct stm32_dma_s *dmast)
 {
-  (void)nxsem_post(&dmast->sem);
+  nxsem_post(&dmast->sem);
 }
 
 /************************************************************************************
@@ -485,7 +471,7 @@ void weak_function up_dma_initialize(void)
 
       /* Attach DMA interrupt vectors */
 
-      (void)irq_attach(dmast->irq, stm32_dmainterrupt, dmast);
+      irq_attach(dmast->irq, stm32_dmainterrupt, dmast);
 
       /* Disable the DMA stream */
 

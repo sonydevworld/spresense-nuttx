@@ -48,10 +48,9 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/signal.h>
-#include <nuttx/semaphore.h>
 #include <nuttx/time.h>
 #include <nuttx/clock.h>
-
+#include <nuttx/semaphore.h>
 #include <nuttx/sensors/dhtxx.h>
 
 /*****************************************************************************
@@ -426,7 +425,6 @@ static int dht_parse_data(FAR struct dhtxx_dev_s *priv,
 
 static int dhtxx_open(FAR struct file *filep)
 {
-  int ret;
   FAR struct inode        *inode = filep->f_inode;
   FAR struct dhtxx_dev_s  *priv  = inode->i_private;
 
@@ -434,11 +432,7 @@ static int dhtxx_open(FAR struct file *filep)
    * pass unstable state.
    */
 
-  do
-    {
-      ret = nxsem_wait(&priv->devsem);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&priv->devsem);
 
   dht_standby_mode(priv);
 
@@ -470,7 +464,7 @@ static int dhtxx_close(FAR struct file *filep)
 static ssize_t dhtxx_read(FAR struct file *filep, FAR char *buffer, 
                          size_t buflen)
 {
-  int ret;
+  int ret = OK;
   FAR struct inode                *inode = filep->f_inode;
   FAR struct dhtxx_dev_s          *priv  = inode->i_private;
   FAR struct dhtxx_sensor_data_s  *data  = 
@@ -490,11 +484,7 @@ static ssize_t dhtxx_read(FAR struct file *filep, FAR char *buffer,
 
   memset(priv->raw_data, 0U, sizeof(priv->raw_data));
 
-  do
-    {
-      ret = nxsem_wait(&priv->devsem);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&priv->devsem);
 
   dht_send_start_signal(priv);
 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/platform/sensors/lt1pa01_scu.c
+ * boards/arm/cxd56xx/drivers/sensors/lt1pa01_scu.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -44,7 +44,6 @@
 #include <fixedmath.h>
 #include <errno.h>
 #include <debug.h>
-#include <semaphore.h>
 #include <arch/types.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -144,6 +143,7 @@
 /****************************************************************************
  * Private Type Definitions
  ****************************************************************************/
+
 /**
  * @brief Structure for lt1pa01 device
  */
@@ -349,6 +349,7 @@ static int lt1pa01als_seqinit(FAR struct lt1pa01_dev_s *priv)
     {
       return -ENOENT;
     }
+
   priv->seq = g_als_seq;
 
   seq_setaddress(priv->seq, priv->addr);
@@ -382,6 +383,7 @@ static int lt1pa01prox_seqinit(FAR struct lt1pa01_dev_s *priv)
     {
       return -ENOENT;
     }
+
   priv->seq = g_prox_seq;
 
   seq_setaddress(priv->seq, priv->addr);
@@ -497,7 +499,7 @@ static int lt1pa01_close_als(FAR struct file *filep)
 
   g_als_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
 
   if (g_als_refcnt == 0)
     {
@@ -513,7 +515,7 @@ static int lt1pa01_close_als(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
     }
 
   return OK;
@@ -535,7 +537,7 @@ static int lt1pa01_close_prox(FAR struct file *filep)
 
   g_prox_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
 
   if (g_prox_refcnt == 0)
     {
@@ -548,7 +550,7 @@ static int lt1pa01_close_prox(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
     }
 #endif
 
@@ -712,7 +714,7 @@ static int lt1pa01_ioctl_prox(FAR struct file *filep, int cmd,
 
               ret = seq_ioctl(priv->seq, priv->minor, cmd, arg);
 #else
-              snerr("Unregisted SCU sequencer cmd: %d\n", cmd);
+              snerr("Unregistered SCU sequencer cmd: %d\n", cmd);
               ret = - ENOTTY;
 #endif
             }
@@ -823,7 +825,7 @@ int lt1pa01als_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_lt1pa01alsfops, 0666, priv);
   if (ret < 0)
     {
@@ -877,7 +879,7 @@ int lt1pa01prox_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_lt1pa01proxfops, 0666, priv);
   if (ret < 0)
     {

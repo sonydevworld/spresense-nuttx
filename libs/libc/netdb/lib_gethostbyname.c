@@ -82,10 +82,11 @@
 FAR struct hostent *gethostbyname(FAR const char *name)
 {
   int ret;
+  FAR struct hostent *result;
 
   DEBUGASSERT(name != NULL);
   ret = gethostbyname_r(name, &g_hostent, g_hostbuffer, CONFIG_NETDB_BUFSIZE,
-                       &h_errno);
+                        &result, &h_errno);
   return ret == 0 ? &g_hostent : NULL;
 }
 

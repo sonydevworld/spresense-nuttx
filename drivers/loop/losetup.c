@@ -53,13 +53,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
-#include <semaphore.h>
 #include <debug.h>
 #include <errno.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/loop.h>
+#include <nuttx/semaphore.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -133,18 +133,7 @@ static const struct block_operations g_bops =
 
 static int loop_semtake(FAR struct loop_struct_s *dev)
 {
-  int ret;
-
-  /* Take the semaphore (perhaps waiting) */
-
-  ret = nxsem_wait(&dev->sem);
-
-  /* The only case that an error should occur here is if the wait was
-   * awakened by a signal.
-   */
-
-  DEBUGASSERT(ret == OK || ret == -EINTR);
-  return ret;
+  return nxsem_wait(&dev->sem);
 }
 
 /****************************************************************************
@@ -521,7 +510,7 @@ int loteardown(FAR const char *devname)
 
   if (dev->devfile.f_inode != NULL)
     {
-      (void)file_close(&dev->devfile);
+      file_close(&dev->devfile);
     }
 
   kmm_free(dev);

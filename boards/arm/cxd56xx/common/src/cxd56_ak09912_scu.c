@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/cxd56xx/common/src/cxd56_ak09912.c
+ * boards/arm/cxd56xx/common/src/cxd56_ak09912_scu.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -50,11 +50,19 @@
 
 #include <arch/chip/scu.h>
 
-#ifdef CONFIG_CXD56_DECI_AK09912
+#ifdef CONFIG_SENSORS_AK09912_SCU_DECI
 #  define MAG_NR_SEQS 3
 #else
 #  define MAG_NR_SEQS 1
 #endif
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
 
 #ifdef CONFIG_SENSORS_AK09912_SCU
 
@@ -66,7 +74,7 @@ int board_ak09912_initialize(FAR const char *devpath, int bus)
 
   sninfo("Initializing AK09912...\n");
 
-  /* Initialize i2c deivce */
+  /* Initialize i2c device */
 
   i2c = cxd56_i2cbus_initialize(bus);
   if (!i2c)
@@ -84,7 +92,7 @@ int board_ak09912_initialize(FAR const char *devpath, int bus)
 
   for (i = 0; i < MAG_NR_SEQS; i++)
     {
-      /* register deivce at I2C bus */
+      /* register device at I2C bus */
 
       ret = ak09912_register(devpath, i, i2c, bus);
       if (ret < 0)

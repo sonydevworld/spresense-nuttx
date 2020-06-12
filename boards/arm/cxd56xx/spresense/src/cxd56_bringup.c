@@ -102,7 +102,7 @@
 #endif
 
 #ifdef CONFIG_PWM
-#  include "cxd56_pwm.h"
+#  include <arch/board/cxd56_pwm.h>
 #endif
 
 #ifdef CONFIG_CXD56_ADC
@@ -119,6 +119,10 @@
 
 #ifdef CONFIG_CXD56_GEOFENCE
 #  include "cxd56_geofence.h"
+#endif
+
+#ifdef CONFIG_VIDEO_FB
+#  include <nuttx/video/fb.h>
 #endif
 
 #include "spresense.h"
@@ -243,6 +247,31 @@ int cxd56_bringup(void)
     }
 #endif
 
+  cxd56_uart_initialize();
+  cxd56_timerisr_initialize();
+
+#ifdef CONFIG_CXD56_CPUFIFO
+  ret = cxd56_pm_bootup();
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to powermgr bootup.\n");
+    }
+#endif
+
+#ifndef CONFIG_CXD56_SUBCORE
+  /* Initialize CPU clock to max frequency */
+
+  board_clock_initialize();
+
+  /* Setup the power of external device */
+
+  board_power_setup(0);
+#endif
+
+#ifdef CONFIG_CXD56_SCU
+  scu_initialize();
+#endif
+
 #ifdef CONFIG_CXD56_I2C_DRIVER
   #ifdef CONFIG_CXD56_I2C0
   ret = board_i2cdev_initialize(0);
@@ -269,27 +298,28 @@ int cxd56_bringup(void)
   #endif
 #endif
 
-  cxd56_uart_initialize();
-  cxd56_timerisr_initialize();
-
-#ifdef CONFIG_CXD56_CPUFIFO
-  ret = cxd56_pm_bootup();
+#ifdef CONFIG_SYSTEM_SPITOOL
+#  ifdef CONFIG_CXD56_SPI3
+  ret = board_spidev_initialize(3);
   if (ret < 0)
     {
-      _err("ERROR: Failed to powermgr bootup.\n");
+      _err("ERROR: Failed to initialize SPI3.\n");
     }
-#endif
-
-  /* Initialize CPU clock to max frequency */
-
-  board_clock_initialize();
-
-  /* Setup the power of external device */
-
-  board_power_setup(0);
-
-#ifdef CONFIG_CXD56_SCU
-  scu_initialize();
+#  endif
+#  ifdef CONFIG_CXD56_SPI4
+  ret = board_spidev_initialize(4);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize SPI4.\n");
+    }
+#  endif
+#  ifdef CONFIG_CXD56_SPI5
+  ret = board_spidev_initialize(5);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize SPI5.\n");
+    }
+#  endif
 #endif
 
 #ifdef CONFIG_FS_PROCFS
@@ -315,7 +345,7 @@ int cxd56_bringup(void)
   ret = board_pwm_setup();
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialze pwm. \n");
+      _err("ERROR: Failed to initialize pwm. \n");
     }
 #endif
 
@@ -323,7 +353,7 @@ int cxd56_bringup(void)
   ret = cxd56_adcinitialize();
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialze adc. \n");
+      _err("ERROR: Failed to initialize adc. \n");
     }
 #endif
 
@@ -331,7 +361,7 @@ int cxd56_bringup(void)
   ret = userled_lower_initialize("/dev/userleds");
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialze led. \n");
+      _err("ERROR: Failed to initialize led. \n");
     }
 #endif
 
@@ -339,7 +369,7 @@ int cxd56_bringup(void)
   ret = board_flash_initialize();
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialze SPI-Flash. %d\n", errno);
+      _err("ERROR: Failed to initialize SPI-Flash. %d\n", errno);
     }
 #endif
 
@@ -358,6 +388,7 @@ int cxd56_bringup(void)
     }
 #endif /* CONFIG_VIDEO_ISX012 */
 
+#if defined(CONFIG_CXD56_SDIO)
   /* In order to prevent Hi-Z from being input to the SD Card controller,
    * Initialize SDIO pins to GPIO low output with internal pull-down.
    */
@@ -370,11 +401,21 @@ int cxd56_bringup(void)
   cxd56_gpio_write(PIN_SDIO_DATA2, false);
   cxd56_gpio_write(PIN_SDIO_DATA3, false);
 
-#if defined(CONFIG_CXD56_SDIO)
   ret = board_sdcard_initialize();
   if (ret < 0)
     {
       _err("ERROR: Failed to initialize sdhci. \n");
+    }
+#endif
+
+#ifdef CONFIG_CXD56_SPISD
+  /* Mount the SPI-based MMC/SD block driver */
+
+  ret = board_spisd_initialize(0, CONFIG_CXD56_SPISD_SPI_CH);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize SPI device to MMC/SD: %d\n",
+           ret);
     }
 #endif
 
@@ -397,19 +438,11 @@ int cxd56_bringup(void)
   usbdev_rndis_initialize(mac);
 #endif
 
-#ifdef CONFIG_MODEM_ALTMDM
-  ret = board_altmdm_initialize("/dev/altmdm");
-  if (ret < 0)
-    {
-      _err("ERROR: Failed to initialze Altair modem. \n");
-    }
-#endif
-
 #ifdef CONFIG_WL_GS2200M
   ret = board_gs2200m_initialize("/dev/gs2200m", 5);
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialze GS2200M. \n");
+      _err("ERROR: Failed to initialize GS2200M. \n");
     }
 #endif
 
@@ -417,7 +450,7 @@ int cxd56_bringup(void)
   ret = cxd56_gnssinitialize("/dev/gps");
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialze gnss. \n");
+      _err("ERROR: Failed to initialize gnss. \n");
     }
 #endif
 
@@ -425,15 +458,23 @@ int cxd56_bringup(void)
   ret = cxd56_geofenceinitialize("/dev/geofence");
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialze geofence. \n");
+      _err("ERROR: Failed to initialize geofence. \n");
     }
 #endif
 
-#ifdef CONFIG_SENSORS_BMI160_I2C
-  ret = board_bmi160_initialize(0);
+#ifdef CONFIG_SENSORS
+  ret = board_sensors_initialize();
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialze BMI160. \n");
+      _err("ERROR: Failed to initialize sensors.\n");
+    }
+#endif
+
+#ifdef CONFIG_VIDEO_FB
+  ret = fb_register(0,0);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize Frame Buffer Driver.\n");
     }
 #endif
 

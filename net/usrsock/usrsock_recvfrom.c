@@ -49,7 +49,6 @@
 #include <arch/irq.h>
 
 #include <sys/socket.h>
-#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
 
@@ -161,7 +160,7 @@ static uint16_t recvfrom_event(FAR struct net_driver_s *dev,
  ****************************************************************************/
 
 static int do_recvfrom_request(FAR struct usrsock_conn_s *conn, size_t buflen,
-                               socklen_t addrlen)
+                               socklen_t addrlen, int32_t flags)
 {
   struct usrsock_request_recvfrom_s req =
   {
@@ -183,6 +182,7 @@ static int do_recvfrom_request(FAR struct usrsock_conn_s *conn, size_t buflen,
 
   req.head.reqid = USRSOCK_REQUEST_RECVFROM;
   req.usockid = conn->usockid;
+  req.flags = flags;
   req.max_addrlen = addrlen;
   req.max_buflen = buflen;
 
@@ -332,7 +332,7 @@ ssize_t usrsock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
 
       if (!(conn->flags & USRSOCK_EVENT_RECVFROM_AVAIL))
         {
-          if (_SS_ISNONBLOCK(psock->s_flags))
+          if (_SS_ISNONBLOCK(psock->s_flags) || (flags & MSG_DONTWAIT) != 0)
             {
               /* Nothing to receive from daemon side. */
 
@@ -420,18 +420,18 @@ ssize_t usrsock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
 
       usrsock_setup_datain(conn, inbufs, ARRAY_SIZE(inbufs));
 
+      /* MSG_DONTWAIT is only use in usrsock. */
+
+      flags &= ~MSG_DONTWAIT;
+
       /* Request user-space daemon to close socket. */
 
-      ret = do_recvfrom_request(conn, len, addrlen);
+      ret = do_recvfrom_request(conn, len, addrlen, flags);
       if (ret >= 0)
         {
           /* Wait for completion of request. */
 
-          while ((ret = net_lockedwait(&state.reqstate.recvsem)) < 0)
-            {
-              DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
-            }
-
+          net_lockedwait_uninterruptible(&state.reqstate.recvsem);
           ret = state.reqstate.result;
 
           DEBUGASSERT(ret <= (ssize_t)len);
@@ -445,6 +445,15 @@ ssize_t usrsock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
                */
 
               outaddrlen = state.valuelen_nontrunc;
+
+              /* If the MSG_PEEK flag is enabled, it will only peek
+               * from the buffer, so remark the input as ready.
+               */
+
+              if (flags & MSG_PEEK)
+                {
+                  conn->flags |= USRSOCK_EVENT_RECVFROM_AVAIL;
+                }
             }
         }
 

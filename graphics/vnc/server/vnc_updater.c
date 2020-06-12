@@ -40,7 +40,6 @@
 #include <nuttx/config.h>
 
 #include <string.h>
-#include <semaphore.h>
 #include <sched.h>
 #include <pthread.h>
 #include <queue.h>
@@ -63,8 +62,6 @@
 #  define CONFIG_DEBUG_GRAPHICS_INFO  1
 #endif
 #include <debug.h>
-
-#include <nuttx/semaphore.h>
 
 #include "vnc_server.h"
 
@@ -129,21 +126,8 @@ static void vnc_sem_debug(FAR struct vnc_session_s *session,
   int queuecount;
   int freewaiting;
   int queuewaiting;
-  int ret;
 
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&g_errsem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&g_errsem);
 
   /* Count structures in the list */
 
@@ -207,7 +191,6 @@ static FAR struct vnc_fbupdate_s *
 vnc_alloc_update(FAR struct vnc_session_s *session)
 {
   FAR struct vnc_fbupdate_s *update;
-  int ret;
 
   /* Reserve one element from the free list.  Lock the scheduler to assure
    * that the sq_remfirst() and the successful return from nxsem_wait are
@@ -217,19 +200,7 @@ vnc_alloc_update(FAR struct vnc_session_s *session)
   sched_lock();
   vnc_sem_debug(session, "Before alloc", 0);
 
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&session->freesem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&session->freesem);
 
   /* It is reserved.. go get it */
 
@@ -300,7 +271,6 @@ static FAR struct vnc_fbupdate_s *
 vnc_remove_queue(FAR struct vnc_session_s *session)
 {
   FAR struct vnc_fbupdate_s *rect;
-  int ret;
 
   /* Reserve one element from the list of queued rectangle.  Lock the
    * scheduler to assure that the sq_remfirst() and the successful return
@@ -311,19 +281,7 @@ vnc_remove_queue(FAR struct vnc_session_s *session)
   sched_lock();
   vnc_sem_debug(session, "Before remove", 0);
 
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&session->queuesem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&session->queuesem);
 
   /* It is reserved.. go get it */
 

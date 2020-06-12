@@ -48,11 +48,11 @@
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
-#include <semaphore.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/ioctl.h>
 #include <nuttx/mtd/mtd.h>
+#include <nuttx/semaphore.h>
 #include <arch/board/board.h>
 
 #include "lc823450_mtd.h"
@@ -140,21 +140,7 @@ static struct lc823450_partinfo_s partinfo[LC823450_NPARTS] =
 
 static void mtd_semtake(FAR sem_t *sem)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(sem);
 }
 
 /****************************************************************************
@@ -490,7 +476,7 @@ get_card_size:
     {
       /* cache on */
 
-      (void)lc823450_sdc_cachectl(dev->channel, 1);
+      lc823450_sdc_cachectl(dev->channel, 1);
     }
 
   finfo("ch=%d size=%lld \n", dev->channel, (uint64_t)blocksize * (uint64_t)nblocks);

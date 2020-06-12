@@ -44,7 +44,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -53,6 +52,7 @@
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/fs/ioctl.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/serial/serial.h>
 
 #include <arch/board/board.h>
@@ -1312,13 +1312,13 @@ void up_serialinit(void)
 {
   /* Register the console */
 
-  (void)uart_register("/dev/console", &CONSOLE_DEV);
+  uart_register("/dev/console", &CONSOLE_DEV);
 
   /* Register all UARTs */
 
-  (void)uart_register("/dev/ttyS0", &TTYS0_DEV);
+  uart_register("/dev/ttyS0", &TTYS0_DEV);
 #ifdef TTYS1_DEV
-  (void)uart_register("/dev/ttyS1", &TTYS1_DEV);
+  uart_register("/dev/ttyS1", &TTYS1_DEV);
 #ifdef CONFIG_HSUART
   nxsem_init(&g_uart1priv.txdma_wait, 0, 1);
   g_uart1priv.htxdma = lc823450_dmachannel(DMA_CHANNEL_UART1TX);
@@ -1330,11 +1330,11 @@ void up_serialinit(void)
   lc823450_dmarequest(g_uart1priv.hrxdma, DMA_REQUEST_UART1RX);
 
   up_serialout(&g_uart1priv, UART_UDMA, UART_UDMA_RREQ_EN | UART_UDMA_TREQ_EN);
-  (void)hsuart_register("/dev/ttyHS1", &TTYS1_DEV);
+  hsuart_register("/dev/ttyHS1", &TTYS1_DEV);
 #endif /* CONFIG_HSUART */
 #endif
 #ifdef TTYS2_DEV
-  (void)uart_register("/dev/ttyS2", &TTYS2_DEV);
+  uart_register("/dev/ttyS2", &TTYS2_DEV);
 #endif
 }
 

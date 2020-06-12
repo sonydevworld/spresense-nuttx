@@ -1,5 +1,5 @@
 /***************************************************************************
- * boards/arm/cxd56xx/include/cxd56_imageproc.h
+ * boards/arm/cxd56xx/spresense/include/cxd56_imageproc.h
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -32,8 +32,8 @@
  *
  ****************************************************************************/
 
-#ifndef __BOARDS_ARM_CXD56XX_INCLUDE_CXD56_IMAGEPROC_H__
-#define __BOARDS_ARM_CXD56XX_INCLUDE_CXD56_IMAGEPROC_H__
+#ifndef __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_IMAGEPROC_H
+#define __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_IMAGEPROC_H
 
 #include <stdint.h>
 
@@ -43,7 +43,7 @@ extern "C"
 #endif
 
 /* Structure of rectangle coordinates from left top point to
- * right buttom point.
+ * right bottom point.
  */
 
   struct imageproc_rect_s
@@ -54,6 +54,45 @@ extern "C"
       uint16_t y2;               /* Y coordinate of rignt bottom point */
     };
   typedef struct imageproc_rect_s imageproc_rect_t;
+
+/* Enumeration of image type */
+
+  enum imageproc_imginfo_e
+    {
+      IMAGEPROC_IMGTYPE_SINGLE = 0, /* All pixels have the same value */
+      IMAGEPROC_IMGTYPE_BINARY = 1, /* Each pixels have 0 or specific non-zero value */
+      IMAGEPROC_IMGTYPE_8BPP   = 2, /* Each pixels have 8bit value */
+      IMAGEPROC_IMGTYPE_16BPP  = 3, /* Each pixels have 16bit value */
+    };
+
+
+/* Structure of binary image */
+
+  struct imageproc_binary_img_s
+    {
+      uint8_t *p_u8;      /* 1bpp image */
+      int     multiplier; /* specific non-zero value */
+    };
+  typedef struct imageproc_binary_img_s imageproc_binary_img_t;
+
+/* Structure of image information. */
+
+  struct imageproc_imginfo_s
+    {
+      enum imageproc_imginfo_e type;     /* Type of image data    */
+      int  w;                            /* width  of total image */
+      int  h;                            /* height of total image */
+      imageproc_rect_t *rect;            /* clipped rectangle     */
+      union
+        {
+          int                    single; /* type = IMAGEPROC_IMGTYPE_SINGLE */
+          imageproc_binary_img_t binary; /* type = IMAGEPROC_IMGTYPE_BINARY */
+          uint8_t                *p_u8;  /* type = IMAGEPROC_IMGTYPE_8BPP   */
+          uint16_t               *p_u16; /* type = IMAGEPROC_IMGTYPE_16BPP  */
+        } img;
+    };
+  typedef struct imageproc_imginfo_s imageproc_imginfo_t;
+
 
 /* Initialize imageproc library
  */
@@ -75,6 +114,16 @@ extern "C"
  */
 
   void imageproc_convert_yuv2rgb(uint8_t * ibuf, uint32_t hsize,
+                                 uint32_t vsize);
+
+/* Convert color format (RGB to YUV)
+ *
+ *  [in,out] ibuf: image
+ *  [in] hsize: Horizontal size
+ *  [in] vsize: Vertical size
+ */
+
+  void imageproc_convert_rgb2yuv(uint8_t * ibuf, uint32_t hsize,
                                  uint32_t vsize);
 
 /* Convert color format (YUV to grayscale)
@@ -144,8 +193,32 @@ extern "C"
                                 uint16_t ohsize, uint16_t ovsize, int bpp,
                                 imageproc_rect_t * clip_rect);
 
+/* Execute alpha blending
+ *
+ * Execute alpha blending.
+ * dst buffer is overwritten by blended image.
+ *
+ *  [in,out] dst: Destination image.
+ *                dst->type = IMAGEPROC_IMGTYPE_16BPP.
+ *  [in] pos_x:   x-coordinate of blended position.
+ *                Minus value means the left of the destination image origin. 
+ *  [in] pos_y:   y-coordinate of blended position.
+ *                Minus value means the upper of the destination image origin.
+ *  [in] src:     Source image.
+ *                src->type = IMAGEPROC_IMGTYPE_16BPP or IMAGEPROC_IMGTYPE_SINGLE.
+ *  [in] alpha:   Alpha plane.
+ *                alpha->type = IMAGEPROC_IMGTYPE_SINGLE, IMAGEPROC_IMGTYPE_BINARY,
+ *                              or IMAGEPROC_IMGTYPE_8BPP. 
+ *
+ * return 0 on success, otherwise error code.
+ */
+
+  int imageproc_alpha_blend(imageproc_imginfo_t *dst, int pos_x, int pos_y,
+                            imageproc_imginfo_t *src,
+                            imageproc_imginfo_t *alpha);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif  /* __BOARDS_ARM_CXD56XX_INCLUDE_CXD56_IMAGEPROC_H__ */
+#endif /* __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_IMAGEPROC_H */

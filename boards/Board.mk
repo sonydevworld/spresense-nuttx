@@ -119,7 +119,7 @@ ifneq ($(CXXOBJS),)
 	$(call ARCHIVE, $@, $(CXXOBJS))
 endif
 
-.depend: Makefile $(SRCS) $(CXXSRCS)
+.depend: Makefile $(SRCS) $(CXXSRCS) $(TOPDIR)$(DELIM).config
 ifneq ($(ZDSVERSION),)
 	$(Q) $(MKDEP) $(DEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
 else

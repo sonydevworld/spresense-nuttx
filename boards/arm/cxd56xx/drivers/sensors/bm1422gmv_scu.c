@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/platform/sensors/bm1422gmv_scu.c
+ * boards/arm/cxd56xx/drivers/sensors/bm1422gmv_scu.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -44,7 +44,6 @@
 #include <fixedmath.h>
 #include <errno.h>
 #include <debug.h>
-#include <semaphore.h>
 #include <arch/types.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -59,7 +58,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_CXD56_DECI_BM1422GMV
+#ifdef CONFIG_SENSORS_BM1422GMV_SCU_DECI
 #  define BM1422GMV_SEQ_TYPE SEQ_TYPE_DECI
 #else
 #  define BM1422GMV_SEQ_TYPE SEQ_TYPE_NORMAL
@@ -294,6 +293,7 @@ static int bm1422gmv_seqinit(FAR struct bm1422gmv_dev_s *priv)
     {
       return -ENOENT;
     }
+
   priv->seq = g_seq;
 
   seq_setaddress(priv->seq, priv->addr);
@@ -373,11 +373,10 @@ static int bm1422gmv_close(FAR struct file *filep)
 
   g_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
 
   if (g_refcnt == 0)
     {
-
       /* goto power-down mode */
 
       bm1422gmv_putreg8(priv, BM1422GMV_CNTL1, BM1422GMV_CNTL1_RST_LV);
@@ -388,7 +387,7 @@ static int bm1422gmv_close(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
     }
 
   return OK;
@@ -539,7 +538,7 @@ int bm1422gmv_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_bm1422gmvfops, 0666, priv);
   if (ret < 0)
     {

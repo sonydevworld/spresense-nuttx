@@ -54,7 +54,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <semaphore.h>
 #include <debug.h>
 #include <errno.h>
 
@@ -66,6 +65,7 @@
 #include <nuttx/drivers/rwbuffer.h>
 #include <nuttx/sdio.h>
 #include <nuttx/mmcsd.h>
+#include <nuttx/semaphore.h>
 
 #include "mmcsd.h"
 #include "mmcsd_sdio.h"
@@ -85,7 +85,7 @@
 #define MMCSD_POWERUP_DELAY     ((useconds_t)250)    /* 74 clock cycles @ 400KHz = 185uS */
 #define MMCSD_IDLE_DELAY        ((useconds_t)50000)  /* Short delay to allow change to IDLE state */
 #define MMCSD_DSR_DELAY         ((useconds_t)100000) /* Time to wait after setting DSR */
-#define MMCSD_CLK_DELAY         ((useconds_t)500000) /* Delay after changing clock speeds */
+#define MMCSD_CLK_DELAY         ((useconds_t)5000) /* Delay after changing clock speeds */
 
 /* Data delays (all in units of milliseconds).
  *
@@ -283,23 +283,11 @@ static const struct block_operations g_bops =
 
 static void mmcsd_takesem(FAR struct mmcsd_state_s *priv)
 {
-  int ret;
-
   /* Take the semaphore, giving exclusive access to the driver (perhaps
    * waiting)
    */
 
-  do
-    {
-      ret = nxsem_wait(&priv->sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&priv->sem);
 
   /* Lock the bus if mutually exclusive access to the SDIO bus is required
    * on this platform.
@@ -510,9 +498,9 @@ static int mmcsd_getSCR(FAR struct mmcsd_state_s *priv, uint32_t scr[2])
   SDIO_BLOCKSETUP(priv->dev, 8, 1);
   SDIO_RECVSETUP(priv->dev, (FAR uint8_t *)scr, 8);
 
-  (void)SDIO_WAITENABLE(priv->dev,
-                        SDIOWAIT_TRANSFERDONE | SDIOWAIT_TIMEOUT |
-                        SDIOWAIT_ERROR);
+  SDIO_WAITENABLE(priv->dev,
+                  SDIOWAIT_TRANSFERDONE | SDIOWAIT_TIMEOUT |
+                  SDIOWAIT_ERROR);
 
   /* Send CMD55 APP_CMD with argument as card's RCA */
 
@@ -1839,6 +1827,7 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_state_s *priv,
       if (ret != OK)
         {
           ferr("ERROR: mmcsd_recvR1 for CMD24 failed: %d\n", ret);
+          SDIO_CANCEL(priv->dev);
           return ret;
         }
     }
@@ -2044,6 +2033,7 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
       if (ret != OK)
         {
           ferr("ERROR: mmcsd_recvR1 for CMD25 failed: %d\n", ret);
+          SDIO_CANCEL(priv->dev);
           return ret;
         }
     }
@@ -2505,7 +2495,7 @@ static void mmcsd_mediachange(FAR void *arg)
        * NOTE that mmcsd_probe() will always re-enable callbacks appropriately.
        */
 
-      (void)mmcsd_probe(priv);
+      mmcsd_probe(priv);
     }
   else
     {
@@ -2514,7 +2504,7 @@ static void mmcsd_mediachange(FAR void *arg)
        * re-enable callbacks so we will need to do that here.
        */
 
-      (void)mmcsd_removed(priv);
+      mmcsd_removed(priv);
 
       /* Enable logic to detect if a card is re-inserted */
 
@@ -2607,7 +2597,7 @@ static int mmcsd_widebus(FAR struct mmcsd_state_s *priv)
       priv->widebus = true;
 
       SDIO_CLOCK(priv->dev, CLOCK_SD_TRANSFER_4BIT);
-      up_udelay(MMCSD_CLK_DELAY);
+      usleep(MMCSD_CLK_DELAY);
       return OK;
     }
 
@@ -2702,7 +2692,7 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
    * the card default value (0x0404) will be used.
    */
 
-  (void)mmcsd_sendcmd4(priv);
+  mmcsd_sendcmd4(priv);
 
   /* Send CMD7 with the argument == RCA in order to select the card
    * and send it in data-trasfer mode. Since we are supporting
@@ -2738,7 +2728,7 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
   /* Select high speed MMC clocking (which may depend on the DSR setting) */
 
   SDIO_CLOCK(priv->dev, CLOCK_MMC_TRANSFER);
-  up_udelay(MMCSD_CLK_DELAY);
+  usleep(MMCSD_CLK_DELAY);
   return OK;
 }
 
@@ -2976,7 +2966,7 @@ static int mmcsd_sdinitialize(FAR struct mmcsd_state_s *priv)
    * the card default value (0x0404) will be used.
    */
 
-  (void)mmcsd_sendcmd4(priv);
+  mmcsd_sendcmd4(priv);
 
   /* Select high speed SD clocking (which may depend on the DSR setting) */
 
@@ -3447,11 +3437,10 @@ static int mmcsd_probe(FAR struct mmcsd_state_s *priv)
               finfo("Capacity: %lu Kbytes\n", (unsigned long)(priv->capacity / 1024));
               priv->mediachanged = true;
             }
+          /* When the card is identified, we have probed this card */
+
+          priv->probed = true;
         }
-
-      /* In any event, we have probed this card */
-
-      priv->probed = true;
 
       /* Regardless of whether or not a card was successfully initialized, there
        * is appartently a card inserted. If it wasn't successfully initialized,
@@ -3514,7 +3503,7 @@ static int mmcsd_removed(FAR struct mmcsd_state_s *priv)
 
   /* Disable clocking to the card */
 
-  (void)SDIO_CLOCK(priv->dev, CLOCK_SDIO_DISABLED);
+  SDIO_CLOCK(priv->dev, CLOCK_SDIO_DISABLED);
   return OK;
 }
 

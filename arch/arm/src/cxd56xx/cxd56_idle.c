@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/cxd56/cxd56_idle.c
+ * arch/arm/src/cxd56xx/cxd56_idle.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -111,7 +111,7 @@ static void up_idlepm(void)
         {
           /* The new state change failed, revert to the preceding state */
 
-          (void)pm_changestate(PM_IDLE_DOMAIN, oldstate);
+          pm_changestate(PM_IDLE_DOMAIN, oldstate);
         }
       else
         {
@@ -135,7 +135,7 @@ static void up_idlepm(void)
             break;
 
           case PM_SLEEP:
-            (void)cxd56_pmsleep();
+            cxd56_pmsleep();
             break;
 
           default:

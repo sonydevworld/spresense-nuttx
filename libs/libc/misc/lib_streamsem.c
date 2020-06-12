@@ -42,7 +42,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <semaphore.h>
 #include <errno.h>
 
 #include <nuttx/semaphore.h>
@@ -73,5 +72,5 @@ void stream_semtake(FAR struct streamlist *list)
 
 void stream_semgive(FAR struct streamlist *list)
 {
-  (void)_SEM_POST(&list->sl_sem);
+  _SEM_POST(&list->sl_sem);
 }

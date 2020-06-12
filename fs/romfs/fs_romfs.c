@@ -268,6 +268,7 @@ static int romfs_open(FAR struct file *filep, FAR const char *relpath,
   if (ret < 0)
     {
       ferr("ERROR: Failed to locate start of file data: %d\n", ret);
+      kmm_free(rf);
       goto errout_with_semaphore;
     }
 
@@ -277,6 +278,7 @@ static int romfs_open(FAR struct file *filep, FAR const char *relpath,
   if (ret < 0)
     {
       ferr("ERROR: Failed configure buffering: %d\n", ret);
+      kmm_free(rf);
       goto errout_with_semaphore;
     }
 
@@ -1086,7 +1088,7 @@ static int romfs_unbind(FAR void *handle, FAR struct inode **blkdriver,
             {
               if (INODE_IS_BLOCK(inode) && inode->u.i_bops->close != NULL)
                 {
-                  (void)inode->u.i_bops->close(inode);
+                  inode->u.i_bops->close(inode);
                 }
 
               /* We hold a reference to the block driver but should

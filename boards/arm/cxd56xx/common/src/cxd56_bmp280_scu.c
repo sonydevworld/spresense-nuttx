@@ -50,13 +50,13 @@
 
 #include "cxd56_i2c.h"
 
-#ifdef CONFIG_CXD56_DECI_PRESS
+#ifdef CONFIG_SENSORS_BMP280_SCU_DECI_PRESS
 #  define PRESS_NR_SEQS 3
 #else
 #  define PRESS_NR_SEQS 1
 #endif
 
-#ifdef CONFIG_CXD56_DECI_TEMP
+#ifdef CONFIG_SENSORS_BMP280_SCU_DECI_TEMP
 #  define TEMP_NR_SEQS 3
 #else
 #  define TEMP_NR_SEQS 1
@@ -71,7 +71,7 @@ int board_bmp280_initialize(int bus)
 
   sninfo("Initializing BMP280..\n");
 
-  /* Initialize i2c deivce */
+  /* Initialize i2c device */
 
   i2c = cxd56_i2cbus_initialize(bus);
   if (!i2c)

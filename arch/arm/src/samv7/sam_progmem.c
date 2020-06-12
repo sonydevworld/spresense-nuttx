@@ -40,10 +40,10 @@
 #include <nuttx/config.h>
 
 #include <string.h>
-#include <semaphore.h>
 #include <errno.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/semaphore.h>
 #include <arch/samv7/chip.h>
 
 #include "up_arch.h"
@@ -187,21 +187,7 @@ static sem_t g_page_sem;
 
 static void page_buffer_lock(void)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&g_page_sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&g_page_sem);
 }
 
 #define page_buffer_unlock() nxsem_post(&g_page_sem)
@@ -518,7 +504,7 @@ ssize_t up_progmem_eraseblock(size_t cluster)
 
   /* Erase all pages in the cluster */
 
-  (void)efc_unlock(page, SAMV7_PAGE_PER_CLUSTER);
+  efc_unlock(page, SAMV7_PAGE_PER_CLUSTER);
 
   /* Get FARG field for EPA command:
    *
@@ -680,7 +666,7 @@ ssize_t up_progmem_write(size_t address, const void *buffer, size_t buflen)
 
   /* Make sure that the FLASH is unlocked */
 
-  (void)efc_unlock(page, SAMV7_BYTE2PAGE(buflen + SAMV7_PAGE_MASK));
+  efc_unlock(page, SAMV7_BYTE2PAGE(buflen + SAMV7_PAGE_MASK));
 
   /* Loop until all of the data has been written */
 

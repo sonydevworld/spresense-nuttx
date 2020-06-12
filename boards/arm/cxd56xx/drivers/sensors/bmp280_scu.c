@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/platform/sensors/bmp280_scu.c
+ * boards/arm/cxd56xx/drivers/sensors/bmp280_scu.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -51,18 +51,18 @@
 #include <nuttx/sensors/bmp280.h>
 #include <arch/chip/scu.h>
 
-#if defined(CONFIG_I2C) && defined(CONFIG_BMP280_SCU)
+#if defined(CONFIG_I2C) && defined(CONFIG_SENSORS_BMP280_SCU)
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_CXD56_DECI_PRESS
+#ifdef CONFIG_SENSORS_BMI280_SCU_DECI_PRESS
 #  define PRESS_SEQ_TYPE SEQ_TYPE_DECI
 #else
 #  define PRESS_SEQ_TYPE SEQ_TYPE_NORMAL
 #endif
-#ifdef CONFIG_CXD56_DECI_TEMP
+#ifdef CONFIG_SENSORS_BMI280_SCU_DECI_TEMP
 #  define TEMP_SEQ_TYPE SEQ_TYPE_DECI
 #else
 #  define TEMP_SEQ_TYPE SEQ_TYPE_NORMAL
@@ -377,6 +377,7 @@ static int bmp280_get_calib_param_temp(FAR struct bmp280_dev_s *priv)
 
   return OK;
 }
+
 /****************************************************************************
  * Name: bmp280_set_power_mode
  *
@@ -496,6 +497,7 @@ static int bmp280_seqinit_press(FAR struct bmp280_dev_s *priv)
     {
       return -ENOENT;
     }
+
   priv->seq = g_seq_press;
 
   seq_setaddress(priv->seq, priv->addr);
@@ -521,6 +523,7 @@ static int bmp280_seqinit_temp(FAR struct bmp280_dev_s *priv)
     {
       return -ENOENT;
     }
+
   priv->seq = g_seq_temp;
 
   seq_setaddress(priv->seq, priv->addr);
@@ -549,7 +552,7 @@ static int bmp280_open_press(FAR struct file *filep)
   FAR struct bmp280_dev_s *priv  = inode->i_private;
   int ret;
 
-  /* first pressure device initilize */
+  /* first pressure device initialize */
 
   if (g_refcnt_press == 0)
     {
@@ -596,7 +599,7 @@ static int bmp280_open_temp(FAR struct file *filep)
   FAR struct bmp280_dev_s *priv  = inode->i_private;
   int ret;
 
-  /* first temperature device initilize */
+  /* first temperature device initialize */
 
   if (g_refcnt_temp == 0)
     {
@@ -658,7 +661,7 @@ static int bmp280_close_press(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->id, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->id, SCUIOC_FREEFIFO, 0);
     }
 
   g_refcnt_press--;
@@ -695,7 +698,7 @@ static int bmp280_close_temp(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->id, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->id, SCUIOC_FREEFIFO, 0);
     }
 
   g_refcnt_temp--;
@@ -764,7 +767,8 @@ static int bmp280_ioctl_press(FAR struct file *filep, int cmd,
 
       case SNIOC_GETADJ:
         {
-          struct bmp280_press_adj_s *user = (struct bmp280_press_adj_s *)(uintptr_t)arg;
+          struct bmp280_press_adj_s *user = (struct bmp280_press_adj_s *)
+                                            (uintptr_t)arg;
 
           user->dig_P1 = g_press_adj.dig_P1;
           user->dig_P2 = g_press_adj.dig_P2;
@@ -873,7 +877,8 @@ static int bmp280_ioctl_temp(FAR struct file *filep, int cmd,
 
 int bmp280_init(FAR struct i2c_master_s *i2c, int port)
 {
-  FAR struct bmp280_dev_s tmp, *priv = &tmp;
+  struct bmp280_dev_s tmp;
+  struct bmp280_dev_s *priv = &tmp;
   int ret;
 
   /* Setup temporary device structure for initialization */
@@ -934,7 +939,7 @@ int bmp280press_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_bmp280pressfops, 0666, priv);
   if (ret < 0)
     {
@@ -985,7 +990,7 @@ int bmp280temp_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_bmp280tempfops, 0666, priv);
   if (ret < 0)
     {

@@ -42,11 +42,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
 #include <debug.h>
 
+#include <nuttx/semaphore.h>
 #include <nuttx/i2c/i2c_master.h>
 #include <nuttx/kmalloc.h>
 #include <arch/board/board.h>
@@ -140,21 +140,7 @@ const struct i2c_ops_s g_ops =
 
 static void z8_i2c_semtake(void)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&g_i2csem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&g_i2csem);
 }
 
 #define z8_i2c_semgive() nxsem_post(&g_i2csem)

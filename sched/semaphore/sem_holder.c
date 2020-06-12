@@ -40,7 +40,6 @@
 
 #include <nuttx/config.h>
 
-#include <semaphore.h>
 #include <sched.h>
 #include <assert.h>
 #include <debug.h>
@@ -390,7 +389,7 @@ static int nxsem_boostholderprio(FAR struct semholder_s *pholder,
            * switch may occur during up_block_task() processing.
            */
 
-          (void)nxsched_setpriority(htcb, rtcb->sched_priority);
+          nxsched_setpriority(htcb, rtcb->sched_priority);
         }
       else
         {
@@ -428,7 +427,7 @@ static int nxsem_boostholderprio(FAR struct semholder_s *pholder,
        * will occur during up_block_task() processing.
        */
 
-      (void)nxsched_setpriority(htcb, rtcb->sched_priority);
+      nxsched_setpriority(htcb, rtcb->sched_priority);
     }
 #endif
 
@@ -538,7 +537,7 @@ static int nxsem_restoreholderprio(FAR struct tcb_s *htcb,
 
           /* Reset the holder's priority back to the base priority. */
 
-          (void)nxsched_reprioritize(htcb, htcb->base_priority);
+          nxsched_reprioritize(htcb, htcb->base_priority);
         }
 
       /* There are multiple pending priority levels. The holder thread's
@@ -620,7 +619,7 @@ static int nxsem_restoreholderprio(FAR struct tcb_s *htcb,
        * priority.
        */
 
-      (void)nxsched_reprioritize(htcb, htcb->base_priority);
+      nxsched_reprioritize(htcb, htcb->base_priority);
 #endif
     }
 
@@ -687,7 +686,7 @@ static int nxsem_restoreholderprioB(FAR struct semholder_s *pholder,
 
       nxsem_findandfreeholder(sem, rtcb);
 #endif
-      (void)nxsem_restoreholderprio(rtcb, sem, arg);
+      nxsem_restoreholderprio(rtcb, sem, arg);
       return 1;
     }
 
@@ -740,7 +739,7 @@ static inline void nxsem_restorebaseprio_irq(FAR struct tcb_s *stcb,
     {
       /* Drop the priority of all holder threads */
 
-      (void)nxsem_foreachholder(sem, nxsem_restoreholderprioall, stcb);
+      nxsem_foreachholder(sem, nxsem_restoreholderprioall, stcb);
     }
 
   /* If there are no tasks waiting for available counts, then all holders
@@ -750,7 +749,7 @@ static inline void nxsem_restorebaseprio_irq(FAR struct tcb_s *stcb,
 #ifdef CONFIG_DEBUG_ASSERTIONS
   else
     {
-      (void)nxsem_foreachholder(sem, nxsem_verifyholder, NULL);
+      nxsem_foreachholder(sem, nxsem_verifyholder, NULL);
     }
 #endif
 }
@@ -810,11 +809,11 @@ static inline void nxsem_restorebaseprio_task(FAR struct tcb_s *stcb,
        * except for the running thread.
        */
 
-      (void)nxsem_foreachholder(sem, nxsem_restoreholderprioA, stcb);
+      nxsem_foreachholder(sem, nxsem_restoreholderprioA, stcb);
 
       /* Now, find an reprioritize only the ready to run task */
 
-      (void)nxsem_foreachholder(sem, nxsem_restoreholderprioB, stcb);
+      nxsem_foreachholder(sem, nxsem_restoreholderprioB, stcb);
     }
 
   /* If there are no tasks waiting for available counts, then all holders
@@ -824,7 +823,7 @@ static inline void nxsem_restorebaseprio_task(FAR struct tcb_s *stcb,
 #ifdef CONFIG_DEBUG_ASSERTIONS
   else
     {
-      (void)nxsem_foreachholder(sem, nxsem_verifyholder, NULL);
+      nxsem_foreachholder(sem, nxsem_verifyholder, NULL);
     }
 #endif
 
@@ -916,7 +915,7 @@ void nxsem_destroyholder(FAR sem_t *sem)
        */
 
       DEBUGASSERT(sem->hhead->flink == NULL);
-      (void)nxsem_foreachholder(sem, nxsem_recoverholders, NULL);
+      nxsem_foreachholder(sem, nxsem_recoverholders, NULL);
     }
 
 #else
@@ -1021,7 +1020,7 @@ void nxsem_boostpriority(FAR sem_t *sem)
    * count.
    */
 
-  (void)nxsem_foreachholder(sem, nxsem_boostholderprio, rtcb);
+  nxsem_foreachholder(sem, nxsem_boostholderprio, rtcb);
 }
 
 /****************************************************************************
@@ -1146,7 +1145,7 @@ void nxsem_canceled(FAR struct tcb_s *stcb, FAR sem_t *sem)
 
   /* Adjust the priority of every holder as necessary */
 
-  (void)nxsem_foreachholder(sem, nxsem_restoreholderprioall, stcb);
+  nxsem_foreachholder(sem, nxsem_restoreholderprioall, stcb);
 }
 
 /****************************************************************************
@@ -1169,7 +1168,7 @@ void nxsem_canceled(FAR struct tcb_s *stcb, FAR sem_t *sem)
 void sem_enumholders(FAR sem_t *sem)
 {
 #ifdef CONFIG_DEBUG_INFO
-  (void)nxsem_foreachholder(sem, nxsem_dumpholder, NULL);
+  nxsem_foreachholder(sem, nxsem_dumpholder, NULL);
 #endif
 }
 #endif

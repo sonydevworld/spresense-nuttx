@@ -44,7 +44,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -1022,21 +1021,7 @@ static int ehci_wait_usbsts(uint32_t maskbits, uint32_t donebits,
 
 static void imxrt_takesem(sem_t *sem)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(sem);
 }
 
 /****************************************************************************
@@ -1652,7 +1637,7 @@ static void imxrt_qh_enqueue(struct imxrt_qh_s *qhead, struct imxrt_qh_s *qh)
    */
 
   qh->fqp = qh->hw.overlay.nqp;
-  (void)imxrt_qh_dump(qh, NULL, NULL);
+  imxrt_qh_dump(qh, NULL, NULL);
 
   /* Add the new QH to the head of the asynchronous queue list.
    *

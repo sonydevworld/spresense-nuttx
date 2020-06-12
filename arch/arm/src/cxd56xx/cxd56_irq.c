@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/cxd56/cxd56_irq.c
+ * arch/arm/src/cxd56xx/cxd56_irq.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -173,7 +173,7 @@ static void cxd56_dumpnvic(const char *msg, int irq)
 #ifdef CONFIG_DEBUG_FEATURES
 static int cxd56_nmi(int irq, FAR void *context, FAR void *arg)
 {
-  (void)up_irq_save();
+  up_irq_save();
   _err("PANIC!!! NMI received\n");
   PANIC();
   return 0;
@@ -181,7 +181,7 @@ static int cxd56_nmi(int irq, FAR void *context, FAR void *arg)
 
 static int cxd56_busfault(int irq, FAR void *context, FAR void *arg)
 {
-  (void)up_irq_save();
+  up_irq_save();
   _err("PANIC!!! Bus fault received\n");
   PANIC();
   return 0;
@@ -189,7 +189,7 @@ static int cxd56_busfault(int irq, FAR void *context, FAR void *arg)
 
 static int cxd56_usagefault(int irq, FAR void *context, FAR void *arg)
 {
-  (void)up_irq_save();
+  up_irq_save();
   _err("PANIC!!! Usage fault received\n");
   PANIC();
   return 0;
@@ -197,7 +197,7 @@ static int cxd56_usagefault(int irq, FAR void *context, FAR void *arg)
 
 static int cxd56_pendsv(int irq, FAR void *context, FAR void *arg)
 {
-  (void)up_irq_save();
+  up_irq_save();
   _err("PANIC!!! PendSV received\n");
   PANIC();
   return 0;
@@ -205,7 +205,7 @@ static int cxd56_pendsv(int irq, FAR void *context, FAR void *arg)
 
 static int cxd56_dbgmonitor(int irq, FAR void *context, FAR void *arg)
 {
-  (void)up_irq_save();
+  up_irq_save();
   _err("PANIC!!! Debug Monitor received\n");
   PANIC();
   return 0;
@@ -213,7 +213,7 @@ static int cxd56_dbgmonitor(int irq, FAR void *context, FAR void *arg)
 
 static int cxd56_reserved(int irq, FAR void *context, FAR void *arg)
 {
-  (void)up_irq_save();
+  up_irq_save();
   _err("PANIC!!! Reserved interrupt\n");
   PANIC();
   return 0;
@@ -328,7 +328,7 @@ void up_irqinitialize(void)
   putreg32(DEFPRIORITY32, NVIC_SYSH8_11_PRIORITY);
   putreg32(DEFPRIORITY32, NVIC_SYSH12_15_PRIORITY);
 
-  /* The NVIC ICTR register (bits 0-4) holds the number of of interrupt
+  /* The NVIC ICTR register (bits 0-4) holds the number of interrupt
    * lines that the NVIC supports:
    *
    *  0 -> 32 interrupt lines,  8 priority registers
@@ -364,7 +364,9 @@ void up_irqinitialize(void)
   /* Set the priority of the SVCall interrupt */
 
 #ifdef CONFIG_ARCH_IRQPRIO
-  /* up_prioritize_irq(CXD56_IRQ_PENDSV, NVIC_SYSH_PRIORITY_MIN); */
+  /* up_prioritize_irq(CXD56_IRQ_PENDSV, NVIC_SYSH_PRIORITY_MIN);
+   */
+
 #endif
 
 #ifdef CONFIG_ARMV7M_USEBASEPRI
@@ -402,13 +404,13 @@ void up_irqinitialize(void)
    */
 
 #if defined(CONFIG_DEBUG_FEATURES) && !defined(CONFIG_ARMV7M_USEBASEPRI)
-  {
-    uint32_t regval;
+    {
+      uint32_t regval;
 
-    regval  = getreg32(NVIC_DEMCR);
-    regval &= ~NVIC_DEMCR_VCHARDERR;
-    putreg32(regval, NVIC_DEMCR);
-  }
+      regval  = getreg32(NVIC_DEMCR);
+      regval &= ~NVIC_DEMCR_VCHARDERR;
+      putreg32(regval, NVIC_DEMCR);
+    }
 #endif
 
   /* And finally, enable interrupts */
@@ -446,7 +448,7 @@ void up_disable_irq(int irq)
           return;
         }
 
-      /* If a defferent cpu requested, send an irq request */
+      /* If a different cpu requested, send an irq request */
 
       if (cpu != (int8_t)up_cpu_index())
         {

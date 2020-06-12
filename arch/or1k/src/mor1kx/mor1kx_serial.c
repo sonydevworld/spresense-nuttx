@@ -43,7 +43,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
@@ -108,7 +107,7 @@ void up_serialinit(void)
   /* Register the console */
 
 #ifdef HAVE_SERIAL_CONSOLE
-  (void)uart_register("/dev/console", &CONSOLE_DEV);
+  uart_register("/dev/console", &CONSOLE_DEV);
 #endif
 
   /* Register all USARTs */

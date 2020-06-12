@@ -601,7 +601,7 @@ static void cdcecm_txdone(FAR struct cdcecm_driver_s *priv)
 
   /* In any event, poll the network for new TX data */
 
-  (void)devif_poll(&priv->dev, cdcecm_txpoll);
+  devif_poll(&priv->dev, cdcecm_txpoll);
 }
 
 /****************************************************************************
@@ -699,12 +699,12 @@ static void cdcecm_poll_work(FAR void *arg)
    * become available.
    */
 
-  (void)devif_timer(&self->dev, cdcecm_txpoll);
+  devif_timer(&self->dev, CDCECM_WDDELAY, cdcecm_txpoll);
 
   /* Setup the watchdog poll timer again */
 
-  (void)wd_start(self->txpoll, CDCECM_WDDELAY, cdcecm_poll_expiry, 1,
-                 (wdparm_t)self);
+  wd_start(self->txpoll, CDCECM_WDDELAY, cdcecm_poll_expiry, 1,
+           (wdparm_t)self);
 
   net_unlock();
 }
@@ -784,8 +784,8 @@ static int cdcecm_ifup(FAR struct net_driver_s *dev)
 
   /* Set and activate a timer process */
 
-  (void)wd_start(priv->txpoll, CDCECM_WDDELAY, cdcecm_poll_expiry, 1,
-                 (wdparm_t)priv);
+  wd_start(priv->txpoll, CDCECM_WDDELAY, cdcecm_poll_expiry, 1,
+           (wdparm_t)priv);
 
   priv->bifup = true;
   return OK;
@@ -867,7 +867,7 @@ static void cdcecm_txavail_work(FAR void *arg)
 
   if (self->bifup)
     {
-      (void)devif_poll(&self->dev, cdcecm_txpoll);
+      devif_poll(&self->dev, cdcecm_txpoll);
     }
 
   net_unlock();
@@ -1018,7 +1018,7 @@ static void cdcecm_ipv6multicast(FAR struct cdcecm_driver_s *priv)
   ninfo("IPv6 Multicast: %02x:%02x:%02x:%02x:%02x:%02x\n",
         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-  (void)cdcecm_addmac(dev, mac);
+  cdcecm_addmac(dev, mac);
 
 #ifdef CONFIG_NET_ICMPv6_AUTOCONF
   /* Add the IPv6 all link-local nodes Ethernet address.  This is the
@@ -1026,7 +1026,7 @@ static void cdcecm_ipv6multicast(FAR struct cdcecm_driver_s *priv)
    * packets.
    */
 
-  (void)cdcecm_addmac(dev, g_ipv6_ethallnodes.ether_addr_octet);
+  cdcecm_addmac(dev, g_ipv6_ethallnodes.ether_addr_octet);
 
 #endif /* CONFIG_NET_ICMPv6_AUTOCONF */
 
@@ -1036,7 +1036,7 @@ static void cdcecm_ipv6multicast(FAR struct cdcecm_driver_s *priv)
    * packets.
    */
 
-  (void)cdcecm_addmac(dev, g_ipv6_ethallrouters.ether_addr_octet);
+  cdcecm_addmac(dev, g_ipv6_ethallrouters.ether_addr_octet);
 
 #endif /* CONFIG_NET_ICMPv6_ROUTER */
 }
@@ -1158,7 +1158,8 @@ static void cdcecm_wrcomplete(FAR struct usbdev_ep_s *ep,
         req->buf, req->flags, req->len, req->xfrd, req->result);
 
   /* The single USB device write request is available for upcoming
-   * transmissions again. */
+   * transmissions again.
+   */
 
   rc = nxsem_post(&self->wrreq_idle);
 
@@ -1420,25 +1421,25 @@ static int cdcecm_mkstrdesc(uint8_t id, FAR struct usb_strdesc_s *strdesc)
       return -EINVAL;
     }
 
-   /* The string is utf16-le.  The poor man's utf-8 to utf16-le
-    * conversion below will only handle 7-bit en-us ascii
-    */
+  /* The string is utf16-le.  The poor man's utf-8 to utf16-le
+   * conversion below will only handle 7-bit en-us ascii
+   */
 
-   len = strlen(str);
-   if (len > (CDCECM_MAXSTRLEN / 2))
-     {
-       len = (CDCECM_MAXSTRLEN / 2);
-     }
+  len = strlen(str);
+  if (len > (CDCECM_MAXSTRLEN / 2))
+    {
+      len = (CDCECM_MAXSTRLEN / 2);
+    }
 
-   for (i = 0, ndata = 0; i < len; i++, ndata += 2)
-     {
-       strdesc->data[ndata]     = str[i];
-       strdesc->data[ndata + 1] = 0;
-     }
+  for (i = 0, ndata = 0; i < len; i++, ndata += 2)
+    {
+      strdesc->data[ndata]     = str[i];
+      strdesc->data[ndata + 1] = 0;
+    }
 
-   strdesc->len  = ndata + 2;
-   strdesc->type = USB_DESC_TYPE_STRING;
-   return strdesc->len;
+  strdesc->len  = ndata + 2;
+  strdesc->type = USB_DESC_TYPE_STRING;
+  return strdesc->len;
 }
 
 /****************************************************************************
@@ -1476,7 +1477,8 @@ static void cdcecm_mkepdesc(int epidx,
     {
       case CDCECM_EP_INTIN_IDX:  /* Interrupt IN endpoint */
         {
-          epdesc->addr            = USB_DIR_IN | devinfo->epno[CDCECM_EP_INTIN_IDX];
+          epdesc->addr            = USB_DIR_IN |
+                                    devinfo->epno[CDCECM_EP_INTIN_IDX];
           epdesc->attr            = USB_EP_ATTR_XFER_INT;
           epdesc->mxpacketsize[0] = LSBYTE(intin_mxpktsz);
           epdesc->mxpacketsize[1] = MSBYTE(intin_mxpktsz);
@@ -1486,7 +1488,8 @@ static void cdcecm_mkepdesc(int epidx,
 
       case CDCECM_EP_BULKIN_IDX:
         {
-          epdesc->addr            = USB_DIR_IN | devinfo->epno[CDCECM_EP_BULKIN_IDX];
+          epdesc->addr            = USB_DIR_IN |
+                                    devinfo->epno[CDCECM_EP_BULKIN_IDX];
           epdesc->attr            = USB_EP_ATTR_XFER_BULK;
           epdesc->mxpacketsize[0] = LSBYTE(bulkin_mxpktsz);
           epdesc->mxpacketsize[1] = MSBYTE(bulkin_mxpktsz);
@@ -1496,7 +1499,8 @@ static void cdcecm_mkepdesc(int epidx,
 
       case CDCECM_EP_BULKOUT_IDX:
         {
-          epdesc->addr            = USB_DIR_OUT | devinfo->epno[CDCECM_EP_BULKOUT_IDX];
+          epdesc->addr            = USB_DIR_OUT |
+                                    devinfo->epno[CDCECM_EP_BULKOUT_IDX];
           epdesc->attr            = USB_EP_ATTR_XFER_BULK;
           epdesc->mxpacketsize[0] = LSBYTE(bulkout_mxpktsz);
           epdesc->mxpacketsize[1] = MSBYTE(bulkout_mxpktsz);
@@ -1813,11 +1817,17 @@ static int cdcecm_bind(FAR struct usbdevclass_driver_s *driver,
 
   self->ctrlreq->callback = cdcecm_ep0incomplete;
 
-  self->epint     = DEV_ALLOCEP(dev, USB_DIR_IN | self->devinfo.epno[CDCECM_EP_INTIN_IDX],
+  self->epint     = DEV_ALLOCEP(dev,
+                                USB_DIR_IN |
+                                self->devinfo.epno[CDCECM_EP_INTIN_IDX],
                                 true, USB_EP_ATTR_XFER_INT);
-  self->epbulkin  = DEV_ALLOCEP(dev, USB_DIR_IN | self->devinfo.epno[CDCECM_EP_BULKIN_IDX],
+  self->epbulkin  = DEV_ALLOCEP(dev,
+                                USB_DIR_IN |
+                                self->devinfo.epno[CDCECM_EP_BULKIN_IDX],
                                 true, USB_EP_ATTR_XFER_BULK);
-  self->epbulkout = DEV_ALLOCEP(dev, USB_DIR_OUT | self->devinfo.epno[CDCECM_EP_BULKOUT_IDX],
+  self->epbulkout = DEV_ALLOCEP(dev,
+                                USB_DIR_OUT |
+                                self->devinfo.epno[CDCECM_EP_BULKOUT_IDX],
                                 false, USB_EP_ATTR_XFER_BULK);
 
   if (!self->epint || !self->epbulkin || !self->epbulkout)
@@ -1899,7 +1909,7 @@ static void cdcecm_unbind(FAR struct usbdevclass_driver_s *driver,
     {
       usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_INVALIDARG), 0);
       return;
-     }
+    }
 #endif
 
   /* Make sure that the endpoints have been unconfigured.  If
@@ -1992,7 +2002,8 @@ static int cdcecm_setup(FAR struct usbdevclass_driver_s *driver,
               uint8_t descindex = ctrl->value[0];
               uint8_t desctype  = ctrl->value[1];
 
-              ret = cdcecm_getdescriptor(self, desctype, descindex, self->ctrlreq->buf);
+              ret = cdcecm_getdescriptor(self, desctype, descindex,
+                                         self->ctrlreq->buf);
             }
             break;
 
@@ -2128,7 +2139,8 @@ static int cdcecm_classobject(int minor, FAR struct usbdev_devinfo_s *devinfo,
 
   cdcecm_ifdown(&self->dev);
 
-  /* Read the MAC address from the hardware into priv->dev.d_mac.ether.ether_addr_octet
+  /* Read the MAC address from the hardware into
+   * priv->dev.d_mac.ether.ether_addr_octet
    * Applies only if the Ethernet MAC has its own internal address.
    */
 

@@ -41,7 +41,6 @@
 
 #include <stdint.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <time.h>
 #include <errno.h>
 #include <debug.h>
@@ -50,7 +49,6 @@
 #include <nuttx/arch.h>
 #include <nuttx/wdog.h>
 #include <nuttx/cancelpt.h>
-#include <nuttx/semaphore.h>
 
 #include "sched/sched.h"
 #include "clock/clock.h"
@@ -192,8 +190,8 @@ int nxsem_timedwait(FAR sem_t *sem, FAR const struct timespec *abstime)
 
   /* Start the watchdog */
 
-  (void)wd_start(rtcb->waitdog, ticks, (wdentry_t)nxsem_timeout,
-                 1, getpid());
+  wd_start(rtcb->waitdog, ticks, (wdentry_t)nxsem_timeout,
+           1, getpid());
 
   /* Now perform the blocking wait.  If nxsem_wait() fails, the
    * negated errno value will be returned below.
@@ -256,7 +254,7 @@ int sem_timedwait(FAR sem_t *sem, FAR const struct timespec *abstime)
 
   /* sem_timedwait() is a cancellation point */
 
-  (void)enter_cancellation_point();
+  enter_cancellation_point();
 
   /* Let nxsem_timedout() do the work */
 

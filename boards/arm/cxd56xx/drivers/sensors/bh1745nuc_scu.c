@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/platform/sensors/bh1745nuc_scu.c
+ * boards/arm/cxd56xx/drivers/sensors/bh1745nuc_scu.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -44,7 +44,6 @@
 #include <fixedmath.h>
 #include <errno.h>
 #include <debug.h>
-#include <semaphore.h>
 #include <arch/types.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -270,6 +269,7 @@ static int bh1745nuc_seqinit(FAR struct bh1745nuc_dev_s *priv)
     {
       return -ENOENT;
     }
+
   priv->seq = g_seq;
 
   seq_setaddress(priv->seq, priv->addr);
@@ -351,7 +351,7 @@ static int bh1745nuc_close(FAR struct file *filep)
 
   g_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
 
   if (g_refcnt == 0)
     {
@@ -366,7 +366,7 @@ static int bh1745nuc_close(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
     }
 
   return OK;
@@ -517,7 +517,7 @@ int bh1745nuc_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_bh1745nucfops, 0666, priv);
   if (ret < 0)
     {

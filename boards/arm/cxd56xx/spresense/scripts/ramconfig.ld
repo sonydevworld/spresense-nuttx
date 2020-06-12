@@ -104,6 +104,9 @@ SECTIONS
     /* __stack symbol is referred from mkspk tool
      * and means the end address of heap region */
     PROVIDE(__stack = ORIGIN(ram) + LENGTH(ram));
+    __stack -= DEFINED(__reserved_ramsize) ? __reserved_ramsize : 0;
+
+    ASSERT(_ebss < __stack, "Error: Out of memory")
 
     /* Stabs debugging sections.    */
     .stab 0 : { *(.stab) }

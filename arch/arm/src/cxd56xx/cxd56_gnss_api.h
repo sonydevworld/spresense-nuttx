@@ -61,7 +61,7 @@
 #define CXD56_GNSS_OPMOD_1PSS       5
 
 /* Start a positioning
- * begining to search the satellites and measure the receiver position
+ * beginning to search the satellites and measure the receiver position
  */
 
 int GD_Start(uint8_t startMode);
@@ -226,7 +226,7 @@ int GD_SetAcquist(FAR uint8_t *pAcquistData, uint16_t acquistSize);
 int GD_SetTimeGps(FAR struct cxd56_gnss_date_s *date,
                   FAR struct cxd56_gnss_time_s *time);
 
-/* Clear Receiver Infomation */
+/* Clear Receiver Information */
 
 int GD_ClearReceiverInfo(uint32_t type);
 
@@ -352,5 +352,21 @@ int GD_SetVarEphemeris(uint32_t *ephemeris, uint32_t ephemerisSize);
 
 int GD_GetVarEphemeris(uint32_t satellite, uint32_t* ephemeris,
                        uint32_t ephemerisSize);
+
+/* Set usecase mode */
+
+int GD_SetUseCase(uint32_t usecase);
+
+/* Get usecase mode */
+
+int GD_GetUseCase(uint32_t *usecase);
+
+/* Set enable or disable of 1PPS output */
+
+int GD_Set1ppsOutput(uint32_t enable);
+
+/* Get the current 1PPS output setting */
+
+int GD_Get1ppsOutput(uint32_t *enable);
 
 #endif /* __ARCH_ARM_SRC_CXD56XX_CXD56_GNSS_API_H */

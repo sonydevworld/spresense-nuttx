@@ -49,7 +49,6 @@
 #include <arch/irq.h>
 
 #include <sys/socket.h>
-#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
 
@@ -204,7 +203,6 @@ int usrsock_socket(int domain, int type, int protocol,
 
   FAR struct usrsock_conn_s *conn;
   int err;
-  int ret;
 
   /* Allocate the usrsock socket connection structure and save in the new
    * socket instance.
@@ -240,10 +238,7 @@ int usrsock_socket(int domain, int type, int protocol,
 
   /* Wait for completion of request. */
 
-  while ((ret = net_lockedwait(&state.recvsem)) < 0)
-    {
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
-    }
+  net_lockedwait_uninterruptible(&state.recvsem);
 
   if (state.result < 0)
     {

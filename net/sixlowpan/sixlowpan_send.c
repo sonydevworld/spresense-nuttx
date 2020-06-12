@@ -39,7 +39,6 @@
 
 #include <nuttx/config.h>
 
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -283,7 +282,7 @@ int sixlowpan_send(FAR struct net_driver_s *dev,
   /* Initialize the send state structure */
 
   nxsem_init(&sinfo.s_waitsem, 0, 0);
-  (void)nxsem_setprotocol(&sinfo.s_waitsem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&sinfo.s_waitsem, SEM_PRIO_NONE);
 
   sinfo.s_result  = -EBUSY;
   sinfo.s_timeout = timeout;

@@ -1,0 +1,49 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+comment "FE310 Configuration Options"
+
+choice
+	prompt "FE310 Chip Selection"
+	default ARCH_CHIP_FE310_G002
+	depends on ARCH_CHIP_FE310
+
+config ARCH_CHIP_FE310_G002
+	bool "FE310_G002"
+	select FE310_HAVE_UART0
+	select FE310_HAVE_GPIO
+	---help---
+		FE310, RV32IMAC 16KB SRAM
+
+config ARCH_CHIP_FE310_QEMU
+	bool "FE310_QEMU"
+	select FE310_HAVE_UART0
+	select FE310_HAVE_GPIO
+	---help---
+		FE310, RV32IMAC 16KB SRAM
+
+endchoice
+
+menu "FE310 Peripheral Support"
+
+# These "hidden" settings determine is a peripheral option is available for the
+# selection MCU
+
+config FE310_HAVE_UART0
+	bool
+	default y
+	select UART0_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+
+# These are the peripheral selections proper
+
+config FE310_UART0
+	bool "UART0"
+	default y
+	select ARCH_HAVE_UART0
+	select ARCH_HAVE_SERIAL_TERMIOS
+	select FE310_UART
+
+endmenu

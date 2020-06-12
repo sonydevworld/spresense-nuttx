@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/platform/sensors/kx022_scu.c
+ * boards/arm/cxd56xx/drivers/sensors/kx022_scu.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -44,7 +44,6 @@
 #include <fixedmath.h>
 #include <errno.h>
 #include <debug.h>
-#include <semaphore.h>
 #include <arch/types.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -59,7 +58,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_CXD56_DECI_KX022
+#ifdef CONFIG_SENSORS_KX022_SCU_DECI
 #  define KX022_SEQ_TYPE SEQ_TYPE_DECI
 #else
 #  define KX022_SEQ_TYPE SEQ_TYPE_NORMAL
@@ -278,6 +277,7 @@ static int kx022_seqinit(FAR struct kx022_dev_s *priv)
     {
       return -ENOENT;
     }
+
   priv->seq = g_seq;
 
   seq_setaddress(priv->seq, priv->addr);
@@ -349,7 +349,7 @@ static int kx022_close(FAR struct file *filep)
 
   g_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->fifoid, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->fifoid, SCUIOC_STOP, 0);
 
   if (g_refcnt == 0)
     {
@@ -365,7 +365,7 @@ static int kx022_close(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->fifoid, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->fifoid, SCUIOC_FREEFIFO, 0);
     }
 
   return OK;
@@ -520,7 +520,7 @@ int kx022_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_kx022fops, 0666, priv);
   if (ret < 0)
     {

@@ -44,8 +44,6 @@
  * Included Files
  ****************************************************************************/
 
-//#include <nuttx/config.h>
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -78,6 +76,16 @@ typedef signed long long   _int64_t;
 typedef unsigned long long _uint64_t;
 #define __INT64_DEFINED
 
+#ifdef __LP64__
+/* A pointer is 8 bytes */
+
+typedef signed long         _intptr_t;
+typedef unsigned long       _uintptr_t;
+
+/* This is the size of the interrupt state save returned by irqsave().  */
+
+typedef unsigned long long  irqstate_t;
+#else
 /* A pointer is 4 bytes */
 
 typedef signed int         _intptr_t;
@@ -86,6 +94,7 @@ typedef unsigned int       _uintptr_t;
 /* This is the size of the interrupt state save returned by irqsave().  */
 
 typedef unsigned int       irqstate_t;
+#endif
 
 #endif /* __ASSEMBLY__ */
 

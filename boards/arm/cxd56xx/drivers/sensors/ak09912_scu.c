@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/platform/sensors/ak09912_scu.c
+ * boards/arm/cxd56xx/drivers/sensors/ak09912_scu.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -44,7 +44,6 @@
 #include <fixedmath.h>
 #include <errno.h>
 #include <debug.h>
-#include <semaphore.h>
 #include <arch/types.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -59,7 +58,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_CXD56_DECI_AK09912
+#ifdef CONFIG_SENSORS_AK09912_SCU_DECI
 #  define MAG_SEQ_TYPE SEQ_TYPE_DECI
 #else
 #  define MAG_SEQ_TYPE SEQ_TYPE_NORMAL
@@ -90,7 +89,7 @@
 #define AK09912_ASAX       0x60
 
 /* REGISTER: CNTL1
- * Enable or disable temparature measure or enable or disable Noise
+ * Enable or disable temperature measure or enable or disable Noise
  *  suppression filter.
  */
 
@@ -146,6 +145,7 @@
 /****************************************************************************
  * Private Type Definitions
  ****************************************************************************/
+
 /**
  * @brief Structure for ak09912 device
  */
@@ -271,7 +271,7 @@ static void ak09912_putreg8(FAR struct ak09912_dev_s *priv, uint8_t regaddr,
  ****************************************************************************/
 
 static int ak09912_getreg(FAR struct ak09912_dev_s *priv, uint8_t regaddr,
-                          uint8_t* buffer, uint32_t cnt)
+                          uint8_t *buffer, uint32_t cnt)
 {
   uint16_t inst[2];
 
@@ -325,6 +325,7 @@ static int ak09912_seqinit(FAR struct ak09912_dev_s *priv)
     {
       return -ENOENT;
     }
+
   priv->seq = g_seq;
 
   seq_setaddress(priv->seq, priv->addr);
@@ -391,7 +392,7 @@ static int ak09912_close(FAR struct file *filep)
 
   g_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->id, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->id, SCUIOC_STOP, 0);
 
   if (g_refcnt == 0)
     {
@@ -405,7 +406,7 @@ static int ak09912_close(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->id, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->id, SCUIOC_FREEFIFO, 0);
     }
 
   return OK;
@@ -489,7 +490,8 @@ static int ak09912_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
 int ak09912_init(FAR struct i2c_master_s *i2c, int port)
 {
-  FAR struct ak09912_dev_s tmp, *priv = &tmp;
+  struct ak09912_dev_s tmp;
+  struct ak09912_dev_s *priv = &tmp;
   uint8_t val;
   int ret;
 
@@ -567,7 +569,7 @@ int ak09912_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_ak09912fops, 0666, priv);
   if (ret < 0)
     {

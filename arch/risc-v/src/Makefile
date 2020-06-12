@@ -42,6 +42,8 @@ ifeq ($(CONFIG_ARCH_RV32I),y)           # Base Integer support
 ARCH_SUBDIR = rv32i
 else ifeq ($(CONFIG_ARCH_RV32IM),y)     # Integer + math support
 ARCH_SUBDIR = rv32im
+else ifeq ($(CONFIG_ARCH_RV64GC),y)     # GC=IMAFDC
+ARCH_SUBDIR = rv64gc
 else
 ARCH_SUBDIR = rv32i                     # Default to base RV32I core
 endif
@@ -197,7 +199,7 @@ endif
 
 # Dependencies
 
-.depend: Makefile $(SRCS)
+.depend: Makefile $(SRCS) $(TOPDIR)$(DELIM).config
 ifeq ($(BOARDMAKE),y)
 	$(Q) $(MAKE) -C board TOPDIR="$(TOPDIR)" depend
 endif
@@ -229,4 +231,4 @@ info:
 	@echo $(ASRCS)
 	@echo $(CONFIG_ARCH_CHIP)
 
-#-include Make.dep
+-include Make.dep

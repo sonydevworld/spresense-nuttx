@@ -44,7 +44,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <semaphore.h>
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
@@ -54,6 +53,7 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/signal.h>
 #include <nuttx/fs/fs.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/timers/timer.h>
 
 #ifdef CONFIG_TIMER
@@ -567,12 +567,12 @@ void timer_unregister(FAR void *handle)
   /* Disable the timer */
 
   DEBUGASSERT(lower->ops->stop); /* Required */
-  (void)lower->ops->stop(lower);
+  lower->ops->stop(lower);
   nxsig_cancel_notification(&upper->work);
 
   /* Unregister the timer device */
 
-  (void)unregister_driver(upper->path);
+  unregister_driver(upper->path);
 
   /* Then free all of the driver resources */
 

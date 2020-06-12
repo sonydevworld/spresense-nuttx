@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/sensors/rpr0521rs_scu.c
+ * boards/arm/cxd56xx/drivers/sensors/rpr0521rs_scu.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -44,7 +44,6 @@
 #include <fixedmath.h>
 #include <errno.h>
 #include <debug.h>
-#include <semaphore.h>
 #include <arch/types.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -53,7 +52,7 @@
 #include <nuttx/irq.h>
 #include <arch/chip/scu.h>
 
-#if defined(CONFIG_I2C) && defined(CONFIG_RPR0521RS) && defined(CONFIG_CXD56_SCU)
+#if defined(CONFIG_I2C) && defined(CONFIG_SENSORS_RPR0521RS_SCU)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -127,6 +126,7 @@
 /****************************************************************************
  * Private Type Definitions
  ****************************************************************************/
+
 /**
  * @brief Structure for rpr0521rs device
  */
@@ -237,6 +237,7 @@ static uint8_t g_ps_persistence = RPR0521RS_PS_CONTROL_PS_PERSISTENCE_2;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
 /****************************************************************************
  * Name: rpr0521rs_getreg8
  *
@@ -358,7 +359,7 @@ static int rpr0521rs_checkid(FAR struct rpr0521rs_dev_s *priv)
 
   id = rpr0521rs_getreg8(priv, RPR0521RS_SYSTEM_CONTROL);
 
-  if ((id & 0x3F) != RPR0521RS_PARTID)
+  if ((id & 0x3f) != RPR0521RS_PARTID)
     {
       /* Part ID is not Correct */
 
@@ -422,6 +423,7 @@ static void rpr0521rs_setmodecontrol(FAR struct rpr0521rs_dev_s *priv,
           val = RPR0521RS_MODE_CONTROL_MEASTIME_STANDBY;
         }
     }
+
   rpr0521rs_putreg8(priv, RPR0521RS_MODE_CONTROL, val);
 
   leave_critical_section(flags);
@@ -446,6 +448,7 @@ static int rpr0521rsals_seqinit(FAR struct rpr0521rs_dev_s *priv)
     {
       return -ENOENT;
     }
+
   priv->seq = g_als_seq;
 
   seq_setaddress(priv->seq, priv->addr);
@@ -479,6 +482,7 @@ static int rpr0521rsps_seqinit(FAR struct rpr0521rs_dev_s *priv)
     {
       return -ENOENT;
     }
+
   priv->seq = g_ps_seq;
 
   seq_setaddress(priv->seq, priv->addr);
@@ -553,6 +557,7 @@ static int rpr0521rs_open_ps(FAR struct file *filep)
         {
           return ret;
         }
+
       rpr0521rs_setmodecontrol(priv, SETMODECONTROL_TYPE_PS, true);
     }
   else
@@ -583,7 +588,7 @@ static int rpr0521rs_close_als(FAR struct file *filep)
 
   g_als_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
 
   if (g_als_refcnt == 0)
     {
@@ -594,7 +599,7 @@ static int rpr0521rs_close_als(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
     }
 
   return OK;
@@ -616,7 +621,7 @@ static int rpr0521rs_close_ps(FAR struct file *filep)
 
   g_ps_refcnt--;
 
-  (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
+  seq_ioctl(priv->seq, priv->minor, SCUIOC_STOP, 0);
 
   if (g_ps_refcnt == 0)
     {
@@ -630,7 +635,7 @@ static int rpr0521rs_close_ps(FAR struct file *filep)
     }
   else
     {
-      (void) seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
+      seq_ioctl(priv->seq, priv->minor, SCUIOC_FREEFIFO, 0);
     }
 #endif
 
@@ -800,7 +805,7 @@ static int rpr0521rs_ioctl_ps(FAR struct file *filep, int cmd,
 
               ret = seq_ioctl(priv->seq, priv->minor, cmd, arg);
 #else
-              snerr("Unregisted SCU sequencer cmd: %d\n", cmd);
+              snerr("Unregistered SCU sequencer cmd: %d\n", cmd);
               ret = - ENOTTY;
 #endif
             }
@@ -919,7 +924,7 @@ int rpr0521rsals_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_rpr0521rsalsfops, 0666, priv);
   if (ret < 0)
     {
@@ -973,7 +978,7 @@ int rpr0521rsps_register(FAR const char *devpath, int minor,
 
   /* Register the character driver */
 
-  (void) snprintf(path, sizeof(path), "%s%d", devpath, minor);
+  snprintf(path, sizeof(path), "%s%d", devpath, minor);
   ret = register_driver(path, &g_rpr0521rspsfops, 0666, priv);
   if (ret < 0)
     {

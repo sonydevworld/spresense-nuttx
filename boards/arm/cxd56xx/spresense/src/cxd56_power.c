@@ -45,9 +45,9 @@
 #include <errno.h>
 #include <assert.h>
 #include <debug.h>
-#include <semaphore.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/semaphore.h>
 
 #include "chip.h"
 #include "up_arch.h"
@@ -325,7 +325,7 @@ int board_xtal_power_control(bool en)
 
   /* Get exclusive access to the lna / tcxo power control */
 
-  sem_wait(&g_ltsem);
+  nxsem_wait_uninterruptible(&g_ltsem);
 
   if (en)
     {
@@ -351,7 +351,7 @@ int board_xtal_power_control(bool en)
       g_used_tcxo = false;
     }
 
-  sem_post(&g_ltsem);
+  nxsem_post(&g_ltsem);
 
   return ret;
 }
@@ -383,7 +383,7 @@ int board_lna_power_control(bool en)
 
   /* Get exclusive access to the lna / tcxo power control */
 
-  sem_wait(&g_ltsem);
+  nxsem_wait_uninterruptible(&g_ltsem);
 
   if (en)
     {
@@ -409,7 +409,7 @@ int board_lna_power_control(bool en)
       g_used_lna = false;
     }
 
-  sem_post(&g_ltsem);
+  nxsem_post(&g_ltsem);
 
   return ret;
 }

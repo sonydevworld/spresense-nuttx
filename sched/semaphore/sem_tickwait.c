@@ -41,7 +41,6 @@
 
 #include <stdint.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <time.h>
 #include <errno.h>
 #include <debug.h>
@@ -50,7 +49,6 @@
 #include <nuttx/arch.h>
 #include <nuttx/clock.h>
 #include <nuttx/wdog.h>
-#include <nuttx/semaphore.h>
 
 #include "sched/sched.h"
 #include "semaphore/semaphore.h"
@@ -149,8 +147,8 @@ int nxsem_tickwait(FAR sem_t *sem, clock_t start, uint32_t delay)
 
   /* Start the watchdog with interrupts still disabled */
 
-  (void)wd_start(rtcb->waitdog, delay, (wdentry_t)nxsem_timeout,
-                 1, getpid());
+  wd_start(rtcb->waitdog, delay, (wdentry_t)nxsem_timeout,
+           1, getpid());
 
   /* Now perform the blocking wait */
 

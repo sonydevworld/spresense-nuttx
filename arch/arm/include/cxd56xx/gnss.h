@@ -38,7 +38,8 @@
 
 #ifdef __cplusplus
 #define EXTERN extern "C"
-extern "C" {
+extern "C"
+{
 #else
 #define EXTERN extern
 #endif
@@ -373,7 +374,7 @@ extern "C" {
 
 #define CXD56_GNSS_IOCTL_AGPS_SET_FRAMETIME 32
 
-/* Set tau_GPS(&tau;GPS: Differnece of system time between GPS and Glonass
+/* Set tau_GPS(&tau;GPS: Difference of system time between GPS and Glonass
  * system).
  *
  * param[in] arg
@@ -524,10 +525,45 @@ extern "C" {
 
 #define CXD56_GNSS_IOCTL_GET_VAR_EPHEMERIS 49
 
+/* Set usecase mode
+ * This command must be issued in idle mode.
+ *
+ * param[in] arg
+ * The usecase definitions
+ */
+
+#define CXD56_GNSS_IOCTL_SET_USECASE 50
+
+/* Get usecase mode
+ *
+ * param[out] arg
+ * The usecase definitions
+ */
+
+#define CXD56_GNSS_IOCTL_GET_USECASE 51
+
+/* Set enable or disable of 1PPS output
+ * This command must be issued in idle mode.
+ *
+ * param[in] arg
+ * enable(1) or disable(0)
+ */
+
+#define CXD56_GNSS_IOCTL_SET_1PPS_OUTPUT 52
+
+/**
+ * Get the current 1PPS output setting
+ *
+ * @param[out] arg
+ * enable(1) or disable(0)
+ */
+
+#define CXD56_GNSS_IOCTL_GET_1PPS_OUTPUT 53
+
 /* check macros for GNSS commands */
 
 #define CXD56_GNSS_IOCTL_INVAL 0
-#define CXD56_GNSS_IOCTL_MAX   50
+#define CXD56_GNSS_IOCTL_MAX   54
 
 /* Same value to GD Start mode CXD56_GNSS_STMOD_XXXX for GD_Start */
 
@@ -590,6 +626,10 @@ extern "C" {
 
 #define CXD56_GNSS_READ_OFFSET_DCREPORT     0x9800
 
+/* Offset for SAR/RLM */
+
+#define CXD56_GNSS_READ_OFFSET_SARRLM       0x9900
+
 /* Offset for Spectrum data */
 
 #define CXD56_GNSS_READ_OFFSET_SPECTRUM     0xa000
@@ -640,6 +680,10 @@ extern "C" {
 
 #define CXD56_GNSS_SIG_DCREPORT     15
 
+/* Signal type is GAL SAR/RLM */
+
+#define CXD56_GNSS_SIG_SARRLM       16
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -648,7 +692,6 @@ extern "C" {
 
 struct cxd56_gnss_ope_mode_param_s
 {
-
   /* receiver operation mode
    *    0: No Change Operation
    *    1: Normal(default)
@@ -665,7 +708,7 @@ struct cxd56_gnss_ope_mode_param_s
   uint32_t cycle;
 };
 
-/* Sattelite almanac, ephemeris data */
+/* Satellite almanac, ephemeris data */
 
 struct cxd56_gnss_orbital_param_s
 {
@@ -792,7 +835,7 @@ struct cxd56_gnss_test_result_s
   float doppler; /* Doppler [Hz] */
 };
 
-/* signal setting for reading data asychronously
+/* signal setting for reading data asynchronously
  * The field 'enable' of struct #cxd56_gnss_signal_setting_s to be given as a
  * parameter must be specified as 1 when setting and 0 when unsetting.
  * Field 'gnsssig' specifies the value of 'Signal types from GNSS',
@@ -810,7 +853,7 @@ struct cxd56_gnss_signal_setting_s
   FAR void *data;    /* user data */
 };
 
-/* Information for use after being signaled to read data asychronously */
+/* Information for use after being signaled to read data asynchronously */
 
 struct cxd56_gnss_signal_info_s
 {
@@ -866,4 +909,4 @@ struct cxd56_gnss_get_var_ephemeris_s
 }
 #endif
 
-#endif /* ARCH_ARM_INCLUDE_CXD56XX_GNSS_H */
+#endif /* __ARCH_ARM_INCLUDE_CXD56XX_GNSS_H */

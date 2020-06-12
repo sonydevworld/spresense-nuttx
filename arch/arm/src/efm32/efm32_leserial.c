@@ -43,7 +43,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
@@ -794,14 +793,14 @@ void up_serialinit(void)
   /* Register the console */
 
 #ifdef CONSOLE_DEV
-  (void)uart_register("/dev/console", &CONSOLE_DEV);
+  uart_register("/dev/console", &CONSOLE_DEV);
 #endif
 
   /* Register all UARTs */
 
-  (void)uart_register("/dev/ttyLE0", &TTYLE0_DEV);
+  uart_register("/dev/ttyLE0", &TTYLE0_DEV);
 #ifdef TTYLE1_DEV
-  (void)uart_register("/dev/ttyLE1", &TTYLE1_DEV);
+  uart_register("/dev/ttyLE1", &TTYLE1_DEV);
 #endif
 }
 

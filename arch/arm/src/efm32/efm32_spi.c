@@ -44,7 +44,6 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
 #include <debug.h>
@@ -377,7 +376,7 @@ static void spi_rxflush(const struct efm32_spiconfig_s *config)
     {
       /* Read and discard the data */
 
-      (void)spi_getreg(config, EFM32_USART_RXDATA_OFFSET);
+      spi_getreg(config, EFM32_USART_RXDATA_OFFSET);
     }
 }
 
@@ -437,24 +436,11 @@ static void spi_dma_timeout(int argc, uint32_t arg1, ...)
 static void spi_dmarxwait(struct efm32_spidev_s *priv)
 {
   irqstate_t flags;
-  int ret;
 
   /* Take the semaphore (perhaps waiting). */
 
   flags = enter_critical_section();
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&priv->rxdmasem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&priv->rxdmasem);
 
   /* Cancel the timeout only if both the RX and TX transfers have completed */
 
@@ -480,24 +466,11 @@ static void spi_dmarxwait(struct efm32_spidev_s *priv)
 static void spi_dmatxwait(struct efm32_spidev_s *priv)
 {
   irqstate_t flags;
-  int ret;
 
   /* Take the semaphore (perhaps waiting). */
 
   flags = enter_critical_section();
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(&priv->txdmasem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&priv->txdmasem);
 
   /* Cancel the timeout only if both the RX and TX transfers have completed */
 
@@ -522,7 +495,7 @@ static void spi_dmatxwait(struct efm32_spidev_s *priv)
 #ifdef CONFIG_EFM32_SPI_DMA
 static inline void spi_dmarxwakeup(struct efm32_spidev_s *priv)
 {
-  (void)nxsem_post(&priv->rxdmasem);
+  nxsem_post(&priv->rxdmasem);
 }
 #endif
 
@@ -537,7 +510,7 @@ static inline void spi_dmarxwakeup(struct efm32_spidev_s *priv)
 #ifdef CONFIG_EFM32_SPI_DMA
 static inline void spi_dmatxwakeup(struct efm32_spidev_s *priv)
 {
-  (void)nxsem_post(&priv->txdmasem);
+  nxsem_post(&priv->txdmasem);
 }
 #endif
 
@@ -755,27 +728,15 @@ static inline void spi_dmatxstart(FAR struct efm32_spidev_s *priv)
 static int spi_lock(struct spi_dev_s *dev, bool lock)
 {
   struct efm32_spidev_s *priv = (struct efm32_spidev_s *)dev;
+  int ret;
 
   if (lock)
     {
-      /* Take the semaphore (perhaps waiting) */
-
-      do
-        {
-          ret = nxsem_wait(&priv->exclsem);
-
-          /* The only case that an error should occur here is if the wait
-           * was awakened by a signal.
-           */
-
-          DEBUGASSERT(ret == OK || ret == -EINTR);
-        }
-      while (ret == -EINTR);
+      ret = nxsem_wait_uninterruptible(&priv->exclsem);
     }
   else
     {
-      (void)nxsem_post(&priv->exclsem);
-      ret = OK;
+      ret = nxsem_post(&priv->exclsem);
     }
 
   return ret;
@@ -1655,8 +1616,8 @@ static int spi_portinitialize(struct efm32_spidev_s *priv)
 
   /* Initialized semaphores used to wait for DMA completion */
 
-  (void)nxsem_init(&priv->rxdmasem, 0, 0);
-  (void)nxsem_init(&priv->txdmasem, 0, 0);
+  nxsem_init(&priv->rxdmasem, 0, 0);
+  nxsem_init(&priv->txdmasem, 0, 0);
 
   /* These semaphores are used for signaling and, hence, should not have
    * priority inheritance enabled.

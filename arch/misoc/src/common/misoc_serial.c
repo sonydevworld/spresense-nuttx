@@ -43,7 +43,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
@@ -313,7 +312,7 @@ static int misoc_attach(struct uart_dev_s *dev)
 {
   struct misoc_dev_s *priv = (struct misoc_dev_s *)dev->priv;
 
-  (void)irq_attach(priv->irq, misoc_uart_interrupt, dev);
+  irq_attach(priv->irq, misoc_uart_interrupt, dev);
   up_enable_irq(priv->irq);
 
   return OK;
@@ -656,10 +655,10 @@ void misoc_serial_initialize(void)
   /* Register the console */
 
 #ifdef HAVE_SERIAL_CONSOLE
-  (void)uart_register("/dev/console", &CONSOLE_DEV);
+  uart_register("/dev/console", &CONSOLE_DEV);
 #endif
 
   /* Register all UARTs */
-  (void)uart_register("/dev/ttyS0", &TTYS0_DEV);
+  uart_register("/dev/ttyS0", &TTYS0_DEV);
 #endif
 }

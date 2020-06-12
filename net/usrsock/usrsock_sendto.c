@@ -49,7 +49,6 @@
 #include <arch/irq.h>
 
 #include <sys/socket.h>
-#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
 
@@ -151,7 +150,7 @@ static uint16_t sendto_event(FAR struct net_driver_s *dev, FAR void *pvconn,
 static int do_sendto_request(FAR struct usrsock_conn_s *conn,
                              FAR const void *buf, size_t buflen,
                              FAR const struct sockaddr *addr,
-                             socklen_t addrlen)
+                             socklen_t addrlen, int32_t flags)
 {
   struct usrsock_request_sendto_s req =
   {
@@ -173,6 +172,7 @@ static int do_sendto_request(FAR struct usrsock_conn_s *conn,
 
   req.head.reqid = USRSOCK_REQUEST_SENDTO;
   req.usockid = conn->usockid;
+  req.flags = flags;
   req.addrlen = addrlen;
   req.buflen = buflen;
 
@@ -318,7 +318,7 @@ ssize_t usrsock_sendto(FAR struct socket *psock, FAR const void *buf,
 
       if (!(conn->flags & USRSOCK_EVENT_SENDTO_READY))
         {
-          if (_SS_ISNONBLOCK(psock->s_flags))
+          if (_SS_ISNONBLOCK(psock->s_flags) || (flags & MSG_DONTWAIT) != 0)
             {
               /* Send busy at daemon side. */
 
@@ -399,18 +399,18 @@ ssize_t usrsock_sendto(FAR struct socket *psock, FAR const void *buf,
           goto errout_unlock;
         }
 
+      /* MSG_DONTWAIT is only use in usrsock. */
+
+       flags &= ~MSG_DONTWAIT;
+
       /* Request user-space daemon to close socket. */
 
-      ret = do_sendto_request(conn, buf, len, to, tolen);
+      ret = do_sendto_request(conn, buf, len, to, tolen, flags);
       if (ret >= 0)
         {
           /* Wait for completion of request. */
 
-          while ((ret = net_lockedwait(&state.recvsem)) < 0)
-            {
-              DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
-            }
-
+          net_lockedwait_uninterruptible(&state.recvsem);
           ret = state.result;
 
           DEBUGASSERT(ret <= (ssize_t)len);

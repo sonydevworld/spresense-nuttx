@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/cxd56xx/cxd56_audio_volume.c
+ * boards/arm/cxd56xx/drivers/audio/cxd56_audio_volume.c
  *
  *   Copyright 2018 Sony Semiconductor Solutions Corporation
  *
@@ -37,8 +37,9 @@
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/arch.h>
 #include <nuttx/config.h>
+
+#include <nuttx/arch.h>
 
 #include "cxd56_audio_config.h"
 #include "cxd56_audio_ac_reg.h"
@@ -74,10 +75,6 @@
   (((VOL_TO_REG(vol) - MUTE_VOL_REG) & 0xff) * (n_cycle + 1) * 4 / 48 * 1000)
 
 /****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-
-/****************************************************************************
  * Private Type
  ****************************************************************************/
 
@@ -97,10 +94,6 @@ static struct set_vol_prm_s g_volparam[VOLUME_NUM] =
   {VOLUME_MUTE, MUTE_BIT_API},
   {VOLUME_MUTE, MUTE_BIT_API}
 };
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
 
 /****************************************************************************
  * Private Functions
@@ -226,6 +219,7 @@ CXD56_AUDIO_ECODE cxd56_audio_volume_set(cxd56_audio_volid_t id,
           return CXD56_AUDIO_ECODE_VOL_MIN;
         }
     }
+
   if (VOLUME_MAX < vol)
     {
       return CXD56_AUDIO_ECODE_VOL_MAX;

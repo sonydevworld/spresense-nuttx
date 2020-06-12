@@ -152,7 +152,7 @@ void arm_timer_initialize(void)
 
   /* Attach the timer interrupt vector */
 
-  (void)irq_attach(AM335X_IRQ_TIMER1_1MS, (xcpt_t)am335x_timerisr, NULL);
+  irq_attach(AM335X_IRQ_TIMER1_1MS, (xcpt_t)am335x_timerisr, NULL);
 
   /* Clear interrupt status */
 
@@ -191,7 +191,7 @@ void arm_timer_initialize(void)
 
   /* Attach the timer interrupt vector */
 
-  (void)irq_attach(AM335X_IRQ_TIMER2, (xcpt_t)am335x_timerisr, NULL);
+  irq_attach(AM335X_IRQ_TIMER2, (xcpt_t)am335x_timerisr, NULL);
 
   /* Enable overflow interrupt */
 

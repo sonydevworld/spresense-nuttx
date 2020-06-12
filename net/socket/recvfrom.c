@@ -92,12 +92,10 @@ ssize_t psock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
 
   /* Verify that non-NULL pointers were passed */
 
-#ifdef CONFIG_DEBUG_FEATURES
   if (!buf)
     {
       return -EINVAL;
     }
-#endif
 
   if (from != NULL && fromlen != NULL && *fromlen <= 0)
     {
@@ -230,7 +228,7 @@ ssize_t recvfrom(int sockfd, FAR void *buf, size_t len, int flags,
 
   /* recvfrom() is a cancellation point */
 
-  (void)enter_cancellation_point();
+  enter_cancellation_point();
 
   /* Let nx_recvfrom and psock_recvfrom() do all of the work */
 

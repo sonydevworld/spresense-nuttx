@@ -42,13 +42,13 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/spi/spi_transfer.h>
 
 #ifdef CONFIG_SPI_DRIVER
@@ -147,7 +147,6 @@ static int spidrvr_open(FAR struct file *filep)
   ret = nxsem_wait(&priv->exclsem);
   if (ret < 0)
     {
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -185,7 +184,6 @@ static int spidrvr_close(FAR struct file *filep)
   ret = nxsem_wait(&priv->exclsem);
   if (ret < 0)
     {
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -257,7 +255,6 @@ static int spidrvr_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   ret = nxsem_wait(&priv->exclsem);
   if (ret < 0)
     {
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 #endif
@@ -316,7 +313,6 @@ static int spidrvr_unlink(FAR struct inode *inode)
   ret = nxsem_wait(&priv->exclsem);
   if (ret < 0)
     {
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 

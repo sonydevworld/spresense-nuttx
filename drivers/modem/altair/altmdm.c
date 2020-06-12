@@ -394,7 +394,8 @@ static int altmdm_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  *
  ****************************************************************************/
 
-FAR void *altmdm_register(FAR const char *devpath, FAR struct spi_dev_s *dev)
+FAR void *altmdm_register(FAR const char *devpath, FAR struct spi_dev_s *dev,
+                          FAR const struct altmdm_lower_s *lower)
 {
   FAR struct altmdm_dev_s *priv;
   int ret;
@@ -409,6 +410,7 @@ FAR void *altmdm_register(FAR const char *devpath, FAR struct spi_dev_s *dev)
 
   priv->spi = dev;
   priv->path = strdup(devpath);
+  priv->lower = lower;
 
   ret = altmdm_initialize(priv);
   if (ret < 0)
@@ -453,7 +455,7 @@ void altmdm_unregister(FAR void *handle)
 
       altmdm_uninitialize(priv);
 
-      (void)unregister_driver(priv->path);
+      unregister_driver(priv->path);
 
       kmm_free(priv->path);
       kmm_free(priv);

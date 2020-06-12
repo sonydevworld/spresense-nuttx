@@ -193,6 +193,7 @@ static int  macnet_rxframe(FAR struct macnet_driver_s *maccb,
                            FAR struct ieee802154_data_ind_s *ind);
 
 /* Network interface support ************************************************/
+
 /* Common TX logic */
 
 static int  macnet_txpoll_callback(FAR struct net_driver_s *dev);
@@ -579,12 +580,12 @@ static void macnet_txpoll_work(FAR void *arg)
 
   /* Then perform the poll */
 
-  (void)devif_timer(&priv->md_dev.r_dev, macnet_txpoll_callback);
+  devif_timer(&priv->md_dev.r_dev, TXPOLL_WDDELAY, macnet_txpoll_callback);
 
   /* Setup the watchdog poll timer again */
 
-  (void)wd_start(priv->md_txpoll, TXPOLL_WDDELAY, macnet_txpoll_expiry, 1,
-                 (wdparm_t)priv);
+  wd_start(priv->md_txpoll, TXPOLL_WDDELAY, macnet_txpoll_expiry, 1,
+           (wdparm_t)priv);
   net_unlock();
 }
 
@@ -764,8 +765,8 @@ static int macnet_ifup(FAR struct net_driver_s *dev)
 
       /* Set and activate a timer process */
 
-      (void)wd_start(priv->md_txpoll, TXPOLL_WDDELAY, macnet_txpoll_expiry,
-                     1, (wdparm_t)priv);
+      wd_start(priv->md_txpoll, TXPOLL_WDDELAY, macnet_txpoll_expiry,
+               1, (wdparm_t)priv);
 
       ret = OK;
     }
@@ -860,7 +861,7 @@ static void macnet_txavail_work(FAR void *arg)
 
       /* Then poll the network for new XMIT data */
 
-      (void)devif_poll(&priv->md_dev.r_dev, macnet_txpoll_callback);
+      devif_poll(&priv->md_dev.r_dev, macnet_txpoll_callback);
     }
 
   net_unlock();
@@ -1076,7 +1077,6 @@ static int macnet_ioctl(FAR struct net_driver_s *dev, int cmd,
                       ret = nxsem_wait(&priv->md_eventsem);
                       if (ret < 0)
                         {
-                          DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
                           priv->md_eventpending = false;
                           return ret;
                         }
@@ -1199,17 +1199,9 @@ static int macnet_req_data(FAR struct radio_driver_s *netdev,
       framelist     = iob->io_flink;
       iob->io_flink = NULL;
 
-      /* Transfer the frame to the MAC.  mac802154_req_data will return
-       * -EINTR if a signal is received during certain phases of processing.
-       * In this context we just need to ignore -EINTR errors and try again.
-       */
+      /* Transfer the frame to the MAC. */
 
-      do
-        {
-          ret = mac802154_req_data(priv->md_mac, pktmeta, iob);
-        }
-      while (ret == -EINTR);
-
+      ret = mac802154_req_data(priv->md_mac, pktmeta, iob, false);
       if (ret < 0)
         {
           wlerr("ERROR: mac802154_req_data failed: %d\n", ret);
@@ -1294,10 +1286,10 @@ static int macnet_properties(FAR struct radio_driver_s *netdev,
    */
 
 #ifdef CONFIG_NET_6LOWPAN_EXTENDEDADDR
-  (void)macnet_coord_eaddr(netdev, properties->sp_hubnode.nv_addr);
+  macnet_coord_eaddr(netdev, properties->sp_hubnode.nv_addr);
   properties->sp_hubnode.nv_addrlen = IEEE802154_EADDRSIZE;
 #else
-  (void)macnet_coord_saddr(netdev, properties->sp_hubnode.nv_addr);
+  macnet_coord_saddr(netdev, properties->sp_hubnode.nv_addr);
   properties->sp_hubnode.nv_addrlen = IEEE802154_SADDRSIZE;
 #endif
 #endif
@@ -1430,7 +1422,7 @@ int mac802154netdev_register(MACHANDLE mac)
 
   /* Register the device with the OS so that socket IOCTLs can be performed */
 
-  (void)netdev_register(&priv->md_dev.r_dev, NET_LL_IEEE802154);
+  netdev_register(&priv->md_dev.r_dev, NET_LL_IEEE802154);
 
   /* Put the network in the DOWN state, let the user decide when to bring it up */
 
@@ -1438,6 +1430,7 @@ int mac802154netdev_register(MACHANDLE mac)
   return macnet_ifdown(&priv->md_dev.r_dev);
 
 errout:
+
   /* Release wdog timers */
 
   wd_delete(priv->md_txpoll);

@@ -40,7 +40,6 @@
 #include <nuttx/config.h>
 
 #include <stdint.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -88,11 +87,6 @@ int nxterm_resize(NXTERM handle, FAR const struct nxgl_size_s *size)
   ret = nxterm_semwait(priv);
   if (ret < 0)
     {
-      /* The only expected error is if the wait failed because of it was
-       * interrupted by a signal or if the thread was canceled.
-       */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -103,6 +97,6 @@ int nxterm_resize(NXTERM handle, FAR const struct nxgl_size_s *size)
   priv->wndo.wsize.w = size->w;
   priv->wndo.wsize.h = size->h;
 
-  (void)nxterm_sempost(priv);
+  nxterm_sempost(priv);
   return true;
 }

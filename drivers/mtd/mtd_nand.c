@@ -49,7 +49,6 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <string.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -144,12 +143,7 @@ static int     nand_ioctl(struct mtd_dev_s *dev, int cmd,
 
 static int nand_lock(FAR struct nand_dev_s *nand)
 {
-  int errcode;
-  int ret;
-
-  ret = nxsem_wait(&nand->exclsem);
-  DEBUGASSERT(ret == OK || ret == -EINTR);
-  return ret;
+  return nxsem_wait(&nand->exclsem);
 }
 
 /****************************************************************************
@@ -939,7 +933,7 @@ FAR struct mtd_dev_s *nand_initialize(FAR struct nand_raw_s *raw)
 
       /* Disable any internal, embedded ECC function */
 
-      (void)onfi_embeddedecc(&onfi, cmdaddr, addraddr, dataaddr, false);
+      onfi_embeddedecc(&onfi, cmdaddr, addraddr, dataaddr, false);
     }
 
   /* Allocate an NAND MTD device structure */
@@ -963,7 +957,7 @@ FAR struct mtd_dev_s *nand_initialize(FAR struct nand_raw_s *raw)
 
   /* Scan the device for bad blocks */
 
-  (void)nand_devscan(nand);
+  nand_devscan(nand);
 
   /* Return the implementation-specific state structure as the MTD device */
 

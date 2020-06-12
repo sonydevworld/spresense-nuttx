@@ -43,7 +43,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
@@ -642,21 +641,7 @@ static void sam_putreg(uint32_t val, uint32_t addr)
 
 static void sam_takesem(sem_t *sem)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(sem);
 }
 
 /****************************************************************************
@@ -1590,8 +1575,8 @@ static int sam_ep0enqueue(struct sam_rhport_s *rhport)
    */
 
   memset(edctrl, 0, sizeof(struct sam_ed_s));
-  (void)sam_ep0configure(&rhport->drvr, &rhport->ep0, 0,
-                         rhport->hport.hport.speed, 8);
+  sam_ep0configure(&rhport->drvr, &rhport->ep0, 0,
+                   rhport->hport.hport.speed, 8);
 
   edctrl->hw.ctrl  |= ED_CONTROL_K;
   edctrl->eplist    = &rhport->ep0;
