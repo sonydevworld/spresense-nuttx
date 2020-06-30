@@ -175,7 +175,7 @@ static int uart0_open(FAR struct file *filep)
 
   /* Enable UART0 pin configuration */
 
-#ifdef CONFIG_UART0_FLOWCONTROL
+#ifdef CONFIG_CXD56_UART0_FLOWCONTROL
   flowctl = 1;
   CXD56_PIN_CONFIGS(PINCONFS_SPI2_UART0);
 #else
@@ -220,7 +220,7 @@ static int uart0_close(FAR struct file *filep)
 
       /* Disable UART0 pin by changing Hi-Z GPIO */
 
-#ifdef CONFIG_UART0_FLOWCONTROL
+#ifdef CONFIG_CXD56_UART0_FLOWCONTROL
       CXD56_PIN_CONFIGS(PINCONFS_SPI2_GPIO);
 #else
       CXD56_PIN_CONFIGS(PINCONFS_SPI2A_GPIO);
