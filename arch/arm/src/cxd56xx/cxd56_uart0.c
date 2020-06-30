@@ -48,6 +48,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <fcntl.h>
 #include <debug.h>
 #include <errno.h>
 
@@ -241,9 +242,7 @@ static ssize_t uart0_read(FAR struct file *filep,
 
   uart0_semtake(&g_lock);
 
-  /* Always blocking */
-
-  ret = PD_UartReceive(0, buffer, len, 0);
+  ret = PD_UartReceive(0, buffer, len, ((filep->f_oflags & O_NONBLOCK) != 0));
 
   uart0_semgive(&g_lock);
 
@@ -267,9 +266,7 @@ static ssize_t uart0_write(FAR struct file *filep,
 
   uart0_semtake(&g_lock);
 
-  /* Always blocking */
-
-  ret = PD_UartSend(0, (FAR void *)buffer, len, 0);
+  ret = PD_UartSend(0, (FAR void *)buffer, len, ((filep->f_oflags & O_NONBLOCK) != 0));
 
   uart0_semgive(&g_lock);
 
