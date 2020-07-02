@@ -991,16 +991,16 @@ uint32_t up_pm_clr_bootmask(uint32_t mask)
 
 int up_pm_sleep(enum pm_sleepmode_e mode)
 {
-  int PM_DeepSleep(void *);
-  int PM_ColdSleep(void *);
+  int fw_pm_deepsleep(void *);
+  int fw_pm_coldsleep(void *);
 
   switch (mode)
     {
     case PM_SLEEP_DEEP:
-      PM_DeepSleep(NULL);
+      fw_pm_deepsleep(NULL);
       break;
     case PM_SLEEP_COLD:
-      PM_ColdSleep(NULL);
+      fw_pm_coldsleep(NULL);
       break;
     }
   __asm volatile ("dsb");
@@ -1017,8 +1017,8 @@ int up_pm_sleep(enum pm_sleepmode_e mode)
 
 int up_pm_reboot(void)
 {
-  void PM_Reboot(void);
-  PM_Reboot();
+  void fw_pm_reboot(void);
+  fw_pm_reboot();
   __asm volatile ("dsb");
   for (; ; );
 }
