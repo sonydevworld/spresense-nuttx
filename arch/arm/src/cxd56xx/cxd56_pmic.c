@@ -163,7 +163,7 @@ struct pmic_temp_mode_s
   int high;
 };
 
-extern int pm_pmic_control(int cmd, void *arg);
+extern int fw_pm_pmiccontrol(int cmd, void *arg);
 
 /****************************************************************************
  * Private Data
@@ -299,7 +299,7 @@ static int pmic_int_handler(int irq, void *context, void *arg)
 
 int cxd56_pmic_get_interrupt_status(uint8_t *status)
 {
-  return pm_pmic_control(PMIC_CMD_INTSTATUS, status);
+  return fw_pm_pmiccontrol(PMIC_CMD_INTSTATUS, status);
 }
 
 /****************************************************************************
@@ -347,7 +347,7 @@ int cxd56_pmic_set_gpo_reg(uint8_t *setbit0, uint8_t *clrbit0,
       .clrbit1 = clrbit1,
     };
 
-  return pm_pmic_control(PMIC_CMD_GPO, &arg);
+  return fw_pm_pmiccontrol(PMIC_CMD_GPO, &arg);
 }
 
 /****************************************************************************
@@ -567,7 +567,7 @@ int cxd56_pmic_set_loadswitch_reg(uint8_t *setbit, uint8_t *clrbit)
       .clrbit = clrbit,
     };
 
-  return pm_pmic_control(PMIC_CMD_LOADSW, &arg);
+  return fw_pm_pmiccontrol(PMIC_CMD_LOADSW, &arg);
 }
 
 /****************************************************************************
@@ -664,7 +664,7 @@ int cxd56_pmic_set_ddc_ldo_reg(uint8_t *setbit, uint8_t *clrbit)
       .clrbit = clrbit,
     };
 
-  return pm_pmic_control(PMIC_CMD_DDCLDO, &arg);
+  return fw_pm_pmiccontrol(PMIC_CMD_DDCLDO, &arg);
 }
 
 /****************************************************************************
@@ -783,7 +783,7 @@ error:
 
 int cxd56_pmic_get_gauge(FAR struct pmic_gauge_s *gauge)
 {
-  return pm_pmic_control(PMIC_CMD_AFE, gauge);
+  return fw_pm_pmiccontrol(PMIC_CMD_AFE, gauge);
 }
 
 /****************************************************************************
@@ -802,7 +802,7 @@ int cxd56_pmic_get_gauge(FAR struct pmic_gauge_s *gauge)
 
 int cxd56_pmic_getlowervol(FAR int *voltage)
 {
-  return pm_pmic_control(PMIC_CMD_GETVSYS, voltage);
+  return fw_pm_pmiccontrol(PMIC_CMD_GETVSYS, voltage);
 }
 
 /****************************************************************************
@@ -821,7 +821,7 @@ int cxd56_pmic_getlowervol(FAR int *voltage)
 
 int cxd56_pmic_setlowervol(int voltage)
 {
-  return pm_pmic_control(PMIC_CMD_SETVSYS, (void *)voltage);
+  return fw_pm_pmiccontrol(PMIC_CMD_SETVSYS, (void *)voltage);
 }
 
 /****************************************************************************
@@ -840,7 +840,7 @@ int cxd56_pmic_setlowervol(int voltage)
 
 int cxd56_pmic_getnotifyvol(FAR int *voltage)
 {
-  return pm_pmic_control(PMIC_CMD_GETPREVSYS, voltage);
+  return fw_pm_pmiccontrol(PMIC_CMD_GETPREVSYS, voltage);
 }
 
 /****************************************************************************
@@ -859,7 +859,7 @@ int cxd56_pmic_getnotifyvol(FAR int *voltage)
 
 int cxd56_pmic_setnotifyvol(int voltage)
 {
-  return pm_pmic_control(PMIC_CMD_SETPREVSYS, (void *)voltage);
+  return fw_pm_pmiccontrol(PMIC_CMD_SETPREVSYS, (void *)voltage);
 }
 
 /****************************************************************************
@@ -881,7 +881,7 @@ int cxd56_pmic_getchargevol(FAR int *voltage)
   int val;
   int ret;
 
-  ret = pm_pmic_control(PMIC_CMD_GET_CHG_VOLTAGE, &val);
+  ret = fw_pm_pmiccontrol(PMIC_CMD_GET_CHG_VOLTAGE, &val);
   if (ret)
     {
       return -EIO;
@@ -937,7 +937,7 @@ int cxd56_pmic_setchargevol(int voltage)
 
   val = (voltage - 4000) / 50;
 
-  return pm_pmic_control(PMIC_CMD_SET_CHG_VOLTAGE, (void *)val);
+  return fw_pm_pmiccontrol(PMIC_CMD_SET_CHG_VOLTAGE, (void *)val);
 }
 
 /****************************************************************************
@@ -960,7 +960,7 @@ int cxd56_pmic_getchargecurrent(FAR int *current)
   int val;
   int ret;
 
-  ret = pm_pmic_control(PMIC_CMD_GET_CHG_CURRENT, &val);
+  ret = fw_pm_pmiccontrol(PMIC_CMD_GET_CHG_CURRENT, &val);
   if (ret)
     {
       return ret;
@@ -1028,7 +1028,7 @@ int cxd56_pmic_setchargecurrent(int current)
         return -EFAULT;
     }
 
-  return pm_pmic_control(PMIC_CMD_SET_CHG_CURRENT, (void *)val);
+  return fw_pm_pmiccontrol(PMIC_CMD_SET_CHG_CURRENT, (void *)val);
 }
 
 /****************************************************************************
@@ -1047,7 +1047,7 @@ int cxd56_pmic_setchargecurrent(int current)
 
 int cxd56_pmic_getporttype(FAR int *porttype)
 {
-  return pm_pmic_control(PMIC_CMD_GET_USB_PORT_TYPE, porttype);
+  return fw_pm_pmiccontrol(PMIC_CMD_GET_USB_PORT_TYPE, porttype);
 }
 
 /****************************************************************************
@@ -1072,7 +1072,7 @@ int cxd56_pmic_getchargestate(uint8_t *state)
 
   /* Update charge state */
 
-  ret = pm_pmic_control(PMIC_CMD_AFE, &arg);
+  ret = fw_pm_pmiccontrol(PMIC_CMD_AFE, &arg);
   if (ret)
     {
       return ret;
@@ -1080,7 +1080,7 @@ int cxd56_pmic_getchargestate(uint8_t *state)
 
   /* Get actual charging state (CNT_USB1) */
 
-  ret = pm_pmic_control(PMIC_CMD_GET_CHG_STATE, &val);
+  ret = fw_pm_pmiccontrol(PMIC_CMD_GET_CHG_STATE, &val);
   *state = val & 0xff;
 
   return ret;
@@ -1128,7 +1128,7 @@ int cxd56_pmic_setrechargevol(int mv)
         return -EINVAL;
     }
 
-  return pm_pmic_control(PMIC_CMD_SET_RECHG_VOLTAGE, (void *)val);
+  return fw_pm_pmiccontrol(PMIC_CMD_SET_RECHG_VOLTAGE, (void *)val);
 }
 
 /****************************************************************************
@@ -1150,7 +1150,7 @@ int cxd56_pmic_getrechargevol(FAR int *mv)
   int val;
   int ret;
 
-  ret = pm_pmic_control(PMIC_CMD_GET_RECHG_VOLTAGE, &val);
+  ret = fw_pm_pmiccontrol(PMIC_CMD_GET_RECHG_VOLTAGE, &val);
   if (ret)
     {
       return ret;
@@ -1230,7 +1230,7 @@ int cxd56_pmic_setchargecompcurrent(int current)
         break;
     }
 
-  return pm_pmic_control(PMIC_CMD_SET_CHG_IFIN, (void *)val);
+  return fw_pm_pmiccontrol(PMIC_CMD_SET_CHG_IFIN, (void *)val);
 }
 
 /****************************************************************************
@@ -1252,7 +1252,7 @@ int cxd56_pmic_getchargecompcurrent(FAR int *current)
   int val;
   int ret;
 
-  ret = pm_pmic_control(PMIC_CMD_GET_CHG_IFIN, &val);
+  ret = fw_pm_pmiccontrol(PMIC_CMD_GET_CHG_IFIN, &val);
   if (ret)
     {
       return ret;
@@ -1310,7 +1310,7 @@ int cxd56_pmic_gettemptable(FAR struct pmic_temp_table_s *table)
 {
   /* SET_T60 (70h) - SET_T0_2 (78h) */
 
-  return pm_pmic_control(PMIC_CMD_GET_CHG_TEMPERATURE_TABLE, table);
+  return fw_pm_pmiccontrol(PMIC_CMD_GET_CHG_TEMPERATURE_TABLE, table);
 }
 
 /****************************************************************************
@@ -1330,7 +1330,7 @@ int cxd56_pmic_gettemptable(FAR struct pmic_temp_table_s *table)
 
 int cxd56_pmic_settemptable(FAR struct pmic_temp_table_s *table)
 {
-  return pm_pmic_control(PMIC_CMD_SET_CHG_TEMPERATURE_TABLE, table);
+  return fw_pm_pmiccontrol(PMIC_CMD_SET_CHG_TEMPERATURE_TABLE, table);
 }
 
 /****************************************************************************
@@ -1383,7 +1383,7 @@ int cxd56_pmic_setchargemode(int low, int high)
       return -EINVAL;
     }
 
-  return pm_pmic_control(PMIC_CMD_SET_CHG_TEMPERATURE_MODE, &arg);
+  return fw_pm_pmiccontrol(PMIC_CMD_SET_CHG_TEMPERATURE_MODE, &arg);
 }
 
 /****************************************************************************
@@ -1410,7 +1410,7 @@ int cxd56_pmic_getchargemode(FAR int *low, FAR int *high)
   struct pmic_temp_mode_s arg;
   int ret;
 
-  ret = pm_pmic_control(PMIC_CMD_GET_CHG_TEMPERATURE_MODE, &arg);
+  ret = fw_pm_pmiccontrol(PMIC_CMD_GET_CHG_TEMPERATURE_MODE, &arg);
   if (ret)
     {
       return ret;
@@ -1429,22 +1429,22 @@ int cxd56_pmic_getchargemode(FAR int *low, FAR int *high)
 
 int cxd56_pmic_monitor_enable(FAR struct pmic_mon_s *ptr)
 {
-  return pm_pmic_control(PMIC_CMD_POWER_MONITOR_ENABLE, ptr);
+  return fw_pm_pmiccontrol(PMIC_CMD_POWER_MONITOR_ENABLE, ptr);
 }
 
 int cxd56_pmic_monitor_status(FAR struct pmic_mon_status_s *ptr)
 {
-  return pm_pmic_control(PMIC_CMD_POWER_MONITOR_STATUS, ptr);
+  return fw_pm_pmiccontrol(PMIC_CMD_POWER_MONITOR_STATUS, ptr);
 }
 
 int cxd56_pmic_monitor_set(FAR struct pmic_mon_set_s *ptr)
 {
-  return pm_pmic_control(PMIC_CMD_POWER_MONITOR_SET, ptr);
+  return fw_pm_pmiccontrol(PMIC_CMD_POWER_MONITOR_SET, ptr);
 }
 
 int cxd56_pmic_monitor_get(FAR struct pmic_mon_log_s *ptr)
 {
-  return pm_pmic_control(PMIC_CMD_POWER_MONITOR_GET, ptr);
+  return fw_pm_pmiccontrol(PMIC_CMD_POWER_MONITOR_GET, ptr);
 }
 #endif
 
@@ -1546,7 +1546,7 @@ int cxd56_pmic_read(uint8_t addr, void *buf, uint32_t size)
       .size = size,
     };
 
-  return pm_pmic_control(PMIC_CMD_READ, &arg);
+  return fw_pm_pmiccontrol(PMIC_CMD_READ, &arg);
 }
 
 /****************************************************************************
@@ -1581,7 +1581,7 @@ int cxd56_pmic_write(uint8_t addr, void *buf, uint32_t size)
       .size = size,
     };
 
-  return pm_pmic_control(PMIC_CMD_WRITE, &arg);
+  return fw_pm_pmiccontrol(PMIC_CMD_WRITE, &arg);
 }
 
 #endif /* CONFIG_CXD56_PMIC */
