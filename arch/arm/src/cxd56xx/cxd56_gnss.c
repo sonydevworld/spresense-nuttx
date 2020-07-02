@@ -1170,7 +1170,7 @@ static int cxd56_gnss_set_time_gps(FAR struct file *filep, unsigned long arg)
 
   time_gps = (FAR struct cxd56_gnss_agps_time_gps_s *)arg;
 
-  return fw_gd_settimeGps(&time_gps->date, &time_gps->time);
+  return fw_gd_settimegps(&time_gps->date, &time_gps->time);
 }
 
 /****************************************************************************
@@ -1338,7 +1338,7 @@ static int cxd56_gnss_start_test(FAR struct file *filep, unsigned long arg)
       /* set parameter */
 
       info = (FAR struct cxd56_gnss_test_info_s *)arg;
-      fw_gd_startGpsTest(info->satellite, info->reserve1,
+      fw_gd_startgpstest(info->satellite, info->reserve1,
                       info->reserve2, info->reserve3);
 
       /* start test */
@@ -1371,7 +1371,7 @@ static int cxd56_gnss_stop_test(FAR struct file *filep, unsigned long arg)
 
   /* term test */
 
-  ret = fw_gd_stopGpsTest();
+  ret = fw_gd_stopgpstest();
   if(ret == OK)
     {
       /* stop test */
