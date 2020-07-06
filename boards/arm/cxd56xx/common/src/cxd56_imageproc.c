@@ -148,7 +148,7 @@ struct aligned_data(16) ge2d_copycmd_s
   uint32_t reserved[3];
 };
 
-/* Raster operation (ROP) command (48 bytes) */
+/* Raster operation (ROP) command (32 bytes + scaling OP 16 bytes) */
 
 struct aligned_data(16) ge2d_ropcmd_s
 {
@@ -167,7 +167,10 @@ struct aligned_data(16) ge2d_ropcmd_s
   uint16_t patpitch;          /* 0x1c */
   uint8_t pathoffset;         /* 0x1e */
   uint8_t patvoffset;         /* 0x1f */
+};
 
+struct aligned_data(16) ge2d_ropcmd_scaling_s
+{
   uint16_t desth;             /* 0x20 */
   uint16_t destv;             /* 0x22 */
   uint16_t ratioh;            /* 0x24 */
@@ -302,6 +305,7 @@ static void *set_rop_cmd(void *cmdbuf,
                          uint16_t patcolor)
 {
   struct ge2d_ropcmd_s *rc = (struct ge2d_ropcmd_s *)cmdbuf;
+  struct ge2d_ropcmd_scaling_s *sc;
   uint16_t rv;
   uint16_t rh;
   uint16_t cmd = ROPCMD;
@@ -352,17 +356,34 @@ static void *set_rop_cmd(void *cmdbuf,
   rc->daddr = CXD56_PHYSADDR(destaddr) | MSEL;
   rc->spitch = srcpitch - 1;
   rc->dpitch = destpitch - 1;
-  rc->desth = destwidth - 1;
-  rc->destv = destheight - 1;
-  rc->ratiov = rv - 1;
-  rc->ratioh = rh - 1;
-  rc->hphaseinit = 1;
-  rc->vphaseinit = 1;
-  rc->intpmode = 0;             /* XXX: HV Linear interpolation */
+
+  /* Shift to next command area */
+
+  cmdbuf = (void *)((uintptr_t) cmdbuf + sizeof(struct ge2d_ropcmd_s));
+
+  /* Set scaling information */
+
+  if (cmd & SCALING)
+    {
+      sc = (struct ge2d_ropcmd_scaling_s *)cmdbuf;
+
+      sc->desth = destwidth - 1;
+      sc->destv = destheight - 1;
+      sc->ratiov = rv - 1;
+      sc->ratioh = rh - 1;
+      sc->hphaseinit = 1;
+      sc->vphaseinit = 1;
+      sc->intpmode = 0;         /* XXX: HV Linear interpolation */
+
+      /* Shift to next command area */
+
+      cmdbuf = (void *)((uintptr_t) cmdbuf
+                        + sizeof(struct ge2d_ropcmd_scaling_s));
+    }
 
   /* return next command area */
 
-  return (void *)((uintptr_t) cmdbuf + sizeof(struct ge2d_ropcmd_s));
+  return cmdbuf;
 }
 
 static void *set_ab_cmd(void *cmdbuf, void *srcaddr, void *destaddr,
