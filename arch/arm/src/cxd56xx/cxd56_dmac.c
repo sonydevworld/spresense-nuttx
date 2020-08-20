@@ -595,8 +595,6 @@ static int dma_setintrcallback(int ch, dma_callback_t func, void *data)
     g_dmach[ch].callback = func;
     g_dmach[ch].arg = data;
 
-    up_enable_irq(irq_map[ch]);
-
     return 0;
 }
 
@@ -607,8 +605,6 @@ static int dma_clearintrcallback(int ch)
 
     g_dmach[ch].callback = NULL;
     g_dmach[ch].arg = NULL;
-
-    up_disable_irq(irq_map[ch]);
 
     return 0;
 }
@@ -676,6 +672,7 @@ void weak_function up_dma_initialize(void)
   for (i = 0; i < NCHANNELS; i++)
     {
       g_dmach[i].chan = i;
+      up_enable_irq(irq_map[i]);
     }
 
   nxsem_init(&g_dmaexc, 0, 1);
