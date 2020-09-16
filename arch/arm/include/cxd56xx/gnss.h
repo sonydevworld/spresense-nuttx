@@ -648,7 +648,7 @@ extern "C"
  * @name GNSS Start mode
  * GNSS start mode
  */
-/* Same value to GD Start mode CXD56_GNSS_STMOD_XXXX for GD_Start */
+/* Same value to GD Start mode CXD56_GNSS_STMOD_XXXX for fw_gd_start */
 /* @{ */
 
 #define CXD56_GNSS_STMOD_COLD       0 /**< Cold Start */
