@@ -57,141 +57,141 @@
     .align	2
 3:
 
-    /* fw_pm_gpspllclocksetsource */
+    /* PM_GpsPllClockSetSource */
     nop
     nop
 
-    /* fw_pm_pmicgetchargingporttype */
+    /* PM_PmicGetChargingPortType */
     nop
     nop
 
-    /* fw_pm_pmicsetchargingcurrentvalue */
+    /* PM_PmicSetChargingCurrentValue */
     nop
     nop
 
-    /* fw_pm_pmicstartcharging */
+    /* PM_PmicStartCharging */
     nop
     nop
 
-    /* fw_pm_pmicstopcharging */
+    /* PM_PmicStopCharging */
     nop
     nop
 
-    /* fw_pm_peripoweron */
+    /* PM_PeriPowerOn */
     nop
     nop
 
-    /* fw_pm_peripoweroff */
+    /* PM_PeriPowerOff */
     nop
     nop
 
-    /* fw__pm_periclockenable */
+    /* _PM_PeriClockEnable */
     nop
     nop
 
-    /* fw__pm_periclockdisable */
+    /* _PM_PeriClockDisable */
     nop
     nop
 
-    /* fw__pm_updatecpufreqinfo */
+    /* _PM_UpdateCpuFreqInfo */
     nop
     nop
 
-    /* fw_pm_pmicpoweron */
+    /* PM_PmicPowerOn */
     nop
     nop
 
-    /* fw_pm_pmicpoweroff */
+    /* PM_PmicPowerOff */
     nop
     nop
 
-    /* fw_pm_setwakeuptrigger */
+    /* PM_SetWakeupTrigger */
     nop
     nop
 
-    /* fw_pm_hostifclockenable */
+    /* PM_HostifClockEnable */
     nop
     nop
 
-    /* fw_pm_hostifclockdisable */
+    /* PM_HostifClockDisable */
     nop
     nop
 
-    .global	fw_pm_startcpu
+    .global	PM_StartCpu
     .thumb_func
-fw_pm_startcpu:
+PM_StartCpu:
     mov     r12, pc
     b       1b
 
-    .global	fw_pm_stopcpu
+    .global	PM_StopCpu
     .thumb_func
-fw_pm_stopcpu:
+PM_StopCpu:
     mov     r12, pc
     b       1b
 
-    .global	fw_pm_sleepcpu
+    .global	PM_SleepCpu
     .thumb_func
-fw_pm_sleepcpu:
+PM_SleepCpu:
     mov     r12, pc
     b       1b
 
-    .global	fw_pm_wakeupcpu
+    .global	PM_WakeUpCpu
     .thumb_func
-fw_pm_wakeupcpu:
+PM_WakeUpCpu:
     mov     r12, pc
     b       1b
 
-    .global	fw_pm_coldsleep
+    .global	PM_ColdSleep
     .thumb_func
-fw_pm_coldsleep:
+PM_ColdSleep:
     mov     r12, pc
     b       1b
 
-    .global	fw_pm_deepsleep
+    .global	PM_DeepSleep
     .thumb_func
-fw_pm_deepsleep:
+PM_DeepSleep:
     mov     r12, pc
     b       1b
 
-    .global	fw_pm_reboot
+    .global	PM_Reboot
     .thumb_func
-fw_pm_reboot:
+PM_Reboot:
     mov     r12, pc
     b       1b
 
-    .global	fw_pm_loadimage
+    .global	PM_LoadImage
     .thumb_func
-fw_pm_loadimage:
+PM_LoadImage:
     mov     r12, pc
     b       1b
 
-    /* fw_pm_loadimagetoaddress */
+    /* PM_LoadImageToAddress */
     nop
     nop
 
-    /* fw_pm_ramcontrolbyaddress */
+    /* PM_RamControlByAddress */
     nop
     nop
 
-    /* fw_pm_changeclock */
+    /* PM_ChangeClock */
     nop
     nop
 
-    .global	fw_pm_pmiccontrol
+    .global	pm_pmic_control
     .thumb_func
-fw_pm_pmiccontrol:
+pm_pmic_control:
     mov     r12, pc
     b       1b
 
-    /* fw_pm_bootcpu */
+    /* PM_BootCpu */
     nop
     nop
 
-    /* fw_pm_bootcpuwithwaitmode */
+    /* PM_BootCpuWithWaitMode */
     nop
     nop
 
-    /* fw_pm_getclock */
+    /* PM_GetClock */
     nop
     nop
 
@@ -229,95 +229,95 @@ _modulelist_power_mgr:
     .align	2
 3:
 
-    /* fw_fm_getregistryvalue */
+    /* FM_GetRegistryValue */
     nop
     nop
 
-    /* fw_fm_setregistryvalue */
+    /* FM_SetRegistryValue */
     nop
     nop
 
-    /* fw_fm_setregistryvaluelist */
+    /* FM_SetRegistryValueList */
     nop
     nop
 
-    /* fw_fm_deleteregistrykey */
+    /* FM_DeleteRegistryKey */
     nop
     nop
 
-    /* fw_fm_generateregistrykey */
+    /* FM_GenerateRegistryKey */
     nop
     nop
 
-    /* fw_fm_sync */
+    /* FM_Sync */
     nop
     nop
 
-    /* fw_fm_fileopen */
+    /* FM_FileOpen */
     nop
     nop
 
-    /* fw_fm_fileclose */
+    /* FM_FileClose */
     nop
     nop
 
-    /* fw_fm_fileread */
+    /* FM_FileRead */
     nop
     nop
 
-    /* fw_fm_filewrite */
+    /* FM_FileWrite */
     nop
     nop
 
-    /* fw_fm_fileseek */
+    /* FM_FileSeek */
     nop
     nop
 
-    /* fw_fm_fileflush */
+    /* FM_FileFlush */
     nop
     nop
 
-    /* fw_fm_filedelete */
+    /* FM_FileDelete */
     nop
     nop
 
-    .global	fw_fm_rawwrite
+    .global	FM_RawWrite
     .thumb_func
-fw_fm_rawwrite:
+FM_RawWrite:
     mov     r12, pc
     b       1b
 
-    .global	fw_fm_rawread
+    .global	FM_RawRead
     .thumb_func
-fw_fm_rawread:
+FM_RawRead:
     mov     r12, pc
     b       1b
 
-    .global	fw_fm_rawerasesector
+    .global	FM_RawEraseSector
     .thumb_func
-fw_fm_rawerasesector:
+FM_RawEraseSector:
     mov     r12, pc
     b       1b
 
-    /* fw_fm_filerename */
+    /* FM_FileRename */
     nop
     nop
 
-    /* fw_fm_filegetattr */
+    /* FM_FileGetAttr */
     nop
     nop
 
-    /* fw_fm_filesetattr */
+    /* FM_FileSetAttr */
     nop
     nop
 
-    /* fw_fm_fileclearattr */
+    /* FM_FileClearAttr */
     nop
     nop
 
-    .global	fw_fm_rawverifywrite
+    .global	FM_RawVerifyWrite
     .thumb_func
-fw_fm_rawverifywrite:
+FM_RawVerifyWrite:
     mov     r12, pc
     b       1b
 
@@ -355,39 +355,39 @@ _modulelist_flash_mgr:
     .align	2
 3:
 
-    /* fw_sys_rtcmgrsettime */
+    /* SYS_RtcMgrSetTime */
     nop
     nop
 
-    /* fw_sys_rtcmgrgettime */
+    /* SYS_RtcMgrGetTime */
     nop
     nop
 
-    /* fw_sys_rtcmgrconvtime */
+    /* SYS_RtcMgrConvTime */
     nop
     nop
 
-    /* fw_sys_rtcmgrconvcalendartime */
+    /* SYS_RtcMgrConvCalendarTime */
     nop
     nop
 
-    /* fw_sys_rtcmgrsetcalendartime */
+    /* SYS_RtcMgrSetCalendarTime */
     nop
     nop
 
-    /* fw_sys_rtcmgrgetcalendartime */
+    /* SYS_RtcMgrGetCalendarTime */
     nop
     nop
 
-    /* fw_sys_rtcmgradjusttime */
+    /* SYS_RtcMgrAdjustTime */
     nop
     nop
 
-    /* fw_sys_rtcmgrrequestalarm */
+    /* SYS_RtcMgrRequestAlarm */
     nop
     nop
 
-    /* fw_sys_rtcmgrcancelalarm */
+    /* SYS_RtcMgrCancelAlarm */
     nop
     nop
 
@@ -425,131 +425,131 @@ _modulelist_rtc_mgr:
     .align	2
 3:
 
-    /* fw_gnsp_changeclockboot */
+    /* GNSP_ChangeClockBoot */
     nop
     nop
 
-    /* fw_gnsp_changeclocknormal */
+    /* GNSP_ChangeClockNormal */
     nop
     nop
 
-    /* fw_gnsp_setattribute */
+    /* GNSP_SetAttribute */
     nop
     nop
 
-    /* fw_gnsp_getpowerstatus */
+    /* GNSP_GetPowerStatus */
     nop
     nop
 
-    /* fw_gnsp_pongnss */
+    /* GNSP_PonGnss */
     nop
     nop
 
-    /* fw_gnsp_poffgnss */
+    /* GNSP_PoffGnss */
     nop
     nop
 
-    /* fw_gnsp_pofflna */
+    /* GNSP_PoffLNA */
     nop
     nop
 
-    /* fw_gnsp_sleep */
+    /* GNSP_Sleep */
     nop
     nop
 
-    /* fw_gnsp_wakeup */
+    /* GNSP_Wakeup */
     nop
     nop
 
-    /* fw_gnsp_setwakeuptime */
+    /* GNSP_SetWakeupTime */
     nop
     nop
 
-    /* fw_gnsp_getattribute */
+    /* GNSP_GetAttribute */
     nop
     nop
 
-    /* fw_gnsp_clockon */
+    /* GNSP_ClockOn */
     nop
     nop
 
-    /* fw_gnsp_clockoff */
+    /* GNSP_ClockOff */
     nop
     nop
 
-    /* fw_gnsp_changemode */
+    /* GNSP_ChangeMode */
     nop
     nop
 
-    /* fw_gnsp_enableio */
+    /* GNSP_EnableIo */
     nop
     nop
 
-    /* fw_gnsp_controlgpioout */
+    /* GNSP_ControlGpioOut */
     nop
     nop
 
-    /* fw_gnsp_debug */
+    /* GNSP_Debug */
     nop
     nop
 
-    /* fw_gnsp_changeclockrtc */
+    /* GNSP_ChangeClockRtc */
     nop
     nop
 
-    /* fw_gnsp_changeclocksfcclkup */
+    /* GNSP_ChangeClockSFCClkup */
     nop
     nop
 
-    /* fw_gnsp_changeclocksfcclkdwn */
+    /* GNSP_ChangeClockSFCClkdwn */
     nop
     nop
 
-    /* fw_gnsp_changeclockgpscpuclkup */
+    /* GNSP_ChangeClockGPSCPUClkup */
     nop
     nop
 
-    /* fw_gnsp_changeclockgpscpuclkdwn */
+    /* GNSP_ChangeClockGPSCPUClkdwn */
     nop
     nop
 
-    /* fw_gnsp_getbootcause */
+    /* GNSP_GetBootCause */
     nop
     nop
 
-    /* fw_gnsp_getwakeuptrigger */
+    /* GNSP_GetWakeupTrigger */
     nop
     nop
 
-    /* fw_gnsp_selfreboot */
+    /* GNSP_SelfReboot */
     nop
     nop
 
-    /* fw_gnsp_start_keepppsout */
+    /* GNSP_Start_KeepPPSOut */
     nop
     nop
 
-    /* fw_gnsp_stop_keepppsout */
+    /* GNSP_Stop_KeepPPSOut */
     nop
     nop
 
-    /* fw_gnsp_start_keepitpout */
+    /* GNSP_Start_KeepITPOut */
     nop
     nop
 
-    /* fw_gnsp_stop_keepitpout */
+    /* GNSP_Stop_KeepITPOut */
     nop
     nop
 
-    /* fw_gnsp_setsleepstate */
+    /* GNSP_SetSleepState */
     nop
     nop
 
-    /* fw_gnsp_freesysmemory */
+    /* GNSP_FreeSysMemory */
     nop
     nop
 
-    /* fw_gnsp_readalmanacfile */
+    /* GNSP_ReadAlmanacFile */
     nop
     nop
 
@@ -587,9 +587,9 @@ _modulelist_gnss_pwr:
     .align	2
 3:
 
-    .global	fw_as_acacontrol
+    .global	as_aca_control
     .thumb_func
-fw_as_acacontrol:
+as_aca_control:
     mov     r12, pc
     b       1b
 
@@ -627,9 +627,9 @@ _modulelist_aca:
     .align	2
 3:
 
-    .global	fw_pd_pinconfigs
+    .global	PD_PinConfigs
     .thumb_func
-fw_pd_pinconfigs:
+PD_PinConfigs:
     mov     r12, pc
     b       1b
 
@@ -667,45 +667,45 @@ _modulelist_pinconfig:
     .align	2
 3:
 
-    .global	fw_pd_uartinit
+    .global	PD_UartInit
     .thumb_func
-fw_pd_uartinit:
+PD_UartInit:
     mov     r12, pc
     b       1b
 
-    .global	fw_pd_uartuninit
+    .global	PD_UartUninit
     .thumb_func
-fw_pd_uartuninit:
+PD_UartUninit:
     mov     r12, pc
     b       1b
 
-    .global	fw_pd_uartconfiguration
+    .global	PD_UartConfiguration
     .thumb_func
-fw_pd_uartconfiguration:
+PD_UartConfiguration:
     mov     r12, pc
     b       1b
 
-    .global	fw_pd_uartenable
+    .global	PD_UartEnable
     .thumb_func
-fw_pd_uartenable:
+PD_UartEnable:
     mov     r12, pc
     b       1b
 
-    .global	fw_pd_uartdisable
+    .global	PD_UartDisable
     .thumb_func
-fw_pd_uartdisable:
+PD_UartDisable:
     mov     r12, pc
     b       1b
 
-    .global	fw_pd_uartreceive
+    .global	PD_UartReceive
     .thumb_func
-fw_pd_uartreceive:
+PD_UartReceive:
     mov     r12, pc
     b       1b
 
-    .global	fw_pd_uartsend
+    .global	PD_UartSend
     .thumb_func
-fw_pd_uartsend:
+PD_UartSend:
     mov     r12, pc
     b       1b
 
@@ -743,45 +743,45 @@ _modulelist_uart:
     .align	2
 3:
 
-    .global	fw_um_init
+    .global	UM_Init
     .thumb_func
-fw_um_init:
+UM_Init:
     mov     r12, pc
     b       1b
 
-    .global	fw_um_open
+    .global	UM_Open
     .thumb_func
-fw_um_open:
+UM_Open:
     mov     r12, pc
     b       1b
 
-    .global	fw_um_commit
+    .global	UM_Commit
     .thumb_func
-fw_um_commit:
+UM_Commit:
     mov     r12, pc
     b       1b
 
-    .global	fw_um_close
+    .global	UM_Close
     .thumb_func
-fw_um_close:
+UM_Close:
     mov     r12, pc
     b       1b
 
-    .global	fw_um_checkpoint
+    .global	UM_CheckPoint
     .thumb_func
-fw_um_checkpoint:
+UM_CheckPoint:
     mov     r12, pc
     b       1b
 
-    .global	fw_um_doupdatesequence
+    .global	UM_DoUpdateSequence
     .thumb_func
-fw_um_doupdatesequence:
+UM_DoUpdateSequence:
     mov     r12, pc
     b       1b
 
-    .global	fw_um_abort
+    .global	UM_Abort
     .thumb_func
-fw_um_abort:
+UM_Abort:
     mov     r12, pc
     b       1b
 
@@ -819,387 +819,387 @@ _modulelist_update_mgr:
     .align	2
 3:
 
-    .global	fw_gd_start
+    .global	GD_Start
     .thumb_func
-fw_gd_start:
+GD_Start:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_stop
+    .global	GD_Stop
     .thumb_func
-fw_gd_stop:
+GD_Stop:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_selectsatellitesystem
+    .global	GD_SelectSatelliteSystem
     .thumb_func
-fw_gd_selectsatellitesystem:
+GD_SelectSatelliteSystem:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_getsatellitesystem
+    .global	GD_GetSatelliteSystem
     .thumb_func
-fw_gd_getsatellitesystem:
+GD_GetSatelliteSystem:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setreceiverpositionellipsoidal
+    .global	GD_SetReceiverPositionEllipsoidal
     .thumb_func
-fw_gd_setreceiverpositionellipsoidal:
+GD_SetReceiverPositionEllipsoidal:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setreceiverpositionorthogonal
+    .global	GD_SetReceiverPositionOrthogonal
     .thumb_func
-fw_gd_setreceiverpositionorthogonal:
+GD_SetReceiverPositionOrthogonal:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setoperationmode
+    .global	GD_SetOperationMode
     .thumb_func
-fw_gd_setoperationmode:
+GD_SetOperationMode:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_getoperationmode
+    .global	GD_GetOperationMode
     .thumb_func
-fw_gd_getoperationmode:
+GD_GetOperationMode:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_settcxooffset
+    .global	GD_SetTcxoOffset
     .thumb_func
-fw_gd_settcxooffset:
+GD_SetTcxoOffset:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_gettcxooffset
+    .global	GD_GetTcxoOffset
     .thumb_func
-fw_gd_gettcxooffset:
+GD_GetTcxoOffset:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_settime
+    .global	GD_SetTime
     .thumb_func
-fw_gd_settime:
+GD_SetTime:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_getalmanac
+    .global	GD_GetAlmanac
     .thumb_func
-fw_gd_getalmanac:
+GD_GetAlmanac:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setalmanac
+    .global	GD_SetAlmanac
     .thumb_func
-fw_gd_setalmanac:
+GD_SetAlmanac:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_getephemeris
+    .global	GD_GetEphemeris
     .thumb_func
-fw_gd_getephemeris:
+GD_GetEphemeris:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setephemeris
+    .global	GD_SetEphemeris
     .thumb_func
-fw_gd_setephemeris:
+GD_SetEphemeris:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_getvarephemeris
+    .global	GD_GetVarEphemeris
     .thumb_func
-fw_gd_getvarephemeris:
+GD_GetVarEphemeris:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setvarephemeris
+    .global	GD_SetVarEphemeris
     .thumb_func
-fw_gd_setvarephemeris:
+GD_SetVarEphemeris:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_startgpstest
+    .global	GD_StartGpsTest
     .thumb_func
-fw_gd_startgpstest:
+GD_StartGpsTest:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_stopgpstest
+    .global	GD_StopGpsTest
     .thumb_func
-fw_gd_stopgpstest:
+GD_StopGpsTest:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_getgpstestresult
+    .global	GD_GetGpsTestResult
     .thumb_func
-fw_gd_getgpstestresult:
+GD_GetGpsTestResult:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_savebackupdata
+    .global	GD_SaveBackupdata
     .thumb_func
-fw_gd_savebackupdata:
+GD_SaveBackupdata:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_erasebackup
+    .global	GD_EraseBackup
     .thumb_func
-fw_gd_erasebackup:
+GD_EraseBackup:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_cepsetassistdata
+    .global	GD_CepSetAssistData
     .thumb_func
-fw_gd_cepsetassistdata:
+GD_CepSetAssistData:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_ceperaseassistdata
+    .global	GD_CepEraseAssistData
     .thumb_func
-fw_gd_ceperaseassistdata:
+GD_CepEraseAssistData:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_cepcheckassistdata
+    .global	GD_CepCheckAssistData
     .thumb_func
-fw_gd_cepcheckassistdata:
+GD_CepCheckAssistData:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_cepgetagedata
+    .global	GD_CepGetAgeData
     .thumb_func
-fw_gd_cepgetagedata:
+GD_CepGetAgeData:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_cepinitassistdata
+    .global	GD_CepInitAssistData
     .thumb_func
-fw_gd_cepinitassistdata:
+GD_CepInitAssistData:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setacquist
+    .global	GD_SetAcquist
     .thumb_func
-fw_gd_setacquist:
+GD_SetAcquist:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setframetime
+    .global	GD_SetFrameTime
     .thumb_func
-fw_gd_setframetime:
+GD_SetFrameTime:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_settaugps
+    .global	GD_SetTauGps
     .thumb_func
-fw_gd_settaugps:
+GD_SetTauGps:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_settimegps
+    .global	GD_SetTimeGps
     .thumb_func
-fw_gd_settimegps:
+GD_SetTimeGps:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_clearreceiverinfo
+    .global	GD_ClearReceiverInfo
     .thumb_func
-fw_gd_clearreceiverinfo:
+GD_ClearReceiverInfo:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_settowassist
+    .global	GD_SetTowAssist
     .thumb_func
-fw_gd_settowassist:
+GD_SetTowAssist:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setutcmodel
+    .global	GD_SetUtcModel
     .thumb_func
-fw_gd_setutcmodel:
+GD_SetUtcModel:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_spectrumcontrol
+    .global	GD_SpectrumControl
     .thumb_func
-fw_gd_spectrumcontrol:
+GD_SpectrumControl:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_readbuffer
+    .global	GD_ReadBuffer
     .thumb_func
-fw_gd_readbuffer:
+GD_ReadBuffer:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_writebuffer
+    .global	GD_WriteBuffer
     .thumb_func
-fw_gd_writebuffer:
+GD_WriteBuffer:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setnotifymask
+    .global	GD_SetNotifyMask
     .thumb_func
-fw_gd_setnotifymask:
+GD_SetNotifyMask:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_geoaddregion
+    .global	GD_GeoAddRegion
     .thumb_func
-fw_gd_geoaddregion:
+GD_GeoAddRegion:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_geomodifyregion
+    .global	GD_GeoModifyRegion
     .thumb_func
-fw_gd_geomodifyregion:
+GD_GeoModifyRegion:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_geodeleteregione
+    .global	GD_GeoDeleteRegione
     .thumb_func
-fw_gd_geodeleteregione:
+GD_GeoDeleteRegione:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_geodeleteallregion
+    .global	GD_GeoDeleteAllRegion
     .thumb_func
-fw_gd_geodeleteallregion:
+GD_GeoDeleteAllRegion:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_geogetregiondata
+    .global	GD_GeoGetRegionData
     .thumb_func
-fw_gd_geogetregiondata:
+GD_GeoGetRegionData:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_geogetusedregionid
+    .global	GD_GeoGetUsedRegionId
     .thumb_func
-fw_gd_geogetusedregionid:
+GD_GeoGetUsedRegionId:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_geosetopmode
+    .global	GD_GeoSetOpMode
     .thumb_func
-fw_gd_geosetopmode:
+GD_GeoSetOpMode:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_geosetallrgionnotifyrequest
+    .global	GD_GeoSetAllRgionNotifyRequest
     .thumb_func
-fw_gd_geosetallrgionnotifyrequest:
+GD_GeoSetAllRgionNotifyRequest:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_registergeofence
+    .global	GD_RegisterGeofence
     .thumb_func
-fw_gd_registergeofence:
+GD_RegisterGeofence:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_releasegeofence
+    .global	GD_ReleaseGeofence
     .thumb_func
-fw_gd_releasegeofence:
+GD_ReleaseGeofence:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_registerpvtlog
+    .global	GD_RegisterPvtlog
     .thumb_func
-fw_gd_registerpvtlog:
+GD_RegisterPvtlog:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_releasepvtlog
+    .global	GD_ReleasePvtlog
     .thumb_func
-fw_gd_releasepvtlog:
+GD_ReleasePvtlog:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_pvtlogdeletelog
+    .global	GD_PvtlogDeleteLog
     .thumb_func
-fw_gd_pvtlogdeletelog:
+GD_PvtlogDeleteLog:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_pvtloggetlogstatus
+    .global	GD_PvtlogGetLogStatus
     .thumb_func
-fw_gd_pvtloggetlogstatus:
+GD_PvtlogGetLogStatus:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_rtkstart
+    .global	GD_RtkStart
     .thumb_func
-fw_gd_rtkstart:
+GD_RtkStart:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_rtkstop
+    .global	GD_RtkStop
     .thumb_func
-fw_gd_rtkstop:
+GD_RtkStop:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_rtksetoutputinterval
+    .global	GD_RtkSetOutputInterval
     .thumb_func
-fw_gd_rtksetoutputinterval:
+GD_RtkSetOutputInterval:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_rtkgetoutputinterval
+    .global	GD_RtkGetOutputInterval
     .thumb_func
-fw_gd_rtkgetoutputinterval:
+GD_RtkGetOutputInterval:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_rtksetgnss
+    .global	GD_RtkSetGnss
     .thumb_func
-fw_gd_rtksetgnss:
+GD_RtkSetGnss:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_rtkgetgnss
+    .global	GD_RtkGetGnss
     .thumb_func
-fw_gd_rtkgetgnss:
+GD_RtkGetGnss:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_rtksetephnotify
+    .global	GD_RtkSetEphNotify
     .thumb_func
-fw_gd_rtksetephnotify:
+GD_RtkSetEphNotify:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_rtkgetephnotify
+    .global	GD_RtkGetEphNotify
     .thumb_func
-fw_gd_rtkgetephnotify:
+GD_RtkGetEphNotify:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_setusecase
+    .global	GD_SetUseCase
     .thumb_func
-fw_gd_setusecase:
+GD_SetUseCase:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_getusecase
+    .global	GD_GetUseCase
     .thumb_func
-fw_gd_getusecase:
+GD_GetUseCase:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_set1ppsoutput
+    .global	GD_Set1ppsOutput
     .thumb_func
-fw_gd_set1ppsoutput:
+GD_Set1ppsOutput:
     mov     r12, pc
     b       1b
 
-    .global	fw_gd_get1ppsoutput
+    .global	GD_Get1ppsOutput
     .thumb_func
-fw_gd_get1ppsoutput:
+GD_Get1ppsOutput:
     mov     r12, pc
     b       1b
 

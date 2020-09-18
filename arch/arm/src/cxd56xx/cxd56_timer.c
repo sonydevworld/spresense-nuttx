@@ -365,7 +365,7 @@ static int cxd56_getstatus(FAR struct timer_lowerhalf_s *lower,
  * Input Parameters:
  *   lower   - A pointer the publicly visible representation of the "lower
  *             half" driver state structure.
- *   timeout - The new timeout value in microseconds.
+ *   timeout - The new timeout value in milliseconds.
  *
  * Returned Values:
  *   Zero on success; a negated errno value on failure.

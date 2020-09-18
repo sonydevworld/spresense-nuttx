@@ -44,10 +44,10 @@
 
 /* Prototypes for Remote API */
 
-int fw_fm_rawwrite(uint32_t offset, const void *buf, uint32_t size);
-int fw_fm_rawverifywrite(uint32_t offset, const void *buf, uint32_t size);
-int fw_fm_rawread(uint32_t offset, void *buf, uint32_t size);
-int fw_fm_rawerasesector(uint32_t sector);
+int FM_RawWrite(uint32_t offset, const void *buf, uint32_t size);
+int FM_RawVerifyWrite(uint32_t offset, const void *buf, uint32_t size);
+int FM_RawRead(uint32_t offset, void *buf, uint32_t size);
+int FM_RawEraseSector(uint32_t sector);
 
 #ifndef CONFIG_CXD56_SPIFLASHSIZE
 #  define CONFIG_CXD56_SPIFLASHSIZE (16 * 1024 * 1024)
@@ -87,7 +87,7 @@ static int cxd56_erase(FAR struct mtd_dev_s *dev, off_t startblock,
 
   for (i = 0; i < nblocks; i++)
     {
-      ret = fw_fm_rawerasesector(startblock + i);
+      ret = FM_RawEraseSector(startblock + i);
       if (ret < 0)
         {
           set_errno(-ret);
@@ -104,7 +104,7 @@ static ssize_t cxd56_bread(FAR struct mtd_dev_s *dev, off_t startblock,
 
   finfo("bread: %08lx (%u blocks)\n", startblock << PAGE_SHIFT, nblocks);
 
-  ret = fw_fm_rawread(startblock << PAGE_SHIFT, buffer, nblocks << PAGE_SHIFT);
+  ret = FM_RawRead(startblock << PAGE_SHIFT, buffer, nblocks << PAGE_SHIFT);
   if (ret < 0)
     {
       set_errno(-ret);
@@ -122,10 +122,10 @@ static ssize_t cxd56_bwrite(FAR struct mtd_dev_s *dev, off_t startblock,
   finfo("bwrite: %08lx (%u blocks)\n", startblock << PAGE_SHIFT, nblocks);
 
 #ifdef CONFIG_CXD56_SFC_VERIFY_WRITE
-  ret = fw_fm_rawverifywrite(startblock << PAGE_SHIFT, buffer,
+  ret = FM_RawVerifyWrite(startblock << PAGE_SHIFT, buffer,
                           nblocks << PAGE_SHIFT);
 #else
-  ret = fw_fm_rawwrite(startblock << PAGE_SHIFT, buffer,
+  ret = FM_RawWrite(startblock << PAGE_SHIFT, buffer,
                     nblocks << PAGE_SHIFT);
 #endif
   if (ret < 0)
@@ -144,7 +144,7 @@ static ssize_t cxd56_read(FAR struct mtd_dev_s *dev, off_t offset,
 
   finfo("read: %08lx (%u bytes)\n", offset, nbytes);
 
-  ret = fw_fm_rawread(offset, buffer, nbytes);
+  ret = FM_RawRead(offset, buffer, nbytes);
   if (ret < 0)
     {
       set_errno(-ret);
@@ -163,9 +163,9 @@ static ssize_t cxd56_write(FAR struct mtd_dev_s *dev, off_t offset,
   finfo("write: %08lx (%u bytes)\n", offset, nbytes);
 
 #ifdef CONFIG_CXD56_SFC_VERIFY_WRITE
-  ret = fw_fm_rawverifywrite(offset, buffer, nbytes);
+  ret = FM_RawVerifyWrite(offset, buffer, nbytes);
 #else
-  ret = fw_fm_rawwrite(offset, buffer, nbytes);
+  ret = FM_RawWrite(offset, buffer, nbytes);
 #endif
   if (ret < 0)
     {
@@ -222,7 +222,7 @@ static int cxd56_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
 
           while (sec < last)
             {
-              fw_fm_rawerasesector(sec);
+              FM_RawEraseSector(sec);
               sec++;
             }
         }

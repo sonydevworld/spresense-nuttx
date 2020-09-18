@@ -55,7 +55,7 @@
 #include "cxd56_farapistub.h"
 #include "hardware/cxd5602_backupmem.h"
 
-int fw_pm_wakeupcpu(int cpuid);
+int PM_WakeUpCpu(int cpuid);
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -209,7 +209,7 @@ void farapi_main(int id, void *arg, struct modulelist_s *mlist)
       if (((gnscken & GNSDSP_CKEN_P1) != GNSDSP_CKEN_P1) &&
           ((gnscken & GNSDSP_CKEN_COP) != GNSDSP_CKEN_COP))
         {
-          fw_pm_wakeupcpu(GPS_CPU_ID);
+          PM_WakeUpCpu(GPS_CPU_ID);
         }
     }
 #endif

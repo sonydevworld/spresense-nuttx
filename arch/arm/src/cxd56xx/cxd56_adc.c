@@ -126,7 +126,7 @@
 
 /* Input Gain setting */
 
-#define INPUT_GAIN(a, g1, g2) (((a) << 24) | ((g2) << 16) | ((g1) << 12))
+#define INPUT_GAIN(a, g2, g1) (((a) << 24) | ((g2) << 16) | ((g1) << 12))
 #define INPUT_GAIN_MASK         INPUT_GAIN(3, 15, 15)
 #define INPUT_GAIN_MINUS_6DB    INPUT_GAIN(2, 0, 0)
 #define INPUT_GAIN_THROUGH      INPUT_GAIN(0, 0, 0)
