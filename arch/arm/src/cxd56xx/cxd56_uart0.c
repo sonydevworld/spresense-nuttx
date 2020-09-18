@@ -48,7 +48,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-#include <fcntl.h>
 #include <debug.h>
 #include <errno.h>
 
@@ -95,14 +94,14 @@ static void uart0_semgive(sem_t *id);
  * FarAPI prototypes
  ****************************************************************************/
 
-int fw_pd_uartinit(int ch);
-int fw_pd_uartuninit(int ch);
-int fw_pd_uartconfiguration(int ch, int baudrate, int databits,
+int PD_UartInit(int ch);
+int PD_UartUninit(int ch);
+int PD_UartConfiguration(int ch, int baudrate, int databits,
                          int parity, int stopbit, int flowctrl);
-int fw_pd_uartenable(int ch);
-int fw_pd_uartdisable(int ch);
-int fw_pd_uartreceive(int ch, void *buf, int size, int leave);
-int fw_pd_uartsend(int ch, void *buf, int size, int leave);
+int PD_UartEnable(int ch);
+int PD_UartDisable(int ch);
+int PD_UartReceive(int ch, void *buf, int size, int leave);
+int PD_UartSend(int ch, void *buf, int size, int leave);
 
 /****************************************************************************
  * Private Data
@@ -159,7 +158,7 @@ static int uart0_open(FAR struct file *filep)
       return OK;
     }
 
-  ret = fw_pd_uartinit(0);
+  ret = PD_UartInit(0);
   if (ret < 0)
     {
       set_errno(EFAULT);
@@ -176,7 +175,7 @@ static int uart0_open(FAR struct file *filep)
 
   /* Enable UART0 pin configuration */
 
-#ifdef CONFIG_CXD56_UART0_FLOWCONTROL
+#ifdef CONFIG_UART0_FLOWCONTROL
   flowctl = 1;
   CXD56_PIN_CONFIGS(PINCONFS_SPI2_UART0);
 #else
@@ -184,21 +183,21 @@ static int uart0_open(FAR struct file *filep)
   CXD56_PIN_CONFIGS(PINCONFS_SPI2A_UART0);
 #endif
 
-  ret = fw_pd_uartconfiguration(0, CONFIG_CXD56_UART0_BAUD,
+  ret = PD_UartConfiguration(0, CONFIG_CXD56_UART0_BAUD,
                              bits,
                              CONFIG_CXD56_UART0_PARITY,
                              stop, flowctl);
   if (ret < 0)
     {
-      fw_pd_uartuninit(0);
+      PD_UartUninit(0);
       set_errno(EINVAL);
       return ERROR;
     }
 
-  ret = fw_pd_uartenable(0);
+  ret = PD_UartEnable(0);
   if (ret < 0)
     {
-      fw_pd_uartuninit(0);
+      PD_UartUninit(0);
       set_errno(EFAULT);
       return ERROR;
     }
@@ -216,12 +215,12 @@ static int uart0_close(FAR struct file *filep)
 
   if (inode->i_crefs == 1)
     {
-      fw_pd_uartdisable(0);
-      fw_pd_uartuninit(0);
+      PD_UartDisable(0);
+      PD_UartUninit(0);
 
       /* Disable UART0 pin by changing Hi-Z GPIO */
 
-#ifdef CONFIG_CXD56_UART0_FLOWCONTROL
+#ifdef CONFIG_UART0_FLOWCONTROL
       CXD56_PIN_CONFIGS(PINCONFS_SPI2_GPIO);
 #else
       CXD56_PIN_CONFIGS(PINCONFS_SPI2A_GPIO);
@@ -242,7 +241,9 @@ static ssize_t uart0_read(FAR struct file *filep,
 
   uart0_semtake(&g_lock);
 
-  ret = fw_pd_uartreceive(0, buffer, len, ((filep->f_oflags & O_NONBLOCK) != 0));
+  /* Always blocking */
+
+  ret = PD_UartReceive(0, buffer, len, 0);
 
   uart0_semgive(&g_lock);
 
@@ -266,7 +267,9 @@ static ssize_t uart0_write(FAR struct file *filep,
 
   uart0_semtake(&g_lock);
 
-  ret = fw_pd_uartsend(0, (FAR void *)buffer, len, ((filep->f_oflags & O_NONBLOCK) != 0));
+  /* Always blocking */
+
+  ret = PD_UartSend(0, (FAR void *)buffer, len, 0);
 
   uart0_semgive(&g_lock);
 

@@ -53,7 +53,7 @@
 
 /* GD operation mode */
 
-/* fw_gd_setoperationmode, fw_gd_getoperationmode */
+/* GD_SetOperationMode, GD_GetOperationMode */
 
 #define CXD56_GNSS_OPMOD_NORMAL     1
 #define CXD56_GNSS_OPMOD_LOWPOWER   2
@@ -64,309 +64,309 @@
  * beginning to search the satellites and measure the receiver position
  */
 
-int fw_gd_start(uint8_t startmode);
+int GD_Start(uint8_t startMode);
 
 /* Stop a positioning */
 
-int fw_gd_stop(void);
+int GD_Stop(void);
 
 /* Select GNSSs to positioning
  * These are able to specified by CXD56_GNSS_B_SAT_XXX defines.
  */
 
-int fw_gd_selectsatellitesystem(uint32_t system);
+int GD_SelectSatelliteSystem(uint32_t system);
 
 /* Get current using GNSSs to positioning
  * A argument 'satellite' indicates current GNSSs by bit fields defined
  * by CXD56_GNSS_B_SAT_XXX.
  */
 
-int fw_gd_getsatellitesystem(FAR uint32_t *system);
+int GD_GetSatelliteSystem(FAR uint32_t *system);
 
 /* Set the rough receiver position */
 
-int fw_gd_setreceiverpositionellipsoidal(FAR double *dlat, FAR double *dlon,
-                                      FAR double *dheight);
+int GD_SetReceiverPositionEllipsoidal(FAR double *dLat, FAR double *dLon,
+                                      FAR double *dHeight);
 
 /* Set the rough receiver position as orgothonal */
 
-int fw_gd_setreceiverpositionorthogonal(int32_t dx, int32_t dy, int32_t dz);
+int GD_SetReceiverPositionOrthogonal(int32_t dX, int32_t dY, int32_t dZ);
 
 /* Set enable or disable the 1PPS output. */
 
-int fw_gd_set1ppsoutput(uint32_t enable);
+int GD_Set1ppsOutput(uint32_t enable);
 
 /* Get the current 1PPS output setting. */
 
-int fw_gd_get1ppsoutput(FAR uint32_t *enable);
+int GD_Get1ppsOutput(FAR uint32_t *enable);
 
 /* Set the receiver operation mode
  * 1st argument 'mode' is a operation mode defined by CXD56_GNSS_OPMOD_XXX.
  * 2nd argument 'cycle' is a positioning period[ms], default is 1000[ms].
  */
 
-int fw_gd_setoperationmode(uint32_t mode, uint32_t cycle);
+int GD_SetOperationMode(uint32_t mode, uint32_t cycle);
 
 /* Get the receiver operation mode */
 
-int fw_gd_getoperationmode(FAR uint32_t *mode, FAR uint32_t *cycle);
+int GD_GetOperationMode(FAR uint32_t *mode, FAR uint32_t *cycle);
 
 /* Set the TCXO offset */
 
-int fw_gd_settcxooffset(int32_t offset);
+int GD_SetTcxoOffset(int32_t offset);
 
 /* Get the TCXO offset */
 
-int fw_gd_gettcxooffset(FAR int32_t *offset);
+int GD_GetTcxoOffset(FAR int32_t *offset);
 
 /* Set the estimated current time of the receiver.
  * 1st argument date & time are in UTC.
  */
 
-int fw_gd_settime(FAR struct cxd56_gnss_date_s *date,
+int GD_SetTime(FAR struct cxd56_gnss_date_s *date,
                FAR struct cxd56_gnss_time_s *time);
 
 /* Set the network time */
 
-int fw_gd_setframetime(uint16_t sec, uint32_t fracsec);
+int GD_SetFrameTime(uint16_t sec, uint32_t fracSec);
 
 /* Get the almanac data */
 
-int fw_gd_getalmanac(uint32_t satellite, FAR uint32_t* almanac,
-                  FAR uint32_t *almanacsize);
+int GD_GetAlmanac(uint32_t satellite, FAR uint32_t* almanac,
+                  FAR uint32_t *almanacSize);
 
 /* Set the almanac data */
 
-int fw_gd_setalmanac(uint32_t satellite, FAR uint32_t *almanac);
+int GD_SetAlmanac(uint32_t satellite, FAR uint32_t *almanac);
 
 /* Get the Ephemeris data */
 
-int fw_gd_getephemeris(uint32_t satellite, FAR uint32_t* ephemeris,
-                    FAR uint32_t *ephemerissize);
+int GD_GetEphemeris(uint32_t satellite, FAR uint32_t* ephemeris,
+                    FAR uint32_t *ephemerisSize);
 
 /* Set the Ephemeris data */
 
-int fw_gd_setephemeris(uint32_t satellite, FAR uint32_t *ephemeris);
+int GD_SetEphemeris(uint32_t satellite, FAR uint32_t *ephemeris);
 
 /* Select to use or not use the initial position calculation supporting
  * information of the QZSS L1-SAIF.
  */
 
-int fw_gd_setqzssposassist(uint32_t enable);
+int GD_SetQzssPosAssist(uint32_t enable);
 
 /* Get a setting of the initial position calculation supporting
  * information of the QZSS L1-SAIF.
  */
 
-int fw_gd_getqzssposassist(FAR uint32_t *enable);
+int GD_GetQzssPosAssist(FAR uint32_t *enable);
 
 /* Set IMES bitrates. */
 
-int fw_gd_setimesbitrate(uint32_t bitrate);
+int GD_SetImesBitrate(uint32_t bitrate);
 
 /* Get IMES bitrates. */
 
-int fw_gd_getimesbitrate(FAR uint32_t *bitrate);
+int GD_GetImesBitrate(FAR uint32_t *bitrate);
 
 /* Set IMES center frequency offset. */
 
-int fw_gd_setimescenterfreqoffset(uint32_t offset);
+int GD_SetImesCenterFreqOffset(uint32_t offset);
 
 /* Set IMES preamble. */
 
-int fw_gd_setimespreamble(uint32_t preamble);
+int GD_SetImesPreamble(uint32_t preamble);
 
 /* Start GPS test */
 
-void fw_gd_startgpstest(uint32_t satellite, uint32_t reserve1,
+void GD_StartGpsTest(uint32_t satellite, uint32_t reserve1,
                      uint32_t reserve2, uint32_t reserve3);
 
 /* Stop GPS test */
 
-int fw_gd_stopgpstest(void);
+int GD_StopGpsTest(void);
 
 /* Get GPS test result */
 
-int fw_gd_getgpstestresult(FAR float* cn, FAR float* doppler);
+int GD_GetGpsTestResult(FAR float* cn, FAR float* doppler);
 
 /* Control Spectrum output */
 
-int fw_gd_spectrumcontrol(unsigned long time, unsigned int enable,
-                       unsigned char monipoint1, unsigned char step1,
-                       unsigned char monipoint2, unsigned char step2);
+int GD_SpectrumControl(unsigned long time, unsigned int enable,
+                       unsigned char moniPoint1, unsigned char step1,
+                       unsigned char moniPoint2, unsigned char step2);
 
 /* Save the backup data to a Flash memory. */
 
-int fw_gd_savebackupdata(void);
+int GD_SaveBackupdata(void);
 
 /* CEP  Check Assist Data Valid  */
 
-int fw_gd_cepcheckassistdata(void);
+int GD_CepCheckAssistData(void);
 
 /* CEP  Get Age Data */
 
-int fw_gd_cepgetagedata(FAR float *age, FAR float *cepi);
+int GD_CepGetAgeData(FAR float *age, FAR float *cepi);
 
 /* CEP  Reset Assist Data init flag & valid flag */
 
-int fw_gd_cepinitassistdata(void);
+int GD_CepInitAssistData(void);
 
 /* AGPS Set tau */
 
-int fw_gd_settaugps(FAR double *tau);
+int GD_SetTauGps(FAR double *tau);
 
 /* AGPS Set Acquist */
 
-int fw_gd_setacquist(FAR uint8_t *pacquistdata, uint16_t acquistsize);
+int GD_SetAcquist(FAR uint8_t *pAcquistData, uint16_t acquistSize);
 
 /* Set the estimated current time of the receiver.
  * 1st argument date & time are in GPS time.
  */
 
-int fw_gd_settimegps(FAR struct cxd56_gnss_date_s *date,
+int GD_SetTimeGps(FAR struct cxd56_gnss_date_s *date,
                   FAR struct cxd56_gnss_time_s *time);
 
 /* Clear Receiver Information */
 
-int fw_gd_clearreceiverinfo(uint32_t type);
+int GD_ClearReceiverInfo(uint32_t type);
 
 /* AGPS Set Tow Assist */
 
-int fw_gd_settowassist(FAR uint8_t *passistdata, uint16_t datasize);
+int GD_SetTowAssist(FAR uint8_t *pAssistData, uint16_t dataSize);
 
 /* AGPS Set UTC Model */
 
-int fw_gd_setutcmodel(FAR uint8_t *pmodeldata, uint16_t datasize);
+int GD_SetUtcModel(FAR uint8_t *pModelData, uint16_t dataSize);
 
 /* Read GNSS data to specified buffer */
 
-int fw_gd_readbuffer(uint8_t type, int32_t offset, FAR void *buf,
+int GD_ReadBuffer(uint8_t type, int32_t offset, FAR void *buf,
                   uint32_t length);
 
 /* Write GNSS data from specified buffer */
 
-int fw_gd_writebuffer(uint8_t type, int32_t offset, FAR void *buf,
+int GD_WriteBuffer(uint8_t type, int32_t offset, FAR void *buf,
                    uint32_t length);
 
 /* Set notify mask, this mask flag is cleared when notified(poll/signal) */
 
-int fw_gd_setnotifymask(uint8_t type, uint8_t clear);
+int GD_SetNotifyMask(uint8_t type, uint8_t clear);
 
 /* Geofence Add Region */
 
-int fw_gd_geoaddregion(uint8_t id, long lat, long lon, uint16_t rad);
+int GD_GeoAddRegion(uint8_t id, long lat, long lon, uint16_t rad);
 
 /* Geofence Modify Region */
 
-int fw_gd_geomodifyregion(uint8_t id, long lat, long lon, uint16_t rad);
+int GD_GeoModifyRegion(uint8_t id, long lat, long lon, uint16_t rad);
 
 /* Geofence Delete Region */
 
-int fw_gd_geodeleteregione(uint8_t id);
+int GD_GeoDeleteRegione(uint8_t id);
 
 /* Geofence All delete Region */
 
-int fw_gd_geodeleteallregion(void);
+int GD_GeoDeleteAllRegion(void);
 
 /* Geofence Region check */
 
-int fw_gd_geogetregiondata(uint8_t id, FAR long *lat, FAR long *lon,
+int GD_GeoGetRegionData(uint8_t id, FAR long *lat, FAR long *lon,
                         FAR uint16_t *rad);
 
 /* Geofence Get Used Region ID */
 
-uint32_t fw_gd_geogetusedregionid(void);
+uint32_t GD_GeoGetUsedRegionId(void);
 
 /* Geofence Set mode */
 
-int fw_gd_geosetopmode(uint16_t deadzone, uint16_t dwell_detecttime);
+int GD_GeoSetOpMode(uint16_t deadzone, uint16_t dwell_detecttime);
 
 /* Geofence Request All region notify */
 
-int fw_gd_geosetallrgionnotifyrequest(void);
+int GD_GeoSetAllRgionNotifyRequest(void);
 
 /* Geofence Register to gnss_provider */
 
-int fw_gd_registergeofence(void);
+int GD_RegisterGeofence(void);
 
 /* Geofence Release from gnss_provider */
 
-int fw_gd_releasegeofence(void);
+int GD_ReleaseGeofence(void);
 
 /* Pvtlog Register to gnss_provider */
 
-int fw_gd_registerpvtlog(uint32_t cycle, uint32_t threshold);
+int GD_RegisterPvtlog(uint32_t cycle, uint32_t threshold);
 
 /* Pvtlog Release */
 
-int fw_gd_releasepvtlog(void);
+int GD_ReleasePvtlog(void);
 
 /* Pvtlog Delete log data */
 
-int fw_gd_pvtlogdeletelog(void);
+int GD_PvtlogDeleteLog(void);
 
 /* Pvtlog Get Log status */
 
-int fw_gd_pvtloggetlogstatus(FAR struct cxd56_gnss_status_s *plogstatus);
+int GD_PvtlogGetLogStatus(FAR struct cxd56_gnss_status_s *pLogStatus);
 
 /* Start outputting carrier phase info. */
 
-int fw_gd_rtkstart(FAR struct cxd56_rtk_setting_s *pparam);
+int GD_RtkStart(FAR struct cxd56_rtk_setting_s *pParam);
 
 /* Stop outputting carrier phase info. */
 
-int fw_gd_rtkstop(void);
+int GD_RtkStop(void);
 
 /* Set output interval of carrier phase info.
  *
  * interval : CXD56_GNSS_RTK_INTERVAL_XXX (gd_type.h)
  */
 
-int fw_gd_rtksetoutputinterval(int interval);
+int GD_RtkSetOutputInterval(int interval);
 
 /* Get output interval of carrier phase info. [ms] */
 
-int fw_gd_rtkgetoutputinterval(FAR int *interval);
+int GD_RtkGetOutputInterval(FAR int* interval);
 
 /* Set GNSS of outputting carrier phase info. */
 
-int fw_gd_rtksetgnss(uint32_t gnss);
+int GD_RtkSetGnss(uint32_t gnss);
 
 /* Get GNSS of outputting carrier phase info. */
 
-int fw_gd_rtkgetgnss(FAR uint32_t *pgnss);
+int GD_RtkGetGnss(FAR uint32_t* pGnss);
 
 /* Set enable/disable GD to notify updating ephemeris */
 
-int fw_gd_rtksetephnotify(int enable);
+int GD_RtkSetEphNotify(int enable);
 
 /* Get enable/disable GD to notify updating ephemeris */
 
-int fw_gd_rtkgetephnotify(FAR int *enable);
+int GD_RtkGetEphNotify(FAR int* enable);
 
 /* Set the Ephemeris data Ephemeris data size is variable. */
 
-int fw_gd_setvarephemeris(uint32_t *ephemeris, uint32_t ephemerissize);
+int GD_SetVarEphemeris(uint32_t *ephemeris, uint32_t ephemerisSize);
 
 /* Get the Ephemeris data Ephemeris data size is variable. */
 
-int fw_gd_getvarephemeris(uint32_t satellite, uint32_t* ephemeris,
-                       uint32_t ephemerissize);
+int GD_GetVarEphemeris(uint32_t satellite, uint32_t* ephemeris,
+                       uint32_t ephemerisSize);
 
 /* Set usecase mode */
 
-int fw_gd_setusecase(uint32_t usecase);
+int GD_SetUseCase(uint32_t usecase);
 
 /* Get usecase mode */
 
-int fw_gd_getusecase(uint32_t *usecase);
+int GD_GetUseCase(uint32_t *usecase);
 
 /* Set enable or disable of 1PPS output */
 
-int fw_gd_set1ppsoutput(uint32_t enable);
+int GD_Set1ppsOutput(uint32_t enable);
 
 /* Get the current 1PPS output setting */
 
-int fw_gd_get1ppsoutput(uint32_t *enable);
+int GD_Get1ppsOutput(uint32_t *enable);
 
 #endif /* __ARCH_ARM_SRC_CXD56XX_CXD56_GNSS_API_H */
