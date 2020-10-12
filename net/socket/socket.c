@@ -122,6 +122,10 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
           /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
            * open socket with kernel networking stack.
            */
+
+          psock->s_domain = domain;
+          psock->s_type   = type;
+          psock->s_conn   = NULL;
         }
       else
         {
