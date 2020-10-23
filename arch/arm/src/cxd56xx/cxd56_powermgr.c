@@ -575,6 +575,13 @@ void up_pm_acquire_freqlock(struct pm_cpu_freqlock_s *lock)
 
   cxd56_pm_semtake(&g_freqlock);
 
+  if (lock->flag == PM_CPUFREQLOCK_FLAG_HOLD)
+    {
+      /* Return with holding the current frequency */
+
+      return;
+    }
+
   for (entry = sq_peek(&g_freqlockqueue); entry; entry = sq_next(entry))
     {
       if (entry == (struct sq_entry_s *)lock)
@@ -614,6 +621,13 @@ void up_pm_release_freqlock(struct pm_cpu_freqlock_s *lock)
 
   DEBUGASSERT(lock);
 
+  if (lock->flag == PM_CPUFREQLOCK_FLAG_HOLD)
+    {
+      /* Release holding the current frequency */
+
+      goto exit;
+    }
+
   up_pm_acquire_wakelock(&g_wlock);
 
   cxd56_pm_semtake(&g_freqlock);
@@ -632,6 +646,7 @@ void up_pm_release_freqlock(struct pm_cpu_freqlock_s *lock)
         }
     }
 
+exit:
   nxsem_post(&g_freqlock);
 
   up_pm_release_wakelock(&g_wlock);
