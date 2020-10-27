@@ -1,7 +1,7 @@
 /****************************************************************************
  * drivers/video/isx012.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   Copyright 2018, 2020 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,12 +48,12 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/i2c/i2c_master.h>
 #include <arch/board/board.h>
-#include <arch/chip/cisif.h>
 #include <arch/irq.h>
 
 #include <nuttx/video/isx012.h>
 #include <nuttx/video/isx012_reg.h>
 #include <nuttx/video/isx012_range.h>
+#include <nuttx/video/video.h>
 #include <nuttx/video/video_halif.h>
 
 /****************************************************************************
@@ -93,12 +93,12 @@
 #define OUT_YUV_HSIZE_MIN         (96)
 #define OUT_JPG_VSIZE_MIN         (64)
 #define OUT_JPG_HSIZE_MIN         (96)
-#define OUT_YUV_15FPS_VSIZE_MAX  (360)
-#define OUT_YUV_15FPS_HSIZE_MAX  (480)
-#define OUT_YUV_30FPS_VSIZE_MAX  (360)
-#define OUT_YUV_30FPS_HSIZE_MAX  (480)
-#define OUT_YUV_60FPS_VSIZE_MAX  (360)
-#define OUT_YUV_60FPS_HSIZE_MAX  (480)
+#define OUT_YUV_15FPS_VSIZE_MAX  (600)
+#define OUT_YUV_15FPS_HSIZE_MAX  (800)
+#define OUT_YUV_30FPS_VSIZE_MAX  (600)
+#define OUT_YUV_30FPS_HSIZE_MAX  (800)
+#define OUT_YUV_60FPS_VSIZE_MAX  (480)
+#define OUT_YUV_60FPS_HSIZE_MAX  (640)
 #define OUT_YUV_120FPS_VSIZE_MAX (240)
 #define OUT_YUV_120FPS_HSIZE_MAX (320)
 #define OUT_JPG_15FPS_VSIZE_MAX (1944)
@@ -228,10 +228,8 @@ struct isx012_dev_s
   uint8_t                 i2c_addr;    /* I2C address */
   int                     i2c_freq;    /* Frequency */
   isx012_state_t          state;       /* ISX012 status */
-  bool                    dma_state;   /* true means "in DMA" */
   uint8_t                 mode;        /* ISX012 mode */
   isx012_param_t          param;       /* ISX012 paramerters */
-  void                    *video_priv; /* pointer to video private data */
 };
 
 typedef struct isx012_dev_s isx012_dev_t;
@@ -272,14 +270,13 @@ static int isx012_set_shd(FAR isx012_dev_t *priv);
 
 static bool is_movie_needed(isx012_modeparam_t *param);
 
-/* video driver HAL infterface */
+/* image sensor device operations interface */
 
-static int isx012_open(FAR void *video_private);
+static int isx012_open(void);
 static int isx012_close(void);
 static int isx012_do_halfpush(bool enable);
 static int isx012_set_buftype(enum v4l2_buf_type type);
-static int isx012_set_buf(uint32_t bufaddr, uint32_t bufsize);
-static int isx012_cancel_dma(void);
+static enum v4l2_buf_type isx012_get_buftype(void);
 static int isx012_check_fmt(enum v4l2_buf_type buf_type,
                             uint32_t           pixel_format);
 static int isx012_get_range_of_fmt(FAR struct v4l2_fmtdesc *format);
@@ -287,6 +284,7 @@ static int isx012_get_range_of_framesize(FAR struct v4l2_frmsizeenum
                                          *frmsize);
 static int isx012_try_format(FAR struct v4l2_format *format);
 static int isx012_set_format(FAR struct v4l2_format *format);
+static int isx012_get_format(FAR struct v4l2_format *format);
 static int isx012_get_range_of_frameinterval(FAR struct v4l2_frmivalenum
                                              *frmival);
 static int isx012_set_frameinterval(FAR struct v4l2_streamparm *parm);
@@ -616,18 +614,18 @@ static isx012_conv_v4l2_to_regval_t
   {1600 * 1000, REGVAL_ISO_1600}
 };
 
-static struct video_devops_s g_isx012_video_devops =
+static struct video_sensctrl_ops_s g_isx012_sensctrl_ops =
 {
   .open                       = isx012_open,
   .close                      = isx012_close,
   .do_halfpush                = isx012_do_halfpush,
   .set_buftype                = isx012_set_buftype,
-  .set_buf                    = isx012_set_buf,
-  .cancel_dma                 = isx012_cancel_dma,
+  .get_buftype                = isx012_get_buftype,
   .get_range_of_fmt           = isx012_get_range_of_fmt,
   .get_range_of_framesize     = isx012_get_range_of_framesize,
   .try_format                 = isx012_try_format,
   .set_format                 = isx012_set_format,
+  .get_format                 = isx012_get_format,
   .get_range_of_frameinterval = isx012_get_range_of_frameinterval,
   .set_frameinterval          = isx012_set_frameinterval,
   .get_range_of_ctrlvalue     = isx012_get_range_of_ctrlval,
@@ -931,28 +929,6 @@ static int isx012_set_mode_param(isx012_dev_t *priv,
   return ret;
 }
 
-void isx012_callback(uint8_t code, uint32_t size, uint32_t addr)
-{
-  enum v4l2_buf_type type;
-  FAR struct isx012_dev_s *priv = &g_isx012_private;
-
-  if (priv->mode == REGVAL_MODESEL_CAP)
-    {
-      /* ISX012 capture mode => still capture */
-
-      type = V4L2_BUF_TYPE_STILL_CAPTURE;
-    }
-  else
-    {
-      /* ISX012 monitor/halfrelease/movie mode => video capture */
-
-      type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    }
-
-  video_common_notify_dma_done(code, type, size, priv->video_priv);
-
-  return;
-}
 
 /****************************************************************************
  * isx012_change_camera_mode
@@ -1264,7 +1240,7 @@ int init_isx012(FAR struct isx012_dev_s *priv)
   return ret;
 }
 
-static int isx012_open(FAR void *video_private)
+static int isx012_open(void)
 {
   FAR struct isx012_dev_s *priv = &g_isx012_private;
   int ret = 0;
@@ -1285,25 +1261,12 @@ static int isx012_open(FAR void *video_private)
       return ret;
     }
 
-  ret = cxd56_cisifinit();
-  if (ret < 0)
-    {
-      imagererr("Fail cxd56_cisifinit %d\n", ret);
-      return ret;
-    }
-
-  /* Save video private information address */
-
-  g_isx012_private.video_priv = video_private;
-
   return ret;
 }
 
 static int isx012_close(void)
 {
   FAR struct isx012_dev_s *priv = &g_isx012_private;
-
-  g_isx012_private.video_priv = NULL;
 
   int ret = 0;
 
@@ -1318,20 +1281,6 @@ static int isx012_close(void)
   if (ret < 0)
     {
       imagererr("Failed to power off %d\n", ret);
-      return ret;
-    }
-
-  ret = cxd56_cisifstopcapture();
-  if (ret < 0)
-    {
-      imagererr("Fail cxd56_cisifstopcapture %d\n", ret);
-      return ret;
-    }
-
-  ret = cxd56_cisiffinalize();
-  if (ret < 0)
-    {
-      imagererr("Fail cxd56_cisiffinalize %d\n", ret);
       return ret;
     }
 
@@ -1436,87 +1385,22 @@ static int isx012_set_buftype(enum v4l2_buf_type type)
   return ret;
 }
 
-static int isx012_set_buf(uint32_t bufaddr, uint32_t bufsize)
+static enum v4l2_buf_type isx012_get_buftype(void)
 {
-  int ret;
   FAR struct isx012_dev_s *priv = &g_isx012_private;
-  cisif_param_t cis_param = {0};
-  cisif_sarea_t sarea = {0};
-  isx012_modeparam_t *mode_param = NULL;
 
-  sarea.strg_addr     = (uint8_t *)bufaddr;
-  sarea.strg_size     = bufsize;
-
-  if (priv->dma_state)
+  if (priv->mode == REGVAL_MODESEL_CAP)
     {
-      ret = cxd56_cisifsetdmabuf(&sarea);
+      /* ISX012 capture mode => still capture */
+
+      return V4L2_BUF_TYPE_STILL_CAPTURE;
     }
   else
     {
-      if (priv->mode == REGVAL_MODESEL_CAP)
-        {
-          mode_param = &priv->param.still;
-        }
-      else
-        {
-          mode_param = &priv->param.video;
-        }
+      /* ISX012 monitor/halfrelease/movie mode => video capture */
 
-      switch (mode_param->format)
-        {
-          case V4L2_PIX_FMT_UYVY: /* Set YUV 4:2:2 information */
-
-            cis_param.yuv_param.hsize = mode_param->hsize;
-            cis_param.yuv_param.vsize = mode_param->vsize;
-
-            break;
-
-          case V4L2_PIX_FMT_JPEG: /* Set JPEG information */
-
-            /* no setting */
-
-            break;
-
-          case V4L2_PIX_FMT_JPEG_WITH_SUBIMG: /* Set JPEG + YUV 4:2:2 information */
-
-            cis_param.yuv_param.hsize = mode_param->int_hsize;
-            cis_param.yuv_param.vsize = mode_param->int_vsize;
-
-            break;
-
-          default: /* Unsupported format */
-
-            return -EINVAL;
-        }
-
-      cis_param.format    = mode_param->format;
-      cis_param.comp_func = isx012_callback;
-
-      ret = cxd56_cisifstartcapture(&cis_param, &sarea);
-      if (ret != OK)
-        {
-          return ret;
-        }
-
-      priv->dma_state = true;
+      return V4L2_BUF_TYPE_VIDEO_CAPTURE;
     }
-
-  return ret;
-}
-
-static int isx012_cancel_dma(void)
-{
-  int ret;
-  FAR struct isx012_dev_s *priv = &g_isx012_private;
-
-  ret =  cxd56_cisifstopcapture();
-  if (ret != OK)
-    {
-      return ret;
-    }
-
-  priv->dma_state = false;
-  return ret;
 }
 
 static int isx012_check_fmt(enum v4l2_buf_type buf_type,
@@ -1789,6 +1673,30 @@ static int isx012_set_format(FAR struct v4l2_format *format)
     }
 
   memcpy(current_param, &mode_param, sizeof(mode_param));
+
+  return OK;
+}
+
+static int isx012_get_format(FAR struct v4l2_format *format)
+{
+  FAR struct isx012_dev_s *priv = &g_isx012_private;
+  FAR isx012_modeparam_t  *current_param;
+
+  if (format->type == V4L2_BUF_TYPE_STILL_CAPTURE)
+    {
+      current_param = &priv->param.still;
+    }
+  else
+    {
+      current_param = &priv->param.video;
+    }
+
+  format->fmt.pix.pixelformat        = current_param->format;
+  format->fmt.pix.subimg_pixelformat = V4L2_PIX_FMT_UYVY;
+  format->fmt.pix.width              = current_param->hsize;
+  format->fmt.pix.height             = current_param->vsize;
+  format->fmt.pix.subimg_width       = current_param->int_hsize;
+  format->fmt.pix.subimg_height      = current_param->int_vsize;
 
   return OK;
 }
@@ -3831,11 +3739,11 @@ int isx012_unregister(void)
   return OK;
 }
 
-FAR struct video_devops_s *isx012_initialize(void)
+FAR struct video_sensctrl_ops_s *isx012_initialize(void)
 {
-  /* return address of video operations variable */
+  /* return address of image senser device operations variable */
 
-  return &g_isx012_video_devops;
+  return &g_isx012_sensctrl_ops;
 }
 
 int isx012_uninitialize(void)
