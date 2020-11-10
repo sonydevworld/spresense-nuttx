@@ -380,6 +380,11 @@ static int (*g_cmdlist[CXD56_GNSS_IOCTL_MAX])(FAR struct file *filep,
 static struct pm_cpu_freqlock_s g_lv_lock =
   PM_CPUFREQLOCK_INIT(PM_CPUFREQLOCK_TAG('G', 'T', 0), PM_CPUFREQLOCK_FLAG_LV);
 
+/* Lock to prohibit clock change in gnss open */
+
+static struct pm_cpu_freqlock_s g_hold_lock =
+  PM_CPUFREQLOCK_INIT(0, PM_CPUFREQLOCK_FLAG_HOLD);
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -2611,7 +2616,16 @@ static int cxd56_gnss_open(FAR struct file *filep)
 
       nxsem_setprotocol(&priv->syncsem, SEM_PRIO_NONE);
 
+      /* Prohibit the clock change during loading image */
+
+      up_pm_acquire_freqlock(&g_hold_lock);
+
       ret = fw_pm_loadimage(CXD56_GNSS_GPS_CPUID, CXD56_GNSS_FWNAME);
+
+      /* Allow the clock change after loading image */
+
+      up_pm_release_freqlock(&g_hold_lock);
+
       if (ret < 0)
         {
           goto _err1;
