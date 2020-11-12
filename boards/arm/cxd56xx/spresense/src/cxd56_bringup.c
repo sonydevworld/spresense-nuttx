@@ -382,8 +382,14 @@ int cxd56_bringup(void)
   if (devops == NULL)
     {
       _err("ERROR: Failed to populate ISX012 devops. %d\n", ret);
-      ret = ERROR;
     }
+
+  ret = video_register_lhalf(devops);
+  if (ret < 0)
+    {
+       _err("ERROR: Video lower half register failed.\n");
+    }
+
 #endif /* CONFIG_VIDEO_ISX012 */
 
 #if defined(CONFIG_CXD56_SDIO)

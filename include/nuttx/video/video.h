@@ -614,6 +614,10 @@ struct v4l2_ext_controls
  * Public Function Prototypes
  ****************************************************************************/
 
+int video_register_lhalf(FAR const struct video_devops_s *devops);
+
+int video_unregister_lhalf(FAR const struct video_devops_s *devops);
+
 /* Initialize video driver.
  *
  *  param [in] devpath: path to video device
@@ -622,8 +626,7 @@ struct v4l2_ext_controls
  *  negative value is returned.
  */
 
-int video_initialize(FAR const char *devpath,
-                     FAR const struct video_devops_s *devops);
+int video_initialize(FAR const char *devpath);
 
 /* Uninitialize video driver.
  *

@@ -1474,8 +1474,37 @@ static int video_unregister(FAR video_mng_t *v_mgr)
  * Public Functions
  ****************************************************************************/
 
-int video_initialize(FAR const char *devpath,
-                     FAR const struct video_devops_s *devops)
+
+int video_register_lhalf(FAR const struct video_devops_s *devops)
+{
+  /* TODO: Need to care about the case in use */
+  if (g_video_devops == NULL)
+    {
+      g_video_devops = devops;
+      return OK;
+    }
+  else
+    {
+      return -1;
+    }
+}
+
+int video_unregister_lhalf(FAR const struct video_devops_s *devops)
+{
+  /* TODO: Need to care about the case in use */
+  if (g_video_devops == devops)
+    {
+      g_video_devops = NULL;
+      return OK;
+    }
+  else
+    {
+      return -1;
+    }
+}
+
+
+int video_initialize(FAR const char *devpath)
 {
   if (is_initialized)
     {
@@ -1484,8 +1513,6 @@ int video_initialize(FAR const char *devpath,
 
   video_handler = video_register(devpath);
 
-  g_video_devops = devops;
-
   is_initialized = true;
 
   return OK;
@@ -1493,14 +1520,12 @@ int video_initialize(FAR const char *devpath,
 
 int video_uninitialize(void)
 {
-  if (is_initialized)
+  if (!is_initialized)
     {
       return OK;
     }
 
   video_unregister(video_handler);
-
-  g_video_devops = NULL;
 
   is_initialized = false;
 
