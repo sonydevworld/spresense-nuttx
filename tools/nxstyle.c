@@ -1,65 +1,316 @@
-/****************************************************************************
+/********************************************************************************
  * tools/nxstyle.c
  *
- *   Copyright (C) 2015, 2018-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN  ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ****************************************************************************/
+ ********************************************************************************/
 
-/****************************************************************************
+/********************************************************************************
  * Included Files
- ****************************************************************************/
+ ********************************************************************************/
 
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
+#include <limits.h>
+#include <unistd.h>
+#include <libgen.h>
 
-/****************************************************************************
+/********************************************************************************
  * Pre-processor Definitions
- ****************************************************************************/
+ ********************************************************************************/
 
-#define LINE_SIZE    512
+#define NXSTYLE_VERSION "0.01"
 
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+#define LINE_SIZE      512
+#define RANGE_NUMBER   4096
+#define DEFAULT_WIDTH  78
 
-static void show_usage(char *progname, int exitcode)
+#define FIRST_SECTION  INCLUDED_FILES
+#define LAST_SECTION   PUBLIC_FUNCTION_PROTOTYPES
+
+#define FATAL(m, l, o) message(FATAL, (m), (l), (o))
+#define FATALFL(m, s)  message(FATAL, (m), -1, -1)
+#define WARN(m, l, o)  message(WARN, (m), (l), (o))
+#define ERROR(m, l, o) message(ERROR, (m), (l), (o))
+#define ERRORFL(m, s)  message(ERROR, (m), -1, -1)
+#define INFO(m, l, o)  message(INFO, (m), (l), (o))
+#define INFOFL(m, s)   message(INFO, (m), -1, -1)
+
+/********************************************************************************
+ * Private types
+ ********************************************************************************/
+
+enum class_e
 {
-  fprintf(stderr, "Usage:  %s [-m <maxline>] <filename>\n", progname);
-  fprintf(stderr, "        %s -h\n", progname);
+  INFO,
+  WARN,
+  ERROR,
+  FATAL
+};
+
+const char *class_text[] =
+{
+  "info",
+  "warning",
+  "error",
+  "fatal"
+};
+
+enum file_e
+{
+  UNKNOWN  = 0x00,
+  C_HEADER = 0x01,
+  C_SOURCE = 0x02
+};
+
+enum section_s
+{
+  NO_SECTION = 0,
+  INCLUDED_FILES,
+  PRE_PROCESSOR_DEFINITIONS,
+  PUBLIC_TYPES,
+  PRIVATE_TYPES,
+  PRIVATE_DATA,
+  PUBLIC_DATA,
+  PRIVATE_FUNCTIONS,
+  PRIVATE_FUNCTION_PROTOTYPES,
+  INLINE_FUNCTIONS,
+  PUBLIC_FUNCTIONS,
+  PUBLIC_FUNCTION_PROTOTYPES
+};
+
+enum pptype_e
+{
+  PPLINE_NONE = 0,
+  PPLINE_DEFINE,
+  PPLINE_IF,
+  PPLINE_ELIF,
+  PPLINE_ELSE,
+  PPLINE_ENDIF,
+  PPLINE_OTHER
+};
+
+struct file_section_s
+{
+  const char *name;   /* File section name */
+  uint8_t     ftype;  /* File type where section found */
+};
+
+/********************************************************************************
+ * Private data
+ ********************************************************************************/
+
+static char *g_file_name        = "";
+static enum file_e g_file_type  = UNKNOWN;
+static enum section_s g_section = NO_SECTION;
+static int g_maxline            = DEFAULT_WIDTH;
+static int g_status             = 0;
+static int g_verbose            = 2;
+static int g_rangenumber        = 0;
+static int g_rangestart[RANGE_NUMBER];
+static int g_rangecount[RANGE_NUMBER];
+
+static const struct file_section_s g_section_info[] =
+{
+  {
+    " *\n",                             /* Index: NO_SECTION */
+    C_SOURCE | C_HEADER
+  },
+  {
+    " * Included Files\n",              /* Index: INCLUDED_FILES */
+    C_SOURCE | C_HEADER
+  },
+  {
+    " * Pre-processor Definitions\n",   /* Index: PRE_PROCESSOR_DEFINITIONS */
+    C_SOURCE | C_HEADER
+  },
+  {
+    " * Public Types\n",                /* Index: PUBLIC_TYPES */
+    C_HEADER
+  },
+  {
+    " * Private Types\n",               /* Index: PRIVATE_TYPES */
+    C_SOURCE
+  },
+  {
+    " * Private Data\n",                /* Index: PRIVATE_DATA */
+    C_SOURCE
+  },
+  {
+    " * Public Data\n",                 /* Index: PUBLIC_DATA */
+    C_SOURCE | C_HEADER
+  },
+  {
+    " * Private Functions\n",           /* Index: PRIVATE_FUNCTIONS */
+    C_SOURCE
+  },
+  {
+    " * Private Function Prototypes\n", /* Index: PRIVATE_FUNCTION_PROTOTYPES */
+    C_SOURCE
+  },
+  {
+    " * Inline Functions\n",            /* Index: INLINE_FUNCTIONS */
+    C_SOURCE | C_HEADER
+  },
+  {
+    " * Public Functions\n",            /* Index: PUBLIC_FUNCTIONS */
+    C_SOURCE
+  },
+  {
+    " * Public Function Prototypes\n",  /* Index: PUBLIC_FUNCTION_PROTOTYPES */
+    C_SOURCE | C_HEADER
+  }
+};
+
+static const char *g_white_prefix[] =
+{
+  "Elf",     /* Ref:  include/elf.h, include/elf32.h, include/elf64.h */
+  "PRId",    /* Ref:  inttypes.h */
+  "PRIi",    /* Ref:  inttypes.h */
+  "PRIo",    /* Ref:  inttypes.h */
+  "PRIu",    /* Ref:  inttypes.h */
+  "PRIx",    /* Ref:  inttypes.h */
+  "SCNd",    /* Ref:  inttypes.h */
+  "SCNi",    /* Ref:  inttypes.h */
+  "SCNo",    /* Ref:  inttypes.h */
+  "SCNu",    /* Ref:  inttypes.h */
+  "SCNx",    /* Ref:  inttypes.h */
+  "SYS_",    /* Ref:  include/sys/syscall.h */
+  "STUB_",   /* Ref:  syscall/syscall_lookup.h, syscall/sycall_stublookup.c */
+  "b8",      /* Ref:  include/fixedmath.h */
+  "b16",     /* Ref:  include/fixedmath.h */
+  "b32",     /* Ref:  include/fixedmath.h */
+  "ub8",     /* Ref:  include/fixedmath.h */
+  "ub16",    /* Ref:  include/fixedmath.h */
+  "ub32",    /* Ref:  include/fixedmath.h */
+  NULL
+};
+
+static const char *g_white_list[] =
+{
+  "__EIT_entry",             /* Ref:  gnu_unwind_find_exidx.c */
+  "__gnu_Unwind_Find_exidx", /* Ref:  gnu_unwind_find_exidx.c */
+  "_Exit",                   /* Ref:  stdlib.h */
+  "_Unwind_Ptr",             /* Ref:  unwind-arm-common.h */
+  NULL
+};
+
+/********************************************************************************
+ * Private Functions
+ ********************************************************************************/
+
+/********************************************************************************
+ * Name: show_usage
+ *
+ * Description:
+ *
+ ********************************************************************************/
+
+static void show_usage(char *progname, int exitcode, char *what)
+{
+  fprintf(stderr, "%s version %s\n\n", basename(progname), NXSTYLE_VERSION);
+  if (what)
+    {
+      fprintf(stderr, "%s\n", what);
+    }
+
+  fprintf(stderr, "Usage:  %s [-m <excess>] [-v <level>] "
+                  "[-r <start,count>] <filename>\n",
+          basename(progname));
+  fprintf(stderr, "        %s -h this help\n", basename(progname));
+  fprintf(stderr, "        %s -v <level> where level is\n",
+          basename(progname));
+  fprintf(stderr, "                   0 - no output\n");
+  fprintf(stderr, "                   1 - PASS/FAIL\n");
+  fprintf(stderr, "                   2 - output each line (default)\n");
   exit(exitcode);
 }
+
+/********************************************************************************
+ * Name: skip
+ *
+ * Description:
+ *
+ ********************************************************************************/
+
+static int skip(int lineno)
+{
+  int i;
+
+  for (i = 0; i < g_rangenumber; i++)
+    {
+      if (lineno >= g_rangestart[i] && lineno < g_rangestart[i] +
+          g_rangecount[i])
+        {
+          return 0;
+        }
+    }
+
+  return g_rangenumber != 0;
+}
+
+/********************************************************************************
+ * Name: message
+ *
+ * Description:
+ *
+ ********************************************************************************/
+
+static int message(enum class_e class, const char *text, int lineno, int ndx)
+{
+  FILE *out = stdout;
+
+  if (skip(lineno))
+    {
+      return g_status;
+    }
+
+  if (class > INFO)
+    {
+      out = stderr;
+      g_status |= 1;
+    }
+
+  if (g_verbose == 2)
+    {
+      if (lineno == -1 && ndx == -1)
+        {
+          fprintf(out, "%s: %s: %s\n", g_file_name, class_text[class], text);
+        }
+      else
+        {
+          fprintf(out, "%s:%d:%d: %s: %s\n", g_file_name, lineno, ndx,
+                  class_text[class], text);
+        }
+    }
+
+  return g_status;
+}
+
+/********************************************************************************
+ * Name: check_spaces_left
+ *
+ * Description:
+ *
+ ********************************************************************************/
 
 static void check_spaces_left(char *line, int lineno, int ndx)
 {
@@ -68,40 +319,247 @@ static void check_spaces_left(char *line, int lineno, int ndx)
    * expression or follow a right parentheses in the case of a cast.
    */
 
-  if (ndx > 0 && line[ndx - 1] != ' ' && line[ndx - 1] != '(' && line[ndx - 1] != ')')
+  if (ndx-- > 0 && line[ndx] != ' ' && line[ndx] != '(' && line[ndx] != ')')
     {
-      fprintf(stderr,
-              "Operator/assignment must be preceded with whitespace at line %d:%d\n",
-              lineno, ndx);
+       ERROR("Operator/assignment must be preceded with whitespace",
+             lineno, ndx);
     }
 }
+
+/********************************************************************************
+ * Name: check_spaces_leftright
+ *
+ * Description:
+ *
+ ********************************************************************************/
 
 static void check_spaces_leftright(char *line, int lineno, int ndx1, int ndx2)
 {
   if (ndx1 > 0 && line[ndx1 - 1] != ' ')
     {
-      fprintf(stderr,
-              "Operator/assignment must be preceded with whitespace at line %d:%d\n",
-              lineno, ndx1);
+       ERROR("Operator/assignment must be preceded with whitespace",
+             lineno, ndx1);
     }
 
   if (line[ndx2 + 1] != '\0' && line[ndx2 + 1] != '\n' && line[ndx2 + 1] != ' ')
     {
-      fprintf(stderr,
-              "Operator/assignment must be followed with whitespace at line %d:%d\n",
-              lineno, ndx2);
+       ERROR("Operator/assignment must be followed with whitespace",
+             lineno, ndx2);
     }
 }
 
-/****************************************************************************
+/********************************************************************************
+ * Name: block_comment_width
+ *
+ * Description:
+ *   Get the width of a block comment
+ *
+ ********************************************************************************/
+
+static int block_comment_width(char *line)
+{
+  int b;
+  int e;
+  int n;
+
+  /* Skip over any leading whitespace on the line */
+
+  for (b = 0; isspace(line[b]); b++)
+    {
+    }
+
+  /* Skip over any trailing whitespace at the end of the line */
+
+  for (e = strlen(line) - 1; e >= 0 && isspace(line[e]); e--)
+    {
+    }
+
+  /* Number of characters on the line */
+
+  n = e - b + 1;
+  if (n < 4)
+    {
+      return 0;
+    }
+
+  /* The first line of a block comment starts with "[slash]***" and ends with
+   * "***"
+   */
+
+  if (strncmp(&line[b], "/***", 4) == 0 &&
+      strncmp(&line[e - 2], "***", 3) == 0)
+    {
+      /* Return the the length of the line up to the final '*' */
+
+      return e + 1;
+    }
+
+  /* The last line of a block begins with whitespace then "***" and ends
+   * with "***[slash]"
+   */
+
+  if (strncmp(&line[b], "***", 3) == 0 &&
+      strncmp(&line[e - 3], "***/", 4) == 0)
+    {
+      /* Return the the length of the line up to the final '*' */
+
+      return e;
+    }
+
+  /* But there is also a special single line comment that begins with "[slash]* "
+   * and ends with "***[slash]"
+   */
+
+  if (strncmp(&line[b], "/*", 2) == 0 &&
+      strncmp(&line[e - 3], "***/", 4) == 0)
+    {
+      /* Return the the length of the line up to the final '*' */
+
+      return e;
+    }
+
+  /* Return zero if the line is not the first or last line of a block
+   * comment.
+   */
+
+  return 0;
+}
+
+/********************************************************************************
+ * Name: get_line_width
+ *
+ * Description:
+ *   Get the maximum line width by examining the width of the block comments.
+ *
+ ********************************************************************************/
+
+static int get_line_width(FILE *instream)
+{
+  char line[LINE_SIZE]; /* The current line being examined */
+  int max        = 0;
+  int min        = INT_MAX;
+  int lineno     = 0;
+  int lineno_max = 0;
+  int lineno_min = 0;
+  int len;
+
+  while (fgets(line, LINE_SIZE, instream))
+    {
+      lineno++;
+      len = block_comment_width(line);
+      if (len > 0)
+        {
+          if (len > max)
+            {
+              max = len;
+              lineno_max = lineno;
+            }
+
+          if (len < min)
+            {
+              min = len;
+              lineno_min = lineno;
+            }
+        }
+    }
+
+  if (max < min)
+    {
+      ERRORFL("No block comments found", g_file_name);
+      return DEFAULT_WIDTH;
+    }
+  else if (max != min)
+    {
+      ERROR("Block comments have different lengths", lineno_max, max);
+      ERROR("Block comments have different lengths", lineno_min, min);
+      return DEFAULT_WIDTH;
+    }
+
+  return min;
+}
+
+/********************************************************************************
+ * Name:  check_section_header
+ *
+ * Description:
+ *   Check if the current line holds a section header
+ *
+ ********************************************************************************/
+
+static bool check_section_header(const char *line, int lineno)
+{
+  int i;
+
+  /* Search g_section_info[] to find a matching section header line */
+
+  for (i = FIRST_SECTION; i <= LAST_SECTION; i++)
+    {
+      if (strcmp(line, g_section_info[i].name) == 0)
+        {
+          g_section = (enum section_s)i;
+
+          /* Verify that this section is appropriate for this file type */
+
+          if ((g_file_type & g_section_info[i].ftype) == 0)
+            {
+              ERROR("Invalid section for this file type", lineno, 3);
+            }
+
+          return true;
+        }
+    }
+
+  return false;
+}
+
+/********************************************************************************
+ * Name:  white_prefix
+ *
+ * Description:
+ *   Return true if the identifier string begins with a white-listed prefix
+ *
+ ********************************************************************************/
+
+static bool white_list(const char *ident, int lineno)
+{
+  const char **pptr;
+  const char *str;
+
+  for (pptr = g_white_prefix;
+       (str = *pptr) != NULL;
+       pptr++)
+    {
+      if (strncmp(ident, str, strlen(str)) == 0)
+        {
+          return true;
+        }
+    }
+
+  for (pptr = g_white_list;
+       (str = *pptr) != NULL;
+       pptr++)
+    {
+      size_t len = strlen(str);
+
+      if (strncmp(ident, str, len) == 0 &&
+          isalnum(ident[len]) == 0)
+        {
+          return true;
+        }
+    }
+
+  return false;
+}
+
+/********************************************************************************
  * Public Functions
- ****************************************************************************/
+ ********************************************************************************/
 
 int main(int argc, char **argv, char **envp)
 {
   FILE *instream;       /* File input stream */
   char line[LINE_SIZE]; /* The current line being examined */
-  char *filename;       /* Name of the file to open */
+  char buffer[100];     /* Localy format error strings */
   char *lptr;           /* Temporary pointer into line[] */
   char *ext;            /* Temporary file extension */
   bool btabs;           /* True: TAB characters found on the line */
@@ -113,10 +571,13 @@ int main(int argc, char **argv, char **envp)
   bool bstring;         /* True: Within a string */
   bool bquote;          /* True: Backslash quoted character next */
   bool bblank;          /* Used to verify block comment terminator */
-  bool ppline;          /* True: The next line the continuation of a pre-processor command */
-  bool hdrfile;         /* True: File is a header file */
   bool bexternc;        /* True: Within 'extern "C"' */
-  bool brhcomment;      /* True: Comment to the right of code */
+  enum pptype_e ppline; /* > 0: The next line the continuation of a
+                         * pre-processor command */
+  int rhcomment;        /* Indentation of Comment to the right of code
+                         * (-1 -> don't check position) */
+  int prevrhcmt;        /* Indentation of previous Comment to the right
+                         * of code (-1 -> don't check position) */
   int lineno;           /* Current line number */
   int indent;           /* Indentation level */
   int ncomment;         /* Comment nesting level on this line */
@@ -126,6 +587,8 @@ int main(int argc, char **argv, char **envp)
   int dnest;            /* Data declaration nesting level on this line */
   int prevdnest;        /* Data declaration nesting level on the previous line */
   int pnest;            /* Parenthesis nesting level on this line */
+  int ppifnest;         /* #if nesting level on this line */
+  int inasm;            /* > 0: Within #ifdef __ASSEMBLY__ */
   int comment_lineno;   /* Line on which the last comment was closed */
   int blank_lineno;     /* Line number of the last blank line */
   int noblank_lineno;   /* A blank line is not needed after this line */
@@ -133,91 +596,124 @@ int main(int argc, char **argv, char **envp)
   int rbrace_lineno;    /* Last line containing a right brace */
   int externc_lineno;   /* Last line where 'extern "C"' declared */
   int linelen;          /* Length of the line */
-  int maxline;          /* Lines longer that this generate warnings */
+  int excess;
   int n;
   int i;
+  int c;
 
-  maxline  = 78;
-  filename = argv[1];
-
-  /* Usage:  nxstyle [-m <maxline>] <filename>
-   *         nxstyle -h
-   */
-
-  if (argc == 4)
+  excess = 0;
+  while ((c = getopt(argc, argv, ":hv:gm:r:")) != -1)
     {
-      if (strcmp(argv[1], "-m") != 0)
-        {
-          fprintf(stderr, "Unrecognized argument\n");
-          show_usage(argv[0], 1);
-        }
+      switch (c)
+      {
+      case 'm':
+        excess = atoi(optarg);
+        if (excess < 1)
+          {
+            show_usage(argv[0], 1, "Bad value for <excess>.");
+            excess = 0;
+          }
 
-      maxline = atoi(argv[2]);
-      if (maxline < 1)
-        {
-          fprintf(stderr, "Bad value for <maxline>\n");
-          show_usage(argv[0], 1);
-        }
+        break;
 
-      filename = argv[3];
-    }
-  else if (argc == 2)
+      case 'v':
+        g_verbose = atoi(optarg);
+        if (g_verbose < 0 || g_verbose > 2)
+          {
+            show_usage(argv[0], 1, "Bad value for <level>.");
+          }
+
+        break;
+
+      case 'r':
+        g_rangestart[g_rangenumber] = atoi(strtok(optarg, ","));
+        g_rangecount[g_rangenumber++] = atoi(strtok(NULL, ","));
+        break;
+
+      case 'h':
+        show_usage(argv[0], 0, NULL);
+        break;
+
+      case ':':
+        show_usage(argv[0], 1, "Missing argument.");
+        break;
+
+      case '?':
+        show_usage(argv[0], 1, "Unrecognized option.");
+        break;
+
+      default:
+        show_usage(argv[0], 0, NULL);
+        break;
+      }
+  }
+
+  if (optind < argc - 1 || argv[optind] == NULL)
     {
-      if (strcmp(argv[1], "-h") == 0)
-        {
-          show_usage(argv[0], 0);
-        }
-    }
-  else
-    {
-      fprintf(stderr, "Invalid number of arguments\n");
-      show_usage(argv[0], 1);
+      show_usage(argv[0], 1, "No file name given.");
     }
 
-  instream = fopen(filename, "r");
-  if (!instream)
-    {
-      fprintf(stderr, "Failed to open %s\n", argv[1]);
-      return 1;
-    }
+  g_file_name = argv[optind];
 
   /* Are we parsing a header file? */
 
-  hdrfile = false;
-  ext     = strrchr(filename, '.');
+  ext = strrchr(g_file_name, '.');
 
   if (ext == 0)
     {
-      printf("No file extension\n");
     }
   else if (strcmp(ext, ".h") == 0)
     {
-      hdrfile = true;
+      g_file_type = C_HEADER;
     }
-  else if (strcmp(ext, ".c") != 0)
+  else if (strcmp(ext, ".c") == 0)
     {
-      printf("Unrecognized file extension: \"%s\"\n", ext + 1);
+      g_file_type = C_SOURCE;
     }
 
-  btabs          = false; /* True: TAB characters found on the line */
-  bcrs           = false; /* True: Carriable return found on the line */
-  bfunctions     = false; /* True: In private or public functions */
-  bswitch        = false; /* True: Within a switch statement */
-  bstring        = false; /* True: Within a string */
-  ppline         = false; /* True: Continuation of a pre-processor line */
-  bexternc       = false; /* True: Within 'extern "C"' */
-  brhcomment     = false; /* True: Comment to the right of code */
-  lineno         = 0;     /* Current line number */
-  ncomment       = 0;     /* Comment nesting level on this line */
-  bnest          = 0;     /* Brace nesting level on this line */
-  dnest          = 0;     /* Data declaration nesting level on this line */
-  pnest          = 0;     /* Parenthesis nesting level on this line */
-  comment_lineno = -1;    /* Line on which the last comment was closed */
-  blank_lineno   = -1;    /* Line number of the last blank line */
-  noblank_lineno = -1;    /* A blank line is not needed after this line */
-  lbrace_lineno  = -1;    /* Line number of last left brace */
-  rbrace_lineno  = -1;    /* Last line containing a right brace */
-  externc_lineno = -1;    /* Last line where 'extern "C"' declared */
+  if (g_file_type == UNKNOWN)
+    {
+      return 0;
+    }
+
+  instream = fopen(g_file_name, "r");
+
+  if (!instream)
+    {
+      FATALFL("Failed to open", g_file_name);
+      return 1;
+    }
+
+  /* Determine the line width */
+
+  g_maxline = get_line_width(instream) + excess;
+  rewind(instream);
+
+  btabs          = false;       /* True: TAB characters found on the line */
+  bcrs           = false;       /* True: Carriage return found on the line */
+  bfunctions     = false;       /* True: In private or public functions */
+  bswitch        = false;       /* True: Within a switch statement */
+  bstring        = false;       /* True: Within a string */
+  bexternc       = false;       /* True: Within 'extern "C"' */
+  ppline         = PPLINE_NONE; /* > 0: The next line the continuation of a
+                                 * pre-processor command */
+  rhcomment      = 0;           /* Indentation of Comment to the right of code
+                                 * (-1 -> don't check position) */
+  prevrhcmt      = 0;           /* Indentation of previous Comment to the right
+                                 * of code (-1 -> don't check position) */
+  lineno         = 0;           /* Current line number */
+  ncomment       = 0;           /* Comment nesting level on this line */
+  bnest          = 0;           /* Brace nesting level on this line */
+  dnest          = 0;           /* Data declaration nesting level on this line */
+  pnest          = 0;           /* Parenthesis nesting level on this line */
+  ppifnest       = 0;           /* #if nesting level on this line */
+  inasm          = 0;           /* > 0: Within #ifdef __ASSEMBLY__ */
+  comment_lineno = -1;          /* Line on which the last comment was closed */
+  blank_lineno   = -1;          /* Line number of the last blank line */
+  noblank_lineno = -1;          /* A blank line is not needed after this line */
+  lbrace_lineno  = -1;          /* Line number of last left brace */
+  rbrace_lineno  = -1;          /* Last line containing a right brace */
+  externc_lineno = -1;          /* Last line where 'extern "C"' declared */
 
   /* Process each line in the input stream */
 
@@ -226,16 +722,21 @@ int main(int argc, char **argv, char **envp)
       lineno++;
       indent       = 0;
       prevbnest    = bnest;    /* Brace nesting level on the previous line */
-      prevdnest    = dnest;    /* Data declaration nesting level on the previous line */
+      prevdnest    = dnest;    /* Data declaration nesting level on the
+                                * previous line */
       prevncomment = ncomment; /* Comment nesting level on the previous line */
-      bstatm       = false;    /* True: This line is beginning of a statement */
+      bstatm       = false;    /* True: This line is beginning of a
+                                * statement */
       bfor         = false;    /* REVISIT: Implies for() is all on one line */
 
-      /* If we are not in a comment, then this certainly is not a right-hand comment. */
+      /* If we are not in a comment, then this certainly is not a right-hand
+       * comment.
+       */
 
+      prevrhcmt = rhcomment;
       if (ncomment <= 0)
         {
-          brhcomment = false;
+          rhcomment = 0;
         }
 
       /* Check for a blank line */
@@ -248,22 +749,20 @@ int main(int argc, char **argv, char **envp)
         {
           if (n > 0)
             {
-              fprintf(stderr, "Blank line contains whitespace at line %d\n",
-                      lineno);
+              ERROR("Blank line contains whitespace", lineno, 1);
             }
 
           if (lineno == 1)
             {
-              fprintf(stderr,  "File begins with a blank line\n");
+              ERROR("File begins with a blank line", 1, 1);
             }
           else if (lineno == blank_lineno + 1)
             {
-              fprintf(stderr,  "Too many blank lines at line %d\n", lineno);
+              ERROR("Too many blank lines", lineno, 1);
             }
           else if (lineno == lbrace_lineno + 1)
             {
-              fprintf(stderr, "Blank line follows left brace at line %d\n",
-                      lineno);
+              ERROR("Blank line follows left brace", lineno, 1);
             }
 
           blank_lineno = lineno;
@@ -282,13 +781,19 @@ int main(int argc, char **argv, char **envp)
                * REVISIT: Generates a false alarm if the current line is also
                * a comment.  Generally it is acceptable for one comment to
                * follow another with no space separation.
+               *
+               * REVISIT: prevrhcmt is tested to case the preceding line
+               * contained comments to the right of the code.  In such cases,
+               * the comments are normally aligned and do not follow normal
+               * indentation rules.  However, this code will generate a false
+               * alarm if the comments are aligned to the right BUT the
+               * preceding line has no comment.
                */
 
-              if (line[n] != '}' /* && line[n] != '#' */)
+              if (line[n] != '}' && line[n] != '#' && prevrhcmt == 0)
                 {
-                  fprintf(stderr,
-                          "Missing blank line after comment found at line %d\n",
-                          comment_lineno);
+                   ERROR("Missing blank line after comment", comment_lineno,
+                         1);
                 }
             }
 
@@ -299,50 +804,49 @@ int main(int argc, char **argv, char **envp)
 
           if (lineno == 1 && (line[n] != '/' || line[n + 1] != '*'))
             {
-              fprintf(stderr,
-                      "Missing file header comment block at line 1\n");
+               ERROR("Missing file header comment block", lineno, 1);
             }
 
-           /* Check for a blank line following a right brace */
+          /* Check for a blank line following a right brace */
 
           if (bfunctions && lineno == rbrace_lineno + 1)
-             {
-               /* Check if this line contains a right brace.  A right brace
-                * must be followed by 'else', 'while', 'break', a blank line,
-                * another right brace, or a pre-processor directive like #endif
-                */
+            {
+              /* Check if this line contains a right brace.  A right brace
+               * must be followed by 'else', 'while', 'break', a blank line,
+               * another right brace, or a pre-processor directive like #endif
+               */
 
-               if (strchr(line, '}') == NULL && line[n] != '#' &&
-                   strncmp(&line[n], "else", 4) != 0 &&
-                   strncmp(&line[n], "while", 5) != 0 &&
-                   strncmp(&line[n], "break", 5) != 0)
-                 {
-                   fprintf(stderr,
-                          "Right brace must be followed by a blank line at line %d\n",
-                          rbrace_lineno);
-                 }
+              if (dnest == 0 &&
+                  strchr(line, '}') == NULL && line[n] != '#' &&
+                  strncmp(&line[n], "else", 4) != 0 &&
+                  strncmp(&line[n], "while", 5) != 0 &&
+                  strncmp(&line[n], "break", 5) != 0)
+                {
+                   ERROR("Right brace must be followed by a blank line",
+                         rbrace_lineno, n + 1);
+                }
 
-               /* If the right brace is followed by a pre-proceeor command
-                * like #endif (but not #else or #elif), then set the right
-                * brace line number to the line number of the pre-processor
-                * command (it then must be followed by a blank line)
-                */
+              /* If the right brace is followed by a pre-processor command
+               * like #endif (but not #else or #elif), then set the right
+               * brace line number to the line number of the pre-processor
+               * command (it then must be followed by a blank line)
+               */
 
-               if (line[n] == '#')
-                 {
-                   int ii;
+              if (line[n] == '#')
+                {
+                  int ii;
 
-                   for (ii = n + 1; line[ii] != '\0' && isspace(line[ii]); ii++)
-                     {
-                     }
+                  for (ii = n + 1; line[ii] != '\0' && isspace(line[ii]); ii++)
+                    {
+                    }
 
-                   if (strncmp(&line[ii], "else", 4) != 0 &&
-                       strncmp(&line[ii], "elif", 4) != 0)
-                     {
-                       rbrace_lineno = lineno;
-                     }
-                 }
-             }
+                  if (strncmp(&line[ii], "else", 4) != 0 &&
+                      strncmp(&line[ii], "elif", 4) != 0)
+                    {
+                      rbrace_lineno = lineno;
+                    }
+                }
+            }
         }
 
       /* STEP 1: Find the indentation level and the start of real stuff on
@@ -363,8 +867,7 @@ int main(int argc, char **argv, char **envp)
               {
                 if (!btabs)
                   {
-                    fprintf(stderr, "TABs found.  First detected at line %d:%d\n",
-                            lineno, n);
+                    ERROR("TABs found.  First detected", lineno, n);
                     btabs = true;
                   }
 
@@ -376,8 +879,8 @@ int main(int argc, char **argv, char **envp)
               {
                 if (!bcrs)
                   {
-                    fprintf(stderr, "Carriage returns found.  "
-                            "First detected at line %d:%d\n", lineno, n);
+                    ERROR("Carriage returns found.  "
+                            "First detected", lineno, n);
                     bcrs = true;
                   }
               }
@@ -385,26 +888,176 @@ int main(int argc, char **argv, char **envp)
 
             default:
               {
-                fprintf(stderr,
-                        "Unexpected white space character %02x found at line %d:%d\n",
-                        line[n], lineno, n);
+                 snprintf(buffer, sizeof(buffer),
+                          "Unexpected white space character %02x found",
+                          line[n]);
+                 ERROR(buffer, lineno, n);
               }
               break;
             }
         }
 
       /* STEP 2: Detect some certain start of line conditions */
+
       /* Skip over pre-processor lines (or continuations of pre-processor
        * lines as indicated by ppline)
        */
 
-      if (line[indent] == '#' || ppline)
+      if (line[indent] == '#' || ppline != PPLINE_NONE)
         {
           int len;
+          int ii;
 
           /* Suppress error for comment following conditional compilation */
 
           noblank_lineno = lineno;
+
+          /* Check pre-processor commands if this is not a continuation
+           * line.
+           */
+
+          ii = indent + 1;
+
+          if (ppline == PPLINE_NONE)
+            {
+              /* Skip to the pre-processor command following the '#' */
+
+              while (line[ii] != '\0' && isspace(line[ii]))
+                {
+                  ii++;
+                }
+
+              if (line[ii] != '\0')
+                {
+                  /* Make sure that pre-processor definitions are all in
+                  * the pre-processor definitions section.
+                  */
+
+                  ppline = PPLINE_OTHER;
+
+                  if (strncmp(&line[ii], "define", 6) == 0)
+                    {
+                      ppline = PPLINE_DEFINE;
+
+                      if (g_section != PRE_PROCESSOR_DEFINITIONS)
+                        {
+                          /* A complication is the header files always have
+                           * the idempotence guard definitions before the
+                           * "Pre-processor Definitions section".
+                           */
+
+                          if (g_section == NO_SECTION &&
+                              g_file_type != C_HEADER)
+                            {
+                              /* Only a warning because there is some usage
+                               * of define outside the Pre-processor
+                               * Definitions section which is justifiable.
+                               * Should be manually checked.
+                               */
+
+                              WARN("#define outside of 'Pre-processor "
+                                   "Definitions' section",
+                                   lineno, ii);
+                            }
+                        }
+                    }
+
+                  /* Make sure that files are included only in the Included
+                   * Files section.
+                   */
+
+                  else if (strncmp(&line[ii], "include", 7) == 0)
+                    {
+                      if (g_section != INCLUDED_FILES)
+                        {
+                          /* Only a warning because there is some usage of
+                           * include outside the Included Files section
+                           * which may be is justifiable.  Should be
+                           * manually checked.
+                           */
+
+                          WARN("#include outside of 'Included Files' "
+                               "section",
+                               lineno, ii);
+                        }
+                    }
+                  else if (strncmp(&line[ii], "if", 2) == 0)
+                    {
+                      ppifnest++;
+
+                      ppline = PPLINE_IF;
+                      ii += 2;
+                    }
+                  else if (strncmp(&line[ii], "elif", 4) == 0)
+                    {
+                      if (ppifnest == inasm)
+                        {
+                          inasm = 0;
+                        }
+
+                      ppline = PPLINE_ELIF;
+                      ii += 4;
+                    }
+                  else if (strncmp(&line[ii], "else", 4) == 0)
+                    {
+                      if (ppifnest == inasm)
+                        {
+                          inasm = 0;
+                        }
+
+                      ppline = PPLINE_ELSE;
+                    }
+                  else if (strncmp(&line[ii], "endif", 4) == 0)
+                    {
+                      if (ppifnest == inasm)
+                        {
+                          inasm = 0;
+                        }
+
+                      ppifnest--;
+
+                      ppline = PPLINE_ENDIF;
+                    }
+               }
+            }
+
+          if (ppline == PPLINE_IF || ppline == PPLINE_ELIF)
+            {
+              int bdef = 0;
+
+              if (strncmp(&line[ii], "def", 3) == 0)
+                {
+                  bdef = 1;
+                  ii += 3;
+                }
+              else
+                {
+                  while (line[ii] != '\0' && isspace(line[ii]))
+                    {
+                      ii++;
+                    }
+
+                  if (strncmp(&line[ii], "defined", 7) == 0)
+                    {
+                      bdef = 1;
+                      ii += 7;
+                    }
+                }
+
+              if (bdef)
+                {
+                  while (line[ii] != '\0' &&
+                      (isspace(line[ii]) || line[ii] == '('))
+                    {
+                      ii++;
+                    }
+
+                  if (strncmp(&line[ii], "__ASSEMBLY__", 12) == 0)
+                    {
+                      inasm = ppifnest;
+                    }
+                }
+            }
 
           /* Check if the next line will be a continuation of the pre-
            * processor command.
@@ -416,7 +1069,69 @@ int main(int argc, char **argv, char **envp)
               len--;
             }
 
-          ppline = (line[len] == '\\');
+          /* Propagate rhcomment over preprocessor lines Issue #120 */
+
+          if (prevrhcmt != 0)
+            {
+              /* Don't check position */
+
+              rhcomment = -1;
+            }
+
+          lptr = strstr(line, "/*");
+          if (lptr != NULL)
+            {
+              n = lptr - &line[0];
+              if (line[n + 2] == '\n')
+                {
+                  ERROR("C comment opening on separate line", lineno, n);
+                }
+              else if (!isspace((int)line[n + 2]) && line[n + 2] != '*')
+                {
+                   ERROR("Missing space after opening C comment", lineno, n);
+                }
+
+              if (strstr(lptr, "*/") == NULL)
+                {
+                  /* Increment the count of nested comments */
+
+                  ncomment++;
+                }
+
+              if (ppline == PPLINE_DEFINE)
+                {
+                  rhcomment = n;
+                  if (prevrhcmt > 0 && n != prevrhcmt)
+                    {
+                      rhcomment = prevrhcmt;
+                      WARN("Wrong column position of comment right of code",
+                          lineno, n);
+                    }
+                }
+              else
+                {
+                  /* Signal rhcomment, but ignore position */
+
+                  rhcomment = -1;
+
+                  if (ncomment > 0 &&
+                      (ppline == PPLINE_IF ||
+                       ppline == PPLINE_ELSE ||
+                       ppline == PPLINE_ELIF))
+                    {
+                      /* in #if...  and #el... */
+
+                      ERROR("No multiline comment right of code allowed here",
+                          lineno, n);
+                    }
+                }
+            }
+
+          if (line[len] != '\\' || ncomment > 0)
+            {
+              ppline = PPLINE_NONE;
+            }
+
           continue;
         }
 
@@ -429,18 +1144,27 @@ int main(int argc, char **argv, char **envp)
           if (line[indent] == '/' && line[indent + 1] == '*' &&
               lptr - line == linelen - 3)
             {
+              /* If preceding comments were to the right of code, then we can
+               * assume that there is a columnar alignment of columns that do
+               * no follow the usual alignment.  So the rhcomment flag
+               * should propagate.
+               */
+
+              rhcomment = prevrhcmt;
+
               /* Check if there should be a blank line before the comment */
 
               if (lineno > 1 &&
                   comment_lineno != lineno - 1 &&
                   blank_lineno   != lineno - 1 &&
-                  noblank_lineno != lineno - 1)
+                  noblank_lineno != lineno - 1 &&
+                  rhcomment == 0)
                 {
-                  /* TODO:  This generates a false alarm if preceded by a label. */
+                  /* TODO:  This generates a false alarm if preceded
+                   * by a label.
+                   */
 
-                  fprintf(stderr,
-                          "Missing blank line before comment found at line %d\n",
-                          lineno);
+                   ERROR("Missing blank line before comment found", lineno, 1);
                 }
 
               /* 'comment_lineno 'holds the line number of the last closing
@@ -449,18 +1173,19 @@ int main(int argc, char **argv, char **envp)
                */
 
               comment_lineno = lineno;
-              brhcomment = false;
             }
         }
 
-      /* Check for the comment block indicating the beginning of functions. */
+      /* Check for the comment block indicating the beginning of a new file
+       * section.
+       */
 
-      if (!bfunctions && ncomment > 0 &&
-          (strcmp(line, " * Private Functions\n") == 0 ||
-           strcmp(line, " * Public Functions\n") == 0))
+      if (check_section_header(line, lineno))
         {
-          //fprintf(stderr, "Functions begin at line %d:%d\n", lineno, n);
-          bfunctions = true;
+          if (g_section == PRIVATE_FUNCTIONS || g_section == PUBLIC_FUNCTIONS)
+            {
+              bfunctions = true;  /* Latched */
+            }
         }
 
       /* Check for some kind of declaration.
@@ -470,170 +1195,178 @@ int main(int argc, char **argv, char **envp)
        * example.
        */
 
-      else if (strncmp(&line[indent], "auto ", 5) == 0 ||
-               strncmp(&line[indent], "bool ", 5) == 0 ||
-               strncmp(&line[indent], "char ", 5) == 0 ||
-               strncmp(&line[indent], "CODE ", 5) == 0 ||
-               strncmp(&line[indent], "const ", 6) == 0 ||
-               strncmp(&line[indent], "double ", 7) == 0 ||
-//             strncmp(&line[indent], "struct ", 7) == 0 ||
-               strncmp(&line[indent], "struct", 6) == 0 ||      /* May be unnamed */
-               strncmp(&line[indent], "enum ", 5) == 0 ||
-               strncmp(&line[indent], "extern ", 7) == 0 ||
-               strncmp(&line[indent], "EXTERN ", 7) == 0 ||
-               strncmp(&line[indent], "FAR ", 4) == 0 ||
-               strncmp(&line[indent], "float ", 6) == 0 ||
-               strncmp(&line[indent], "int ", 4) == 0 ||
-               strncmp(&line[indent], "int16_t ", 8) == 0 ||
-               strncmp(&line[indent], "int32_t ", 8) == 0 ||
-               strncmp(&line[indent], "long ", 5) == 0 ||
-               strncmp(&line[indent], "off_t ", 6) == 0 ||
-               strncmp(&line[indent], "register ", 9) == 0 ||
-               strncmp(&line[indent], "short ", 6) == 0 ||
-               strncmp(&line[indent], "signed ", 7) == 0 ||
-               strncmp(&line[indent], "size_t ", 7) == 0 ||
-               strncmp(&line[indent], "ssize_t ", 8) == 0 ||
-               strncmp(&line[indent], "static ", 7) == 0 ||
-               strncmp(&line[indent], "time_t ", 7) == 0 ||
-               strncmp(&line[indent], "typedef ", 8) == 0 ||
-               strncmp(&line[indent], "uint8_t ", 8) == 0 ||
-               strncmp(&line[indent], "uint16_t ", 9) == 0 ||
-               strncmp(&line[indent], "uint32_t ", 9) == 0 ||
-//             strncmp(&line[indent], "union ", 6) == 0 ||
-               strncmp(&line[indent], "union", 5) == 0 ||      /* May be unnamed */
-               strncmp(&line[indent], "unsigned ", 9) == 0 ||
-               strncmp(&line[indent], "void ", 5) == 0 ||
-               strncmp(&line[indent], "volatile ", 9) == 0)
+      else if (inasm == 0)
         {
-          /* Check if this is extern "C";  We don't typically indent following
-           * this.
-           */
-
-          if (strncmp(&line[indent], "extern \"C\"", 10) == 0)
+          if (strncmp(&line[indent], "auto ", 5) == 0 ||
+                   strncmp(&line[indent], "bool ", 5) == 0 ||
+                   strncmp(&line[indent], "char ", 5) == 0 ||
+                   strncmp(&line[indent], "CODE ", 5) == 0 ||
+                   strncmp(&line[indent], "const ", 6) == 0 ||
+                   strncmp(&line[indent], "double ", 7) == 0 ||
+                   strncmp(&line[indent], "struct ", 7) == 0 ||
+                   strncmp(&line[indent], "struct\n", 7) == 0 || /* May be unnamed */
+                   strncmp(&line[indent], "enum ", 5) == 0 ||
+                   strncmp(&line[indent], "extern ", 7) == 0 ||
+                   strncmp(&line[indent], "EXTERN ", 7) == 0 ||
+                   strncmp(&line[indent], "FAR ", 4) == 0 ||
+                   strncmp(&line[indent], "float ", 6) == 0 ||
+                   strncmp(&line[indent], "int ", 4) == 0 ||
+                   strncmp(&line[indent], "int16_t ", 8) == 0 ||
+                   strncmp(&line[indent], "int32_t ", 8) == 0 ||
+                   strncmp(&line[indent], "long ", 5) == 0 ||
+                   strncmp(&line[indent], "off_t ", 6) == 0 ||
+                   strncmp(&line[indent], "register ", 9) == 0 ||
+                   strncmp(&line[indent], "short ", 6) == 0 ||
+                   strncmp(&line[indent], "signed ", 7) == 0 ||
+                   strncmp(&line[indent], "size_t ", 7) == 0 ||
+                   strncmp(&line[indent], "ssize_t ", 8) == 0 ||
+                   strncmp(&line[indent], "static ", 7) == 0 ||
+                   strncmp(&line[indent], "time_t ", 7) == 0 ||
+                   strncmp(&line[indent], "typedef ", 8) == 0 ||
+                   strncmp(&line[indent], "uint8_t ", 8) == 0 ||
+                   strncmp(&line[indent], "uint16_t ", 9) == 0 ||
+                   strncmp(&line[indent], "uint32_t ", 9) == 0 ||
+                   strncmp(&line[indent], "union ", 6) == 0 ||
+                   strncmp(&line[indent], "union\n", 6) == 0 ||  /* May be unnamed */
+                   strncmp(&line[indent], "unsigned ", 9) == 0 ||
+                   strncmp(&line[indent], "void ", 5) == 0 ||
+                   strncmp(&line[indent], "volatile ", 9) == 0)
             {
-              externc_lineno = lineno;
-            }
-
-          /* bfunctions:  True:  Processing private or public functions.
-           * bnest:       Brace nesting level on this line
-           * dnest:       Data declaration nesting level on this line
-           */
-
-          /* REVISIT: Also picks up function return types */
-          /* REVISIT: Logic problem for nested data/function declarations */
-
-          if ((!bfunctions || bnest > 0) && dnest == 0)
-            {
-              dnest = 1;
-            }
-
-          /* Check for multiple definitions of variables on the line.
-           * Ignores declarations within parentheses which are probably
-           * formal parameters.
-           */
-
-          if (pnest == 0)
-            {
-              int tmppnest;
-
-              /* Note, we have not yet parsed each character on the line so
-               * a comma have have been be preceded by '(' on the same line.
-               * We will have parse up to any comma to see if that is the
-               * case.
+              /* Check if this is extern "C";  We don't typically indent
+               * following this.
                */
 
-              for (i = indent, tmppnest = 0;
-                   line[i] != '\n' && line[i] != '\0';
-                   i++)
+              if (strncmp(&line[indent], "extern \"C\"", 10) == 0)
                 {
-                  if (tmppnest == 0 && line[i] == ',')
+                  externc_lineno = lineno;
+                }
+
+              /* bfunctions:  True:  Processing private or public functions.
+               * bnest:       Brace nesting level on this line
+               * dnest:       Data declaration nesting level on this line
+               */
+
+              /* REVISIT: Also picks up function return types */
+
+              /* REVISIT: Logic problem for nested data/function declarations */
+
+              if ((!bfunctions || bnest > 0) && dnest == 0)
+                {
+                  dnest = 1;
+                }
+
+              /* Check for multiple definitions of variables on the line.
+               * Ignores declarations within parentheses which are probably
+               * formal parameters.
+               */
+
+              if (pnest == 0)
+                {
+                  int tmppnest;
+
+                  /* Note, we have not yet parsed each character on the line so
+                   * a comma have have been be preceded by '(' on the same line.
+                   * We will have parse up to any comma to see if that is the
+                   * case.
+                   */
+
+                  for (i = indent, tmppnest = 0;
+                       line[i] != '\n' && line[i] != '\0';
+                       i++)
                     {
-                      fprintf(stderr,
-                              "Multiple data definitions on line %d\n",
-                              lineno);
-                      break;
-                    }
-                  else if (line[i] == '(')
-                    {
-                      tmppnest++;
-                    }
-                  else if (line[i] == ')')
-                    {
-                      if (tmppnest < 1)
+                      if (tmppnest == 0 && line[i] == ',')
                         {
-                          /* We should catch this later */
+                           ERROR("Multiple data definitions", lineno, i + 1);
+                          break;
+                        }
+                      else if (line[i] == '(')
+                        {
+                          tmppnest++;
+                        }
+                      else if (line[i] == ')')
+                        {
+                          if (tmppnest < 1)
+                            {
+                              /* We should catch this later */
+
+                              break;
+                            }
+
+                          tmppnest--;
+                        }
+                      else if (line[i] == ';')
+                        {
+                          /* Break out if the semicolon terminates the
+                           * declaration is found.  Avoids processing any
+                           * righthand comments in most cases.
+                           */
 
                           break;
                         }
-
-                      tmppnest--;
-                    }
-                  else if (line[i] == ';')
-                    {
-                      /* Break out if the semicolon terminates the
-                       * declaration is found.  Avoids processing any
-                       * righthand comments in most cases.
-                       */
-
-                      break;
                     }
                 }
             }
-        }
 
-      /* Check for a keyword indicating the beginning of a statement.
-       * REVISIT:  This, obviously, will not detect statements that do not
-       * begin with a C keyword (such as assignment statements).
-       */
+          /* Check for a keyword indicating the beginning of a statement.
+           * REVISIT:  This, obviously, will not detect statements that do not
+           * begin with a C keyword (such as assignment statements).
+           */
 
-      else if (strncmp(&line[indent], "break ", 6) == 0 ||
-               strncmp(&line[indent], "case ", 5) == 0 ||
-//             strncmp(&line[indent], "case ", 5) == 0 ||    /* Part of switch */
-               strncmp(&line[indent], "continue ", 9) == 0 ||
-//             strncmp(&line[indent], "default ", 8) == 0 || /* Part of switch */
-               strncmp(&line[indent], "do ", 3) == 0 ||
-               strncmp(&line[indent], "else ", 5) == 0 ||
-               strncmp(&line[indent], "goto ", 5) == 0 ||
-               strncmp(&line[indent], "if ", 3) == 0 ||
-               strncmp(&line[indent], "return ", 7) == 0 ||
-//             strncmp(&line[indent], "switch ", 7) == 0 ||  /* Doesn't follow pattern */
-               strncmp(&line[indent], "while ", 6) == 0)
-        {
-          bstatm = true;
-        }
+          else if (strncmp(&line[indent], "break ", 6) == 0 ||
+                   strncmp(&line[indent], "case ", 5) == 0 ||
+    #if 0 /* Part of switch */
+                   strncmp(&line[indent], "case ", 5) == 0 ||
+    #endif
+                   strncmp(&line[indent], "continue ", 9) == 0 ||
 
-      /* Spacing works a little differently for and switch statements */
+    #if 0 /* Part of switch */
+                   strncmp(&line[indent], "default ", 8) == 0 ||
+    #endif
+                   strncmp(&line[indent], "do ", 3) == 0 ||
+                   strncmp(&line[indent], "else ", 5) == 0 ||
+                   strncmp(&line[indent], "goto ", 5) == 0 ||
+                   strncmp(&line[indent], "if ", 3) == 0 ||
+                   strncmp(&line[indent], "return ", 7) == 0 ||
+    #if 0 /*  Doesn't follow pattern */
+                   strncmp(&line[indent], "switch ", 7) == 0 ||
+    #endif
+                   strncmp(&line[indent], "while ", 6) == 0)
+            {
+              bstatm = true;
+            }
 
-      else if (strncmp(&line[indent], "for ", 4) == 0)
-        {
-          bfor   = true;
-          bstatm = true;
-        }
-      else if (strncmp(&line[indent], "switch ", 7) == 0)
-        {
-          bswitch = true;
-        }
+          /* Spacing works a little differently for and switch statements */
 
-      /* Also check for C keywords with missing white space */
+          else if (strncmp(&line[indent], "for ", 4) == 0)
+            {
+              bfor   = true;
+              bstatm = true;
+            }
+          else if (strncmp(&line[indent], "switch ", 7) == 0)
+            {
+              bswitch = true;
+            }
 
-      else if (strncmp(&line[indent], "do(", 3) == 0 ||
-               strncmp(&line[indent], "if(", 3) == 0 ||
-               strncmp(&line[indent], "while(", 6) == 0)
-        {
-          fprintf(stderr, "Missing whitespace after keyword at line %d:%d\n", lineno, n);
-          bstatm = true;
-        }
-      else if (strncmp(&line[indent], "for(", 4) == 0)
-        {
-          fprintf(stderr, "Missing whitespace after keyword at line %d:%d\n", lineno, n);
-          bfor   = true;
-          bstatm = true;
-        }
-      else if (strncmp(&line[indent], "switch(", 7) == 0)
-        {
-          fprintf(stderr, "Missing whitespace after keyword at line %d:%d\n",
-                  lineno, n);
-          bswitch = true;
+          /* Also check for C keywords with missing white space */
+
+          else if (strncmp(&line[indent], "do(", 3) == 0 ||
+                   strncmp(&line[indent], "if(", 3) == 0 ||
+                   strncmp(&line[indent], "while(", 6) == 0)
+            {
+              ERROR("Missing whitespace after keyword", lineno, n);
+              bstatm = true;
+            }
+          else if (strncmp(&line[indent], "for(", 4) == 0)
+            {
+              ERROR("Missing whitespace after keyword", lineno, n);
+              bfor   = true;
+              bstatm = true;
+            }
+          else if (strncmp(&line[indent], "switch(", 7) == 0)
+            {
+              ERROR("Missing whitespace after keyword", lineno, n);
+              bswitch = true;
+            }
         }
 
       /* STEP 3: Parse each character on the line */
@@ -651,8 +1384,7 @@ int main(int argc, char **argv, char **envp)
                 {
                   if (!btabs)
                     {
-                      fprintf(stderr, "TABs found.  First detected at line %d:%d\n",
-                              lineno, n);
+                      ERROR("TABs found.  First detected", lineno, n);
                       btabs = true;
                     }
                 }
@@ -660,16 +1392,17 @@ int main(int argc, char **argv, char **envp)
                 {
                   if (!bcrs)
                     {
-                      fprintf(stderr, "Carriage returns found.  "
-                              "First detected at line %d:%d\n", lineno, n);
+                      ERROR("Carriage returns found.  "
+                              "First detected", lineno, n);
                       bcrs = true;
                     }
                 }
               else if (line[n] != ' ')
                 {
-                  fprintf(stderr,
-                          "Unexpected white space character %02x found at line %d:%d\n",
-                          line[n], lineno, n);
+                  snprintf(buffer, sizeof(buffer),
+                           "Unexpected white space character %02x found",
+                           line[n]);
+                  ERROR(buffer, lineno, n);
                 }
             }
 
@@ -697,6 +1430,7 @@ int main(int argc, char **argv, char **envp)
                    *   IGMPv2      as an IGMP version number
                    *   [0-9]p[0-9] as a decimal point
                    *   d[0-9]      as a divisor
+                   *   Hz          for frequencies (including KHz, MHz, etc.)
                    */
 
                    if (!have_lower && islower(line[n]))
@@ -737,8 +1471,8 @@ int main(int argc, char **argv, char **envp)
                              }
                            break;
 
-                         /* Sequences containing 'p' or 'd' must have been
-                          * preceded by upper case characters.
+                         /* Sequences containing 'p', 'd', or 'z' must have
+                          * been preceded by upper case characters.
                           */
 
                          case 'p':
@@ -757,6 +1491,15 @@ int main(int argc, char **argv, char **envp)
                              }
                              break;
 
+                         case 'z':
+                           if (!have_upper || n < 1 ||
+                               line[n - 1] != 'H')
+                             {
+                               have_lower = true;
+                             }
+                             break;
+                           break;
+
                          default:
                            have_lower = true;
                            break;
@@ -771,24 +1514,30 @@ int main(int argc, char **argv, char **envp)
 
               if (have_upper && have_lower)
                 {
+                  /* Ignore symbols that begin with white-listed prefixes */
+
+                  if (white_list(&line[ident_index], lineno))
+                    {
+                      /* No error */
+                    }
+
                   /* Special case hex constants.  These will look like
                    * identifiers starting with 'x' or 'X' but preceded
                    * with '0'
                    */
 
-                  if (ident_index < 1 ||
-                      (line[ident_index] != 'x' && line[ident_index] != 'X') ||
-                      line[ident_index - 1] != '0')
+                  else if (ident_index < 1 ||
+                           (line[ident_index] != 'x' &&
+                            line[ident_index] != 'X') ||
+                           line[ident_index - 1] != '0')
                     {
-                      fprintf(stderr,
-                              "Mixed case identifier found at line %d:%d\n",
-                              lineno, ident_index);
+                       ERROR("Mixed case identifier found",
+                             lineno, ident_index);
                     }
                   else if (have_upper)
                     {
-                      fprintf(stderr,
-                              "Upper case hex constant found at line %d:%d\n",
-                              lineno, ident_index);
+                       ERROR("Upper case hex constant found",
+                             lineno, ident_index);
                     }
                 }
 
@@ -810,18 +1559,51 @@ int main(int argc, char **argv, char **envp)
                 {
                   if (line[n + 2] == '\n')
                     {
-                      fprintf(stderr, "C comment opening on separate line at %d:%d\n",
-                              lineno, n);
+                      ERROR("C comment opening on separate line", lineno, n);
                     }
                   else if (!isspace((int)line[n + 2]) && line[n + 2] != '*')
                     {
-                      fprintf(stderr,
-                              "Missing space after opening C comment at line %d:%d\n",
-                              lineno, n);
+                       ERROR("Missing space after opening C comment", lineno, n);
                     }
 
+                  /* Increment the count of nested comments */
+
                   ncomment++;
-                  brhcomment = (n != indent);
+
+                  /* If there is anything to the left of the left brace, then
+                   * this must be a comment to the right of code.
+                   * Also if preceding comments were to the right of code, then
+                   * we can assume that there is a columnar alignment of columns
+                   * that do no follow the usual alignment.  So the rhcomment
+                   * flag should propagate.
+                   */
+
+                  if (prevrhcmt == 0)
+                    {
+                      if (n != indent)
+                        {
+                          rhcomment = n;
+                        }
+                    }
+                  else
+                    {
+                      rhcomment = n;
+                      if (prevrhcmt > 0 && n != prevrhcmt)
+                        {
+                          rhcomment = prevrhcmt;
+                          if (n != indent)
+                            {
+                              WARN("Wrong column position of "
+                                  "comment right of code", lineno, n);
+                            }
+                          else
+                            {
+                              ERROR("Wrong column position or missing "
+                                  "blank line before comment", lineno, n);
+                            }
+                        }
+                    }
+
                   n++;
                   continue;
                 }
@@ -832,14 +1614,12 @@ int main(int argc, char **argv, char **envp)
                 {
                   if (n < 2)
                     {
-                      fprintf(stderr, "Closing C comment not indented at line %d:%d\n",
-                              lineno, n);
+                      ERROR("Closing C comment not indented", lineno, n);
                     }
-                  else if (!isspace((int)line[n + 1]) && line[n - 2] != '*')
+                  else if (!isspace((int)line[n - 2]) && line[n - 2] != '*')
                     {
-                      fprintf(stderr,
-                              "Missing space before closing C comment at line %d:%d\n",
-                              lineno, n);
+                       ERROR("Missing space before closing C comment", lineno,
+                             n);
                     }
 
                   /* Check for block comments that are not on a separate line.
@@ -848,11 +1628,10 @@ int main(int argc, char **argv, char **envp)
                    * not blank up to the point where the comment was closed.
                    */
 
-                  if (prevncomment > 0 && !bblank && !brhcomment)
+                  if (prevncomment > 0 && !bblank && rhcomment == 0)
                     {
-                      fprintf(stderr,
-                              "Block comment terminator must be on a separate line at line %d:%d\n",
-                              lineno, n);
+                       ERROR("Block comment terminator must be on a "
+                              "separate line", lineno, n);
                     }
 
 #if 0
@@ -862,9 +1641,7 @@ int main(int argc, char **argv, char **envp)
 
                   if (line[n + 1] != '\n')
                     {
-                      fprintf(stderr,
-                              "Garbage on line after C comment at line %d:%d\n",
-                              lineno, n);
+                       ERROR("Garbage on line after C comment", lineno, n);
                     }
 #endif
 
@@ -881,18 +1658,12 @@ int main(int argc, char **argv, char **envp)
                           /* 'comment_lineno 'holds the line number of the
                            * last closing comment.  It is used only to
                            * verify that the comment is followed by a blank
-                           * line.  'comment_lineno' is NOT set here if this
-                           * comment is to the right of the code.  In that
-                           * case, no blank link is required following the
-                           * comment
+                           * line.
                            */
 
-                          if (!brhcomment)
-                            {
-                              comment_lineno = lineno;
-                            }
+                          comment_lineno = lineno;
 
-                          /* Note that brhcomment must persist to support a
+                          /* Note that rhcomment must persist to support a
                            * later test for comment alignment.  We will fix
                            * that at the top of the loop when ncomment == 0.
                            */
@@ -900,15 +1671,13 @@ int main(int argc, char **argv, char **envp)
                     }
                   else
                     {
-                      /* Note that brhcomment must persist to support a later
+                      /* Note that rhcomment must persist to support a later
                        * test for comment alignment.  We will will fix that
                        * at the top of the loop when ncomment == 0.
                        */
 
                       ncomment = 0;
-                      fprintf(stderr,
-                              "Closing without opening comment at line %d:%d\n",
-                              lineno, n);
+                       ERROR("Closing without opening comment", lineno, n);
                     }
 
                   n++;
@@ -924,8 +1693,7 @@ int main(int argc, char **argv, char **envp)
                   if ((n < 5 || strncmp(&line[n - 5], "http://", 7) != 0) &&
                       (n < 6 || strncmp(&line[n - 6], "https://", 8) != 0))
                     {
-                      fprintf(stderr, "C++ style comment at %d:%d\n",
-                              lineno, n);
+                      ERROR("C++ style comment", lineno, n);
                       n++;
                       continue;
                     }
@@ -966,14 +1734,14 @@ int main(int argc, char **argv, char **envp)
               bquote = false;
             }
 
-          /* The reset of the line is only examined of we are not in a comment
-           * or a string.
+          /* The rest of the line is only examined of we are not in a comment,
+           * in a string or in assembly.
            *
            * REVISIT: Should still check for whitespace at the end of the
            * line.
            */
 
-          if (ncomment == 0 && !bstring)
+          if (ncomment == 0 && !bstring && inasm == 0)
             {
               switch (line[n])
                 {
@@ -983,22 +1751,21 @@ int main(int argc, char **argv, char **envp)
                   {
                     if (n > indent)
                       {
-                        /* REVISIT: dnest is always > 0 here if bfunctions == false */
+                        /* REVISIT: dnest is always > 0 here if bfunctions ==
+                         * false.
+                         */
 
-                        if (dnest == 0 || !bfunctions)
+                        if (dnest == 0 || !bfunctions || lineno == rbrace_lineno)
                           {
-                            fprintf(stderr,
-                                    "Left bracket not on separate line at %d:%d\n",
-                                    lineno, n);
+                             ERROR("Left bracket not on separate line", lineno,
+                                   n);
                           }
                       }
                     else if (line[n + 1] != '\n')
                       {
                         if (dnest == 0)
                           {
-                            fprintf(stderr,
-                                    "Garbage follows left bracket at line %d:%d\n",
-                                    lineno, n);
+                             ERROR("Garbage follows left bracket", lineno, n);
                           }
                       }
 
@@ -1032,7 +1799,7 @@ int main(int argc, char **argv, char **envp)
 
                    if (bnest < 1)
                      {
-                       fprintf(stderr, "Unmatched right brace at line %d:%d\n", lineno, n);
+                       ERROR("Unmatched right brace", lineno, n);
                      }
                    else
                      {
@@ -1062,8 +1829,7 @@ int main(int argc, char **argv, char **envp)
                       {
                         if (dnest == 0)
                           {
-                            fprintf(stderr,
-                                    "Right bracket not on separate line at %d:%d\n",
+                             ERROR("Right bracket not on separate line",
                                    lineno, n);
                           }
                       }
@@ -1074,32 +1840,94 @@ int main(int argc, char **argv, char **envp)
                         line[n + 1] != ',' &&
                         line[n + 1] != ';')
                       {
-                        /* One case where there may be garbage after the right
-                         * bracket is, for example, when declaring a until or
-                         * structure variable using an un-named union or
-                         * structure.
+                        int sndx = n + 1;
+                        bool whitespace = false;
+
+                        /* Skip over spaces */
+
+                        while (line[sndx] == ' ')
+                          {
+                            sndx++;
+                          }
+
+                        /* One possibility is that the right bracket is
+                         * followed by an identifier then a semi-colon.
+                         * Comma is possible to but would be a case of
+                         * multiple declaration of multiple instances.
                          */
 
-                        if (prevdnest <= 0 || dnest > 0)
+                        if (line[sndx] == '_' || isalpha(line[sndx]))
                           {
-                            /* REVISIT:  Generates false alarms on named structures
-                             * that are fields of other structures or unions.
+                            int endx = sndx;
+
+                            /* Skip to the end of the identifier.  Checking
+                             * for mixed case identifiers will be done
+                             * elsewhere.
                              */
 
-                            fprintf(stderr,
-                                    "Garbage follows right bracket at line %d:%d\n",
-                                    lineno, n);
+                            while (line[endx] == '_' ||
+                                   isalnum(line[endx]))
+                              {
+                                endx++;
+                              }
+
+                            /* Skip over spaces */
+
+                            while (line[endx] == ' ')
+                              {
+                                whitespace = true;
+                                endx++;
+                              }
+
+                            /* Handle according to what comes after the
+                             * identifier.
+                             */
+
+                            if (strncmp(&line[sndx], "while", 5) == 0)
+                              {
+                                 ERROR("'while' must be on a separate line",
+                                        lineno, sndx);
+                              }
+                            else if (line[endx] == ',')
+                              {
+                                 ERROR("Multiple data definitions on line",
+                                        lineno, endx);
+                              }
+                            else if (line[endx] == ';')
+                              {
+                                if (whitespace)
+                                  {
+                                     ERROR("Space precedes semi-colon",
+                                           lineno, endx);
+                                  }
+                              }
+                            else if (line[endx] == '=')
+                              {
+                                /* There's a struct initialization following */
+
+                                check_spaces_leftright(line, lineno, endx, endx);
+                                dnest = 1;
+                              }
+                            else
+                              {
+                                 ERROR("Garbage follows right bracket",
+                                       lineno, n);
+                              }
+                          }
+                        else
+                          {
+                             ERROR("Garbage follows right bracket", lineno, n);
                           }
                       }
 
-                    /* The right brace should not be preceded with a a blank line */
-
+                    /* The right brace should not be preceded with a a blank
+                     * line.
+                     */
 
                     if (lineno == blank_lineno + 1)
                       {
-                        fprintf(stderr,
-                                "Blank line precedes right brace at line %d\n",
-                                lineno);
+                         ERROR("Blank line precedes right brace at line",
+                                lineno, 1);
                       }
 
                     rbrace_lineno  = lineno;
@@ -1116,11 +1944,9 @@ int main(int argc, char **argv, char **envp)
 
                    /* Check for inappropriate space around parentheses */
 
-                    if (line[n + 1] == ' ' /* && !bfor */)
+                    if (line[n + 1] == ' ')  /* && !bfor */
                       {
-                        fprintf(stderr,
-                                "Space follows left parenthesis at line %d:%d\n",
-                                lineno, n);
+                         ERROR("Space follows left parenthesis", lineno, n);
                       }
                   }
                   break;
@@ -1131,8 +1957,7 @@ int main(int argc, char **argv, char **envp)
 
                     if (pnest < 1)
                      {
-                       fprintf(stderr, "Unmatched right parentheses at line %d:%d\n",
-                               lineno, n);
+                       ERROR("Unmatched right parentheses", lineno, n);
                        pnest = 0;
                      }
                    else
@@ -1146,9 +1971,7 @@ int main(int argc, char **argv, char **envp)
 
                     if (n > 0 && n != indent && line[n - 1] == ' ' && !bfor)
                       {
-                        fprintf(stderr,
-                                "Space precedes right parenthesis at line %d:%d\n",
-                                lineno, n);
+                         ERROR("Space precedes right parenthesis", lineno, n);
                       }
                   }
                   break;
@@ -1159,9 +1982,7 @@ int main(int argc, char **argv, char **envp)
                   {
                     if (line[n + 1] == ' ')
                       {
-                        fprintf(stderr,
-                                "Space follows left bracket at line %d:%d\n",
-                                lineno, n);
+                         ERROR("Space follows left bracket", lineno, n);
                       }
                   }
                   break;
@@ -1170,9 +1991,7 @@ int main(int argc, char **argv, char **envp)
                   {
                     if (n > 0 && line[n - 1] == ' ')
                       {
-                        fprintf(stderr,
-                                "Space precedes right bracket at line %d:%d\n",
-                                lineno, n);
+                         ERROR("Space precedes right bracket", lineno, n);
                       }
                   }
                   break;
@@ -1183,8 +2002,7 @@ int main(int argc, char **argv, char **envp)
                   {
                     if (!isspace((int)line[n + 1]))
                       {
-                        fprintf(stderr, "Missing whitespace after semicolon at line %d:%d\n",
-                                lineno, n);
+                        ERROR("Missing whitespace after semicolon", lineno, n);
                       }
 
                     /* Semicolon terminates a declaration/definition if there
@@ -1204,8 +2022,7 @@ int main(int argc, char **argv, char **envp)
                   {
                     if (!isspace((int)line[n + 1]))
                       {
-                        fprintf(stderr, "Missing whitespace after comma at line %d:%d\n",
-                                lineno, n);
+                        ERROR("Missing whitespace after comma", lineno, n);
                       }
                   }
                   break;
@@ -1235,6 +2052,7 @@ int main(int argc, char **argv, char **envp)
                 /* Check for space around various operators */
 
                 case '-':
+
                   /* ->, -- */
 
                   if (line[n + 1] == '>' || line[n + 1] == '-')
@@ -1249,6 +2067,19 @@ int main(int argc, char **argv, char **envp)
                       check_spaces_leftright(line, lineno, n, n + 1);
                       n++;
                     }
+
+                  /* Scientific notation with a negative exponent (eg. 10e-10)
+                   * REVISIT: This fails for cases where the variable name
+                   *          ends with 'e' preceded by a digit:
+                   *          a = abc1e-10;
+                   *          a = ABC1E-10;
+                   */
+
+                  else if ((line[n - 1] == 'e' || line[n - 1] == 'E') &&
+                           isdigit(line[n + 1]) && isdigit(line[n - 2]))
+                    {
+                      n++;
+                    }
                   else
                     {
                       /* '-' may function as a unary operator and snuggle
@@ -1261,6 +2092,7 @@ int main(int argc, char **argv, char **envp)
                   break;
 
                 case '+':
+
                   /* ++ */
 
                   if (line[n + 1] == '+')
@@ -1310,7 +2142,8 @@ int main(int argc, char **argv, char **envp)
                   break;
 
                 case '/':
-                  /* C comment terminator*/
+
+                  /* C comment terminator */
 
                   if (line[n - 1] == '*')
                     {
@@ -1326,7 +2159,7 @@ int main(int argc, char **argv, char **envp)
                       if ((n < 5 || strncmp(&line[n - 5], "http://", 7) != 0) &&
                           (n < 6 || strncmp(&line[n - 6], "https://", 8) != 0))
                         {
-                          fprintf(stderr, "C++ style comment on at %d:%d\n",
+                          ERROR("C++ style comment on at %d:%d\n",
                                 lineno, n);
                         }
 
@@ -1351,6 +2184,7 @@ int main(int argc, char **argv, char **envp)
                   break;
 
                 case '*':
+
                   /* *\/, ** */
 
                   if (line[n] == '*' &&
@@ -1378,9 +2212,8 @@ int main(int argc, char **argv, char **envp)
 
                       if (line[n - 1] != ' ')
                         {
-                          fprintf(stderr,
-                                  "Operator/assignment must be preceded with whitespace at line %d:%d\n",
-                                  lineno, n);
+                           ERROR("Operator/assignment must be preceded "
+                                  "with whitespace", lineno, n);
                         }
 
                       break;
@@ -1406,6 +2239,7 @@ int main(int argc, char **argv, char **envp)
                   break;
 
                 case '%':
+
                   /* %= */
 
                   if (line[n + 1] == '=')
@@ -1421,6 +2255,7 @@ int main(int argc, char **argv, char **envp)
                   break;
 
                 case '<':
+
                   /* <=, <<, <<= */
 
                   if (line[n + 1] == '=')
@@ -1449,6 +2284,7 @@ int main(int argc, char **argv, char **envp)
                   break;
 
                 case '>':
+
                   /* >=, >>, >>= */
 
                   if (line[n + 1] == '=')
@@ -1477,6 +2313,7 @@ int main(int argc, char **argv, char **envp)
                   break;
 
                 case '|':
+
                   /* |=, || */
 
                   if (line[n + 1] == '=')
@@ -1497,6 +2334,7 @@ int main(int argc, char **argv, char **envp)
                   break;
 
                 case '^':
+
                   /* ^= */
 
                   if (line[n + 1] == '=')
@@ -1512,6 +2350,7 @@ int main(int argc, char **argv, char **envp)
                   break;
 
                 case '=':
+
                   /* == */
 
                   if (line[n + 1] == '=')
@@ -1531,6 +2370,7 @@ int main(int argc, char **argv, char **envp)
                   break;
 
                 case '!':
+
                   /* != */
 
                   if (line[n + 1] == '=')
@@ -1561,26 +2401,65 @@ int main(int argc, char **argv, char **envp)
 
       /* Loop terminates when NUL or newline character found */
 
-      if (line[n] == '\n')
+      if (line[n] == '\n' || line[n] == '\0')
         {
+          /* If the parse terminated on the NULL, then back up to the last
+           * character (which should be the newline).
+           */
+
+          int m = n;
+          if (line[m] == '\0' && m > 0)
+            {
+              m--;
+            }
+
           /* Check for space at the end of the line.  Except for carriage
            * returns which we have already reported (one time) above.
            */
 
-          if (n > 1 && isspace((int)line[n - 1]) && line[n - 1] != '\r')
+          if (m > 1 && isspace((int)line[m - 1]) &&
+              line[m - 1] != '\n' && line[m - 1] != '\r')
             {
-              fprintf(stderr,
-                      "Dangling whitespace at the end of line %d:%d\n",
-                      lineno, n);
+               ERROR("Dangling whitespace at the end of line", lineno, m);
             }
 
-          /* Check for long lines */
+          /* The line width is determined by the location of the final
+           * asterisk in block comments.  The closing line of the block
+           * comment will exceed that by one one character, the '/'
+           * following the final asterisk.
+           */
 
-          if (n > maxline)
+          else if (m > g_maxline)
             {
-              fprintf(stderr,
-                      "Long line found at %d:%d\n",
-                      lineno, n);
+              bool bslash;
+              int a;
+
+              for (bslash = false, a = m;
+                   a > 2 && strchr("\n\r/", line[a]) != NULL;
+                   a--)
+                {
+                  if (line[a] == '/')
+                    {
+                      bslash = true;
+                    }
+                }
+
+              if (bslash && line[a] == '*')
+                {
+                  m = a + 1;
+                }
+            }
+
+          /* Check for long lines
+           *
+           * REVISIT:  Long line checks suppressed on right hand comments
+           * for now.  This just prevents a large number of difficult-to-
+           * fix complaints that we would have otherwise.
+           */
+
+          if (m > g_maxline && !rhcomment)
+            {
+              ERROR("Long line found", lineno, m);
             }
         }
 
@@ -1592,10 +2471,19 @@ int main(int argc, char **argv, char **envp)
 
       if ((ncomment > 0 || prevncomment > 0) && !bstring)
         {
+          /* Nothing should begin in comment zero */
+
           if (indent == 0 && line[0] != '/' && !bexternc)
             {
-              fprintf(stderr, "No indentation line %d:%d\n",
-                      lineno, indent);
+              /* NOTE:  if this line contains a comment to the right of the
+               * code, then ncomment will be misleading because it was
+               * already incremented above.
+               */
+
+              if (ncomment > 1 || rhcomment == 0)
+                {
+                  ERROR("No indentation line", lineno, indent);
+                }
             }
           else if (indent == 1 && line[0] == ' ' && line[1] == '*')
             {
@@ -1603,60 +2491,58 @@ int main(int argc, char **argv, char **envp)
             }
           else if (indent > 0 && line[indent] == '\n')
             {
-              fprintf(stderr, "Whitespace on blank line at line %d:%d\n",
-                      lineno, indent);
+              ERROR("Whitespace on blank line", lineno, indent);
             }
           else if (indent > 0 && indent < 2)
             {
               if (bnest > 0)
                 {
-                  fprintf(stderr, "Insufficient indentation line %d:%d\n",
-                          lineno, indent);
+                  ERROR("Insufficient indentation", lineno, indent);
                 }
               else
                 {
-                  fprintf(stderr, "Expected indentation line %d:%d\n",
-                          lineno, indent);
+                  ERROR("Expected indentation line", lineno, indent);
                 }
             }
           else if (indent > 0 && !bswitch)
             {
               if (line[indent] == '/')
                 {
-                  if ((indent & 3) != 2)
+                  /* Comments should like at offsets 2, 6, 10, ...
+                   * This rule is not followed, however, if the comments are
+                   * aligned to the right of the code.
+                   */
+
+                  if ((indent & 3) != 2 && rhcomment == 0)
                     {
-                      fprintf(stderr,
-                              "Bad comment alignment at line %d:%d\n",
-                              lineno, indent);
+                       ERROR("Bad comment alignment", lineno, indent);
                     }
 
                   /* REVISIT:  This screws up in cases where there is C code,
                    * followed by a comment that continues on the next line.
                    */
 
-                  else if (line[indent+1] != '*')
+                  else if (line[indent + 1] != '*')
                     {
-                      fprintf(stderr,
-                              "Missing asterisk in comment at line %d:%d\n",
-                              lineno, indent);
+                       ERROR("Missing asterisk in comment", lineno, indent);
                     }
                 }
               else if (line[indent] == '*')
                 {
                   /* REVISIT: Generates false alarms on comments at the end of
                    * the line if there is nothing preceding (such as the aligned
-                   * comments with a structure field definition).  So disabled for
-                   * comments before beginning of function definitions.
+                   * comments with a structure field definition).  So disabled
+                   * for comments before beginning of function definitions.
                    *
-                   * Suppress this error if this is a comment to the right of code.
+                   * Suppress this error if this is a comment to the right of
+                   * code.
                    * Those may be unaligned.
                    */
 
-                  if ((indent & 3) != 3 && bfunctions && dnest == 0 && !brhcomment)
+                  if ((indent & 3) != 3 && bfunctions && dnest == 0 &&
+                      rhcomment == 0)
                     {
-                      fprintf(stderr,
-                              "Bad comment block alignment at line %d:%d\n",
-                              lineno, indent);
+                       ERROR("Bad comment block alignment", lineno, indent);
                     }
 
                   if (line[indent + 1] != ' ' &&
@@ -1664,9 +2550,8 @@ int main(int argc, char **argv, char **envp)
                       line[indent + 1] != '\n' &&
                       line[indent + 1] != '/')
                     {
-                      fprintf(stderr,
-                              "Invalid character after asterisk in comment block at line %d:%d\n",
-                              lineno, indent);
+                       ERROR("Invalid character after asterisk "
+                             "in comment block", lineno, indent);
                     }
                 }
 
@@ -1676,8 +2561,7 @@ int main(int argc, char **argv, char **envp)
 
               else if (prevncomment > 0)
                 {
-                  fprintf(stderr, "Missing asterisk in comment block at line %d:%d\n",
-                          lineno, indent);
+                  ERROR("Missing asterisk in comment block", lineno, indent);
                 }
             }
         }
@@ -1696,14 +2580,14 @@ int main(int argc, char **argv, char **envp)
 
                   if (isalpha((int)line[indent]))
                     {
-                      for (i = indent + 1; isalnum((int)line[i]) || line[i] == '_'; i++);
+                      for (i = indent + 1; isalnum((int)line[i]) ||
+                           line[i] == '_'; i++);
                       blabel = (line[i] == ':');
                     }
 
                   if (!blabel && !bexternc)
                     {
-                      fprintf(stderr, "No indentation line %d:%d\n",
-                              lineno, indent);
+                      ERROR("No indentation line", lineno, indent);
                     }
                 }
             }
@@ -1713,30 +2597,36 @@ int main(int argc, char **argv, char **envp)
             }
           else if (indent > 0 && line[indent] == '\n')
             {
-              fprintf(stderr, "Whitespace on blank line at line %d:%d\n",
-                      lineno, indent);
+              ERROR("Whitespace on blank line", lineno, indent);
             }
           else if (indent > 0 && indent < 2)
             {
-              fprintf(stderr, "Insufficient indentation line %d:%d\n",
-                      lineno, indent);
+              ERROR("Insufficient indentation line", lineno, indent);
             }
           else if (line[indent] == '{')
             {
+              /* Check for left brace in first column, but preceded by a
+               * blank line.  Should never happen (but could happen with
+               * internal compound statements).
+               */
+
+              if (indent == 0 && lineno == blank_lineno + 1)
+                {
+                  ERROR("Blank line before opening left brace", lineno, indent);
+                }
+
               /* REVISIT:  Possible false alarms in compound statements
                * without a preceding conditional.  That usage often violates
                * the coding standard.
                */
 
-              if (!bfunctions && (indent & 1) != 0)
+              else if (!bfunctions && (indent & 1) != 0)
                 {
-                  fprintf(stderr, "Bad left brace alignment at line %d:%d\n",
-                          lineno, indent);
+                  ERROR("Bad left brace alignment", lineno, indent);
                 }
               else if ((indent & 3) != 0 && !bswitch && dnest == 0)
                 {
-                  fprintf(stderr, "Bad left brace alignment at line %d:%d\n",
-                          lineno, indent);
+                  ERROR("Bad left brace alignment", lineno, indent);
                 }
             }
           else if (line[indent] == '}')
@@ -1748,20 +2638,18 @@ int main(int argc, char **argv, char **envp)
 
               if (!bfunctions && (indent & 1) != 0)
                 {
-                  fprintf(stderr, "right left brace alignment at line %d:%d\n",
-                          lineno, indent);
+                  ERROR("right left brace alignment", lineno, indent);
                 }
               else if ((indent & 3) != 0 && !bswitch && prevdnest == 0)
                 {
-                  fprintf(stderr, "Bad right brace alignment at line %d:%d\n",
-                          lineno, indent);
+                  ERROR("Bad right brace alignment", lineno, indent);
                 }
             }
           else if (indent > 0)
             {
               /* REVISIT: Generates false alarms when a statement continues on
-               * the next line.  The bstatm check limits to lines beginning with
-               * C keywords.
+               * the next line.  The bstatm check limits to lines beginning
+               * with C keywords.
                * REVISIT:  The bstatm check will not detect statements that
                * do not begin with a C keyword (such as assignment statements).
                * REVISIT: Generates false alarms on comments at the end of
@@ -1777,8 +2665,7 @@ int main(int argc, char **argv, char **envp)
                 {
                   if ((indent & 3) != 2)
                     {
-                      fprintf(stderr, "Bad alignment at line %d:%d\n",
-                              lineno, indent);
+                      ERROR("Bad alignment", lineno, indent);
                     }
                 }
 
@@ -1789,24 +2676,29 @@ int main(int argc, char **argv, char **envp)
 
               else if (indent == 1 || indent == 3)
                 {
-                  fprintf(stderr, "Small odd alignment at line %d:%d\n",
-                          lineno, indent);
+                  ERROR("Small odd alignment", lineno, indent);
                 }
             }
         }
     }
 
-  if (!bfunctions && !hdrfile)
+  if (!bfunctions && g_file_type == C_SOURCE)
     {
-      fprintf(stderr, "ERROR: \"Private/Public Functions\" not found!\n");
-      fprintf(stderr, "       File could not be checked.\n");
+      ERROR("\"Private/Public Functions\" not found!"
+            " File was not be checked", lineno, 1);
     }
 
   if (ncomment > 0 || bstring)
     {
-      fprintf(stderr, "ERROR: In a comment/string at end of file\n");
+      ERROR("Comment or string found at end of file", lineno, 1);
     }
 
   fclose(instream);
-  return 0;
+  if (g_verbose == 1)
+    {
+      fprintf(stderr, "%s: %s nxstyle check\n", g_file_name,
+              g_status == 0 ? "PASSED" : "FAILED");
+    }
+
+  return g_status;
 }
