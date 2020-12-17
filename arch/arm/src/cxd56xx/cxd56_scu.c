@@ -2756,13 +2756,35 @@ FAR struct seq_s *seq_open(int type, int bustype)
 {
   FAR struct seq_s *seq;
 
+  /* Check bustype is valid */
+
+  switch (bustype)
+    {
+      case SCU_BUS_SPI:
+      case SCU_BUS_I2C0:
+      case SCU_BUS_I2C1:
+      case SCU_BUS_LPADC0:
+      case SCU_BUS_LPADC1:
+      case SCU_BUS_LPADC2:
+      case SCU_BUS_LPADC3:
+      case SCU_BUS_HPADC0:
+      case SCU_BUS_HPADC1:
+        break;
+      default:
+        return NULL;
+    }
+
   if (type == SEQ_TYPE_DECI)
     {
       seq = deci_new();
     }
-  else
+  else if (type == SEQ_TYPE_NORMAL)
     {
       seq = seq_new();
+    }
+  else
+    {
+      return NULL;
     }
 
   if (!seq)

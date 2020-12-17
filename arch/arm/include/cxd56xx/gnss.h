@@ -565,7 +565,7 @@ extern "C"
 #define CXD56_GNSS_IOCTL_INVAL 0
 #define CXD56_GNSS_IOCTL_MAX   54
 
-/* Same value to GD Start mode CXD56_GNSS_STMOD_XXXX for GD_Start */
+/* Same value to GD Start mode CXD56_GNSS_STMOD_XXXX for fw_gd_start */
 
 #define CXD56_GNSS_STMOD_COLD       0 /* Cold Start */
 #define CXD56_GNSS_STMOD_WARM       1 /* Warm Start */
