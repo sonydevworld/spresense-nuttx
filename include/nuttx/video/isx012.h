@@ -63,7 +63,7 @@ extern "C"
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-FAR struct video_devops_s *isx012_initialize(void);
+FAR struct video_sensctrl_ops_s *isx012_initialize(void);
 int isx012_uninitialize(void);
 
 #undef EXTERN

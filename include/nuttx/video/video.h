@@ -618,7 +618,8 @@ struct v4l2_ext_controls
   struct v4l2_ext_control *controls;   /* each control information    */
 };
 
-extern FAR const struct video_devops_s *g_video_devops;
+extern FAR const struct video_sensctrl_ops_s *g_video_sensctrl_ops;
+extern FAR const struct video_imgdata_ops_s  *g_video_imgdata_ops;
 
 /****************************************************************************
  * Public Function Prototypes
