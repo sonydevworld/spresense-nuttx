@@ -56,6 +56,8 @@
 #define MODE_BASE                   (0x6A00)
 #define PICT_BASE                   (0x6C00)
 #define GAMMA_BASE                  (0x7000)
+#define GAMMA1_BASE                 (0x7200)
+#define GAMMA2_BASE                 (0x7400)
 #define JPEG_BASE                   (0x7800)
 #define AUTOCOM_BASE                (0x7C00)
 #define VFRMPARA_BASE               (0x8800)
@@ -793,6 +795,18 @@
 #define G0_0CLIP_B                  (GAMMA_BASE+0x0044)
 #define G0_KNOT_GAINCTRL_TH_L       (GAMMA_BASE+0x0046)
 #define G0_KNOT_GAINCTRL_TH_H       (GAMMA_BASE+0x0047)
+#define G1_LOWGM_ON_R               (GAMMA1_BASE+0x003A)
+#define G1_0CLIP_R                  (GAMMA1_BASE+0x003C)
+#define G1_LOWGM_ON_G               (GAMMA1_BASE+0x003E)
+#define G1_0CLIP_G                  (GAMMA1_BASE+0x0040)
+#define G1_LOWGM_ON_B               (GAMMA1_BASE+0x0042)
+#define G1_0CLIP_B                  (GAMMA1_BASE+0x0044)
+#define G2_LOWGM_ON_R               (GAMMA2_BASE+0x003A)
+#define G2_0CLIP_R                  (GAMMA2_BASE+0x003C)
+#define G2_LOWGM_ON_G               (GAMMA2_BASE+0x003E)
+#define G2_0CLIP_G                  (GAMMA2_BASE+0x0040)
+#define G2_LOWGM_ON_B               (GAMMA2_BASE+0x0042)
+#define G2_0CLIP_B                  (GAMMA2_BASE+0x0044)
 
 /* JPEG OFFSET */
 

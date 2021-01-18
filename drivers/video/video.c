@@ -239,6 +239,11 @@ static int video_g_ext_ctrls(FAR struct video_mng_s *priv,
                              FAR struct v4l2_ext_controls *ctrls);
 static int video_s_ext_ctrls(FAR struct video_mng_s *priv,
                              FAR struct v4l2_ext_controls *ctrls);
+static int video_query_ext_ctrl_scene(FAR struct v4s_query_ext_ctrl_scene
+                                      *ctrl);
+static int video_querymenu_scene(FAR struct v4s_querymenu_scene *menu);
+static int video_g_ext_ctrls_scene(FAR struct v4s_ext_controls_scene *ctrls);
+static int video_s_ext_ctrls_scene(FAR struct v4s_ext_controls_scene *ctrls);
 
 /****************************************************************************
  * Private Data
@@ -1550,6 +1555,104 @@ static int video_s_ext_ctrls(FAR struct video_mng_s *priv,
   return ret;
 }
 
+static int video_query_ext_ctrl_scene(FAR struct v4s_query_ext_ctrl_scene *ctrl)
+{
+  int ret;
+
+  if ((ctrl == NULL) ||
+      (g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->get_range_of_sceneparam == NULL))
+    {
+      return -EINVAL;
+    }
+
+  ret = g_video_sensctrl_ops->get_range_of_sceneparam(ctrl->mode,
+                                                      &ctrl->control);
+
+  return ret;
+}
+
+static int video_querymenu_scene(FAR struct v4s_querymenu_scene *menu)
+{
+  int ret;
+
+  if ((menu == NULL) ||
+      (g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->get_menu_of_sceneparam == NULL))
+    {
+      return -EINVAL;
+    }
+
+  ret = g_video_sensctrl_ops->get_menu_of_sceneparam(menu->mode,
+                                                     &menu->menu);
+
+  return ret;
+}
+
+static int video_g_ext_ctrls_scene(FAR struct v4s_ext_controls_scene *ctrls)
+{
+  int ret = OK;
+  int cnt;
+  FAR struct v4l2_ext_control *control;
+
+  if ((ctrls == NULL) ||
+      (g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->get_sceneparam == NULL))
+    {
+      return -EINVAL;
+    }
+
+  for (cnt = 0, control = ctrls->control.controls;
+       cnt < ctrls->control.count;
+       cnt++, control++)
+    {
+      ret = g_video_sensctrl_ops->get_sceneparam(ctrls->mode,
+                                                 ctrls->control.ctrl_class,
+                                                 control);
+      if (ret < 0)
+        {
+          /* Set cnt in that error occured */
+
+          ctrls->control.error_idx = cnt;
+          return ret;
+        }
+    }
+
+  return ret;
+}
+
+static int video_s_ext_ctrls_scene(FAR struct v4s_ext_controls_scene *ctrls)
+{
+  int ret = OK;
+  int cnt;
+  FAR struct v4l2_ext_control *control;
+
+  if ((ctrls == NULL) ||
+      (g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->set_sceneparam == NULL))
+    {
+      return -EINVAL;
+    }
+
+  for (cnt = 0, control = ctrls->control.controls;
+       cnt < ctrls->control.count;
+       cnt++, control++)
+    {
+      ret = g_video_sensctrl_ops->set_sceneparam(ctrls->mode,
+                                                 ctrls->control.ctrl_class,
+                                                 control);
+      if (ret < 0)
+        {
+          /* Set cnt in that error occured */
+
+          ctrls->control.error_idx = cnt;
+          return ret;
+        }
+    }
+
+  return ret;
+}
+
 /****************************************************************************
  * Name: video_ioctl
  *
@@ -1673,6 +1776,26 @@ static int video_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case VIDIOC_S_EXT_CTRLS:
         ret = video_s_ext_ctrls(priv, (FAR struct v4l2_ext_controls *)arg);
+
+        break;
+
+      case V4SIOC_QUERY_EXT_CTRL_SCENE:
+        ret = video_query_ext_ctrl_scene((FAR struct v4s_query_ext_ctrl_scene *)arg);
+
+        break;
+
+      case V4SIOC_QUERYMENU_SCENE:
+        ret = video_querymenu_scene((FAR struct v4s_querymenu_scene *)arg);
+
+        break;
+
+      case V4SIOC_G_EXT_CTRLS_SCENE:
+        ret = video_g_ext_ctrls_scene((FAR struct v4s_ext_controls_scene *)arg);
+
+        break;
+
+      case V4SIOC_S_EXT_CTRLS_SCENE:
+        ret = video_s_ext_ctrls_scene((FAR struct v4s_ext_controls_scene *)arg);
 
         break;
 

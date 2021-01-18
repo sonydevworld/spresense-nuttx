@@ -67,6 +67,16 @@ struct video_sensctrl_ops_s
                             FAR struct v4l2_ext_control *control);
   CODE int (*set_ctrlvalue)(uint16_t ctrl_class,
                             FAR struct v4l2_ext_control *control);
+  CODE int (*get_range_of_sceneparam)(enum v4l2_scene_mode mode,
+                                      FAR struct v4l2_query_ext_ctrl *range);
+  CODE int (*get_menu_of_sceneparam)(enum v4l2_scene_mode mode,
+                                     FAR struct v4l2_querymenu *menu);
+  CODE int (*get_sceneparam)(enum v4l2_scene_mode mode,
+                             uint16_t ctrl_class,
+                             FAR struct v4l2_ext_control *control);
+  CODE int (*set_sceneparam)(enum v4l2_scene_mode mode,
+                             uint16_t ctrl_class,
+                             FAR struct v4l2_ext_control *control);
   CODE int (*refresh)(void);
 };
 

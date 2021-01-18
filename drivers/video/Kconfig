@@ -41,6 +41,60 @@ config VIDEO_ISX012
 	default n
 	select I2C
 
+if VIDEO_ISX012
+config VIDEO_ISX012_SCENE_BACKLIGHT
+	bool "ISX012 use backlight scene"
+	default y
+
+config VIDEO_ISX012_SCENE_BEACHSNOW
+	bool "ISX012 use beach snow scene"
+	default y
+
+config VIDEO_ISX012_SCENE_CANDLELIGHT
+	bool "ISX012 use candle light scene"
+	default y
+
+config VIDEO_ISX012_SCENE_DAWNDUSK
+	bool "ISX012 use dawn dusk scene"
+	default y
+
+config VIDEO_ISX012_SCENE_FALLCOLORS
+	bool "ISX012 use fall colors scene"
+	default y
+
+config VIDEO_ISX012_SCENE_FIREWORKS
+	bool "ISX012 use fireworks scene"
+	default y
+
+config VIDEO_ISX012_SCENE_LANDSCAPE
+	bool "ISX012 use landscape scene"
+	default y
+
+config VIDEO_ISX012_SCENE_NIGHT
+	bool "ISX012 use night scene"
+	default y
+
+config VIDEO_ISX012_SCENE_PARTYINDOOR
+	bool "ISX012 use party and indoor scene"
+	default y
+
+config VIDEO_ISX012_SCENE_PORTRAIT
+	bool "ISX012 use portrait scene"
+	default y
+
+config VIDEO_ISX012_SCENE_SPORTS
+	bool "ISX012 use sports scene"
+	default y
+
+config VIDEO_ISX012_SCENE_SUNSET
+	bool "ISX012 use sunset scene"
+	default y
+
+config VIDEO_ISX012_SCENE_TEXT
+	bool "ISX012 use text scene"
+	default y
+endif
+
 config VIDEO_OV2640
 	bool "OV2640 camera chip"
 	default n
