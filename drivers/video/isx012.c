@@ -2812,6 +2812,18 @@ static int isx012_get_range_of_ctrlval(FAR struct v4l2_query_ext_ctrl *range)
 
               break;
 
+            case V4L2_CID_SCENE_MODE:
+              range->type          = V4L2_CTRL_TYPE_INTEGER_MENU;
+              range->minimum       = 0;
+              range->maximum       = ARRAY_NENTRIES(g_isx012_scene_params);
+              range->step          = 1;
+              range->default_value = V4L2_SCENE_MODE_NONE;
+              strncpy(range->name,
+                      "Scene Mode",
+                      sizeof(range->name));
+
+              break;
+
             default: /* Unsupported control id */
 
               return -EINVAL;
