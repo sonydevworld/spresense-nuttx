@@ -1,0 +1,32 @@
+--- w5500.h	2020-12-01 17:45:13.474682643 +0900
++++ w5500.h	2020-11-30 10:43:41.881303174 +0900
+@@ -917,12 +917,12 @@ extern "C" {
+ /**
+  * @brief For Berkeley Socket API
+  */
+-#define SOCK_STREAM                  Sn_MR_TCP
++//#define SOCK_STREAM                  Sn_MR_TCP
+ 
+ /**
+  * @brief For Berkeley Socket API
+  */
+-#define SOCK_DGRAM                   Sn_MR_UDP
++//#define SOCK_DGRAM                   Sn_MR_UDP
+ 
+ 
+ /* Sn_CR values */
+@@ -1206,6 +1206,14 @@ extern "C" {
+ 
+ /**
+  * @ingroup Basic_IO_function
++ * @brief Set and reset buffer for bulk read and write
++ * @param Buffer address
++ * @return void
++ */
++uint8_t*  WIZCHIP_BUFFER(uint16_t size);
++
++/**
++ * @ingroup Basic_IO_function
+  * @brief It reads 1 byte value from a register.
+  * @param AddrSel Register address
+  * @return The value of register

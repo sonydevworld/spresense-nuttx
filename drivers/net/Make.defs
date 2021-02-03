@@ -83,6 +83,8 @@ ifeq ($(CONFIG_ARCH_PHY_INTERRUPT),y)
   CSRCS += phy_notify.c
 endif
 
+include net$(DELIM)wiznet$(DELIM)Make.defs
+
 # Include network build support
 
 DEPPATH += --dep-path net
