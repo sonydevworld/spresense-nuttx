@@ -909,7 +909,7 @@ static uint16_t gcd(uint16_t a, uint16_t b)
 
 static uint16_t lcm(uint16_t a, uint16_t b)
 {
-  return ((a / gcd(a,b)) * b);
+  return (b ? (a / gcd(a,b)) * b : 0);
 }
 
 static int video_enum_framesizes(FAR struct v4l2_frmsizeenum *frmsize)
