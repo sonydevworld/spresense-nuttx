@@ -1,0 +1,117 @@
+############################################################################
+# drivers/net/wiznet/Make.defs
+#
+#   Copyright 2020 Sony Corporation
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+# 3. Neither the name of Sony Corporation nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+############################################################################
+
+ifeq ($(CONFIG_NET_WIZNET),y)
+
+CSRCS += wiznet.c
+CSRCS += wiz_common.c
+
+WIZNET_CSRCS += wiz_socket.c
+WIZNET_CSRCS += wizchip_conf.c
+WIZNET_CSRCS += wiz_dhcp.c
+
+# Now only W5500 is supported
+ifeq ($(CONFIG_NET_WIZNET_W5500),y)
+WIZNETDEV_DIR = W5500
+WIZNETDEV_SRC = w5500
+endif
+
+WIZNET_CSRCS += $(WIZNETDEV_SRC).c
+CSRCS += $(WIZNET_CSRCS)
+
+WIZNET_HEADERS = wiz_socket.h wizchip_conf.h wiz_dhcp.h $(WIZNETDEV_SRC).h
+
+DEPPATH += --dep-path net$(DELIM)wiznet
+VPATH += :net$(DELIM)wiznet
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)net}
+
+# Set up build environment
+
+WGET ?= wget
+UNZIP ?= unzip
+TARGET_WIZNET_SHA1 = cbf5b6e908cfd3e74e03d1a4c9bddaac68ef77bb
+
+WIZNET_DIR := net$(DELIM)wiznet$(DELIM)
+WIZNET_URL := "https://codeload.github.com/Wiznet/ioLibrary_Driver/zip/$(TARGET_WIZNET_SHA1)"
+WIZNET_DL_FNAME := archive.zip
+
+WIZNETSRC = ioLibrary_Driver-$(TARGET_WIZNET_SHA1)
+
+WIZNETSRC_PATCH = $(WIZNET_DIR)patch
+
+WIZNETSRCDIR_ETHERNET = $(WIZNET_DIR)$(WIZNETSRC)$(DELIM)Ethernet$(DELIM)
+WIZNETSRCDIR_DHCP = $(WIZNET_DIR)$(WIZNETSRC)$(DELIM)Internet$(DELIM)DHCP$(DELIM)
+WIZNETSRCDIR_DEV  = $(WIZNETSRCDIR_ETHERNET)$(WIZNETDEV_DIR)$(DELIM)
+
+# Patch files
+
+WIZNET_PATCHFILES = $(shell cd $(WIZNET_DIR); find patch -name "*.patch")
+
+# File list of copied files.
+
+WIZNET_COPYSRCS = $(addprefix $(WIZNET_DIR),$(WIZNET_CSRCS) $(WIZNET_HEADERS))
+
+# Files
+
+$(WIZNET_DIR)$(WIZNETSRC):
+	$(Q) echo "Downloading: $(WIZNET_DIR)$(WIZNETSRC)"
+	$(Q) $(WGET) -O $(WIZNET_DIR)$(DELIM)$(WIZNET_DL_FNAME) $(WIZNET_URL);
+	$(Q) cd $(WIZNET_DIR); $(UNZIP) $(WIZNET_DL_FNAME)
+	$(Q) cp $(WIZNETSRCDIR_ETHERNET)socket.h $(WIZNET_DIR)wiz_socket.h
+	$(Q) cp $(WIZNETSRCDIR_ETHERNET)socket.c $(WIZNET_DIR)wiz_socket.c
+	$(Q) cp $(WIZNETSRCDIR_ETHERNET)wizchip_conf.h $(WIZNET_DIR)wizchip_conf.h
+	$(Q) cp $(WIZNETSRCDIR_ETHERNET)wizchip_conf.c $(WIZNET_DIR)wizchip_conf.c
+	$(Q) cp $(WIZNETSRCDIR_DHCP)dhcp.c $(WIZNET_DIR)wiz_dhcp.c
+	$(Q) cp $(WIZNETSRCDIR_DHCP)dhcp.h $(WIZNET_DIR)wiz_dhcp.h
+	$(Q) cp $(WIZNETSRCDIR_DEV)$(WIZNETDEV_SRC).h $(WIZNET_DIR)
+	$(Q) cp $(WIZNETSRCDIR_DEV)$(WIZNETDEV_SRC).c $(WIZNET_DIR)
+	$(Q) echo "Patch: $(WIZNET_PATCHFILES)"
+	$(Q) files="$(WIZNET_PATCHFILES)"; \
+	     cd $@/..; \
+	     for ff in $$files; do echo patch $$ff; patch -p0 < $$ff; done;
+	$(Q) touch $@
+
+
+wiznet.c: $(WIZNET_DIR)$(WIZNETSRC)
+wiz_common.c: $(WIZNET_DIR)$(WIZNETSRC)
+wiz_socket.h: $(WIZNET_DIR)$(WIZNETSRC)
+wiz_socket.c: $(WIZNET_DIR)$(WIZNETSRC)
+wizchip_conf.h: $(WIZNET_DIR)$(WIZNETSRC)
+wizchip_conf.c: $(WIZNET_DIR)$(WIZNETSRC)
+wiz_dhcp.c: $(WIZNET_DIR)$(WIZNETSRC)
+wiz_dhcp.h: $(WIZNET_DIR)$(WIZNETSRC)
+$(WIZNETDEV_SRC).h: $(WIZNET_DIR)$(WIZNETSRC)
+$(WIZNETDEV_SRC).c: $(WIZNET_DIR)$(WIZNETSRC)
+
+endif

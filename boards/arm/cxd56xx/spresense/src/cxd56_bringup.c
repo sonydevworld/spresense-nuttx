@@ -463,6 +463,14 @@ int cxd56_bringup(void)
     }
 #endif
 
+#ifdef CONFIG_NET_WIZNET
+  ret = board_wiznet_initialize("/dev/wiznet");
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize W5x00. \n");
+    }
+#endif
+
 #ifdef CONFIG_CXD56_GNSS
   ret = cxd56_gnssinitialize("/dev/gps");
   if (ret < 0)
