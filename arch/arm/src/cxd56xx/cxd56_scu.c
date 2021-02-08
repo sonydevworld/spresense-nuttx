@@ -210,6 +210,7 @@ struct cxd56_scudev_s
   uint8_t oneshot;    /* Bitmap for Oneshots */
 
   sem_t oneshotwait[3]; /* Semaphore for wait oneshot sequence is done */
+  int oneshoterr[3]; /* error code for oneshot sequencer */
 #ifndef CONFIG_DISABLE_SIGNAL
   struct ev_notify_s event[3]; /* MATHFUNC event notify */
   struct wm_notify_s wm[14];   /* Watermark notify */
@@ -1080,6 +1081,7 @@ static int seq_oneshot(int bustype, int slave, FAR uint16_t *inst,
   putreg32(1 << (tid + 24), SCU_INT_ENABLE_MAIN);
 
   scuinfo("Sequencer start.\n");
+  priv->oneshoterr[tid] = 0;
 
   /* Start sequencer as one shot mode */
 
@@ -1096,7 +1098,11 @@ static int seq_oneshot(int bustype, int slave, FAR uint16_t *inst,
 
   scuinfo("Sequencer done.\n");
 
-  if (buffer)
+  if (priv->oneshoterr[tid] < 0)
+    {
+      ret = ERROR;
+    }
+  else
     {
       /* Copy sequencer output results to user buffer.
        * XXX: Sequencer output RAM offset is differ from document.
@@ -1694,6 +1700,8 @@ static int seq_scuirqhandler(int irq, FAR void *context, FAR void *arg)
   uint32_t ierr0;
   uint32_t ierr1;
   uint32_t ierr2;
+  uint32_t out;
+  int tid;
   int i;
 
   intr = getreg32(SCU_INT_MASKED_STT_MAIN);
@@ -1754,16 +1762,30 @@ static int seq_scuirqhandler(int irq, FAR void *context, FAR void *arg)
   if (ierr2 != 0)
     {
       scuerr("err2: %08x\n", ierr2);
-      ierr2 &= 0x03ff;
+
       for (i = 0; i < 10; i++)
         {
-          if (ierr2 & (1 << i))
+          if (ierr2 & (0x00010001 << i))
             {
               seq_stopseq(i);
+
+              /* Get sequencer output selector */
+
+              out = (getreg32(SCUSEQ_PROPERTY(i)) >> 12) & 0x3;
+
+              if (0 < out)
+                {
+                  /* Set error code to oneshot sequencer id */
+
+                  tid = out - 1;
+
+                  priv->oneshoterr[tid] = -EIO;
+                  seq_semgive(&priv->oneshotwait[tid]);
+                }
             }
         }
 
-      putreg32(0x03ff, SCU_INT_CLEAR_ERR_2);
+      putreg32(ierr2, SCU_INT_CLEAR_ERR_2);
     }
 
   return 0;
@@ -3516,7 +3538,11 @@ void scu_initialize(void)
   /* Enable error interrupt  */
 
   putreg32(0x007ffe00, SCU_INT_ENABLE_ERR_0);
-  putreg32(0x03ff, SCU_INT_ENABLE_ERR_2);
+  putreg32(0x03ff03ff, SCU_INT_ENABLE_ERR_2);
+
+  /* Set the number of TxAbort repeat times */
+
+  putreg32(5, SCUSEQ_REPEAT_TXABORT);
 
   /* Enable SCU IRQ */
 
