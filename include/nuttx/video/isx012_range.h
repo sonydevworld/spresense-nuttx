@@ -235,7 +235,7 @@
 /* Definition for control exposure time */
 
 #define ISX012_TYPE_EXPOSURETIME    V4L2_CTRL_TYPE_INTEGER
-#define ISX012_NAME_EXPOSURETIME    "Exposure time(usec)"
+#define ISX012_NAME_EXPOSURETIME    "Exposure time(100 usec)"
 #define ISX012_DEF_EXPOSURETIME     (0)
 #define ISX012_MIN_EXPOSURETIME     (1)
 #define ISX012_MAX_EXPOSURETIME     (21000)
@@ -328,7 +328,7 @@
 
 #define ISX012_TYPE_JPGQUALITY      V4L2_CTRL_TYPE_INTEGER
 #define ISX012_NAME_JPGQUALITY      "JPEG compression quality"
-#define ISX012_DEF_JPGQUALITY       (75)
+#define ISX012_DEF_JPGQUALITY       (80)
 #define ISX012_MIN_JPGQUALITY       (1)
 #define ISX012_MAX_JPGQUALITY       (100)
 #define ISX012_STEP_JPGQUALITY      (1)
