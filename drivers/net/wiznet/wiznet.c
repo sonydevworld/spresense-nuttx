@@ -57,7 +57,6 @@
 #include "wiz_socket.h"
 #include "wiz_common.h"
 
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -147,7 +146,30 @@ static int wizdev_close(FAR struct file *filep)
 static ssize_t wizdev_read(FAR struct file *filep, FAR char *buffer,
                            size_t len)
 {
-  return 0;
+  FAR struct inode *inode;
+  FAR struct wiznet_dev_s *dev;
+  int  ret = 0;
+
+  DEBUGASSERT(filep);
+  inode = filep->f_inode;
+
+  DEBUGASSERT(inode && inode->i_private);
+  dev = (FAR struct wiznet_dev_s *)inode->i_private;
+
+  wiznet_lock_access(dev);
+
+  ret = wiznet_check_interrupt(dev);
+  if (ret <= 0)
+    {
+      ret = 0;
+    }
+
+  memcpy(buffer, &ret, sizeof(ret));
+  ret = sizeof(ret);
+
+  wiznet_unlock_access(dev);
+
+  return ret;
 }
 
 /****************************************************************************
@@ -326,6 +348,8 @@ static int wiznet_ioctl_recv(FAR struct wiznet_dev_s *dev,
     {
       msg->result = ret;
       ret = OK;
+
+      wiznet_reset_interrupt(dev, msg->sockfd);
     }
   else
     {
@@ -727,15 +751,11 @@ static int wizdev_poll(FAR struct file *filep, FAR struct pollfd *fds,
         }
 
       dev->pfd = fds;
-
-      if (0 < dev->notif)
-        {
-          dev->pfd->revents |= POLLIN;
-          nxsem_post(dev->pfd->sem);
-        }
+      dev->lower->enable(true);
     }
   else
     {
+      dev->lower->enable(false);
       dev->pfd = NULL;
     }
 
@@ -756,14 +776,14 @@ static int wizdev_irq(int irq, FAR void *context, FAR void *arg)
   DEBUGASSERT(arg != NULL);
   dev = (FAR struct wiznet_dev_s *)arg;
 
-  /* Disable wiznet irq during processing */
+  if (dev->pfd)
+    {
+      ninfo("== interrupted : post\n");
+      dev->pfd->revents |= POLLIN;
+      nxsem_post(dev->pfd->sem);
+    }
 
   dev->lower->enable(false);
-
-  /* Not implemented */
-
-  dev->lower->enable(true);
-
   return 0;
 }
 

@@ -72,20 +72,20 @@
 #define wiz_netinfo       wiz_NetInfo
 #define wiz_nettimeout    wiz_NetTimeout
 
-#if defined(CONFIG_NET_WIZNET_W5100S) || defined(CONFIG_NET_WIZNET_W5500)
-#define wiz_phyconf       wiz_PhyConf
-#endif
-
 #define dhcp_time_handler DHCP_time_handler
 #define dhcp_init         DHCP_init
 #define dhcp_run          DHCP_run
 #define dhcp_stop         DHCP_stop
 #define get_dns_from_dhcp getDNSfromDHCP
 
-#define get_mr            getMR
 #define get_sn_sr         getSn_SR
+#define get_sn_ir         getSn_IR
+#define set_sn_ir         setSn_IR
 #define get_sn_rx_rsr     getSn_RX_RSR
 #define set_sn_port       setSn_PORT
+
+#define SN_IR_CHECK       (Sn_IR_RECV|Sn_IR_DISCON|Sn_IR_CON)
+#define SN_IR_RESET       (Sn_IR_RECV|Sn_IR_CON)
 
 /****************************************************************************
  * Private Data
@@ -188,91 +188,77 @@ static void wiznet_spi_writeburst(uint8_t *pbuf, uint16_t len)
 }
 
 /****************************************************************************
- * Name: wiznet_tick
+ * Name: wiznet_start_timer
  ****************************************************************************/
 
-static int wiznet_tick(int argc, char **argv)
+static timer_t wiznet_start_timer(int interval_ms, FAR void *handler)
 {
   int ret;
-  uint8_t count = 0;
+  sigset_t mask;
+  struct sigaction sa;
+  struct sigevent sev;
+  struct itimerspec timer;
+  timer_t timerid;
 
-  while (g_wizdev->tick != TICK_SELECT_NONE)
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGUSR1);
+
+  ret = sigprocmask(SIG_UNBLOCK, &mask, NULL);
+  if (ret != OK)
     {
-      nxsig_usleep(WIZNET_TICK_WAIT_US);
-
-      switch (g_wizdev->tick)
-        {
-          case TICK_SELECT_DEFAULT:
-            if (g_wizdev->pfd)
-              {
-                ret = wiznet_poll(g_wizdev);
-
-                if ((ret > 0) && (g_wizdev->pfd))
-                  {
-                    g_wizdev->pfd->revents |= POLLIN;
-                    nxsem_post(g_wizdev->pfd->sem);
-                  }
-              }
-
-            count = 0;
-            break;
-
-          case TICK_SELECT_DHCP:
-            if (++count > WIZNET_TICK_WAIT_COUNT)
-              {
-                dhcp_time_handler();
-                count = 0;
-              }
-            break;
-
-          default:
-            break;
-        }
+      nerr("sigprocmask() failed:%d\n", ret);
+      return NULL;
     }
 
-  return 0;
+  sa.sa_sigaction = handler;
+  sa.sa_flags = SA_SIGINFO;
+  sigfillset(&sa.sa_mask);
+  sigdelset(&sa.sa_mask, SIGUSR1);
+
+  ret = sigaction(SIGUSR1, &sa, NULL);
+  if (ret != OK)
+    {
+      nerr("sigaction() failed:%d\n", ret);
+      return NULL;
+    }
+
+  sev.sigev_notify = SIGEV_SIGNAL;
+  sev.sigev_signo = SIGUSR1;
+
+  ret = timer_create(CLOCK_REALTIME, &sev, &timerid);
+  if (ret != OK)
+    {
+      nerr("timer_create() failed:%d\n", ret);
+      return NULL;
+    }
+
+  timer.it_value.tv_sec = interval_ms / 1000;
+  timer.it_value.tv_nsec = (interval_ms % 1000) * 1000 * 1000;
+  timer.it_interval.tv_sec  = timer.it_value.tv_sec;
+  timer.it_interval.tv_nsec = timer.it_value.tv_nsec;
+
+  ret = timer_settime(timerid, 0, &timer, NULL);
+  if (ret != OK)
+    {
+      nerr("timer_settime() failed:%d\n", ret);
+      return NULL;
+    }
+
+  return timerid;
 }
 
 /****************************************************************************
- * Name: wiznet_set_tick
+ * Name: wiznet_stop_timer
  ****************************************************************************/
 
-static int wiznet_set_tick(FAR struct wiznet_dev_s *dev, tick_select tick)
+static void wiznet_stop_timer(timer_t timerid)
 {
-  switch (dev->tick)
-    {
-      case TICK_SELECT_NONE:
-          dev->tick = tick;
-          task_create("wiznet_tick", CONFIG_NET_WIZNET_PRIORITY,
-                      CONFIG_NET_WIZNET_STACKSIZE, wiznet_tick, NULL);
-          break;
+  sigset_t mask;
 
-      case TICK_SELECT_DEFAULT:
-          dev->tick = tick;
-          break;
+  timer_delete(timerid);
 
-      default:
-          if ((tick == TICK_SELECT_NONE) || (tick == TICK_SELECT_DEFAULT))
-            {
-              dev->tick = tick;
-            }
-          else
-            {
-              return -1;
-            }
-          break;
-    }
-
-  return 0;
-}
-
-/****************************************************************************
- * Name: wiznet_reset_tick
- ****************************************************************************/
-
-static void wiznet_reset_tick(FAR struct wiznet_dev_s *dev)
-{
-  wiznet_set_tick(dev, TICK_SELECT_DEFAULT);
+  sigfillset(&mask);
+  sigprocmask(SIG_SETMASK, &mask, NULL);
 }
 
 /****************************************************************************
@@ -282,16 +268,12 @@ static void wiznet_reset_tick(FAR struct wiznet_dev_s *dev)
 static int wiznet_internet_dhcp(FAR struct wiznet_dev_s *dev)
 {
   int ret;
+  timer_t timerid;
   uint8_t dhcp_buffer[WIZNET_DHCP_BUFFER_SIZE];
 
   ninfo("wiznet_internet_dhcp start\n");
 
-  if (wiznet_set_tick(dev, TICK_SELECT_DHCP) < 0)
-    {
-      nerr("Star tick failed\n");
-      errno = EPERM;
-      return -1;
-    }
+  timerid = wiznet_start_timer(1000, dhcp_time_handler);
 
   dhcp_init(WIZNET_INTERNET_SOCKET, dhcp_buffer);
 
@@ -304,7 +286,7 @@ static int wiznet_internet_dhcp(FAR struct wiznet_dev_s *dev)
 
   dhcp_stop();
 
-  wiznet_reset_tick(dev);
+  wiznet_stop_timer(timerid);
 
   if ((ret == DHCP_FAILED) || (ret == DHCP_STOPPED))
     {
@@ -470,9 +452,10 @@ int wiznet_initialize(FAR struct wiznet_dev_s *dev)
 
   wizchip_init(bufsize, bufsize);
 
-  /* Start tick timer */
+  /* Setup IRQ */
 
-  wiznet_reset_tick(dev);
+  wizchip_setinterruptmask(IK_SOCK_ALL);
+  wizchip_clrinterrupt(IK_SOCK_ALL);
 
   ninfo("WIZNET initialized\n");
   memset(dev->dns_server, 0, 4);
@@ -501,8 +484,6 @@ int wiznet_initialize(FAR struct wiznet_dev_s *dev)
 int wiznet_finalize(FAR struct wiznet_dev_s *dev)
 {
   ninfo("Finalizing WIZNET...\n");
-
-  wiznet_set_tick(dev, TICK_SELECT_NONE);
 
 #if defined(CONFIG_NET_WIZNET_W5100S) || defined(CONFIG_NET_WIZNET_W5500)
   wizphy_reset();
@@ -543,12 +524,12 @@ int wiznet_setup(FAR struct wiznet_dev_s *dev,
 
   /* MAC address configuration */
 
-  ip.mac[0] = (msg->mac >> (8*5)) & 0xff;
-  ip.mac[1] = (msg->mac >> (8*4)) & 0xff;
-  ip.mac[2] = (msg->mac >> (8*3)) & 0xff;
-  ip.mac[3] = (msg->mac >> (8*2)) & 0xff;
-  ip.mac[4] = (msg->mac >> (8*1)) & 0xff;
-  ip.mac[5] = (msg->mac >> (8*0)) & 0xff;
+  ip.mac[0] = (msg->mac >> (8 * 5)) & 0xff;
+  ip.mac[1] = (msg->mac >> (8 * 4)) & 0xff;
+  ip.mac[2] = (msg->mac >> (8 * 3)) & 0xff;
+  ip.mac[3] = (msg->mac >> (8 * 2)) & 0xff;
+  ip.mac[4] = (msg->mac >> (8 * 1)) & 0xff;
+  ip.mac[5] = (msg->mac >> (8 * 0)) & 0xff;
 
   /* IP configuration */
 
@@ -579,54 +560,6 @@ int wiznet_setup(FAR struct wiznet_dev_s *dev,
 
   errno = 0;
   return 0;
-}
-
-/****************************************************************************
- * Name: wiznet_poll
- *
- * Description:
- *   It will called for poll action.
- *
- * Output Parmeters:
- *   dev  : private data for wiznet driver access
- *
- * Returned Value:
- *   0 on success, -1 in case of error.
- *
- ****************************************************************************/
-
-int wiznet_poll(FAR struct wiznet_dev_s *dev)
-{
-  int ret;
-  int sock;
-
-  wiznet_lock_access(dev);
-
-  dev->notif = 0;
-
-  for (sock = 1; sock < _WIZCHIP_SOCK_NUM_; sock++)
-    {
-      ret = get_sn_sr(sock);
-
-      if (SOCK_CLOSE_WAIT == ret)
-        {
-          errno = ECONNRESET;
-          dev->notif = sock;
-          break;
-        }
-      else if ((SOCK_ESTABLISHED != ret) && (SOCK_UDP != ret))
-        {
-          continue;
-        }
-      else if (get_sn_rx_rsr(sock) > 0)
-        {
-          dev->notif ++;
-        }
-    }
-
-  wiznet_unlock_access(dev);
-
-  return dev->notif;
 }
 
 /****************************************************************************
@@ -731,7 +664,8 @@ void wiznet_unlock_access(FAR struct wiznet_dev_s *dev)
  *   It will set network ip of mode.
  *
  * Input Parmeters:
- *   ip     : ip address info structure of interface
+ *   dev  : private data for wiznet driver access
+ *   ip   : ip address info structure of interface
  *
  * Returned Value:
  *   0 on success, -1 in case of error.
@@ -839,7 +773,8 @@ int wiznet_set_net(FAR struct wiznet_dev_s *dev, wiznet_ipaddr_t *ip)
  *   It will get network ip of mode.
  *
  * Output Parmeters:
- *   ip     : ip address info structure of interface
+ *   dev  : private data for wiznet driver access
+ *   ip   : ip address info structure of interface
  *
  * Returned Value:
  *   0 on success, -1 in case of error.
@@ -939,5 +874,60 @@ int wiznet_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 
   errno = 0;
   return 0;
+}
+
+/****************************************************************************
+ * Name:  wiznet_check_interrupt
+ *
+ * Description:
+ *   Check interrupted socket.
+ *
+ * Input Parameters:
+ *   dev  : private data for wiznet driver access
+ *
+ * Returned Value:
+ *   Positive value for success case, negative vale for error case.
+ *
+ ****************************************************************************/
+
+int wiznet_check_interrupt(FAR struct wiznet_dev_s *dev)
+{
+  int cnt;
+
+  for (cnt = 1; cnt < _WIZCHIP_SOCK_NUM_; cnt++)
+    {
+      if (get_sn_ir(cnt) & SN_IR_CHECK)
+        {
+          return cnt;
+        }
+    }
+
+  return -1;
+}
+
+/****************************************************************************
+ * Name:  wiznet_reset_interrupt
+ *
+ * Description:
+ *   Check interrupted socket.
+ *
+ * Input Parameters:
+ *   dev    : private data for wiznet driver access
+ *   sockfd : socket descriptor returned by socket()
+ *
+ * Returned Value:
+ *   Positive value for success case, negative vale for error case.
+ *
+ ****************************************************************************/
+
+void wiznet_reset_interrupt(FAR struct wiznet_dev_s *dev, int sockfd)
+{
+  if ((sockfd > 0) && (sockfd < _WIZCHIP_SOCK_NUM_))
+    {
+      if (get_sn_rx_rsr(sockfd) == 0)
+        {
+          set_sn_ir(sockfd, SN_IR_RESET);
+        }
+    }
 }
 

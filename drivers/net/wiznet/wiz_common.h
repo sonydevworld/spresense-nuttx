@@ -41,7 +41,6 @@
 
 #include <nuttx/config.h>
 
-
 #include <stdio.h>
 #include <netdb.h>
 #include <pthread.h>
@@ -57,17 +56,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-typedef enum
-{
-  TICK_SELECT_NONE = 0,
-  TICK_SELECT_DEFAULT,
-  TICK_SELECT_DHCP
-} tick_select;
-
 #define WIZNET_INITIALIZE_WAIT     (30)      /* Wait for SPI setup done */
 #define WIZNET_SET_NET_WAIT_COUNT  (256)     /* Wait for setup (US*COUNT) */
-#define WIZNET_TICK_WAIT_US        (100000)  /* Wait for poll */
-#define WIZNET_TICK_WAIT_COUNT     (10)      /* Wait for poll (US*COUNT) */
 #define WIZNET_SET_NET_WAIT_US     (100000)  /* Wait for setup (US*COUNT) */
 #define WIZNET_ACCEPT_WAIT_US      (500000)  /* Wait for accept */
 
@@ -96,9 +86,7 @@ struct wiznet_dev_s
   FAR const struct wiznet_lower_s *lower;
 
   uint8_t                         *buffer;
-  tick_select                     tick;
   sem_t                           lock_sem;
-  uint8_t                         notif;
 
   uint8_t                         dns_server[4];
 };
@@ -174,6 +162,18 @@ int wiznet_bind(int sockfd,
  ****************************************************************************/
 
 int wiznet_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+
+/****************************************************************************
+ * Name:  wiznet_check_interrupt()
+ ****************************************************************************/
+
+int wiznet_check_interrupt(FAR struct wiznet_dev_s *dev);
+
+/****************************************************************************
+ * Name:  wiznet_reset_interrupt()
+ ****************************************************************************/
+
+void wiznet_reset_interrupt(FAR struct wiznet_dev_s *dev, int sockfd);
 
 #endif /* CONFIG_NET_WIZNET */
 #endif  /*  __NET_WIZNET_WIZ_COMMON_H__ */

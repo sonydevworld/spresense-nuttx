@@ -121,7 +121,7 @@ static void wiznet_irq_attach(bool attach, xcpt_t handler, FAR void *arg)
   if (attach)
     {
       cxd56_gpioint_config(WIZNET_PIN_INT,
-                           GPIOINT_LEVEL_LOW,
+                           GPIOINT_LEVEL_LOW|GPIOINT_NOISE_FILTER_DISABLE,
                            handler, arg);
     }
   else
