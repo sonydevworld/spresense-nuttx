@@ -37,14 +37,6 @@ config NET_WIZNET_SPI_FREQUENCY
 	default 14000000
 	range 4000000 20000000
 
-config NET_WIZNET_PRIORITY
-	int "wiznet task priority"
-	default 50
-
-config NET_WIZNET_STACKSIZE
-	int "wiznet stack size"
-	default 1024
-
 config NET_WIZNET_MAX_PACKET_SIZE
   int "Max size to be transfer in bytes"
   default 2051
