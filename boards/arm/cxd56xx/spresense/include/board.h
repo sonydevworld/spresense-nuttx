@@ -51,6 +51,7 @@
 #include "cxd56_gauge.h"
 #include "cxd56_charger.h"
 #include "cxd56_gs2200m.h"
+#include "cxd56_wiznet.h"
 #include "cxd56_i2cdev.h"
 #include "cxd56_spidev.h"
 #include "cxd56_sdcard.h"
@@ -271,6 +272,25 @@ enum board_power_device
 #define ALTMDM_WAKEUP             PIN_SPI2_MOSI
 #define ALTMDM_SHUTDOWN           PIN_SPI2_MISO
 #define ALTMDM_LTE_POWER_BUTTON   PIN_AP_CLK
+
+/* WIZnet ethernet device pin definitions **********************************/
+
+
+#if defined(CONFIG_CXD56_WIZNET_RST_EMMC_DATA3)
+#define WIZNET_PIN_RST            PIN_EMMC_DATA3
+#elif defined(CONFIG_CXD56_WIZNET_RST_I2S0_BCK)
+#define WIZNET_PIN_RST            PIN_I2S0_BCK
+#endif
+
+#if defined(CONFIG_CXD56_WIZNET_INT_EMMC_DATA2)
+#define WIZNET_PIN_INT            PIN_EMMC_DATA2
+#elif defined(CONFIG_CXD56_WIZNET_INT_I2S0_LRCK)
+#define WIZNET_PIN_INT            PIN_I2S0_LRCK
+#endif
+
+#ifdef CONFIG_CXD56_WIZNET_USE_SWCS
+#define WIZNET_PIN_CS             PIN_I2S0_DATA_IN
+#endif
 
 /****************************************************************************
  * Public Types

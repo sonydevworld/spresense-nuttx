@@ -1,0 +1,77 @@
+--- wizchip_conf.h	2020-12-01 17:45:13.474682643 +0900
++++ wizchip_conf.h	2020-11-30 14:42:22.245797459 +0900
+@@ -58,6 +58,7 @@
+ extern "C" {
+ #endif
+ 
++#include <nuttx/config.h>
+ #include <stdint.h>
+ /**
+  * @brief Select WIZCHIP.
+@@ -72,7 +73,20 @@ extern "C" {
+ #define W5500						5500
+ 
+ #ifndef _WIZCHIP_
+-#define _WIZCHIP_                      W5100S   // W5100, W5100S, W5200, W5300, W5500
++//#define _WIZCHIP_                      W5100S   // W5100, W5100S, W5200, W5300, W5500
++#if defined(CONFIG_NET_WIZNET_W5100)
++#define _WIZCHIP_                      W5100
++#elif defined(CONFIG_NET_WIZNET_W5100S)
++#define _WIZCHIP_                      W5100S
++#elif defined(CONFIG_NET_WIZNET_W5200)
++#define _WIZCHIP_                      W5200
++#elif defined(CONFIG_NET_WIZNET_W5300)
++#define _WIZCHIP_                      W5300
++#elif defined(CONFIG_NET_WIZNET_W5500)
++#define _WIZCHIP_                      W5500
++#else
++#error "CONFIG_NET_WIZNET_W5x00 not defined"
++#endif
+ #endif
+ 
+ #define _WIZCHIP_IO_MODE_NONE_         0x0000
+@@ -103,7 +117,7 @@ extern "C" {
+ //A20150601 : Define the unit of IO DATA.   
+    typedef   uint8_t   iodata_t;
+ //A20150401 : Indclude W5100.h file
+-   #include "W5100/w5100.h"
++   #include "w5100.h"
+ 
+ #elif (_WIZCHIP_ == W5100S)
+ #define _WIZCHIP_ID_                "W5100S\0"
+@@ -118,7 +132,7 @@ extern "C" {
+ //A20150601 : Define the unit of IO DATA.
+    typedef   uint8_t   iodata_t;
+ //A20150401 : Indclude W5100.h file
+-	#include "W5100S/w5100s.h"
++	#include "w5100s.h"
+ #elif (_WIZCHIP_ == W5200)
+    #define _WIZCHIP_ID_                "W5200\0"
+ /**
+@@ -131,7 +145,7 @@ extern "C" {
+ #endif
+ //A20150601 : Define the unit of IO DATA.   
+    typedef   uint8_t   iodata_t;
+-   #include "W5200/w5200.h"
++   #include "w5200.h"
+ #elif (_WIZCHIP_ == W5500)
+   #define _WIZCHIP_ID_                 "W5500\0"
+   
+@@ -154,7 +168,7 @@ extern "C" {
+ #endif
+ //A20150601 : Define the unit of IO DATA.   
+    typedef   uint8_t   iodata_t;
+-   #include "W5500/w5500.h"
++   #include "w5500.h"
+ #elif ( _WIZCHIP_ == W5300)
+    #define _WIZCHIP_ID_                 "W5300\0"
+ /**
+@@ -182,7 +196,7 @@ extern "C" {
+       #error "Unknown _WIZCHIP_IO_BUS_WIDTH_. It should be 8 or 16."	
+    #endif
+ //
+-   #include "W5300/w5300.h"
++   #include "w5300.h"
+ #else
+    #error "Unknown defined _WIZCHIP_. You should define one of 5100, 5200, and 5500 !!!"
+ #endif

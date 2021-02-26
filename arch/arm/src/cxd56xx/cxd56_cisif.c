@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_cisif.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   Copyright 2018, 2020 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,7 +51,7 @@
 
 #include <arch/chip/cisif.h>
 #include <nuttx/video/video.h>
-
+#include <nuttx/video/video_halif.h>
 #include "up_arch.h"
 
 #include "cxd56_clock.h"
@@ -67,10 +67,19 @@
 
 /* #define CISIF_DBG_CONTI_CAP */
 
-#define YUV_VSIZE_MIN (64)
-#define YUV_HSIZE_MIN (96)
-#define YUV_VSIZE_MAX (360)
-#define YUV_HSIZE_MAX (480)
+#define YUV_VSIZE_STEP (1)
+#define YUV_HSIZE_STEP (1)
+#define YUV_VSIZE_MIN  (64)
+#define YUV_HSIZE_MIN  (96)
+#define YUV_VSIZE_MAX  (360)
+#define YUV_HSIZE_MAX  (480)
+
+#define JPG_VSIZE_STEP (1)
+#define JPG_HSIZE_STEP (1)
+#define JPG_VSIZE_MIN  (64)
+#define JPG_HSIZE_MIN  (96)
+#define JPG_VSIZE_MAX  (1944)
+#define JPG_HSIZE_MAX  (2592)
 
 #define JPG_INT_ALL   (JPG_ERR_STATUS_INT | \
                        JPG_MEM_OVF_INT    | \
@@ -123,16 +132,55 @@ typedef enum state_e state_t;
 
 typedef void (*intc_func_table)(uint8_t code);
 
+typedef void (*notify_callback_t)(uint8_t code, uint32_t size, uint32_t addr);
+typedef void (*comp_callback_t)(uint8_t code, uint32_t size, uint32_t addr);
+
+struct cisif_init_yuv_param_s
+{
+  uint16_t          hsize;
+  uint16_t          vsize;
+  uint32_t          notify_size;
+  notify_callback_t notify_func;
+};
+
+typedef struct cisif_init_yuv_param_s cisif_init_yuv_param_t;
+
+struct cisif_init_jpeg_param_s
+{
+  uint32_t notify_size;
+  notify_callback_t notify_func;
+};
+
+typedef struct cisif_init_jpeg_param_s cisif_init_jpeg_param_t;
+
+struct cisif_sarea_s
+{
+  uint8_t *strg_addr;
+  uint32_t strg_size;
+};
+
+typedef struct cisif_sarea_s cisif_sarea_t;
+
+struct cisif_param_s
+{
+  uint32_t                format;
+  cisif_init_yuv_param_t  yuv_param;
+  cisif_init_jpeg_param_t jpg_param;
+  cisif_sarea_t           sarea;
+};
+
+typedef struct cisif_param_s cisif_param_t;
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
+FAR static void *g_cisif_video_private = NULL;
 static state_t g_state = STATE_STANDBY;
 static uint32_t g_storage_addr = 0;
 
-notify_callback_t g_jpg_notify_callback_func;
-notify_callback_t g_ycc_notify_callback_func;
-comp_callback_t   g_comp_callback_func;
+static notify_callback_t g_jpg_notify_callback_func;
+static notify_callback_t g_ycc_notify_callback_func;
 
 static bool     g_jpgint_receive;
 static bool     g_errint_receive;
@@ -167,8 +215,22 @@ static int cisif_check_sarea(void *s);
 static int cisif_set_yuv_sarea(void *s);
 static int cisif_set_jpg_sarea(void *s);
 static int cisif_set_intlev_sarea(void *s, uint32_t yuv_size);
+static int cisif_intc_handler(int irq, FAR void *context, FAR void *arg);
 
-int cisif_intc_handler(int irq, FAR void *context, FAR void *arg);
+/* video image data operations */
+
+static int cxd56_cisif_open(FAR void *video_private);
+static int cxd56_cisif_close(void);
+static int cxd56_cisif_start_dma(FAR struct v4l2_format *format,
+                                 uint32_t bufaddr,
+                                 uint32_t bufsize);
+static int cxd56_cisif_cancel_dma(void);
+static int cxd56_cisif_set_dmabuf(uint32_t bufaddr, uint32_t bufsize);
+static int cxd56_cisif_get_range_of_framesize(FAR struct v4l2_frmsizeenum
+                                              *frmsize);
+static int cxd56_cisif_chk_pixelformat(uint32_t pixelformat,
+                                       uint32_t subimg_pixelformat);
+static int cxd56_cisif_try_format(FAR struct v4l2_format *format);
 
 const intc_func_table g_intcomp_func[] =
   {
@@ -201,6 +263,18 @@ const intc_func_table g_intcomp_func[] =
     cisif_jpg_err_int,       /* JPG_FIFO_OVF_INT */
     cisif_jpg_err_int,       /* JPG_MEM_OVF_INT */
     cisif_jpg_err_int,       /* JPG_ERR_STATUS_INT */
+  };
+
+const struct video_imgdata_ops_s g_cxd56_cisif_ops =
+  {
+    .open                   = cxd56_cisif_open,
+    .close                  = cxd56_cisif_close,
+    .start_dma              = cxd56_cisif_start_dma,
+    .set_dmabuf             = cxd56_cisif_set_dmabuf,
+    .cancel_dma             = cxd56_cisif_cancel_dma,
+    .get_range_of_framesize = cxd56_cisif_get_range_of_framesize,
+    .try_format             = cxd56_cisif_try_format,
+    .chk_pixelformat        = cxd56_cisif_chk_pixelformat,
   };
 
 /****************************************************************************
@@ -305,7 +379,7 @@ static void cisif_callback_for_intlev(uint8_t code)
 
   /* Notify and get next addr */
 
-  g_comp_callback_func(0, size, g_storage_addr);
+  video_common_notify_dma_done(0, size, g_cisif_video_private);
 
   g_jpgint_receive = false;
 
@@ -347,7 +421,7 @@ static void cisif_ycc_axi_trdn_int(uint8_t code)
   else
     {
       size = cisif_reg_read(CISIF_YCC_DSTRG_CONT);
-      g_comp_callback_func(0, size, g_storage_addr);
+      video_common_notify_dma_done(0, size, g_cisif_video_private);
       cisif_reg_write(CISIF_YCC_DREAD_CONT, 0);
     }
 }
@@ -397,7 +471,7 @@ static void cisif_jpg_axi_trdn_int(uint8_t code)
   else
     {
       size = cisif_reg_read(CISIF_JPG_DSTRG_CONT);
-      g_comp_callback_func(0, size, g_storage_addr);
+      video_common_notify_dma_done(0, size, g_cisif_video_private);
       cisif_reg_write(CISIF_JPG_DREAD_CONT, 0);
     }
 }
@@ -429,7 +503,7 @@ static void cisif_ycc_err_int(uint8_t code)
 #endif
 
   size = cisif_reg_read(CISIF_YCC_DSTRG_CONT);
-  g_comp_callback_func(code, size, g_storage_addr);
+  video_common_notify_dma_done(code, size, g_cisif_video_private);
   cisif_reg_write(CISIF_YCC_DREAD_CONT, 0);
   g_errint_receive = true;
 }
@@ -441,16 +515,13 @@ static void cisif_ycc_err_int(uint8_t code)
 static void cisif_jpg_err_int(uint8_t code)
 {
   uint32_t size;
-  uint32_t addr;
 
 #ifdef CISIF_INTR_TRACE
   cisif_trace_time_stop("cisif_jpg_err_int");
 #endif
 
-  addr = g_storage_addr;
-
   size = cisif_reg_read(CISIF_JPG_DSTRG_CONT);
-  g_comp_callback_func(code, size, addr);
+  video_common_notify_dma_done(code, size, g_cisif_video_private);
   cisif_reg_write(CISIF_JPG_DREAD_CONT, 0);
   g_errint_receive = true;
 }
@@ -459,7 +530,7 @@ static void cisif_jpg_err_int(uint8_t code)
  * cisif_intc_handler
  ****************************************************************************/
 
-int cisif_intc_handler(int irq, FAR void *context, FAR void *arg)
+static int cisif_intc_handler(int irq, FAR void *context, FAR void *arg)
 {
   uint32_t value;
   uint32_t enable;
@@ -510,11 +581,6 @@ static uint32_t cisif_reg_read(uint16_t reg)
 static int cisif_check_param(cisif_param_t *p)
 {
   if (p == NULL)
-    {
-      return -EINVAL;
-    }
-
-  if (p->comp_func == NULL)
     {
       return -EINVAL;
     }
@@ -687,14 +753,56 @@ static int cisif_set_intlev_sarea(void *s, uint32_t yuv_size)
 }
 
 /****************************************************************************
- * Public Functions
+ * cisif_chk_jpgfrmsize
+ ****************************************************************************/
+
+static int cisif_chk_jpgfrmsize(int w, int h)
+{
+  if ((w < JPG_HSIZE_MIN) ||
+      (w > JPG_HSIZE_MAX))
+    {
+      return -EINVAL;
+    }
+
+  if ((h < JPG_VSIZE_MIN) ||
+      (h > JPG_VSIZE_MAX))
+    {
+      return -EINVAL;
+    }
+
+  return OK;
+}
+
+/****************************************************************************
+ * cisif_chk_yuvfrmsize
+ ****************************************************************************/
+
+static int cisif_chk_yuvfrmsize(int w, int h)
+{
+  if ((w < YUV_HSIZE_MIN) ||
+      (w > YUV_HSIZE_MAX))
+    {
+      return -EINVAL;
+    }
+
+  if ((h < YUV_VSIZE_MIN) ||
+      (h > YUV_VSIZE_MAX))
+    {
+      return -EINVAL;
+    }
+
+  return OK;
+}
+
+/****************************************************************************
+ * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
- * cxd56_cisifinit
+ * cxd56_cisif_open
  ****************************************************************************/
 
-int cxd56_cisifinit(void)
+static int cxd56_cisif_open(FAR void *video_private)
 {
   if (g_state != STATE_STANDBY)
     {
@@ -723,15 +831,15 @@ int cxd56_cisifinit(void)
 #endif
 
   g_state = STATE_READY;
-
+  g_cisif_video_private = video_private;
   return OK;
 }
 
 /****************************************************************************
- * cxd56_cisiffinalize
+ * cxd56_cisif_close
  ****************************************************************************/
 
-int cxd56_cisiffinalize(void)
+static int cxd56_cisif_close(void)
 {
   if (g_state != STATE_READY)
     {
@@ -756,18 +864,21 @@ int cxd56_cisiffinalize(void)
   cxd56_img_cisif_clock_disable();
 
   g_state = STATE_STANDBY;
+  g_cisif_video_private = NULL;
 
   return OK;
 }
 
 /****************************************************************************
- * cxd56_cisifstartcapturing
+ * cxd56_cisif_start_dma
  ****************************************************************************/
 
-int cxd56_cisifstartcapture(
-  cisif_param_t *param,
-  cisif_sarea_t *sarea)
+static int cxd56_cisif_start_dma(FAR struct v4l2_format *format,
+                                 uint32_t bufaddr,
+                                 uint32_t bufsize)
 {
+  cisif_param_t param = {0};
+  cisif_sarea_t sarea = {0};
   uint32_t cisif_mode;
   uint32_t interrupts = VS_INT;
   int ret;
@@ -777,7 +888,22 @@ int cxd56_cisifstartcapture(
       return -EPERM;
     }
 
-  ret = cisif_check_param(param);
+  param.format = format->fmt.pix.pixelformat;
+  if (param.format != V4L2_PIX_FMT_JPEG)
+    {
+      if (param.format == V4L2_PIX_FMT_UYVY)
+        {
+          param.yuv_param.hsize = format->fmt.pix.width;
+          param.yuv_param.vsize = format->fmt.pix.height;
+        }
+      else
+        {
+          param.yuv_param.hsize = format->fmt.pix.subimg_width;
+          param.yuv_param.vsize = format->fmt.pix.subimg_height;
+        }
+    }
+
+  ret = cisif_check_param(&param);
   if (ret != OK)
     {
       return ret;
@@ -785,37 +911,39 @@ int cxd56_cisifstartcapture(
 
   cisif_reg_write(CISIF_INTR_DISABLE, ALL_CLEAR_INT);
 
-  ret = cisif_check_sarea(sarea);
+  sarea.strg_addr = (uint8_t *)bufaddr;
+  sarea.strg_size = bufsize;
+  ret = cisif_check_sarea(&sarea);
   if (ret != OK)
     {
       return ret;
     }
 
-  switch (param->format)
+  switch (param.format)
     {
       case V4L2_PIX_FMT_UYVY:
-        cisif_set_yuv_param(param);
-        cisif_set_yuv_sarea(sarea);
+        cisif_set_yuv_param(&param);
+        cisif_set_yuv_sarea(&sarea);
 
         cisif_mode = MODE_YUV_TRS_EN;
         interrupts |= YCC_INT_ALL;
         break;
 
       case V4L2_PIX_FMT_JPEG:
-        cisif_set_jpg_param(param);
-        cisif_set_jpg_sarea(sarea);
+        cisif_set_jpg_param(&param);
+        cisif_set_jpg_sarea(&sarea);
 
         cisif_mode = MODE_JPG_TRS_EN;
         interrupts |= JPG_INT_ALL;
         break;
 
       case V4L2_PIX_FMT_JPEG_WITH_SUBIMG:
-        cisif_set_yuv_param(param);
-        cisif_set_jpg_param(param);
+        cisif_set_yuv_param(&param);
+        cisif_set_jpg_param(&param);
 
-        cisif_set_intlev_sarea(sarea,
-                               YUV_SIZE(param->yuv_param.vsize,
-                               param->yuv_param.hsize));
+        cisif_set_intlev_sarea(&sarea,
+                               YUV_SIZE(param.yuv_param.vsize,
+                               param.yuv_param.hsize));
 
         cisif_mode = MODE_INTLEV_TRS_EN;
         interrupts |= YCC_INT_ALL | JPG_INT_ALL;
@@ -826,8 +954,7 @@ int cxd56_cisifstartcapture(
         return -EINVAL;
     }
 
-  g_comp_callback_func = param->comp_func;
-  g_storage_addr       = (uint32_t)sarea->strg_addr;
+  g_storage_addr       = (uint32_t)sarea.strg_addr;
 
   g_state = STATE_CAPTURE;
 
@@ -851,7 +978,7 @@ int cxd56_cisifstartcapture(
   return OK;
 }
 
-int cxd56_cisifstopcapture(void)
+static int cxd56_cisif_cancel_dma(void)
 {
   g_state = STATE_READY;
   cisif_reg_write(CISIF_DIN_ENABLE, 0);
@@ -861,15 +988,18 @@ int cxd56_cisifstopcapture(void)
   return OK;
 }
 
-int cxd56_cisifsetdmabuf(cisif_sarea_t *sarea)
+static int cxd56_cisif_set_dmabuf(uint32_t bufaddr, uint32_t bufsize)
 {
   int      ret;
   uint32_t cisif_mode;
   uint32_t yuv_regsize;
   uint32_t yuv_hsize;
   uint32_t yuv_vsize;
+  cisif_sarea_t sarea = {0};
 
-  ret = cisif_check_sarea(sarea);
+  sarea.strg_addr = (uint8_t *)bufaddr;
+  sarea.strg_size = bufsize;
+  ret = cisif_check_sarea(&sarea);
   if (ret != OK)
     {
       return ret;
@@ -880,11 +1010,11 @@ int cxd56_cisifsetdmabuf(cisif_sarea_t *sarea)
   switch (cisif_mode)
     {
       case MODE_YUV_TRS_EN:
-        ret = cisif_set_yuv_sarea(sarea);
+        ret = cisif_set_yuv_sarea(&sarea);
         break;
 
       case MODE_JPG_TRS_EN:
-        ret = cisif_set_jpg_sarea(sarea);
+        ret = cisif_set_jpg_sarea(&sarea);
         break;
 
       default: /* MODE_INTLEV_TRS_EN */
@@ -895,7 +1025,7 @@ int cxd56_cisifsetdmabuf(cisif_sarea_t *sarea)
         yuv_vsize = (yuv_regsize >> 16) & 0x1ff;
         yuv_hsize = yuv_regsize & 0x01ff;
 
-        ret = cisif_set_intlev_sarea(sarea,
+        ret = cisif_set_intlev_sarea(&sarea,
                                      YUV_SIZE(yuv_vsize, yuv_hsize));
         break;
     }
@@ -906,7 +1036,172 @@ int cxd56_cisifsetdmabuf(cisif_sarea_t *sarea)
     }
 
   cisif_reg_write(CISIF_EXE_CMD, 1);
-  g_storage_addr = (uint32_t)sarea->strg_addr;
+  g_storage_addr = (uint32_t)sarea.strg_addr;
 
   return ret;
 }
+
+static int cxd56_cisif_get_range_of_framesize(FAR struct v4l2_frmsizeenum
+                                             *frmsize)
+{
+  int ret = OK;
+
+  if (frmsize == NULL)
+    {
+      return -EINVAL;
+    }
+
+  if (frmsize->index != 0)
+    {
+      return -EINVAL;
+    }
+
+  switch (frmsize->pixel_format)
+    {
+      case V4L2_PIX_FMT_UYVY:                /* YUV 4:2:2 */
+        frmsize->type                        = V4L2_FRMSIZE_TYPE_STEPWISE;
+        frmsize->stepwise.min_width          = YUV_HSIZE_MIN;
+        frmsize->stepwise.max_width          = YUV_HSIZE_MAX;
+        frmsize->stepwise.step_width         = YUV_HSIZE_STEP;
+        frmsize->stepwise.min_height         = YUV_VSIZE_MIN;
+        frmsize->stepwise.max_height         = YUV_VSIZE_MAX;
+        frmsize->stepwise.step_height        = YUV_VSIZE_STEP;
+
+        break;
+
+      case V4L2_PIX_FMT_JPEG:                /* JPEG */
+        frmsize->type                        = V4L2_FRMSIZE_TYPE_STEPWISE;
+        frmsize->stepwise.min_width          = JPG_HSIZE_MIN;
+        frmsize->stepwise.max_width          = JPG_HSIZE_MAX;
+        frmsize->stepwise.step_width         = JPG_HSIZE_STEP;
+        frmsize->stepwise.min_height         = JPG_VSIZE_MIN;
+        frmsize->stepwise.max_height         = JPG_VSIZE_MAX;
+        frmsize->stepwise.step_height        = JPG_VSIZE_STEP;
+
+        break;
+
+      case V4L2_PIX_FMT_JPEG_WITH_SUBIMG:    /* JPEG + YUV 4:2:2 */
+        if (frmsize->subimg_pixel_format != V4L2_PIX_FMT_UYVY)
+          {
+            /* Unsupported pixel format */
+
+            return -EINVAL;
+          }
+
+        frmsize->type                        = V4L2_FRMSIZE_TYPE_STEPWISE;
+        frmsize->stepwise.min_width          = JPG_HSIZE_MIN;
+        frmsize->stepwise.max_width          = JPG_HSIZE_MAX;
+        frmsize->stepwise.step_width         = JPG_HSIZE_STEP;
+        frmsize->stepwise.min_height         = JPG_VSIZE_MIN;
+        frmsize->stepwise.max_height         = JPG_VSIZE_MAX;
+        frmsize->stepwise.step_height        = JPG_VSIZE_STEP;
+
+        frmsize->subimg_type                 = V4L2_FRMSIZE_TYPE_STEPWISE;
+        frmsize->subimg.stepwise.min_width   = YUV_HSIZE_MIN;
+        frmsize->subimg.stepwise.max_width   = YUV_HSIZE_MAX;
+        frmsize->subimg.stepwise.step_width  = YUV_HSIZE_STEP;
+        frmsize->subimg.stepwise.min_height  = YUV_VSIZE_MIN;
+        frmsize->subimg.stepwise.max_height  = YUV_VSIZE_MAX;
+        frmsize->subimg.stepwise.step_height = YUV_VSIZE_STEP;
+
+        break;
+
+      default: /* Unsupported pixel format */
+
+        return -EINVAL;
+    }
+
+  return ret;
+}
+
+static int cxd56_cisif_chk_pixelformat(uint32_t pixelformat,
+                                       uint32_t subimg_pixelformat)
+{
+  switch (pixelformat)
+    {
+      case V4L2_PIX_FMT_UYVY:
+
+        return OK;
+
+      case V4L2_PIX_FMT_JPEG:
+
+        return OK;
+
+      case V4L2_PIX_FMT_JPEG_WITH_SUBIMG:
+
+        if (subimg_pixelformat == V4L2_PIX_FMT_UYVY)
+          {
+            return OK;
+          }
+        else
+          {
+            return -EINVAL;
+          }
+
+      default :
+
+        return -EINVAL;
+    }
+
+  return OK;
+}
+
+static int cxd56_cisif_try_format(FAR struct v4l2_format *format)
+{
+  int ret = OK;
+
+  switch (format->fmt.pix.pixelformat)
+    {
+      case V4L2_PIX_FMT_UYVY:                /* YUV 4:2:2 */
+
+        ret = cisif_chk_yuvfrmsize(format->fmt.pix.width,
+                                   format->fmt.pix.height);
+        break;
+
+      case V4L2_PIX_FMT_JPEG:                /* JPEG */
+
+        ret = cisif_chk_jpgfrmsize(format->fmt.pix.width,
+                                   format->fmt.pix.height);
+        break;
+
+      case V4L2_PIX_FMT_JPEG_WITH_SUBIMG:    /* JPEG + YUV 4:2:2 */
+
+        if (format->fmt.pix.subimg_pixelformat != V4L2_PIX_FMT_UYVY)
+          {
+            /* Unsupported pixel format */
+
+            return -EINVAL;
+          }
+
+        ret = cisif_chk_jpgfrmsize(format->fmt.pix.width,
+                                   format->fmt.pix.height);
+        if (ret != OK)
+          {
+            return ret;
+          }
+
+        ret = cisif_chk_yuvfrmsize(format->fmt.pix.subimg_width,
+                                   format->fmt.pix.subimg_height);
+        break;
+
+      default: /* Unsupported pixel format */
+
+        return -EINVAL;
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * cxd56_cisif_initialize
+ ****************************************************************************/
+
+const FAR struct video_imgdata_ops_s *cxd56_cisif_initialize(void)
+{
+  return &g_cxd56_cisif_ops;
+}
+

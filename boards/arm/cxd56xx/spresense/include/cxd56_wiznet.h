@@ -1,7 +1,7 @@
 /****************************************************************************
- * include/nuttx/video/isx012.h
+ * boards/arm/cxd56xx/spresense/include/cxd56_wiznet.h
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   Copyright 2020 Sony Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,10 +13,9 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
+ * 3. Neither the name of Sony Corporation nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -33,26 +32,27 @@
  *
  ****************************************************************************/
 
-#ifndef __INCLUDE_NUTTX_VIDEO_ISX012_H
-#define __INCLUDE_NUTTX_VIDEO_ISX012_H
+#ifndef __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_WIZNET_H
+#define __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_WIZNET_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
+#include <nuttx/config.h>
 
 /****************************************************************************
  * Public Types
  ****************************************************************************/
 
+#ifndef __ASSEMBLY__
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/
 
-#ifdef __cplusplus
+#undef EXTERN
+#if defined(__cplusplus)
 #define EXTERN extern "C"
 extern "C"
 {
@@ -63,12 +63,35 @@ extern "C"
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-FAR struct video_sensctrl_ops_s *isx012_initialize(void);
-int isx012_uninitialize(void);
+
+#if defined(CONFIG_NET_WIZNET) && defined(CONFIG_CXD56_GPIO_IRQ)
+
+/****************************************************************************
+ * Name: board_wiznet_initialize
+ *
+ * Description:
+ *   Initialize WIZNET net
+ *
+ ****************************************************************************/
+
+int board_wiznet_initialize(FAR const char *devpath);
+
+/****************************************************************************
+ * Name: board_wiznet_uninitialize
+ *
+ * Description:
+ *   Uninitialize WIZNET net
+ *
+ ****************************************************************************/
+
+int board_wiznet_uninitialize(void);
+
+#endif
 
 #undef EXTERN
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 
-#endif /* __INCLUDE_NUTTX_VIDEO_ISX012_H */
+#endif /* __ASSEMBLY__ */
+#endif  /* __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_WIZNET_H */

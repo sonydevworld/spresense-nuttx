@@ -138,4 +138,74 @@ endif # CXD56_LTE_SPI5
 
 endif # CXD56_LTE
 
+menu "WIZnet Ethernet on CXD5602"
+
+if NET_WIZNET
+
+choice
+	prompt "WIZnet SPI selection"
+	default CXD56_WIZNET_SPI5
+
+config CXD56_WIZNET_SPI4
+	bool "Use SPI4"
+	select CXD56_SPI4
+
+config CXD56_WIZNET_SPI5
+	bool "Use SPI5"
+	select CXD56_SPI5
+
+endchoice
+
+if CXD56_WIZNET_SPI4
+
+config CXD56_WIZNET_SPI4_DMAC
+	bool "Use DMAC for SPI4"
+	default n
+	select CXD56_DMAC_SPI4_TX
+	select CXD56_DMAC_SPI4_RX
+
+endif # CXD56_WIZNET_SPI4
+
+if CXD56_WIZNET_SPI5
+
+config CXD56_WIZNET_SPI5_DMAC
+	bool "Use DMAC for SPI5"
+	default n
+	select CXD56_DMAC_SPI5_TX
+	select CXD56_DMAC_SPI5_RX
+
+endif # CXD56_WIZNET_SPI5
+
+choice CXD56_WIZNET_PIN_RST
+	prompt "WIZnet Reset pin configuration."
+	default CXD56_WIZNET_RST_EMMC_DATA3
+
+config CXD56_WIZNET_RST_EMMC_DATA3
+	bool "Use PIN EMMC_DATA3"
+
+config CXD56_WIZNET_RST_I2S0_BCK
+	bool "Use PIN I2S0_BCK"
+
+endchoice
+
+choice CXD56_WIZNET_PIN_INT
+	prompt "WIZnet Interrupt pin configuration."
+	default CXD56_WIZNET_INT_EMMC_DATA2
+
+config CXD56_WIZNET_INT_EMMC_DATA2
+	bool "Use PIN EMMC_DATA2"
+
+config CXD56_WIZNET_INT_I2S0_LRCK
+	bool "Use PIN I2S0_LRCK"
+
+endchoice
+
+config CXD56_WIZNET_USE_SWCS
+	bool "Use GPIO (I2S_DIN) as a Chip Select pin."
+	default y
+
+endif # NET_WIZNET
+
+endmenu # "WIZnet Ethernet on CXD5602"
+
 endif

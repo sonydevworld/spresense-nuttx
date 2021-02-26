@@ -163,6 +163,30 @@ extern "C"
 
 #define VIDIOC_CANCEL_DQBUF           _VIDIOC(0x0016)
 
+/* Query control for scene parameter
+ *  Address pointing to struct v4s_query_ext_ctrl_scene
+ */
+
+#define V4SIOC_QUERY_EXT_CTRL_SCENE   _VIDIOC(0x0017)
+
+/* Query menu for scene parameter
+ *  Address pointing to struct v4s_querymenu_scene
+ */
+
+#define V4SIOC_QUERYMENU_SCENE        _VIDIOC(0x0018)
+
+/* Get current control value
+ *  Address pointing to struct v4s_ext_controls_scene
+ */
+
+#define V4SIOC_G_EXT_CTRLS_SCENE      _VIDIOC(0x0019)
+
+/* Set control value
+ *  Address pointing to struct v4s_ext_controls_scene
+ */
+
+#define V4SIOC_S_EXT_CTRLS_SCENE      _VIDIOC(0x001a)
+
 #define VIDEO_HSIZE_QVGA        (320)   /* QVGA    horizontal size */
 #define VIDEO_VSIZE_QVGA        (240)   /* QVGA    vertical   size */
 #define VIDEO_HSIZE_VGA         (640)   /* VGA     horizontal size */
@@ -618,7 +642,32 @@ struct v4l2_ext_controls
   struct v4l2_ext_control *controls;   /* each control information    */
 };
 
-extern FAR const struct video_devops_s *g_video_devops;
+/* Structure for V4SIOC_S_EXT_CTRLS and V4SIOC_G_EXT_CTRLS */
+
+struct v4s_ext_controls_scene
+{
+  enum v4l2_scene_mode     mode;       /* scene mode to be controled */
+  struct v4l2_ext_controls control;    /* same as VIDIOC_S_EXT_CTRLS */
+};
+
+/* Structure for V4SIOC_QUERY_EXT_CTRL */
+
+struct v4s_query_ext_ctrl_scene
+{
+  enum v4l2_scene_mode       mode;     /* scene mode to be queried */
+  struct v4l2_query_ext_ctrl control;  /* same as VIDIOC_QUERY_EXT_CTRL */
+};
+
+/* Structure for V4SIOC_QUERYMENU */
+
+struct v4s_querymenu_scene
+{
+  enum v4l2_scene_mode       mode;     /* scene mode to be queried */
+  struct v4l2_querymenu      menu;     /* same as VIDIOC_QUERYMENU */
+};
+
+extern FAR const struct video_sensctrl_ops_s *g_video_sensctrl_ops;
+extern FAR const struct video_imgdata_ops_s  *g_video_imgdata_ops;
 
 /****************************************************************************
  * Public Function Prototypes

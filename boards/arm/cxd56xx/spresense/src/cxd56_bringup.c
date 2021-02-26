@@ -1,7 +1,7 @@
 /****************************************************************************
  * boards/arm/cxd56xx/spresense/src/cxd56_bringup.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   Copyright 2018, 2020 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -123,6 +123,14 @@
 
 #ifdef CONFIG_VIDEO_FB
 #  include <nuttx/video/fb.h>
+#endif
+
+#ifdef CONFIG_CXD56_CISIF
+#  ifdef CONFIG_VIDEO_ISX012
+#    include <nuttx/video/isx012.h>
+#  endif
+#  include <nuttx/video/video_halif.h>
+#  include <arch/chip/cisif.h>
 #endif
 
 #include "spresense.h"
@@ -380,13 +388,22 @@ int cxd56_bringup(void)
       _err("ERROR: Failed to initialize ISX012 board. %d\n", errno);
     }
 
-  g_video_devops = isx012_initialize();
-  if (g_video_devops == NULL)
+  g_video_sensctrl_ops = isx012_initialize();
+  if (g_video_sensctrl_ops == NULL)
     {
       _err("ERROR: Failed to populate ISX012 devops. %d\n", errno);
       ret = ERROR;
     }
 #endif /* CONFIG_VIDEO_ISX012 */
+
+#ifdef CONFIG_CXD56_CISIF
+  g_video_imgdata_ops = cxd56_cisif_initialize();
+  if (g_video_imgdata_ops == NULL)
+    {
+      _err("ERROR: Failed to populate CISIF operations. %d\n", errno);
+      ret = ERROR;
+    }
+#endif /* CONFIG_CXD56_CISIF */
 
 #if defined(CONFIG_CXD56_SDIO)
   /* In order to prevent Hi-Z from being input to the SD Card controller,
@@ -443,6 +460,14 @@ int cxd56_bringup(void)
   if (ret < 0)
     {
       _err("ERROR: Failed to initialize GS2200M. \n");
+    }
+#endif
+
+#ifdef CONFIG_NET_WIZNET
+  ret = board_wiznet_initialize("/dev/wiznet");
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize W5x00. \n");
     }
 #endif
 
