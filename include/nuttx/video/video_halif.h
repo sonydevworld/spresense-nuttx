@@ -1,7 +1,7 @@
 /****************************************************************************
  * modules/include/video/video_halif.h
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   Copyright 2018, 2020 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -45,19 +45,19 @@
  * Public Types
  ****************************************************************************/
 
-struct video_devops_s
+struct video_sensctrl_ops_s
 {
-  CODE int (*open)(FAR void *video_priv);
+  CODE int (*open)(void);
   CODE int (*close)(void);
 
   CODE int (*do_halfpush)(bool enable);
   CODE int (*set_buftype)(enum v4l2_buf_type type);
-  CODE int (*set_buf)(uint32_t bufaddr, uint32_t bufsize);
-  CODE int (*cancel_dma)(void);
+  CODE enum v4l2_buf_type (*get_buftype)(void);
   CODE int (*get_range_of_fmt)(FAR struct v4l2_fmtdesc *format);
   CODE int (*get_range_of_framesize)(FAR struct v4l2_frmsizeenum *frmsize);
   CODE int (*try_format)(FAR struct v4l2_format *format);
   CODE int (*set_format)(FAR struct v4l2_format *format);
+  CODE int (*get_format)(FAR struct v4l2_format *format);
   CODE int (*get_range_of_frameinterval)
            (FAR struct v4l2_frmivalenum *frmival);
   CODE int (*set_frameinterval)(FAR struct v4l2_streamparm *parm);
@@ -67,7 +67,32 @@ struct video_devops_s
                             FAR struct v4l2_ext_control *control);
   CODE int (*set_ctrlvalue)(uint16_t ctrl_class,
                             FAR struct v4l2_ext_control *control);
+  CODE int (*get_range_of_sceneparam)(enum v4l2_scene_mode mode,
+                                      FAR struct v4l2_query_ext_ctrl *range);
+  CODE int (*get_menu_of_sceneparam)(enum v4l2_scene_mode mode,
+                                     FAR struct v4l2_querymenu *menu);
+  CODE int (*get_sceneparam)(enum v4l2_scene_mode mode,
+                             uint16_t ctrl_class,
+                             FAR struct v4l2_ext_control *control);
+  CODE int (*set_sceneparam)(enum v4l2_scene_mode mode,
+                             uint16_t ctrl_class,
+                             FAR struct v4l2_ext_control *control);
   CODE int (*refresh)(void);
+};
+
+struct video_imgdata_ops_s
+{
+  CODE int (*open)(FAR void *video_private);
+  CODE int (*close)(void);
+  CODE int (*start_dma)(FAR struct v4l2_format *format,
+                        uint32_t bufaddr,
+                        uint32_t bufsize);
+  CODE int (*set_dmabuf)(uint32_t bufaddr, uint32_t bufsize);
+  CODE int (*cancel_dma)(void);
+  CODE int (*get_range_of_framesize)(FAR struct v4l2_frmsizeenum *frmsize);
+  CODE int (*try_format)(FAR struct v4l2_format *format);
+  CODE int (*chk_pixelformat)(uint32_t pixelformat,
+                              uint32_t subimg_pixelformat);
 };
 
 /****************************************************************************
@@ -86,8 +111,12 @@ extern "C"
  * Public Functions
  ****************************************************************************/
 
+/* Callback function which device driver call when dma has done.
+ * This function should be called in interrupt handler or
+ * in critical section.
+ */
+
 int video_common_notify_dma_done(uint8_t  err_code,
-                                 uint32_t buf_type,
                                  uint32_t datasize,
                                  FAR void *priv);
 

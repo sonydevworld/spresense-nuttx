@@ -1,0 +1,46 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+menuconfig NET_WIZNET
+	bool "WIZnet W5x00 Ethernet Support"
+	default n
+	select SPI
+	---help---
+		Enable driver for WIZnet W5x00 ethernet
+
+if NET_WIZNET
+
+choice
+	prompt "WIZnet W5x00 device selection"
+	default NET_WIZNET_W5500
+
+config NET_WIZNET_W5100
+	bool "Use WIZnet W5100 device"
+
+config NET_WIZNET_W5100S
+	bool "Use WIZnet W5100S device"
+
+config NET_WIZNET_W5200
+	bool "Use WIZnet W5200 device"
+
+config NET_WIZNET_W5300
+	bool "Use WIZnet W5300 device"
+
+config NET_WIZNET_W5500
+	bool "Use WIZnet W5500 device"
+endchoice
+
+config NET_WIZNET_SPI_FREQUENCY
+	int "SPI frequency for WIZnet"
+	default 14000000
+	range 4000000 20000000
+
+config NET_WIZNET_MAX_PACKET_SIZE
+  int "Max size to be transfer in bytes"
+  default 2051
+  ---help---
+    Maximum send/recv data buffer size + 3 bytes header size
+
+endif # NET_WIZNET

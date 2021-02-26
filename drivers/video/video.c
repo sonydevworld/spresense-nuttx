@@ -1,7 +1,7 @@
 /****************************************************************************
  * drivers/video/video.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   Copyright 2018, 2020 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -90,6 +90,14 @@
 #define videoinfo(x...)
 #endif
 
+#ifndef MIN
+#  define MIN(a,b) (a < b ? a : b)
+#endif
+
+#ifndef MAX
+#  define MAX(a,b) (a > b ? a : b)
+#endif
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -139,6 +147,14 @@ struct video_type_inf_s
 
 typedef struct video_type_inf_s video_type_inf_t;
 
+struct video_fmtlist_s
+{
+  uint16_t            num;
+  struct v4l2_fmtdesc *fmt;
+};
+
+typedef struct video_fmtlist_s video_fmtlist_t;
+
 struct video_mng_s
 {
   FAR char           *devpath;     /* parameter of video_initialize() */
@@ -147,6 +163,8 @@ struct video_mng_s
   FAR struct pollfd  *poll_wait;   /* poll(setup) information */
   video_type_inf_t   video_inf;
   video_type_inf_t   still_inf;
+  video_fmtlist_t    video_fmtlist;
+  video_fmtlist_t    still_fmtlist;
 };
 
 typedef struct video_mng_s video_mng_t;
@@ -179,6 +197,9 @@ static bool is_taking_still_picture(FAR video_mng_t *vmng);
 static bool is_bufsize_sufficient(FAR video_mng_t *vmng, uint32_t bufsize);
 static void cleanup_resources(FAR video_mng_t *vmng);
 static bool is_sem_waited(FAR sem_t *sem);
+static int create_supported_fmtlist(enum v4l2_buf_type  type,
+                                    video_fmtlist_t     *list);
+static void destroy_supported_fmtlist(video_fmtlist_t *list);
 
 /* internal function for each cmds of ioctl */
 
@@ -190,7 +211,8 @@ static int video_dqbuf(FAR struct video_mng_s *vmng,
                        FAR struct v4l2_buffer *buf);
 static int video_cancel_dqbuf(FAR struct video_mng_s *vmng,
                               enum v4l2_buf_type type);
-static int video_enum_fmt(FAR struct v4l2_fmtdesc *fmt);
+static int video_enum_fmt(FAR struct video_mng_s *vmng,
+                          FAR struct v4l2_fmtdesc *fmt);
 static int video_enum_framesizes(FAR struct v4l2_frmsizeenum *frmsize);
 static int video_s_fmt(FAR struct video_mng_s *priv,
                        FAR struct v4l2_format *fmt);
@@ -217,6 +239,11 @@ static int video_g_ext_ctrls(FAR struct video_mng_s *priv,
                              FAR struct v4l2_ext_controls *ctrls);
 static int video_s_ext_ctrls(FAR struct video_mng_s *priv,
                              FAR struct v4l2_ext_controls *ctrls);
+static int video_query_ext_ctrl_scene(FAR struct v4s_query_ext_ctrl_scene
+                                      *ctrl);
+static int video_querymenu_scene(FAR struct v4s_querymenu_scene *menu);
+static int video_g_ext_ctrls_scene(FAR struct v4s_ext_controls_scene *ctrls);
+static int video_s_ext_ctrls_scene(FAR struct v4s_ext_controls_scene *ctrls);
 
 /****************************************************************************
  * Private Data
@@ -242,7 +269,8 @@ static bool is_initialized = false;
  * Public Data
  ****************************************************************************/
 
-FAR const struct video_devops_s *g_video_devops;
+FAR const struct video_sensctrl_ops_s *g_video_sensctrl_ops;
+FAR const struct video_imgdata_ops_s  *g_video_imgdata_ops;
 
 /****************************************************************************
  * Private Functions
@@ -353,6 +381,7 @@ static void change_video_state(FAR video_mng_t    *vmng,
   enum video_state_e current_state = vmng->video_inf.state;
   enum video_state_e updated_next_state = next_state;
   FAR vbuf_container_t *dma_container;
+  struct v4l2_format format;
 
   if ((current_state != VIDEO_STATE_DMA) &&
       (next_state    == VIDEO_STATE_DMA))
@@ -361,9 +390,13 @@ static void change_video_state(FAR video_mng_t    *vmng,
               video_framebuff_get_dma_container(&vmng->video_inf.bufinf);
       if (dma_container)
         {
-          g_video_devops->set_buftype(V4L2_BUF_TYPE_VIDEO_CAPTURE);
-          g_video_devops->set_buf(dma_container->buf.m.userptr,
-                                  dma_container->buf.length);
+          g_video_sensctrl_ops->set_buftype(V4L2_BUF_TYPE_VIDEO_CAPTURE);
+
+          format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+          g_video_sensctrl_ops->get_format(&format);
+          g_video_imgdata_ops->start_dma(&format,
+                                         dma_container->buf.m.userptr,
+                                         dma_container->buf.length);
         }
       else
         {
@@ -375,7 +408,7 @@ static void change_video_state(FAR video_mng_t    *vmng,
       if ((current_state == VIDEO_STATE_DMA) &&
           (next_state    != VIDEO_STATE_DMA))
         {
-          g_video_devops->cancel_dma();
+          g_video_imgdata_ops->cancel_dma();
         }
     }
 
@@ -436,7 +469,7 @@ static void cleanup_resources(FAR video_mng_t *vmng)
     {
       /* If in DMA, stop */
 
-      g_video_devops->cancel_dma();
+      g_video_imgdata_ops->cancel_dma();
     }
 
   cleanup_streamresources(&vmng->video_inf);
@@ -461,6 +494,98 @@ static bool is_sem_waited(FAR sem_t *sem)
     }
 }
 
+static int create_supported_fmtlist(enum v4l2_buf_type  type,
+                                    video_fmtlist_t     *list)
+{
+  int ret = -EINVAL;
+  struct v4l2_fmtdesc capa_sensctrl = {0};
+  struct v4l2_fmtdesc *supported_fmt;
+
+  if (list == NULL)
+    {
+      ASSERT(false);
+      return -EINVAL;
+    }
+
+  if ((g_video_sensctrl_ops == NULL) ||
+      (g_video_imgdata_ops  == NULL) ||
+      (g_video_sensctrl_ops->get_range_of_fmt == NULL) ||
+      (g_video_imgdata_ops->chk_pixelformat   == NULL))
+    {
+      return -EINVAL;
+    }
+
+  /* Loop to find formats that is supported by both sensor control operation
+   * and image data operation.
+   * Returns the format associated with fmt->index from such formats.
+   */
+
+  capa_sensctrl.type = type;
+
+  do
+    {
+      if (g_video_sensctrl_ops->get_range_of_fmt(&capa_sensctrl)
+          != OK)
+        {
+          break;
+        }
+
+      /* Check whether image data operations I/F support the format supported
+       * by sensor control operations I/F or not.
+       */
+
+      if (g_video_imgdata_ops->chk_pixelformat
+            (capa_sensctrl.pixelformat,
+             capa_sensctrl.subimg_pixelformat) == OK)
+        {
+          if (list->num == 0)
+            {
+              list->fmt = (struct v4l2_fmtdesc *)malloc(sizeof(struct v4l2_fmtdesc));
+            }
+          else
+            {
+              list->fmt = (struct v4l2_fmtdesc *)realloc
+                            (list->fmt, sizeof(struct v4l2_fmtdesc) * (list->num + 1));
+            }
+
+          if (list->fmt == NULL)
+            {
+              return -ENOMEM;
+            }
+
+          supported_fmt = &list->fmt[list->num];
+
+          supported_fmt->index              = list->num;
+          supported_fmt->type               = type;
+          supported_fmt->flags              = capa_sensctrl.flags;
+          supported_fmt->pixelformat        = capa_sensctrl.pixelformat;
+          supported_fmt->subimg_pixelformat = capa_sensctrl.subimg_pixelformat;
+          strncpy(supported_fmt->description,
+                  capa_sensctrl.description,
+                  V4L2_FMT_DSC_MAX);
+
+          list->num++;
+          ret = OK;
+        }
+
+      /* Increment index to check next format */
+
+      capa_sensctrl.index++;
+    }
+  while (1);
+
+  return ret;
+}
+
+static void destroy_supported_fmtlist(video_fmtlist_t *list)
+{
+  if (list->fmt != NULL)
+    {
+      free(list->fmt);
+      list->fmt = NULL;
+    }
+}
+
 static int video_open(FAR struct file *filep)
 {
   FAR struct inode *inode = filep->f_inode;
@@ -472,10 +597,14 @@ static int video_open(FAR struct file *filep)
     {
       /* Only in first execution, open device */
 
-      ret = g_video_devops->open(priv);
+      ret = g_video_sensctrl_ops->open();
       if (ret == OK)
         {
-          initialize_resources(priv);
+          ret = g_video_imgdata_ops->open(priv);
+          if (ret == OK)
+            {
+              initialize_resources(priv);
+            }
         }
     }
 
@@ -507,7 +636,8 @@ static int video_close(FAR struct file *filep)
   if (priv->open_num == 0)
     {
       cleanup_resources(priv);
-      g_video_devops->close();
+      g_video_sensctrl_ops->close();
+      g_video_imgdata_ops->close();
     }
   video_unlock(&priv->lock_open_num);
 
@@ -558,6 +688,7 @@ static int video_qbuf(FAR struct video_mng_s *vmng,
 {
   FAR video_type_inf_t *type_inf;
   FAR vbuf_container_t *container;
+  struct v4l2_format   format;
   enum video_state_e   next_video_state;
   irqstate_t           flags;
 
@@ -605,9 +736,14 @@ static int video_qbuf(FAR struct video_mng_s *vmng,
           container = video_framebuff_get_dma_container(&type_inf->bufinf);
           if (container)
             {
-              g_video_devops->set_buftype(buf->type);
-              g_video_devops->set_buf(container->buf.m.userptr,
-                                      container->buf.length);
+              g_video_sensctrl_ops->set_buftype(buf->type);
+
+              format.type = buf->type;
+              g_video_sensctrl_ops->get_format(&format);
+              g_video_imgdata_ops->start_dma(&format,
+                                             container->buf.m.userptr,
+                                             container->buf.length);
+
               type_inf->state = VIDEO_STATE_DMA;
             }
         }
@@ -721,46 +857,235 @@ static int video_cancel_dqbuf(FAR struct video_mng_s *vmng,
   return OK;
 }
 
-static int video_enum_fmt(FAR struct v4l2_fmtdesc *fmt)
+static int video_enum_fmt(FAR struct video_mng_s *vmng,
+                          FAR struct v4l2_fmtdesc *fmt)
 {
-  int ret;
+  video_fmtlist_t *list;
 
-  if ((g_video_devops == NULL) ||
-      (g_video_devops->get_range_of_fmt == NULL))
+  if (vmng == NULL)
     {
       return -EINVAL;
     }
 
-  ret = g_video_devops->get_range_of_fmt(fmt);
+  switch (fmt->type)
+    {
+      case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+        list = &vmng->video_fmtlist;
+        break;
 
-  return ret;
+      case V4L2_BUF_TYPE_STILL_CAPTURE:
+        list = &vmng->still_fmtlist;
+        break;
+
+      default:
+        return -EINVAL;
+    }
+
+  if (fmt->index >= list->num)
+    {
+      return -EINVAL;
+    }
+
+  memcpy(fmt, &list->fmt[fmt->index], sizeof(struct v4l2_fmtdesc));
+
+  return OK;
+}
+
+/* Greatest Common devisor */
+
+static uint16_t gcd(uint16_t a, uint16_t b)
+{
+  uint16_t r;
+  while ((r = (a % b)))
+    {
+      a = b;
+      b = r;
+    }
+
+  return b;
+}
+
+/* Least Common Multiple */
+
+static uint16_t lcm(uint16_t a, uint16_t b)
+{
+  return (b ? (a / gcd(a,b)) * b : 0);
 }
 
 static int video_enum_framesizes(FAR struct v4l2_frmsizeenum *frmsize)
 {
-  int ret;
+  int ret = -EINVAL;
+  int supported_num = 0;
+  struct v4l2_frmsizeenum capa_imgdata  = {0};
+  struct v4l2_frmsizeenum capa_sensctrl = {0};
+  struct v4l2_format      format        = {0};
 
-  if ((g_video_devops == NULL) ||
-      (g_video_devops->get_range_of_framesize == NULL))
+  if ((g_video_sensctrl_ops == NULL) ||
+      (g_video_imgdata_ops  == NULL) ||
+      (g_video_sensctrl_ops->get_range_of_framesize == NULL) ||
+      (g_video_imgdata_ops->get_range_of_framesize  == NULL))
     {
       return -EINVAL;
     }
 
-  ret = g_video_devops->get_range_of_framesize(frmsize);
+  /* Find the range supported by both image data operations I/F
+   * and sensor control operations I/F.
+   */
 
-  return ret;
+  capa_imgdata.buf_type            = frmsize->buf_type;
+  capa_imgdata.pixel_format        = frmsize->pixel_format;
+  capa_imgdata.subimg_pixel_format = frmsize->subimg_pixel_format;
+
+  ret = g_video_imgdata_ops->get_range_of_framesize(&capa_imgdata);
+  if (ret != OK)
+    {
+      return ret;
+    }
+
+  capa_sensctrl.buf_type            = frmsize->buf_type;
+  capa_sensctrl.pixel_format        = frmsize->pixel_format;
+  capa_sensctrl.subimg_pixel_format = frmsize->subimg_pixel_format;
+
+  do
+    {
+      if (g_video_sensctrl_ops->get_range_of_framesize(&capa_sensctrl)
+          != OK)
+        {
+          break;
+        }
+
+      if (capa_sensctrl.type == V4L2_FRMSIZE_TYPE_DISCRETE)
+        {
+          /* In sensor control operations I/F capability has the discrete type,
+           * query to image data operation's I/F
+           *  whether the discrete value is supported or not.
+           */
+
+          format.type                       = capa_sensctrl.buf_type;
+          format.fmt.pix.pixelformat        = capa_sensctrl.pixel_format;
+          format.fmt.pix.subimg_pixelformat = capa_sensctrl.subimg_pixel_format;
+          format.fmt.pix.width              = capa_sensctrl.discrete.width;
+          format.fmt.pix.height             = capa_sensctrl.discrete.height;
+          format.fmt.pix.subimg_width       = capa_sensctrl.subimg.discrete.width;
+          format.fmt.pix.subimg_height      = capa_sensctrl.subimg.discrete.height;
+
+          ret = g_video_imgdata_ops->try_format(&format);
+          if (ret == OK)
+            {
+              if (frmsize->index == supported_num)
+                {
+                  /* Return this discrete value */
+
+                  frmsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+                  frmsize->discrete.width  = capa_sensctrl.discrete.width;
+                  frmsize->discrete.height = capa_sensctrl.discrete.height;
+                  frmsize->subimg_type = V4L2_FRMSIZE_TYPE_DISCRETE;
+                  frmsize->subimg.discrete.width  = capa_sensctrl.subimg.discrete.width;
+                  frmsize->subimg.discrete.height = capa_sensctrl.subimg.discrete.height;
+
+                  break;
+                }
+
+              supported_num++;
+            }
+
+          /* Increment index to check next discrete value */
+
+          capa_sensctrl.index++;
+        }
+      else
+        {
+          /* Merge image data operation's capability
+           * and sensor control capability.
+           */
+
+          /* step_width is LCM(least common multiple). */
+
+          frmsize->stepwise.step_width = lcm(capa_imgdata.stepwise.step_width,
+                                             capa_sensctrl.stepwise.step_width);
+
+          frmsize->subimg.stepwise.step_width = lcm(capa_imgdata.subimg.stepwise.step_width,
+                                                    capa_sensctrl.subimg.stepwise.step_width);
+
+          /* step_height is LCM(least common multiple). */
+
+          frmsize->stepwise.step_height = lcm(capa_imgdata.stepwise.step_height,
+                                              capa_sensctrl.stepwise.step_height);
+
+          frmsize->subimg.stepwise.step_height = lcm(capa_imgdata.subimg.stepwise.step_height,
+                                                     capa_sensctrl.subimg.stepwise.step_height);
+
+          /* minimum is the larger. */
+
+          frmsize->stepwise.min_width
+            = MAX(capa_sensctrl.stepwise.min_width,
+                  capa_imgdata.stepwise.min_width);
+
+          frmsize->stepwise.min_height
+            = MAX(capa_sensctrl.stepwise.min_height,
+                  capa_imgdata.stepwise.min_height);
+
+          frmsize->subimg.stepwise.min_width
+            = MAX(capa_sensctrl.subimg.stepwise.min_width,
+                  capa_imgdata.subimg.stepwise.min_width);
+
+          frmsize->subimg.stepwise.min_height
+            = MAX(capa_sensctrl.subimg.stepwise.min_height,
+                  capa_imgdata.subimg.stepwise.min_height);
+
+          /* maximum is the smaller. */
+
+          frmsize->stepwise.max_width
+            = MIN(capa_sensctrl.stepwise.max_width,
+                  capa_imgdata.stepwise.max_width);
+
+          frmsize->stepwise.max_height
+            = MIN(capa_sensctrl.stepwise.max_height,
+                  capa_imgdata.stepwise.max_height);
+
+          frmsize->subimg.stepwise.max_width
+            = MIN(capa_sensctrl.subimg.stepwise.max_width,
+                  capa_imgdata.subimg.stepwise.max_width);
+
+          frmsize->subimg.stepwise.max_height
+            = MIN(capa_sensctrl.subimg.stepwise.max_height,
+                  capa_imgdata.subimg.stepwise.max_height);
+
+          frmsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+          frmsize->subimg_type = V4L2_FRMSIZE_TYPE_STEPWISE;
+
+          ret = OK;
+          break;
+        }
+    }
+  while (1);
+
+  return OK;
 }
 
 static int video_try_fmt(FAR struct v4l2_format *fmt)
 {
   int ret;
 
-  if ((g_video_devops == NULL) || (g_video_devops->try_format == NULL))
+  if ((g_video_sensctrl_ops == NULL) ||
+      (g_video_imgdata_ops  == NULL) ||
+      (g_video_sensctrl_ops->try_format == NULL) ||
+      (g_video_imgdata_ops->try_format  == NULL))
     {
       return -EINVAL;
     }
 
-  ret = g_video_devops->try_format(fmt);
+  /* Check both image data operations I/F capability and image sensor capability.
+   * Return OK only in case both checks are OK.
+   */
+
+  ret = g_video_imgdata_ops->try_format(fmt);
+  if (ret != OK)
+    {
+      return ret;
+    }
+
+  ret = g_video_sensctrl_ops->try_format(fmt);
 
   return ret;
 }
@@ -770,12 +1095,25 @@ static int video_s_fmt(FAR struct video_mng_s *priv,
 {
   int ret;
 
-  if ((g_video_devops == NULL) || (g_video_devops->set_format == NULL))
+  if ((g_video_sensctrl_ops == NULL) ||
+      (g_video_imgdata_ops  == NULL) ||
+      (g_video_sensctrl_ops->set_format == NULL) ||
+      (g_video_imgdata_ops->try_format  == NULL))
     {
       return -EINVAL;
     }
 
-  ret = g_video_devops->set_format(fmt);
+  /* If image data operations I/F do not support the specified format,
+   * return error without controlling sensor control operations I/F.
+   */
+
+  ret = g_video_imgdata_ops->try_format(fmt);
+  if (ret != 0)
+    {
+      return ret;
+    }
+
+  ret = g_video_sensctrl_ops->set_format(fmt);
 
   return ret;
 }
@@ -784,13 +1122,13 @@ static int video_enum_frameintervals(FAR struct v4l2_frmivalenum *frmival)
 {
   int ret;
 
-  if ((g_video_devops == NULL) ||
-      (g_video_devops->get_range_of_frameinterval == NULL))
+  if ((g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->get_range_of_frameinterval == NULL))
     {
       return -EINVAL;
     }
 
-  ret = g_video_devops->get_range_of_frameinterval(frmival);
+  ret = g_video_sensctrl_ops->get_range_of_frameinterval(frmival);
 
   return ret;
 }
@@ -800,13 +1138,13 @@ static int video_s_parm(FAR struct video_mng_s *priv,
 {
   int ret;
 
-  if ((g_video_devops == NULL) ||
-      (g_video_devops->set_frameinterval == NULL))
+  if ((g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->set_frameinterval == NULL))
     {
       return -EINVAL;
     }
 
-  ret = g_video_devops->set_frameinterval(parm);
+  ret = g_video_sensctrl_ops->set_frameinterval(parm);
 
   return ret;
 }
@@ -900,12 +1238,12 @@ static int video_streamoff(FAR struct video_mng_s *vmng,
 
 static int video_do_halfpush(bool enable)
 {
-  if ((g_video_devops == NULL) || (g_video_devops->do_halfpush == NULL))
+  if ((g_video_sensctrl_ops == NULL) || (g_video_sensctrl_ops->do_halfpush == NULL))
     {
       return -EINVAL;
     }
 
-  return g_video_devops->do_halfpush(enable);
+  return g_video_sensctrl_ops->do_halfpush(enable);
 }
 
 static int video_takepict_start(FAR struct video_mng_s *vmng,
@@ -914,6 +1252,7 @@ static int video_takepict_start(FAR struct video_mng_s *vmng,
   irqstate_t           flags;
   enum video_state_e   next_video_state;
   FAR vbuf_container_t *dma_container;
+  struct v4l2_format   format;
   int                  ret = OK;
 
   if (vmng == NULL)
@@ -925,43 +1264,48 @@ static int video_takepict_start(FAR struct video_mng_s *vmng,
 
   if (vmng->still_inf.state != VIDEO_STATE_STREAMOFF)
     {
-    ret = -EPERM;
+      ret = -EPERM;
     }
   else
     {
-    if (capture_num > 0)
+      if (capture_num > 0)
         {
-         vmng->still_inf.remaining_capnum = capture_num;
+          vmng->still_inf.remaining_capnum = capture_num;
         }
-    else
+      else
         {
-         vmng->still_inf.remaining_capnum = VIDEO_REMAINING_CAPNUM_INFINITY;
+          vmng->still_inf.remaining_capnum = VIDEO_REMAINING_CAPNUM_INFINITY;
         }
 
-    /* Control video stream prior to still stream */
+      /* Control video stream prior to still stream */
 
-    flags = enter_critical_section();
+      flags = enter_critical_section();
 
-    next_video_state = estimate_next_video_state(vmng,
-                                               CAUSE_STILL_START);
-    change_video_state(vmng, next_video_state);
+      next_video_state = estimate_next_video_state(vmng,
+                                                   CAUSE_STILL_START);
+      change_video_state(vmng, next_video_state);
 
-    leave_critical_section(flags);
+      leave_critical_section(flags);
 
-    dma_container = video_framebuff_get_dma_container
+      dma_container = video_framebuff_get_dma_container
                              (&vmng->still_inf.bufinf);
-    if (dma_container)
+      if (dma_container)
         {
-         /* Start video stream DMA */
+          /* Start video stream DMA */
 
-         g_video_devops->set_buftype(V4L2_BUF_TYPE_STILL_CAPTURE);
-         g_video_devops->set_buf(dma_container->buf.m.userptr,
-                              dma_container->buf.length);
-         vmng->still_inf.state = VIDEO_STATE_DMA;
+          g_video_sensctrl_ops->set_buftype(V4L2_BUF_TYPE_STILL_CAPTURE);
+
+          format.type = V4L2_BUF_TYPE_STILL_CAPTURE;
+          g_video_sensctrl_ops->get_format(&format);
+          g_video_imgdata_ops->start_dma(&format,
+                                         dma_container->buf.m.userptr,
+                                         dma_container->buf.length);
+
+          vmng->still_inf.state = VIDEO_STATE_DMA;
         }
-    else
+      else
         {
-         vmng->still_inf.state = VIDEO_STATE_STREAMON;
+          vmng->still_inf.state = VIDEO_STATE_STREAMON;
         }
     }
 
@@ -993,7 +1337,7 @@ static int video_takepict_stop(FAR struct video_mng_s *vmng, bool halfpush)
       flags = enter_critical_section();
       if (vmng->still_inf.state == VIDEO_STATE_DMA)
         {
-          g_video_devops->cancel_dma();
+          g_video_imgdata_ops->cancel_dma();
         }
       leave_critical_section(flags);
 
@@ -1063,13 +1407,13 @@ static int video_query_ext_ctrl(FAR struct v4l2_query_ext_ctrl *ctrl)
 {
   int ret;
 
-  if ((g_video_devops == NULL) ||
-      (g_video_devops->get_range_of_ctrlvalue == NULL))
+  if ((g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->get_range_of_ctrlvalue == NULL))
     {
       return -EINVAL;
     }
 
-  ret = g_video_devops->get_range_of_ctrlvalue(ctrl);
+  ret = g_video_sensctrl_ops->get_range_of_ctrlvalue(ctrl);
 
   return ret;
 }
@@ -1078,13 +1422,13 @@ static int video_querymenu(FAR struct v4l2_querymenu *menu)
 {
   int ret;
 
-  if ((g_video_devops == NULL) ||
-      (g_video_devops->get_menu_of_ctrlvalue == NULL))
+  if ((g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->get_menu_of_ctrlvalue == NULL))
     {
       return -EINVAL;
     }
 
-  ret = g_video_devops->get_menu_of_ctrlvalue(menu);
+  ret = g_video_sensctrl_ops->get_menu_of_ctrlvalue(menu);
 
   return ret;
 }
@@ -1167,7 +1511,7 @@ static int video_g_ext_ctrls(FAR struct video_mng_s *priv,
        cnt < ctrls->count;
        cnt++, control++)
     {
-      ret = g_video_devops->get_ctrlvalue(ctrls->ctrl_class, control);
+      ret = g_video_sensctrl_ops->get_ctrlvalue(ctrls->ctrl_class, control);
 
       if (ret < 0)
         {
@@ -1197,13 +1541,111 @@ static int video_s_ext_ctrls(FAR struct video_mng_s *priv,
        cnt < ctrls->count;
        cnt++, control++)
     {
-      ret = g_video_devops->set_ctrlvalue(ctrls->ctrl_class, control);
+      ret = g_video_sensctrl_ops->set_ctrlvalue(ctrls->ctrl_class, control);
 
       if (ret < 0)
         {
           /* Set cnt in that error occured */
 
           ctrls->error_idx = cnt;
+          return ret;
+        }
+    }
+
+  return ret;
+}
+
+static int video_query_ext_ctrl_scene(FAR struct v4s_query_ext_ctrl_scene *ctrl)
+{
+  int ret;
+
+  if ((ctrl == NULL) ||
+      (g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->get_range_of_sceneparam == NULL))
+    {
+      return -EINVAL;
+    }
+
+  ret = g_video_sensctrl_ops->get_range_of_sceneparam(ctrl->mode,
+                                                      &ctrl->control);
+
+  return ret;
+}
+
+static int video_querymenu_scene(FAR struct v4s_querymenu_scene *menu)
+{
+  int ret;
+
+  if ((menu == NULL) ||
+      (g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->get_menu_of_sceneparam == NULL))
+    {
+      return -EINVAL;
+    }
+
+  ret = g_video_sensctrl_ops->get_menu_of_sceneparam(menu->mode,
+                                                     &menu->menu);
+
+  return ret;
+}
+
+static int video_g_ext_ctrls_scene(FAR struct v4s_ext_controls_scene *ctrls)
+{
+  int ret = OK;
+  int cnt;
+  FAR struct v4l2_ext_control *control;
+
+  if ((ctrls == NULL) ||
+      (g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->get_sceneparam == NULL))
+    {
+      return -EINVAL;
+    }
+
+  for (cnt = 0, control = ctrls->control.controls;
+       cnt < ctrls->control.count;
+       cnt++, control++)
+    {
+      ret = g_video_sensctrl_ops->get_sceneparam(ctrls->mode,
+                                                 ctrls->control.ctrl_class,
+                                                 control);
+      if (ret < 0)
+        {
+          /* Set cnt in that error occured */
+
+          ctrls->control.error_idx = cnt;
+          return ret;
+        }
+    }
+
+  return ret;
+}
+
+static int video_s_ext_ctrls_scene(FAR struct v4s_ext_controls_scene *ctrls)
+{
+  int ret = OK;
+  int cnt;
+  FAR struct v4l2_ext_control *control;
+
+  if ((ctrls == NULL) ||
+      (g_video_sensctrl_ops == NULL) ||
+      (g_video_sensctrl_ops->set_sceneparam == NULL))
+    {
+      return -EINVAL;
+    }
+
+  for (cnt = 0, control = ctrls->control.controls;
+       cnt < ctrls->control.count;
+       cnt++, control++)
+    {
+      ret = g_video_sensctrl_ops->set_sceneparam(ctrls->mode,
+                                                 ctrls->control.ctrl_class,
+                                                 control);
+      if (ret < 0)
+        {
+          /* Set cnt in that error occured */
+
+          ctrls->control.error_idx = cnt;
           return ret;
         }
     }
@@ -1273,7 +1715,7 @@ static int video_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         break;
 
       case VIDIOC_ENUM_FMT:
-        ret = video_enum_fmt((FAR struct v4l2_fmtdesc *)arg);
+        ret = video_enum_fmt(priv, (FAR struct v4l2_fmtdesc *)arg);
 
         break;
 
@@ -1334,6 +1776,26 @@ static int video_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case VIDIOC_S_EXT_CTRLS:
         ret = video_s_ext_ctrls(priv, (FAR struct v4l2_ext_controls *)arg);
+
+        break;
+
+      case V4SIOC_QUERY_EXT_CTRL_SCENE:
+        ret = video_query_ext_ctrl_scene((FAR struct v4s_query_ext_ctrl_scene *)arg);
+
+        break;
+
+      case V4SIOC_QUERYMENU_SCENE:
+        ret = video_querymenu_scene((FAR struct v4s_querymenu_scene *)arg);
+
+        break;
+
+      case V4SIOC_G_EXT_CTRLS_SCENE:
+        ret = video_g_ext_ctrls_scene((FAR struct v4s_ext_controls_scene *)arg);
+
+        break;
+
+      case V4SIOC_S_EXT_CTRLS_SCENE:
+        ret = video_s_ext_ctrls_scene((FAR struct v4s_ext_controls_scene *)arg);
 
         break;
 
@@ -1483,6 +1945,15 @@ int video_initialize(FAR const char *devpath)
 
   video_handler = video_register(devpath);
 
+  /* Because supported format lists are not changed dynamically,
+   * create lists in initialization.
+   */
+
+  create_supported_fmtlist(V4L2_BUF_TYPE_VIDEO_CAPTURE,
+                           &((video_mng_t *)video_handler)->video_fmtlist);
+  create_supported_fmtlist(V4L2_BUF_TYPE_STILL_CAPTURE,
+                           &((video_mng_t *)video_handler)->still_fmtlist);
+
   is_initialized = true;
 
   return OK;
@@ -1494,6 +1965,10 @@ int video_uninitialize(void)
     {
       return OK;
     }
+
+  destroy_supported_fmtlist(&((video_mng_t *)video_handler)->video_fmtlist);
+  destroy_supported_fmtlist(&((video_mng_t *)video_handler)->still_fmtlist);
+
   video_unregister(video_handler);
 
   is_initialized = false;
@@ -1501,14 +1976,19 @@ int video_uninitialize(void)
   return OK;
 }
 
+/* Callback function which device driver call when dma has done.
+ * This function should be called in interrupt handler or
+ * in critical section.
+ */
+
 int video_common_notify_dma_done(uint8_t  err_code,
-                                 uint32_t buf_type,
                                  uint32_t datasize,
                                  FAR void *priv)
 {
   FAR video_mng_t      *vmng = (FAR video_mng_t *)priv;
   FAR video_type_inf_t *type_inf;
   FAR vbuf_container_t *container = NULL;
+  uint32_t buf_type = g_video_sensctrl_ops->get_buftype();
 
   type_inf = get_video_type_inf(vmng, buf_type);
   if (type_inf == NULL)
@@ -1549,7 +2029,7 @@ int video_common_notify_dma_done(uint8_t  err_code,
 
   if (type_inf->remaining_capnum == 0)
     {
-      g_video_devops->cancel_dma();
+      g_video_imgdata_ops->cancel_dma();
       type_inf->state = VIDEO_STATE_STREAMOFF;
 
       /* If stop still stream, notify it to video stream */
@@ -1567,13 +2047,13 @@ int video_common_notify_dma_done(uint8_t  err_code,
       container = video_framebuff_get_dma_container(&type_inf->bufinf);
       if (!container)
         {
-          g_video_devops->cancel_dma();
+          g_video_imgdata_ops->cancel_dma();
           type_inf->state = VIDEO_STATE_STREAMON;
         }
       else
         {
-          g_video_devops->set_buf(container->buf.m.userptr,
-                                  container->buf.length);
+          g_video_imgdata_ops->set_dmabuf(container->buf.m.userptr,
+                                          container->buf.length);
         }
     }
 

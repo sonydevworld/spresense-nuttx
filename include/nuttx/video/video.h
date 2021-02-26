@@ -269,6 +269,38 @@ extern "C"
 
 #define VIDIOC_CANCEL_DQBUF           _VIDIOC(0x0016)
 
+/**
+ * Query control for scene parameter
+ * @param[in] arg
+ * Address pointing to struct v4s_query_ext_ctrl_scene
+ */
+
+#define V4SIOC_QUERY_EXT_CTRL_SCENE   _VIDIOC(0x0017)
+
+/**
+ * Query menu for scene parameter
+ * @param[in] arg
+ * Address pointing to struct v4s_querymenu_scene
+ */
+
+#define V4SIOC_QUERYMENU_SCENE        _VIDIOC(0x0018)
+
+/**
+ * Get current control value
+ * @param[in] arg
+ * Address pointing to struct v4s_ext_controls_scene
+ */
+
+#define V4SIOC_G_EXT_CTRLS_SCENE      _VIDIOC(0x0019)
+
+/**
+ * Set control value
+ * @param[in] arg
+ * Address pointing to struct v4s_ext_controls_scene
+ */
+
+#define V4SIOC_S_EXT_CTRLS_SCENE      _VIDIOC(0x001a)
+
 /** @} video_ioctl */
 
 /**
@@ -766,6 +798,42 @@ struct v4l2_ext_controls {
   uint16_t                error_idx;   /**< index in that error occured */
   struct v4l2_ext_control *controls;   /**< each control information    */
 };
+
+/**
+ * @struct v4s_ext_controls_scene
+ * @brief parameter of ioctl(V4SIOC_S_EXT_CTRLS_SCENE / V4SIOC_G_EXT_CTRLS_SCENE)
+ */
+
+struct v4s_ext_controls_scene
+{
+  enum v4l2_scene_mode     mode;       /**< scene mode to be controled */
+  struct v4l2_ext_controls control;    /**< same as VIDIOC_S_EXT_CTRLS */
+};
+
+/**
+ * @struct v4s_query_ext_ctrl_scene
+ * @brief parameter of ioctl(V4SIOC_QUERY_EXT_CTRL_SCENE)
+ */
+
+struct v4s_query_ext_ctrl_scene
+{
+  enum v4l2_scene_mode       mode;     /**< scene mode to be queried */
+  struct v4l2_query_ext_ctrl control;  /**< same as VIDIOC_QUERY_EXT_CTRL */
+};
+
+/**
+ * @struct v4s_querymenu_scene
+ * @brief parameter of ioctl(V4SIOC_QUERYMENU_SCENE)
+ */
+
+struct v4s_querymenu_scene
+{
+  enum v4l2_scene_mode       mode;     /**< scene mode to be queried */
+  struct v4l2_querymenu      menu;     /**< same as VIDIOC_QUERYMENU */
+};
+
+extern FAR const struct video_sensctrl_ops_s *g_video_sensctrl_ops;
+extern FAR const struct video_imgdata_ops_s  *g_video_imgdata_ops;
 
 /** @} video_datatypes */
 

@@ -377,6 +377,8 @@ menuconfig NET_LAN91C111
 if NET_LAN91C111
 endif # NET_LAN91C111
 
+source "drivers/net/wiznet/Kconfig"
+
 if ARCH_HAVE_PHY
 
 comment "External Ethernet PHY Device Support"
