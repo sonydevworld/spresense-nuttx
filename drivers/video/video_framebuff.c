@@ -162,7 +162,7 @@ vbuf_container_t *video_framebuff_get_container(video_framebuff_t *fbuf)
 {
   vbuf_container_t *ret;
 
-  nxsem_wait(&fbuf->lock_empty);
+  nxsem_wait_uninterruptible(&fbuf->lock_empty);
   ret = fbuf->vbuf_empty;
   if (ret)
     {
@@ -177,7 +177,7 @@ vbuf_container_t *video_framebuff_get_container(video_framebuff_t *fbuf)
 void video_framebuff_free_container(video_framebuff_t *fbuf,
                                     vbuf_container_t  *cnt)
 {
-  nxsem_wait(&fbuf->lock_empty);
+  nxsem_wait_uninterruptible(&fbuf->lock_empty);
   cnt->next = fbuf->vbuf_empty;
   fbuf->vbuf_empty = cnt;
   nxsem_post(&fbuf->lock_empty);
