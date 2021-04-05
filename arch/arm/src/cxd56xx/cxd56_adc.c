@@ -50,6 +50,7 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/irq.h>
+#include <nuttx/semaphore.h>
 #include <arch/chip/scu.h>
 #include <arch/chip/adc.h>
 
@@ -187,6 +188,8 @@ struct cxd56adc_dev_s
   struct scufifo_wm_s *wm;        /* water mark */
   struct math_filter_s *filter;   /* math filter */
   struct scuev_notify_s * notify; /* notify */
+  sem_t            exclsem;       /* exclusive semaphore */
+  int              crefs;         /* reference count */
 };
 
 /****************************************************************************
@@ -233,6 +236,7 @@ static struct cxd56adc_dev_s g_lpadc0priv =
   .wm     = NULL,
   .filter = NULL,
   .notify = NULL,
+  .crefs  = 0,
 };
 #endif
 
@@ -248,6 +252,7 @@ static struct cxd56adc_dev_s g_lpadc1priv =
   .wm     = NULL,
   .filter = NULL,
   .notify = NULL,
+  .crefs  = 0,
 };
 #endif
 
@@ -263,6 +268,7 @@ static struct cxd56adc_dev_s g_lpadc2priv =
   .wm     = NULL,
   .filter = NULL,
   .notify = NULL,
+  .crefs  = 0,
 };
 #endif
 
@@ -278,6 +284,7 @@ static struct cxd56adc_dev_s g_lpadc3priv =
   .wm     = NULL,
   .filter = NULL,
   .notify = NULL,
+  .crefs  = 0,
 };
 #endif
 
@@ -293,6 +300,7 @@ static struct cxd56adc_dev_s g_hpadc0priv =
   .wm     = NULL,
   .filter = NULL,
   .notify = NULL,
+  .crefs  = 0,
 };
 #endif
 
@@ -308,6 +316,7 @@ static struct cxd56adc_dev_s g_hpadc1priv =
   .wm     = NULL,
   .filter = NULL,
   .notify = NULL,
+  .crefs  = 0,
 };
 #endif
 
@@ -708,8 +717,22 @@ static int cxd56_adc_open(FAR struct file *filep)
   int type;
 
   DEBUGASSERT(priv != NULL);
-  DEBUGASSERT(priv->seq == NULL);
   DEBUGASSERT(priv->ch < CH_MAX);
+
+  /* Increment reference counter */
+
+  nxsem_wait_uninterruptible(&priv->exclsem);
+
+  priv->crefs++;
+  DEBUGASSERT(priv->crefs > 0);
+
+  if (priv->crefs > 1)
+    {
+      nxsem_post(&priv->exclsem);
+      return OK;
+    }
+
+  DEBUGASSERT(priv->seq == NULL);
 
   type = SCU_BUS_LPADC0 + priv->ch;
 
@@ -718,6 +741,7 @@ static int cxd56_adc_open(FAR struct file *filep)
   priv->seq = seq_open(SEQ_TYPE_NORMAL, type);
   if (!priv->seq)
     {
+      nxsem_post(&priv->exclsem);
       return -ENOENT;
     }
 
@@ -730,9 +754,12 @@ static int cxd56_adc_open(FAR struct file *filep)
   ret = set_ofstgain(priv);
   if (ret < 0)
     {
+      nxsem_post(&priv->exclsem);
       return ret;
     }
   ainfo("open ch%d freq%d scufifo%d\n", priv->ch, priv->freq, priv->fsize);
+
+  nxsem_post(&priv->exclsem);
 
   return OK;
 }
@@ -754,6 +781,19 @@ static int cxd56_adc_close(FAR struct file *filep)
   DEBUGASSERT(priv->seq != NULL);
   DEBUGASSERT(priv->ch < CH_MAX);
 
+  /* Decrement reference counter */
+
+  nxsem_wait_uninterruptible(&priv->exclsem);
+
+  DEBUGASSERT(priv->crefs > 0);
+  priv->crefs--;
+
+  if (priv->crefs > 0)
+    {
+      nxsem_post(&priv->exclsem);
+      return OK;
+    }
+
   /* Close sequencer */
 
   seq_close(priv->seq);
@@ -774,6 +814,8 @@ static int cxd56_adc_close(FAR struct file *filep)
       kmm_free(priv->notify);
       priv->notify = NULL;
     }
+
+  nxsem_post(&priv->exclsem);
 
   return OK;
 }
@@ -1058,6 +1100,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(lpadc0): %d\n", ret);
       return ret;
     }
+  nxsem_init(&g_lpadc0priv.exclsem, 0, 1);
 #endif
 #if defined (CONFIG_CXD56_LPADC1) || defined (CONFIG_CXD56_LPADC0_1) || defined (CONFIG_CXD56_LPADC_ALL)
   ret = register_driver("/dev/lpadc1", &g_adcops, 0666, &g_lpadc1priv);
@@ -1066,6 +1109,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(lpadc1): %d\n", ret);
       return ret;
     }
+  nxsem_init(&g_lpadc1priv.exclsem, 0, 1);
 #endif
 #if defined (CONFIG_CXD56_LPADC2) || defined (CONFIG_CXD56_LPADC_ALL)
   ret = register_driver("/dev/lpadc2", &g_adcops, 0666, &g_lpadc2priv);
@@ -1074,6 +1118,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(lpadc2): %d\n", ret);
       return ret;
     }
+  nxsem_init(&g_lpadc2priv.exclsem, 0, 1);
 #endif
 #if defined (CONFIG_CXD56_LPADC3) || defined (CONFIG_CXD56_LPADC_ALL)
   ret = register_driver("/dev/lpadc3", &g_adcops, 0666, &g_lpadc3priv);
@@ -1082,6 +1127,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(lpadc3): %d\n", ret);
       return ret;
     }
+  nxsem_init(&g_lpadc3priv.exclsem, 0, 1);
 #endif
 #ifdef CONFIG_CXD56_HPADC0
   ret = register_driver("/dev/hpadc0", &g_adcops, 0666, &g_hpadc0priv);
@@ -1090,6 +1136,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(hpadc0): %d\n", ret);
       return ret;
     }
+  nxsem_init(&g_hpadc0priv.exclsem, 0, 1);
 #endif
 #ifdef CONFIG_CXD56_HPADC1
   ret = register_driver("/dev/hpadc1", &g_adcops, 0666, &g_hpadc1priv);
@@ -1098,6 +1145,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(hpadc1): %d\n", ret);
       return ret;
     }
+  nxsem_init(&g_hpadc1priv.exclsem, 0, 1);
 #endif
 
   return ret;
