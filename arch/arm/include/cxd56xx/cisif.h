@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/include/cxd56xx/cisif.h
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   Copyright 2018, 2021 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,7 +57,7 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************/
 
-const FAR struct video_imgdata_ops_s *cxd56_cisif_initialize(void);
+int cxd56_cisif_initialize(void);
 
 #undef EXTERN
 #if defined(__cplusplus)
