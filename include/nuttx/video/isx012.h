@@ -1,7 +1,7 @@
 /****************************************************************************
  * include/nuttx/video/isx012.h
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   Copyright 2018, 2021 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -63,7 +63,8 @@ extern "C"
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-FAR struct video_sensctrl_ops_s *isx012_initialize(void);
+
+int isx012_initialize(FAR struct i2c_master_s *i2c);
 int isx012_uninitialize(void);
 
 #undef EXTERN

@@ -1,7 +1,7 @@
 /****************************************************************************
  * drivers/video/isx012.c
  *
- *   Copyright 2018, 2020 Sony Semiconductor Solutions Corporation
+ *   Copyright 2018, 2020, 2021 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,8 +53,7 @@
 #include <nuttx/video/isx012.h>
 #include <nuttx/video/isx012_reg.h>
 #include <nuttx/video/isx012_range.h>
-#include <nuttx/video/video.h>
-#include <nuttx/video/video_halif.h>
+#include <nuttx/video/imgsensor.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -147,6 +146,8 @@
 #define SHD_B2_DATA_UNIT_NUM         (14)
 #define SHD_B2_DATA_UNIT_SIZE        (11)
 
+#define ISX012_ELEMS_3APARAM         (3)
+
 #ifdef CONFIG_DEBUG_IMAGER_ERROR
 #define imagererr(format, ...)     _err(format, ##__VA_ARGS__)
 #else
@@ -165,20 +166,17 @@
 #define imagerinfo(x...)
 #endif
 
-#define CHECK_RANGE(value,min,max,step) do { \
-                                          if ((value < min) || \
-                                              (value > max) || \
-                                              ((value - min) % step != 0)) \
-                                            { \
-                                              return -EINVAL;\
-                                            } \
-                                         } while (0)
+#define VALIDATE_VALUE(val, min, max, step) (((val >= min) && \
+                                              (val <= max) && \
+                                              (((val - min) % step) == 0) ? \
+                                              OK : -EINVAL))
 
 /****************************************************************************
  * Private Types
  ****************************************************************************/
 
-enum isx012_state_e {
+enum isx012_state_e
+{
   STATE_ISX012_PRESLEEP,
   STATE_ISX012_SLEEP,
   STATE_ISX012_ACTIVE,
@@ -187,40 +185,14 @@ enum isx012_state_e {
 
 typedef enum isx012_state_e isx012_state_t;
 
-struct isx012_reg_s {
+struct isx012_reg_s
+{
   uint16_t regaddr;
   uint16_t regval;
   uint8_t  regsize;
 };
 
 typedef struct isx012_reg_s isx012_reg_t;
-
-struct isx012_conv_v4l2_to_regval_s
-{
-  int32_t v4l2;
-  int16_t regval;
-};
-
-typedef struct isx012_conv_v4l2_to_regval_s isx012_conv_v4l2_to_regval_t;
-
-struct isx012_modeparam_s {
-  uint8_t  fps;         /* use ISX012 register setting value */
-  uint32_t format;      /* use V4L2 definition */
-  uint16_t hsize;
-  uint16_t vsize;
-  uint16_t int_hsize;
-  uint16_t int_vsize;
-};
-
-typedef struct isx012_modeparam_s isx012_modeparam_t;
-
-struct isx012_param_s
-{
-  isx012_modeparam_t video;  /* Parameter for video capture mode */
-  isx012_modeparam_t still;  /* Parameter for still capture mode */
-};
-
-typedef struct isx012_param_s isx012_param_t;
 
 struct isx012_dev_s
 {
@@ -229,35 +201,9 @@ struct isx012_dev_s
   int                     i2c_freq;    /* Frequency */
   isx012_state_t          state;       /* ISX012 status */
   uint8_t                 mode;        /* ISX012 mode */
-  isx012_param_t          param;       /* ISX012 paramerters */
 };
 
 typedef struct isx012_dev_s isx012_dev_t;
-
-struct isx012_scene_params_s
-{
-  uint8_t mode;                            /* enum v4l2_scene_mode      */
-
-  /* Parameters for ctrl_class = V4L2_CTRL_CLASS_USER */
-
-  int8_t   brightness;                     /* id = V4L2_CID_BRIGHTNESS  */
-  uint8_t  contrast;                       /* id = V4L2_CID_CONTRAST    */
-  uint8_t  saturation;                     /* id = V4L2_CID_SATURATION  */
-  uint8_t  hue;                            /* id = V4L2_CID_HUE         */
-  uint8_t  sharpness;                      /* id = V4L2_CID_SHARPNESS   */
-  uint16_t gamma[ISX012_ELEMS_GAMMACURVE]; /* id = V4L2_CID_GAMMA_CURVE */
-
-  /* Parameters for ctrl_class = V4L2_CTRL_CLASS_CAMERA */
-
-  uint16_t exptime;            /* id = V4L2_CID_EXPOSURE_ABSOLUTE           */
-  bool     exptime_auto;       /* id = V4L2_CID_EXPOSURE_AUTO               */
-  uint8_t  iso;                /* id = V4L2_CID_ISO_SENSITIVITY             */
-  bool     iso_auto;           /* id = V4L2_CID_ISO_SENSITIVITY_AUTO        */
-  uint8_t  expmeter;           /* id = V4L2_CID_EXPOSURE_METERING           */
-  uint8_t  wb;                 /* id = V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE */
-};
-
-typedef struct isx012_scene_params_s isx012_scene_params_t;
 
 #define ARRAY_NENTRIES(a) (sizeof(a)/sizeof(a[0]))
 
@@ -283,59 +229,40 @@ static int isx012_chk_int_state(isx012_dev_t *priv,
                                 uint8_t  sts, uint32_t delay_time,
                                 uint32_t wait_time, uint32_t timeout);
 static int isx012_set_mode_param(isx012_dev_t *priv,
-                                 enum v4l2_buf_type type,
-                                 isx012_modeparam_t *param);
+                                 imgsensor_stream_type_t type,
+                                 uint8_t nr_fmt,
+                                 imgsensor_format_t *fmt,
+                                 imgsensor_interval_t *interval);
 static int isx012_change_camera_mode(isx012_dev_t *priv, uint8_t mode);
 static int isx012_change_device_state(isx012_dev_t *priv,
                                       isx012_state_t state);
-static int isx012_set_supported_frminterval(uint32_t fps_index,
-                                            FAR struct v4l2_fract *interval);
-static int8_t isx012_get_maximum_fps(FAR struct v4l2_frmivalenum *frmival);
+static int isx012_replace_frameinterval_to_regval
+                (FAR imgsensor_interval_t *interval);
+static int8_t isx012_get_maximum_fps
+                (uint8_t nr_datafmt,
+                 FAR imgsensor_format_t *datafmt);
 static int isx012_set_shd(FAR isx012_dev_t *priv);
-static bool is_movie_needed(isx012_modeparam_t *param);
-static int reflect_scene_parameter(FAR isx012_dev_t *priv,
-                                   FAR struct isx012_scene_params_s *params);
-static int leave_scene(FAR isx012_dev_t *priv);
-static struct isx012_scene_params_s *search_snparam_tbl
-         (enum v4l2_scene_mode mode);
+static bool is_movie_needed(uint8_t fmt, uint8_t fps);
 
 /* image sensor device operations interface */
 
-static int isx012_open(void);
-static int isx012_close(void);
-static int isx012_do_halfpush(bool enable);
-static int isx012_set_buftype(enum v4l2_buf_type type);
-static enum v4l2_buf_type isx012_get_buftype(void);
-static int isx012_check_fmt(enum v4l2_buf_type buf_type,
-                            uint32_t           pixel_format);
-static int isx012_get_range_of_fmt(FAR struct v4l2_fmtdesc *format);
-static int isx012_get_range_of_framesize(FAR struct v4l2_frmsizeenum
-                                         *frmsize);
-static int isx012_try_format(FAR struct v4l2_format *format);
-static int isx012_set_format(FAR struct v4l2_format *format);
-static int isx012_get_format(FAR struct v4l2_format *format);
-static int isx012_get_range_of_frameinterval(FAR struct v4l2_frmivalenum
-                                             *frmival);
-static int isx012_set_frameinterval(FAR struct v4l2_streamparm *parm);
-static int isx012_get_range_of_ctrlval(FAR struct v4l2_query_ext_ctrl
-                                         *range);
-static int isx012_get_menu_of_ctrlval(FAR struct v4l2_querymenu *menu);
-static int isx012_get_ctrlval(uint16_t ctrl_class,
-                              FAR struct v4l2_ext_control *control);
-static int isx012_set_ctrlval(uint16_t ctrl_class,
-                              FAR struct v4l2_ext_control *control);
-static int isx012_get_range_of_sceneparam(enum v4l2_scene_mode mode,
-                                          FAR struct v4l2_query_ext_ctrl
-                                          * range);
-static int isx012_get_menu_of_sceneparam(enum v4l2_scene_mode mode,
-                                         FAR struct v4l2_querymenu *menu);
-static int isx012_get_sceneparam(enum v4l2_scene_mode mode,
-                                 uint16_t ctrl_class,
-                                 FAR struct v4l2_ext_control *control);
-static int isx012_set_sceneparam(enum v4l2_scene_mode mode,
-                                 uint16_t ctrl_class,
-                                 FAR struct v4l2_ext_control *control);
-static int isx012_refresh(void);
+static int isx012_init(void);
+static int isx012_uninit(void);
+static int isx012_validate_frame_setting(imgsensor_stream_type_t type,
+                                         uint8_t nr_datafmt,
+                                         FAR imgsensor_format_t *datafmts,
+                                         FAR imgsensor_interval_t *interval);
+static int isx012_start_capture(imgsensor_stream_type_t type,
+                                uint8_t nr_datafmt,
+                                FAR imgsensor_format_t *datafmts,
+                                FAR imgsensor_interval_t *interval);
+static int isx012_stop_capture(imgsensor_stream_type_t type);
+static int isx012_get_supported_value
+             (uint32_t id, FAR imgsensor_supported_value_t *value);
+static int isx012_get_value
+             (uint32_t id, uint32_t size, FAR imgsensor_value_t *value);
+static int isx012_set_value
+             (uint32_t id, uint32_t size, imgsensor_value_t value);
 
 /****************************************************************************
  * Private Data
@@ -344,7 +271,8 @@ static int isx012_refresh(void);
 static isx012_dev_t   g_isx012_private;
 
 #ifndef ISX012_NOT_USE_NSTBY
-static const isx012_reg_t g_isx012_presleep[] = {
+static const isx012_reg_t g_isx012_presleep[] =
+{
   {PLL_CKSEL, 0x00, 0x01}, /* PLL_CKSEL */
   {SRCCK_DIV, 0x00, 0x01}, /* SRCCK_DIV */
   {INCK_SET,  0x17, 0x01}, /* INCK_SET */
@@ -352,7 +280,8 @@ static const isx012_reg_t g_isx012_presleep[] = {
 #define ISX012_PRESLEEP_NENTRIES ARRAY_NENTRIES(g_isx012_presleep)
 #endif
 
-static const isx012_reg_t g_isx012_def_init[] = {
+static const isx012_reg_t g_isx012_def_init[] =
+{
 #ifdef ISX012_NOT_USE_NSTBY
   {PLL_CKSEL,         0x00, 0x01},
   {SRCCK_DIV,         0x00, 0x01},
@@ -386,7 +315,6 @@ static const isx012_reg_t g_isx012_def_init[] = {
   {INCK_SET,          0x17, 0x01}, /* INCK_SET */
 #endif
   {FRM_FIX_SN1_2,     0xff, 0x01}, /* Fix framerate */
-  {FRM_FIX_SN3_4,     0xff, 0x01}, /* Fix framerate */
   {FAST_MODECHG_EN,   0x01, 0x01},
   {FAST_SHT_MODE_SEL, 0x01, 0x01},
   {CAP_HALF_AE_CTRL,  0x07, 0x01}, /* HAFREL=HIGHSPEED, CAP=Auto  */
@@ -395,45 +323,12 @@ static const isx012_reg_t g_isx012_def_init[] = {
   {FASTMOVE_TIMEOUT,  0x2d, 0x01},
   {YGAMMA_MODE,       0x01, 0x01},
   {INT_QLTY2,         0x50, 0x01},
-  {AE_SN1,            0x00, 0x01}, /* SN1 use TYPE1 */
-  {AE_SN2,            0x28, 0x01}, /* SN2 use TYPE2 */
-  {AE_SN3,            0x50, 0x01}, /* SN3 use TYPE3 */
-  {PICT3_GAMMA_MONI0, 0x39, 0x01}, /* SN1 use GAMMA0 table
-                                    * SN2 use GAMMA1 table
-                                    * SN3 use GAMMA2 table
-                                    */
-  {PICT3_GAMMA_CAP0,  0x39, 0x01}, /* SN1 use GAMMA0 table
-                                    * SN2 use GAMMA1 table
-                                    * SN3 use GAMMA2 table
-                                    */
-  {PICT3_GAMMA_MOVIE0, 0x39, 0x01},/* SN1 use GAMMA0 table
-                                    * SN2 use GAMMA1 table
-                                    * SN3 use GAMMA2 table
-                                    */
-  /* The following settings(prefix = G1_ and G2_) are same as GAMMA0 table */
-
-  {G1_LOWGM_ON_R, 0x0611, 0x02},
-  {G1_0CLIP_R,    0x1e0a, 0x02},
-  {G1_LOWGM_ON_G, 0x0611, 0x02},
-  {G1_0CLIP_G,    0x1e0a, 0x02},
-  {G1_LOWGM_ON_B, 0x0611, 0x02},
-  {G1_0CLIP_B,    0x1e0a, 0x02},
-  {G2_LOWGM_ON_R, 0x0611, 0x02},
-  {G2_0CLIP_R,    0x1e0a, 0x02},
-  {G2_LOWGM_ON_G, 0x0611, 0x02},
-  {G2_0CLIP_G,    0x1e0a, 0x02},
-  {G2_LOWGM_ON_B, 0x0611, 0x02},
-  {G2_0CLIP_B,    0x1e0a, 0x02},
-
-  {PICT1_SN_3,        0xaa, 0x01}, /* SN3 use TYPE3 */
-  {AELINE_MONI_SN3_4, 0x00, 0x01}, /* same setting as SN1_2 */
-  {AELINE_HALF_SN3_4, 0x11, 0x01}, /* same setting as SN1_2 */
-  {AELINE_CAP_SN3_4,  0x00, 0x01}, /* same setting as SN1_2 */
-  {AELINE_MOVIE_SN3_4,0x22, 0x01}, /* same setting as SN1_2 */
 };
+
 #define ISX012_RESET_NENTRIES ARRAY_NENTRIES(g_isx012_def_init)
 
-static const uint8_t g_isx012_cxc_rgb_data[CXC_RGB_DATA_UNIT_NUM][CXC_RGB_DATA_UNIT_SIZE] =
+static const uint8_t g_isx012_cxc_rgb_data[CXC_RGB_DATA_UNIT_NUM]
+                                          [CXC_RGB_DATA_UNIT_SIZE] =
 {
   {0x01, 0x43, 0xc0, 0xf0, 0x4f, 0xfc, 0x13},  /* CXC_RGB_UNIT0  */
   {0x80, 0x44, 0x20, 0x21, 0x48, 0x04, 0x0e},  /* CXC_RGB_UNIT1  */
@@ -464,7 +359,8 @@ static const uint8_t g_isx012_cxc_rgb_data[CXC_RGB_DATA_UNIT_NUM][CXC_RGB_DATA_U
   {0x84, 0x03, 0xe1, 0x40, 0x28, 0x10, 0x0a},  /* CXC_RGB_UNIT26 */
 };
 
-static const uint8_t g_isx012_cxc_grb_data[CXC_GRB_DATA_UNIT_NUM][CXC_GRB_DATA_UNIT_SIZE] =
+static const uint8_t g_isx012_cxc_grb_data[CXC_GRB_DATA_UNIT_NUM]
+                                          [CXC_GRB_DATA_UNIT_SIZE] =
 {
   {0x00, 0x3d, 0x40, 0x0f, 0xc0, 0x03, 0xf2},  /* CXC_GRB_UNIT0  */
   {0x80, 0x7c, 0x80, 0x1f, 0xd8, 0x03, 0xf0},  /* CXC_GRB_UNIT1  */
@@ -495,7 +391,8 @@ static const uint8_t g_isx012_cxc_grb_data[CXC_GRB_DATA_UNIT_NUM][CXC_GRB_DATA_U
   {0x01, 0x82, 0xa0, 0x20, 0x20, 0x08, 0x08},  /* CXC_GRB_UNIT26 */
 };
 
-static const uint8_t g_isx012_shd_rgb_data[SHD_RGB_DATA_UNIT_NUM][SHD_RGB_DATA_UNIT_SIZE] =
+static const uint8_t g_isx012_shd_rgb_data[SHD_RGB_DATA_UNIT_NUM]
+                                          [SHD_RGB_DATA_UNIT_SIZE] =
 {
   {0xf1, 0x59, 0x52, 0x7b, 0x98, 0xc4, 0x9d, 0x23, 0x29, 0x87, 0x46}, /* SHD_RGB_UNIT0  */
   {0xc6, 0x81, 0xd1, 0x70, 0x56, 0xe4, 0x9c, 0x1b, 0x6d, 0x07, 0x48}, /* SHD_RGB_UNIT1  */
@@ -523,10 +420,11 @@ static const uint8_t g_isx012_shd_rgb_data[SHD_RGB_DATA_UNIT_NUM][SHD_RGB_DATA_U
   {0xe1, 0xd1, 0x91, 0x71, 0x38, 0xc4, 0x1b, 0x0a, 0xed, 0x86, 0x42}, /* SHD_RGB_UNIT23 */
   {0xcb, 0x49, 0xd1, 0x78, 0x86, 0x74, 0x9f, 0x2d, 0xb9, 0x88, 0x51}, /* SHD_RGB_UNIT24 */
   {0x11, 0x62, 0x93, 0x7c, 0x9c, 0x94, 0x1d, 0x1b, 0x41, 0x67, 0x46}, /* SHD_RGB_UNIT25 */
-  {0xcf, 0x81, 0x91, 0x77, 0x82, 0x54, 0x9f, 0x2a, 0x21, 0xa8, 0x4d}  /* SHD_RGB_UNIT26 */
+  {0xcf, 0x81, 0x91, 0x77, 0x82, 0x54, 0x9f, 0x2a, 0x21, 0xa8, 0x4d}, /* SHD_RGB_UNIT26 */
 };
 
-static const uint8_t g_isx012_shd_grb_data[SHD_GRB_DATA_UNIT_NUM][SHD_GRB_DATA_UNIT_SIZE] =
+static const uint8_t g_isx012_shd_grb_data[SHD_GRB_DATA_UNIT_NUM]
+                                          [SHD_GRB_DATA_UNIT_SIZE] =
 {
   {0xe8, 0xa9, 0x0f, 0x78, 0xe4, 0x13, 0x9d, 0xf0, 0x04, 0xe7, 0x39}, /* SHD_GRB_UNIT0  */
   {0xbd, 0x51, 0x0e, 0x6f, 0x94, 0x63, 0x1c, 0xea, 0x4c, 0x27, 0x3c}, /* SHD_GRB_UNIT1  */
@@ -554,10 +452,11 @@ static const uint8_t g_isx012_shd_grb_data[SHD_GRB_DATA_UNIT_NUM][SHD_GRB_DATA_U
   {0xde, 0x09, 0xcf, 0x70, 0x92, 0x73, 0x9b, 0xe0, 0xcc, 0x06, 0x38}, /* SHD_GRB_UNIT23 */
   {0xc0, 0x89, 0x4e, 0x74, 0xcc, 0x13, 0x1e, 0xfc, 0x84, 0x48, 0x45}, /* SHD_GRB_UNIT24 */
   {0x06, 0x7a, 0xd0, 0x7a, 0xe6, 0x33, 0x1d, 0xef, 0x24, 0x07, 0x3b}, /* SHD_GRB_UNIT25 */
-  {0xc4, 0xb1, 0x0e, 0x74, 0xca, 0x33, 0x1e, 0xfc, 0xc4, 0x07, 0x41}  /* SHD_GRB_UNIT26 */
+  {0xc4, 0xb1, 0x0e, 0x74, 0xca, 0x33, 0x1e, 0xfc, 0xc4, 0x07, 0x41}, /* SHD_GRB_UNIT26 */
 };
 
-static const uint8_t g_isx012_shd_r1_data[SHD_R1_DATA_UNIT_NUM][SHD_R1_DATA_UNIT_SIZE] =
+static const uint8_t g_isx012_shd_r1_data[SHD_R1_DATA_UNIT_NUM]
+                                         [SHD_R1_DATA_UNIT_SIZE] =
 {
   {0x10, 0x92, 0x10, 0x82, 0xf8, 0x43, 0x1f, 0xfb, 0xf0, 0xe7, 0x40}, /* SHD_R1_UNIT0   */
   {0x07, 0x92, 0xd0, 0x82, 0xec, 0x33, 0x9e, 0xed, 0x68, 0xe7, 0x3c}, /* SHD_R1_UNIT1   */
@@ -572,10 +471,11 @@ static const uint8_t g_isx012_shd_r1_data[SHD_R1_DATA_UNIT_NUM][SHD_R1_DATA_UNIT
   {0xc7, 0x41, 0x50, 0x7c, 0x7e, 0xd3, 0x19, 0xc5, 0x48, 0x86, 0x35}, /* SHD_R1_UNIT10  */
   {0xda, 0xa9, 0xcf, 0x8c, 0x42, 0x24, 0x20, 0xf5, 0x8c, 0x67, 0x3c}, /* SHD_R1_UNIT11  */
   {0xf6, 0x89, 0xd0, 0x88, 0x90, 0x34, 0x23, 0x0b, 0x15, 0xa8, 0x3f}, /* SHD_R1_UNIT12  */
-  {0x00, 0x72, 0x10, 0x89, 0x68, 0x04, 0x69, 0x00, 0x00, 0x19, 0x26}  /* SHD_R1_UNIT13  */
+  {0x00, 0x72, 0x10, 0x89, 0x68, 0x04, 0x69, 0x00, 0x00, 0x19, 0x26}, /* SHD_R1_UNIT13  */
 };
 
-static const uint8_t g_isx012_shd_r2_data[SHD_R2_DATA_UNIT_NUM][SHD_R2_DATA_UNIT_SIZE] =
+static const uint8_t g_isx012_shd_r2_data[SHD_R2_DATA_UNIT_NUM]
+                                         [SHD_R2_DATA_UNIT_SIZE] =
 {
   {0x3a, 0xe2, 0x11, 0x8c, 0x42, 0x74, 0xa1, 0x0c, 0x89, 0x08, 0x46}, /* SHD_R2_UNIT0   */
   {0x30, 0xe2, 0xd1, 0x8c, 0x36, 0x54, 0x20, 0xfe, 0xec, 0x47, 0x41}, /* SHD_R2_UNIT1   */
@@ -590,10 +490,11 @@ static const uint8_t g_isx012_shd_r2_data[SHD_R2_DATA_UNIT_NUM][SHD_R2_DATA_UNIT
   {0xe1, 0x61, 0x91, 0x84, 0xb6, 0x43, 0x9b, 0xcf, 0x9c, 0x66, 0x38}, /* SHD_R2_UNIT10  */
   {0xf6, 0xa1, 0x50, 0x97, 0x8e, 0x34, 0x22, 0x04, 0x01, 0x08, 0x40}, /* SHD_R2_UNIT11  */
   {0x15, 0x9a, 0x51, 0x92, 0xf2, 0xd4, 0xa5, 0x1d, 0x99, 0xa8, 0x43}, /* SHD_R2_UNIT12  */
-  {0x21, 0x82, 0x91, 0x92, 0xbe, 0xf4, 0x9e, 0xf3, 0x4c, 0x87, 0x38}  /* SHD_R2_UNIT13  */
+  {0x21, 0x82, 0x91, 0x92, 0xbe, 0xf4, 0x9e, 0xf3, 0x4c, 0x87, 0x38}, /* SHD_R2_UNIT13  */
 };
 
-static const uint8_t g_isx012_shd_b2_data[SHD_B2_DATA_UNIT_NUM][SHD_B2_DATA_UNIT_SIZE] =
+static const uint8_t g_isx012_shd_b2_data[SHD_B2_DATA_UNIT_NUM]
+                                         [SHD_B2_DATA_UNIT_SIZE] =
 {
   {0xef, 0x39, 0xcf, 0x74, 0x88, 0xb3, 0x1b, 0xdf, 0x20, 0x47, 0x3b}, /* SHD_B2_UNIT0   */
   {0xdf, 0x59, 0xcf, 0x77, 0x8c, 0x43, 0x1b, 0xd7, 0xb8, 0x46, 0x37}, /* SHD_B2_UNIT1   */
@@ -608,7 +509,7 @@ static const uint8_t g_isx012_shd_b2_data[SHD_B2_DATA_UNIT_NUM][SHD_B2_DATA_UNIT
   {0x95, 0xf9, 0x0e, 0x73, 0x48, 0x63, 0x98, 0xb9, 0xd8, 0xa5, 0x30}, /* SHD_B2_UNIT10  */
   {0xa5, 0xb1, 0x8d, 0x83, 0xf4, 0xa3, 0x1d, 0xe0, 0xd0, 0x06, 0x36}, /* SHD_B2_UNIT11  */
   {0xbe, 0xa9, 0x4e, 0x79, 0x50, 0xd4, 0x20, 0xf6, 0x54, 0xa7, 0x38}, /* SHD_B2_UNIT12  */
-  {0xc5, 0x91, 0xce, 0x7a, 0xf4, 0x03, 0x44, 0x00, 0x60, 0x60, 0x00}  /* SHD_B2_UNIT13  */
+  {0xc5, 0x91, 0xce, 0x7a, 0xf4, 0x03, 0x44, 0x00, 0x60, 0x60, 0x00}, /* SHD_B2_UNIT13  */
 };
 
 static const isx012_reg_t g_isx012_shd_thresholds[] =
@@ -638,320 +539,121 @@ static const isx012_reg_t g_isx012_shd_wb[] =
 
 #define ISX012_SHD_WB_NENTRIES ARRAY_NENTRIES(g_isx012_shd_wb)
 
-static isx012_conv_v4l2_to_regval_t
- g_isx012_supported_colorfx[ISX012_MAX_COLOREFFECT + 1] = {
-  {V4L2_COLORFX_NONE,         REGVAL_EFFECT_NONE},
-  {V4L2_COLORFX_BW,           REGVAL_EFFECT_MONOTONE},
-  {V4L2_COLORFX_SEPIA,        REGVAL_EFFECT_SEPIA},
-  {V4L2_COLORFX_NEGATIVE,     REGVAL_EFFECT_NEGPOS},
-  {V4L2_COLORFX_SKETCH,       REGVAL_EFFECT_SKETCH},
-  {V4L2_COLORFX_SOLARIZATION, REGVAL_EFFECT_SOLARIZATION},
-  {V4L2_COLORFX_PASTEL,       REGVAL_EFFECT_PASTEL}
-};
-
-static isx012_conv_v4l2_to_regval_t
- g_isx012_supported_presetwb[ISX012_MAX_PRESETWB + 1] = {
-  {V4L2_WHITE_BALANCE_AUTO,         REGVAL_AWB_ATM},
-  {V4L2_WHITE_BALANCE_INCANDESCENT, REGVAL_AWB_LIGHTBULB},
-  {V4L2_WHITE_BALANCE_FLUORESCENT,  REGVAL_AWB_FLUORESCENTLIGHT},
-  {V4L2_WHITE_BALANCE_DAYLIGHT,     REGVAL_AWB_CLEARWEATHER},
-  {V4L2_WHITE_BALANCE_CLOUDY,       REGVAL_AWB_CLOUDYWEATHER},
-  {V4L2_WHITE_BALANCE_SHADE,        REGVAL_AWB_SHADE}
-};
-
-static isx012_conv_v4l2_to_regval_t
- g_isx012_supported_photometry[ISX012_MAX_PHOTOMETRY + 1] = {
-  {V4L2_EXPOSURE_METERING_AVERAGE,         REGVAL_PHOTOMETRY_AVERAGE},
-  {V4L2_EXPOSURE_METERING_CENTER_WEIGHTED, REGVAL_PHOTOMETRY_CENTERWEIGHT},
-  {V4L2_EXPOSURE_METERING_SPOT,            REGVAL_PHOTOMETRY_SPOT},
-  {V4L2_EXPOSURE_METERING_MATRIX,          REGVAL_PHOTOMETRY_MULTIPATTERN}
-};
-
-static isx012_conv_v4l2_to_regval_t
-  g_isx012_supported_iso[ISX012_MAX_ISO + 1] = {
-  {25 * 1000,   REGVAL_ISO_25},
-  {32 * 1000,   REGVAL_ISO_32},
-  {40 * 1000,   REGVAL_ISO_40},
-  {50 * 1000,   REGVAL_ISO_50},
-  {64 * 1000,   REGVAL_ISO_64},
-  {80 * 1000,   REGVAL_ISO_80},
-  {100 * 1000,  REGVAL_ISO_100},
-  {125 * 1000,  REGVAL_ISO_125},
-  {160 * 1000,  REGVAL_ISO_160},
-  {200 * 1000,  REGVAL_ISO_200},
-  {250 * 1000,  REGVAL_ISO_250},
-  {320 * 1000,  REGVAL_ISO_320},
-  {400 * 1000,  REGVAL_ISO_400},
-  {500 * 1000,  REGVAL_ISO_500},
-  {640 * 1000,  REGVAL_ISO_640},
-  {800 * 1000,  REGVAL_ISO_800},
-  {1000 * 1000, REGVAL_ISO_1000},
-  {1250 * 1000, REGVAL_ISO_1250},
-  {1600 * 1000, REGVAL_ISO_1600}
-};
-
-static struct video_sensctrl_ops_s g_isx012_sensctrl_ops =
+static int32_t g_isx012_colorfx_actual[] =
 {
-  .open                       = isx012_open,
-  .close                      = isx012_close,
-  .do_halfpush                = isx012_do_halfpush,
-  .set_buftype                = isx012_set_buftype,
-  .get_buftype                = isx012_get_buftype,
-  .get_range_of_fmt           = isx012_get_range_of_fmt,
-  .get_range_of_framesize     = isx012_get_range_of_framesize,
-  .try_format                 = isx012_try_format,
-  .set_format                 = isx012_set_format,
-  .get_format                 = isx012_get_format,
-  .get_range_of_frameinterval = isx012_get_range_of_frameinterval,
-  .set_frameinterval          = isx012_set_frameinterval,
-  .get_range_of_ctrlvalue     = isx012_get_range_of_ctrlval,
-  .get_menu_of_ctrlvalue      = isx012_get_menu_of_ctrlval,
-  .get_ctrlvalue              = isx012_get_ctrlval,
-  .set_ctrlvalue              = isx012_set_ctrlval,
-  .get_range_of_sceneparam    = isx012_get_range_of_sceneparam,
-  .get_menu_of_sceneparam     = isx012_get_menu_of_sceneparam,
-  .get_sceneparam             = isx012_get_sceneparam,
-  .set_sceneparam             = isx012_set_sceneparam,
-  .refresh                    = isx012_refresh,
+  IMGSENSOR_COLORFX_NONE,
+  IMGSENSOR_COLORFX_BW,
+  IMGSENSOR_COLORFX_SEPIA,
+  IMGSENSOR_COLORFX_NEGATIVE,
+  IMGSENSOR_COLORFX_SKETCH,
+  IMGSENSOR_COLORFX_SOLARIZATION,
+  IMGSENSOR_COLORFX_PASTEL
 };
 
-/* Scene parameters */
-
-static struct isx012_scene_params_s g_isx012_scene_params[] =
+static uint8_t g_isx012_colorfx_regval[] =
 {
-#ifdef CONFIG_VIDEO_ISX012_SCENE_BACKLIGHT
-  {V4L2_SCENE_MODE_BACKLIGHT, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_BACKLIGHT */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_BEACHSNOW
-  {V4L2_SCENE_MODE_BEACH_SNOW, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_BEACHSNOW */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_CANDLELIGHT
-  {V4L2_SCENE_MODE_CANDLE_LIGHT, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_CANDLELIGHT */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_DAWNDUSK
-  {V4L2_SCENE_MODE_DAWN_DUSK, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_DAWNDUSK */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_FALLCOLORS
-  {V4L2_SCENE_MODE_FALL_COLORS, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_FALLCOLORS */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_FIREWORKS
-  {V4L2_SCENE_MODE_FIREWORKS, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_FIREWORKS */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_LANDSCAPE
-  {V4L2_SCENE_MODE_LANDSCAPE, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_LANDSCAPE */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_NIGHT
-  {V4L2_SCENE_MODE_NIGHT, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_NIGHT */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_PARTYINDOOR
-  {V4L2_SCENE_MODE_PARTY_INDOOR, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_PARTYINDOOR */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_PORTRAIT
-  {V4L2_SCENE_MODE_PORTRAIT, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_PORTRAIT */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_SPORTS
-  {V4L2_SCENE_MODE_SPORTS, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_SPORTS */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_SUNSET
-  {V4L2_SCENE_MODE_SUNSET, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_SUNSET */
-#ifdef CONFIG_VIDEO_ISX012_SCENE_TEXT
-  {V4L2_SCENE_MODE_TEXT, /* mode */
-   0,     /* brightness */
-   0x80,  /* contrast */
-   0x80,  /* saturation */
-   0,     /* hue */
-   0x20,  /* sharpness */
-   {0,  7,   29,  47,  61,  74,  81,  90,  97, 106,
-    73, 130, 173, 204, 225, 237, 246, 262, 268},    /* gamma */
-   0,     /* exptime */
-   false, /* exptime_auto */
-   0,     /* iso */
-   false, /* iso_auto */
-   0x01,  /* expmeter */
-   0x20}, /* wb */
-#endif /* CONFIG_VIDEO_ISX012_SCENE_TEXT */
+  REGVAL_EFFECT_NONE,
+  REGVAL_EFFECT_MONOTONE,
+  REGVAL_EFFECT_SEPIA,
+  REGVAL_EFFECT_NEGPOS,
+  REGVAL_EFFECT_SKETCH,
+  REGVAL_EFFECT_SOLARIZATION,
+  REGVAL_EFFECT_PASTEL
 };
 
-static enum v4l2_scene_mode g_isx012_scene = V4L2_SCENE_MODE_NONE;
-static uint8_t g_isx012_brightness = 0;
-static uint8_t g_isx012_contrast   = 0x80;
+static int32_t g_isx012_presetwb_actual[] =
+{
+  IMGSENSOR_WHITE_BALANCE_AUTO,
+  IMGSENSOR_WHITE_BALANCE_INCANDESCENT,
+  IMGSENSOR_WHITE_BALANCE_FLUORESCENT,
+  IMGSENSOR_WHITE_BALANCE_DAYLIGHT,
+  IMGSENSOR_WHITE_BALANCE_CLOUDY,
+  IMGSENSOR_WHITE_BALANCE_SHADE
+};
 
-/* address list for scene selection */
+static uint8_t g_isx012_presetwb_regval[] =
+{
+  REGVAL_AWB_ATM,
+  REGVAL_AWB_LIGHTBULB,
+  REGVAL_AWB_FLUORESCENTLIGHT,
+  REGVAL_AWB_CLEARWEATHER,
+  REGVAL_AWB_CLOUDYWEATHER,
+  REGVAL_AWB_SHADE
+};
 
-static uint16_t g_isx012_sat_addr[]
- = {UISATURATION_TYPE1, UISATURATION_TYPE2, UISATURATION_TYPE3};
-static uint16_t g_isx012_hue_addr[]
- = {UIHUE_TYPE1, UIHUE_TYPE2, UIHUE_TYPE3};
-static uint16_t g_isx012_gamma_addr[]
- = {GAMMA_BASE, GAMMA1_BASE, GAMMA2_BASE};
-static uint16_t g_isx012_shrp_addr[]
- = {UISHARPNESS_POS_TYPE1, UISHARPNESS_POS_TYPE2, UISHARPNESS_POS_TYPE3};
-static uint16_t g_isx012_exptime_addr[]
- = {SHT_PREMODE_TYPE1, SHT_PREMODE_TYPE2, SHT_PREMODE_TYPE3};
-static uint16_t g_isx012_wb_addr[] = {AWB_SN1, AWB_SN2, AWB_SN3};
-static uint16_t g_isx012_iso_addr[] = {ISO_TYPE1, ISO_TYPE2, ISO_TYPE3};
-static uint16_t g_isx012_meter_addr[] = {AE_SUB_SN1, AE_SUB_SN2, AE_SUB_SN3};
+static int32_t g_isx012_photometry_actual[] =
+{
+  IMGSENSOR_EXPOSURE_METERING_AVERAGE,
+  IMGSENSOR_EXPOSURE_METERING_CENTER_WEIGHTED,
+  IMGSENSOR_EXPOSURE_METERING_SPOT,
+  IMGSENSOR_EXPOSURE_METERING_MATRIX
+};
 
-/****************************************************************************
- * Public Data
- ****************************************************************************/
+static uint8_t g_isx012_photometry_regval[] =
+{
+  REGVAL_PHOTOMETRY_AVERAGE,
+  REGVAL_PHOTOMETRY_CENTERWEIGHT,
+  REGVAL_PHOTOMETRY_SPOT,
+  REGVAL_PHOTOMETRY_MULTIPATTERN
+};
+
+static int32_t g_isx012_iso_actual[] =
+{
+  25 * 1000,
+  32 * 1000,
+  40 * 1000,
+  50 * 1000,
+  64 * 1000,
+  80 * 1000,
+  100 * 1000,
+  125 * 1000,
+  160 * 1000,
+  200 * 1000,
+  250 * 1000,
+  320 * 1000,
+  400 * 1000,
+  500 * 1000,
+  640 * 1000,
+  800 * 1000,
+  1000 * 1000,
+  1250 * 1000,
+  1600 * 1000
+};
+
+static uint8_t g_isx012_iso_regval[] =
+{
+  REGVAL_ISO_25,
+  REGVAL_ISO_32,
+  REGVAL_ISO_40,
+  REGVAL_ISO_50,
+  REGVAL_ISO_64,
+  REGVAL_ISO_80,
+  REGVAL_ISO_100,
+  REGVAL_ISO_125,
+  REGVAL_ISO_160,
+  REGVAL_ISO_200,
+  REGVAL_ISO_250,
+  REGVAL_ISO_320,
+  REGVAL_ISO_400,
+  REGVAL_ISO_500,
+  REGVAL_ISO_640,
+  REGVAL_ISO_800,
+  REGVAL_ISO_1000,
+  REGVAL_ISO_1250,
+  REGVAL_ISO_1600
+};
+
+static struct imgsensor_ops_s g_isx012_ops =
+{
+  .init                   = isx012_init,
+  .uninit                 = isx012_uninit,
+  .validate_frame_setting = isx012_validate_frame_setting,
+  .start_capture          = isx012_start_capture,
+  .stop_capture           = isx012_stop_capture,
+  .get_supported_value    = isx012_get_supported_value,
+  .get_value              = isx012_get_value,
+  .set_value              = isx012_set_value,
+};
 
 /****************************************************************************
  * Private Functions
@@ -1029,7 +731,8 @@ static int isx012_putreg(isx012_dev_t *priv,
 }
 
 static int isx012_putreglist(isx012_dev_t *priv,
-                             FAR const isx012_reg_t *reglist, size_t nentries)
+                             FAR const isx012_reg_t *reglist,
+                             size_t nentries)
 {
   FAR const isx012_reg_t *entry;
   int ret = OK;
@@ -1044,6 +747,7 @@ static int isx012_putreglist(isx012_dev_t *priv,
           return ret;
         }
     }
+
   return ret;
 }
 
@@ -1069,247 +773,87 @@ static int isx012_chk_int_state(isx012_dev_t *priv,
       usleep(wait_time * 1000);
       time += wait_time;
     }
+
   return ERROR;
 }
 
-static int isx012_replace_fmt_v4l2val_to_regval(uint32_t v4l2val,
-                                                uint8_t *regval)
+static int isx012_replace_fmt_to_regval(uint8_t nr_fmt,
+                                        imgsensor_format_t *fmt)
 {
-  if (regval == NULL)
+  int ret;
+
+  if (fmt == NULL)
     {
       return -EINVAL;
     }
 
-  switch (v4l2val)
+  switch (fmt[IMGSENSOR_FMT_MAIN].pixelformat)
     {
-      case V4L2_PIX_FMT_UYVY:
-        *regval = REGVAL_OUTFMT_YUV;
+      case IMGSENSOR_PIX_FMT_UYVY:
+        ret = REGVAL_OUTFMT_YUV;
         break;
 
-      case V4L2_PIX_FMT_JPEG:
-        *regval = REGVAL_OUTFMT_JPEG;
+      case IMGSENSOR_PIX_FMT_JPEG:
+        ret = REGVAL_OUTFMT_JPEG;
         break;
 
-      case V4L2_PIX_FMT_JPEG_WITH_SUBIMG:
-        *regval = REGVAL_OUTFMT_INTERLEAVE;
+      case IMGSENSOR_PIX_FMT_JPEG_WITH_SUBIMG:
+        if (nr_fmt == 1)
+          {
+            ret = REGVAL_OUTFMT_JPEG;
+          }
+        else
+          {
+            ret = REGVAL_OUTFMT_INTERLEAVE;
+          }
+
         break;
 
       default:  /* Unsupported format */
 
-        return -EINVAL;
+        ret = -EINVAL;
     }
 
-  return OK;
+  return ret;
 }
 
-static bool is_movie_needed(isx012_modeparam_t *param)
+static bool is_movie_needed(uint8_t fmt, uint8_t fps)
 {
   bool need = true;
 
-  if (param->format == V4L2_PIX_FMT_UYVY)
+  if (fmt == IMGSENSOR_PIX_FMT_UYVY)
     {
-      if (param->fps >= REGVAL_FPSTYPE_30FPS)   /* This means fps <= 30 */
+      if (fps >= REGVAL_FPSTYPE_30FPS)   /* This means fps <= 30 */
         {
           need = false;
         }
     }
 
   return need;
-
-}
-
-static int reflect_scene_parameter(FAR isx012_dev_t *priv,
-                                   FAR struct isx012_scene_params_s *params)
-{
-  int ret;
-  int cnt;
-  uint8_t  sn;    /* SCENE_SELECT register value */
-  uint16_t sat;   /* address of SATURATION */
-  uint16_t hue;   /* address of HUE */
-  uint16_t shrp;  /* address of SHARPNESS */
-  uint16_t gamma; /* address of GAMMA */
-  uint16_t expt;  /* address of SHT_PREMODE */
-  uint16_t iso;   /* address of ISO */
-  uint16_t meter; /* address of EXPOSURE_METERING */
-  uint16_t wb;    /* address of AWB */
-
-  /* toggle control SN2 <-> SN3 */
-
-  sn = isx012_getreg(priv, SCENE_SELECT, 1);
-  if (sn == 1)
-    {
-      sat   = UISATURATION_TYPE3;
-      hue   = UIHUE_TYPE3;
-      shrp  = UISHARPNESS_POS_TYPE3;
-      gamma = GAMMA2_BASE;
-      expt  = SHT_PREMODE_TYPE3;
-      iso   = ISO_TYPE3;
-      meter = AE_SUB_SN3;
-      wb    = AWB_SN3;
-
-      sn = 2;
-    }
-  else
-    {
-      sat   = UISATURATION_TYPE2;
-      hue   = UIHUE_TYPE2;
-      shrp  = UISHARPNESS_POS_TYPE2;
-      gamma = GAMMA1_BASE;
-      expt  = SHT_PREMODE_TYPE2;
-      iso   = ISO_TYPE2;
-      meter = AE_SUB_SN2;
-      wb    = AWB_SN2;
-
-      sn = 1;
-    }
-
-  ret = isx012_putreg(priv, sat, params->saturation, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = isx012_putreg(priv, hue, params->hue, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = isx012_putreg(priv, shrp, params->sharpness, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  for (cnt = 0; cnt < ISX012_ELEMS_GAMMACURVE; cnt++)
-    {
-      ret = isx012_putreg(priv,
-                          gamma,
-                          params->gamma[cnt],
-                          ISX012_SIZE_GAMMACURVE);
-      if (ret < 0)
-        {
-          return ret;
-        }
-
-      gamma = gamma + 2;
-    }
-
-  ret = isx012_putreg(priv, expt,  params->exptime_auto ? 0 : params->exptime, 2);
-
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = isx012_putreg(priv, iso,  params->iso_auto ? 0 : params->iso, 1);
-
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = isx012_putreg(priv, meter, params->expmeter, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = isx012_putreg(priv, wb, params->wb, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = isx012_putreg(priv, SCENE_SELECT, sn, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = isx012_putreg(priv, UIBRIGHTNESS, params->brightness, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = isx012_putreg(priv, UICONTRAST, params->contrast, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  return OK;
-}
-
-static int leave_scene(FAR isx012_dev_t *priv)
-{
-  int ret;
-
-  ret = isx012_putreg(priv, SCENE_SELECT, 0, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = isx012_putreg(priv, UIBRIGHTNESS, g_isx012_brightness, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = isx012_putreg(priv, UICONTRAST, g_isx012_contrast, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  return OK;
-}
-
-static struct isx012_scene_params_s *search_snparam_tbl
-         (enum v4l2_scene_mode mode)
-{
-  int cnt;
-  struct isx012_scene_params_s *sptbl = g_isx012_scene_params;
-  int size = ARRAY_NENTRIES(g_isx012_scene_params);
-
-  for (cnt = 0; cnt < size; cnt++)
-    {
-      if (mode == sptbl->mode)
-        {
-          break;
-        }
-
-      sptbl++;
-    }
-
-  if (cnt >= size)
-    {
-      return NULL;
-    }
-
-  return sptbl;
 }
 
 static int isx012_set_mode_param(isx012_dev_t *priv,
-                                 enum v4l2_buf_type type,
-                                 isx012_modeparam_t *param)
+                                 imgsensor_stream_type_t type,
+                                 uint8_t nr_fmt,
+                                 imgsensor_format_t *fmt,
+                                 imgsensor_interval_t *interval)
 {
   int ret = 0;
-  uint8_t format;
-  uint16_t fps_regaddr;
-  uint16_t fmt_regaddr;
-  uint16_t sensmode_regaddr;
-  uint16_t hsize_regaddr;
-  uint16_t vsize_regaddr;
-  uint8_t  sensmode;
+  int fmt_val = isx012_replace_fmt_to_regval(nr_fmt, fmt);
+  int fps_val = isx012_replace_frameinterval_to_regval(interval);
+
+  uint16_t fps_addr;
+  uint16_t fmt_addr;
+  uint16_t mode_addr;
+  uint16_t hsize_addr;
+  uint16_t vsize_addr;
+  uint8_t  mode;
 
   /* Get register address for type  */
 
-  if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+  if (type == IMGSENSOR_STREAM_TYPE_VIDEO)
     {
-      if (is_movie_needed(param))
+      if (is_movie_needed(fmt_val, fps_val))
         {
           if (priv->mode == REGVAL_MODESEL_HREL)
             {
@@ -1320,103 +864,119 @@ static int isx012_set_mode_param(isx012_dev_t *priv,
               return -EPERM;
             }
 
-          fps_regaddr      = FPSTYPE_MOVIE;
-          fmt_regaddr      = OUTFMT_MOVIE;
-          sensmode_regaddr = SENSMODE_MOVIE;
-          hsize_regaddr    = HSIZE_MOVIE;
-          vsize_regaddr    = VSIZE_MOVIE;
+          fps_addr   = FPSTYPE_MOVIE;
+          fmt_addr   = OUTFMT_MOVIE;
+          mode_addr  = SENSMODE_MOVIE;
+          hsize_addr = HSIZE_MOVIE;
+          vsize_addr = VSIZE_MOVIE;
         }
       else
         {
-          fps_regaddr      = FPSTYPE_MONI;
-          fmt_regaddr      = OUTFMT_MONI;
-          sensmode_regaddr = SENSMODE_MONI;
-          hsize_regaddr    = HSIZE_MONI;
-          vsize_regaddr    = VSIZE_MONI;
-       }
+          fps_addr   = FPSTYPE_MONI;
+          fmt_addr   = OUTFMT_MONI;
+          mode_addr  = SENSMODE_MONI;
+          hsize_addr = HSIZE_MONI;
+          vsize_addr = VSIZE_MONI;
+        }
     }
   else
     {
-      fps_regaddr      = FPSTYPE_CAP;
-      fmt_regaddr      = OUTFMT_CAP;
-      sensmode_regaddr = SENSMODE_CAP;
-      hsize_regaddr    = HSIZE_CAP;
-      vsize_regaddr    = VSIZE_CAP;
+      fps_addr   = FPSTYPE_CAP;
+      fmt_addr   = OUTFMT_CAP;
+      mode_addr  = SENSMODE_CAP;
+      hsize_addr = HSIZE_CAP;
+      vsize_addr = VSIZE_CAP;
     }
 
-  ret = isx012_putreg(priv, fps_regaddr,  param->fps, sizeof(uint8_t));
+  ret = isx012_putreg(priv, fps_addr, fps_val, sizeof(uint8_t));
   if (ret < 0)
     {
       return ret;
     }
 
-  ret = isx012_replace_fmt_v4l2val_to_regval(param->format, &format);
+  ret = isx012_putreg(priv, fmt_addr, fmt_val, sizeof(uint8_t));
   if (ret < 0)
     {
       return ret;
     }
 
-  ret = isx012_putreg(priv, fmt_regaddr,   format, sizeof(uint8_t));
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  switch (param->fps)
+  switch (fps_val)
     {
       case REGVAL_FPSTYPE_120FPS:
-        sensmode = REGVAL_SENSMODE_1_8;
+        mode = REGVAL_SENSMODE_1_8;
         break;
 
       case REGVAL_FPSTYPE_60FPS:
-        sensmode = REGVAL_SENSMODE_1_4;
+        mode = REGVAL_SENSMODE_1_4;
         break;
 
       case REGVAL_FPSTYPE_30FPS:
-        sensmode = REGVAL_SENSMODE_1_2;
+        mode = REGVAL_SENSMODE_1_2;
         break;
 
       default:
-        sensmode = REGVAL_SENSMODE_ALLPIX;
+        mode = REGVAL_SENSMODE_ALLPIX;
         break;
     }
 
-  ret = isx012_putreg(priv, sensmode_regaddr, sensmode, sizeof(uint8_t));
+  ret = isx012_putreg(priv, mode_addr, mode, sizeof(uint8_t));
   if (ret < 0)
     {
       return ret;
     }
 
-  ret = isx012_putreg(priv, hsize_regaddr,    param->hsize, sizeof(uint16_t));
+  ret = isx012_putreg(priv,
+                      hsize_addr,
+                      fmt[IMGSENSOR_FMT_MAIN].width,
+                      sizeof(uint16_t));
   if (ret < 0)
     {
       return ret;
     }
 
-  ret = isx012_putreg(priv, vsize_regaddr,    param->vsize, sizeof(uint16_t));
+  ret = isx012_putreg(priv,
+                      vsize_addr,
+                      fmt[IMGSENSOR_FMT_MAIN].height,
+                      sizeof(uint16_t));
   if (ret < 0)
     {
       return ret;
     }
 
-  if (format == REGVAL_OUTFMT_INTERLEAVE)
+  if (fmt_val == REGVAL_OUTFMT_INTERLEAVE)
     {
-      ret = isx012_putreg(priv, HSIZE_TN, param->int_hsize, sizeof(uint16_t));
+      ret = isx012_putreg(priv,
+                          HSIZE_TN,
+                          fmt[IMGSENSOR_FMT_SUB].width,
+                          sizeof(uint16_t));
       if (ret < 0)
         {
           return ret;
         }
 
-      ret = isx012_putreg(priv, VSIZE_TN, param->int_vsize, sizeof(uint16_t));
+      ret = isx012_putreg(priv,
+                          VSIZE_TN,
+                          fmt[IMGSENSOR_FMT_SUB].height,
+                          sizeof(uint16_t));
       if (ret < 0)
         {
           return ret;
         }
+    }
+
+  if (priv->state != STATE_ISX012_ACTIVE)
+    {
+      isx012_change_device_state(priv, STATE_ISX012_ACTIVE);
+    }
+
+  ret = isx012_change_camera_mode(priv, mode);
+  if (ret == OK)
+    {
+      priv->mode = mode;
     }
 
   return ret;
 }
-
 
 /****************************************************************************
  * isx012_change_camera_mode
@@ -1425,8 +985,8 @@ static int isx012_set_mode_param(isx012_dev_t *priv,
 static int isx012_change_camera_mode(isx012_dev_t *priv, uint8_t mode)
 {
   int      ret = 0;
-  uint16_t format_addr;
-  uint8_t  format_data;
+  uint16_t fmt_addr;
+  uint8_t  fmt;
   uint32_t vifmode;
 #ifdef ISX012_FRAME_SKIP_EN
   uint8_t mask_num;
@@ -1442,24 +1002,24 @@ static int isx012_change_camera_mode(isx012_dev_t *priv, uint8_t mode)
     {
       case REGVAL_MODESEL_MON:
       case REGVAL_MODESEL_HREL:
-        format_addr = OUTFMT_MONI;
+        fmt_addr = OUTFMT_MONI;
         break;
 
       case REGVAL_MODESEL_MOV:
-        format_addr = OUTFMT_MOVIE;
+        fmt_addr = OUTFMT_MOVIE;
         break;
 
       case REGVAL_MODESEL_CAP:
-        format_addr = OUTFMT_CAP;
+        fmt_addr = OUTFMT_CAP;
         break;
 
       default:
         return -EPERM;
     }
 
-  format_data = isx012_getreg(priv, format_addr, 1);
+  fmt = isx012_getreg(priv, fmt_addr, 1);
 
-  switch (format_data) /* mode parallel */
+  switch (fmt) /* mode parallel */
     {
       case REGVAL_OUTFMT_YUV:
         vifmode = REGVAL_VIFMODE_YUV_PARALLEL;
@@ -1528,6 +1088,7 @@ static int isx012_change_camera_mode(isx012_dev_t *priv, uint8_t mode)
 /****************************************************************************
  * isx012_change_device_state
  ****************************************************************************/
+
 static int isx012_change_device_state(isx012_dev_t *priv,
                                       isx012_state_t state)
 {
@@ -1637,7 +1198,7 @@ int init_isx012(FAR struct isx012_dev_s *priv)
                              DEVICE_STATE_WAIT_TIME, DEVICE_STATE_TIMEOUT);
   if (ret != OK)
     {
-      imagererr("OM_CHANGED_STS(PreSleep) is Not occured: %d\n", ret);
+      imagererr("OM_CHANGED_STS(PreSleep) is Not occurred: %d\n", ret);
       return ret;
     }
 
@@ -1661,7 +1222,7 @@ int init_isx012(FAR struct isx012_dev_s *priv)
                              DEVICE_STATE_WAIT_TIME, DEVICE_STATE_TIMEOUT);
   if (ret != OK)
     {
-      imagererr("OM_CHANGED_STS(Sleep) is Not occured: %d\n", ret);
+      imagererr("OM_CHANGED_STS(Sleep) is Not occurred: %d\n", ret);
       return ret;
     }
 #endif
@@ -1689,46 +1250,10 @@ int init_isx012(FAR struct isx012_dev_s *priv)
       return ret;
     }
 
-  /* monitor mode default format: YUV4:2:2 QVGA */
-
-  priv->param.video.fps         = REGVAL_FPSTYPE_30FPS;
-  priv->param.video.format      = V4L2_PIX_FMT_UYVY;
-  priv->param.video.hsize       = VIDEO_HSIZE_QVGA;
-  priv->param.video.vsize       = VIDEO_VSIZE_QVGA;
-  priv->param.video.int_hsize   = 0;
-  priv->param.video.int_vsize   = 0;
-
-  ret = isx012_set_mode_param(priv,
-                              V4L2_BUF_TYPE_VIDEO_CAPTURE,
-                              &priv->param.video);
-  if (ret < 0)
-    {
-      board_isx012_set_reset();
-      return ret;
-    }
-
-  /* capture mode default format: JPEG FULLHD */
-
-  priv->param.still.fps         = REGVAL_FPSTYPE_15FPS;
-  priv->param.still.format      = V4L2_PIX_FMT_JPEG;
-  priv->param.still.hsize       = VIDEO_HSIZE_FULLHD;
-  priv->param.still.vsize       = VIDEO_VSIZE_FULLHD;
-  priv->param.still.int_hsize   = 0;
-  priv->param.still.int_vsize   = 0;
-
-  ret = isx012_set_mode_param(priv,
-                              V4L2_BUF_TYPE_STILL_CAPTURE,
-                              &priv->param.still);
-  if (ret < 0)
-    {
-      board_isx012_set_reset();
-      return ret;
-    }
-
   return ret;
 }
 
-static int isx012_open(void)
+static int isx012_init(void)
 {
   FAR struct isx012_dev_s *priv = &g_isx012_private;
   int ret = 0;
@@ -1752,7 +1277,7 @@ static int isx012_open(void)
   return ret;
 }
 
-static int isx012_close(void)
+static int isx012_uninit(void)
 {
   FAR struct isx012_dev_s *priv = &g_isx012_private;
 
@@ -1778,593 +1303,117 @@ static int isx012_close(void)
   return ret;
 }
 
-static int isx012_do_halfpush(bool enable)
+static int8_t isx012_get_maximum_fps(uint8_t nr_fmt,
+                                     FAR imgsensor_format_t *fmt)
 {
-  FAR struct isx012_dev_s *priv = &g_isx012_private;
-  uint8_t                 mode;
-  int                     ret = -EPERM;
+  int8_t max_fps = REGVAL_FPSTYPE_120FPS;
+  uint16_t main_w;
+  uint16_t main_h;
+  uint16_t sub_w;
+  uint16_t sub_h;
 
-  if (enable)
+  main_w = fmt[IMGSENSOR_FMT_MAIN].width;
+  main_h = fmt[IMGSENSOR_FMT_MAIN].height;
+
+  switch (fmt[IMGSENSOR_FMT_MAIN].pixelformat)
     {
-      /* state transition : MONITORING -> HALFRELEASE */
-
-      if (priv->mode == REGVAL_MODESEL_MON)
-        {
-          mode = REGVAL_MODESEL_HREL;
-          ret = OK;
-        }
-    }
-  else
-    {
-      /* state transition : HALFRELEASE -> MONITORING */
-
-      if (priv->mode == REGVAL_MODESEL_HREL)
-        {
-          mode = REGVAL_MODESEL_MON;
-          ret = OK;
-        }
-    }
-
-  if (ret == OK)
-    {
-      ret = isx012_change_camera_mode(priv, mode);
-      if (ret == OK)
-        {
-          priv->mode = mode;
-        }
-    }
-
-  return ret;
-}
-
-static int isx012_set_buftype(enum v4l2_buf_type type)
-{
-  FAR struct isx012_dev_s *priv = &g_isx012_private;
-  uint8_t                 mode;
-  int                     ret = OK;
-
-  if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-    {
-      if (priv->mode == REGVAL_MODESEL_HREL)
-        {
-          /* state transition : HALFRELEASE -> HALFRELEASE */
-
-          mode = REGVAL_MODESEL_HREL;
-        }
-      else
-        {
-          /* state transition : CAPTURE    -> MONITORING
-           *                 or MONITORING -> MONITORING
-           */
-
-          if (is_movie_needed(&priv->param.video))
-            {
-              mode = REGVAL_MODESEL_MOV;
-            }
-          else
-            {
-              mode = REGVAL_MODESEL_MON;
-            }
-        }
-    }
-  else
-    {
-      /* state transition : any -> CAPTURE */
-
-      mode = REGVAL_MODESEL_CAP;
-    }
-
-  /* In no active case, activate */
-
-  if (priv->state != STATE_ISX012_ACTIVE)
-    {
-      isx012_change_device_state(priv, STATE_ISX012_ACTIVE);
-    }
-
-  if (mode != priv->mode)
-    {
-      ret = isx012_change_camera_mode(priv, mode);
-      if (ret == OK)
-        {
-          priv->mode = mode;
-        }
-    }
-
-  return ret;
-}
-
-static enum v4l2_buf_type isx012_get_buftype(void)
-{
-  FAR struct isx012_dev_s *priv = &g_isx012_private;
-
-  if (priv->mode == REGVAL_MODESEL_CAP)
-    {
-      /* ISX012 capture mode => still capture */
-
-      return V4L2_BUF_TYPE_STILL_CAPTURE;
-    }
-  else
-    {
-      /* ISX012 monitor/halfrelease/movie mode => video capture */
-
-      return V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    }
-}
-
-static int isx012_check_fmt(enum v4l2_buf_type buf_type,
-                            uint32_t           pixel_format)
-{
-  switch (buf_type)
-    {
-      case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-      case V4L2_BUF_TYPE_STILL_CAPTURE:
-        if ((pixel_format != V4L2_PIX_FMT_JPEG) &&
-            (pixel_format != V4L2_PIX_FMT_JPEG_WITH_SUBIMG) &&
-            (pixel_format != V4L2_PIX_FMT_UYVY))
-          {
-            /* Unsupported format */
-
-            return -EINVAL;
-          }
-
-        break;
-
-      default: /* Unsupported type */
-
-        return -EINVAL;
-    }
-
-  return OK;
-}
-
-static int isx012_get_range_of_fmt(FAR struct v4l2_fmtdesc *format)
-{
-  if (format == NULL)
-    {
-      return -EINVAL;
-    }
-
-  switch (format->type)
-    {
-      case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-      case V4L2_BUF_TYPE_STILL_CAPTURE:
-        switch (format->index)
-          {
-            case 0: /* JPEG */
-
-              strncpy(format->description, "JPEG", V4L2_FMT_DSC_MAX);
-              format->pixelformat = V4L2_PIX_FMT_JPEG;
-
-              break;
-
-            case 1: /* JPEG + YUV 4:2:2 */
-
-              strncpy(format->description,
-                      "JPEG + YUV 4:2:2",
-                      V4L2_FMT_DSC_MAX);
-              format->pixelformat        = V4L2_PIX_FMT_JPEG_WITH_SUBIMG;
-              format->subimg_pixelformat = V4L2_PIX_FMT_UYVY;
-
-              break;
-
-            case 2: /* YUV 4:2:2 */
-
-              strncpy(format->description, "YUV 4:2:2", V4L2_FMT_DSC_MAX);
-              format->pixelformat = V4L2_PIX_FMT_UYVY;
-
-              break;
-
-            default:  /* 3, 4, ... */
-              return -EINVAL;
-          }
-
-        break;
-
-      default: /* Unsupported type */
-
-        return -EINVAL;
-    }
-
-  return OK;
-}
-
-static int isx012_get_range_of_framesize(FAR struct v4l2_frmsizeenum *frmsize)
-{
-  int ret;
-
-  if (frmsize == NULL)
-    {
-      return -EINVAL;
-    }
-
-  if (frmsize->index != 0)
-    {
-      return -EINVAL;
-    }
-
-  ret = isx012_check_fmt(frmsize->buf_type, frmsize->pixel_format);
-  if (ret != OK)
-    {
-      return ret;
-    }
-
-  switch (frmsize->pixel_format)
-    {
-      case V4L2_PIX_FMT_UYVY:                /* YUV 4:2:2 */
-        frmsize->type                        = V4L2_FRMSIZE_TYPE_STEPWISE;
-        frmsize->stepwise.min_width          = OUT_YUV_HSIZE_MIN;
-        frmsize->stepwise.max_width          = OUT_YUV_15FPS_HSIZE_MAX;
-        frmsize->stepwise.step_width         = ISX012_SIZE_STEP;
-        frmsize->stepwise.min_height         = OUT_YUV_VSIZE_MIN;
-        frmsize->stepwise.max_height         = OUT_YUV_15FPS_VSIZE_MAX;
-        frmsize->stepwise.step_height        = ISX012_SIZE_STEP;
-
-        break;
-
-      case V4L2_PIX_FMT_JPEG:                /* JPEG */
-        frmsize->type                        = V4L2_FRMSIZE_TYPE_STEPWISE;
-        frmsize->stepwise.min_width          = OUT_JPG_HSIZE_MIN;
-        frmsize->stepwise.max_width          = OUT_JPG_15FPS_HSIZE_MAX;
-        frmsize->stepwise.step_width         = ISX012_SIZE_STEP;
-        frmsize->stepwise.min_height         = OUT_JPG_VSIZE_MIN;
-        frmsize->stepwise.max_height         = OUT_JPG_15FPS_VSIZE_MAX;
-        frmsize->stepwise.step_height        = ISX012_SIZE_STEP;
-
-        break;
-
-      case V4L2_PIX_FMT_JPEG_WITH_SUBIMG:    /* JPEG + YUV 4:2:2 */
-        if (frmsize->subimg_pixel_format != V4L2_PIX_FMT_UYVY)
-          {
-            /* Unsupported pixel format */
-
-            return -EINVAL;
-          }
-
-        frmsize->type                        = V4L2_FRMSIZE_TYPE_STEPWISE;
-        frmsize->stepwise.min_width          = OUT_JPG_HSIZE_MIN;
-        frmsize->stepwise.max_width          = OUT_JPGINT_15FPS_HSIZE_MAX;
-        frmsize->stepwise.step_width         = ISX012_SIZE_STEP;
-        frmsize->stepwise.min_height         = OUT_JPG_VSIZE_MIN;
-        frmsize->stepwise.max_height         = OUT_JPGINT_15FPS_VSIZE_MAX;
-        frmsize->stepwise.step_height        = ISX012_SIZE_STEP;
-
-        frmsize->subimg_type                 = V4L2_FRMSIZE_TYPE_STEPWISE;
-        frmsize->subimg.stepwise.min_width   = OUT_YUV_HSIZE_MIN;
-        frmsize->subimg.stepwise.max_width   = OUT_YUVINT_30FPS_HSIZE_MAX;
-        frmsize->subimg.stepwise.step_width  = ISX012_SIZE_STEP;
-        frmsize->subimg.stepwise.min_height  = OUT_YUV_VSIZE_MIN;
-        frmsize->subimg.stepwise.max_height  = OUT_YUVINT_30FPS_VSIZE_MAX;
-        frmsize->subimg.stepwise.step_height = ISX012_SIZE_STEP;
-
-        break;
-
-      default: /* Unsupported pixel format */
-
-        return -EINVAL;
-    }
-
-  return OK;
-}
-
-static int isx012_try_format(FAR struct v4l2_format *format)
-{
-  int ret;
-  FAR struct v4l2_frmsizeenum support;
-
-  if (format == NULL)
-    {
-      return -EINVAL;
-    }
-
-  /* Get supported frame size information */
-
-  support.index               = 0;
-  support.buf_type            = format->type;
-  support.pixel_format        = format->fmt.pix.pixelformat;
-  support.subimg_pixel_format = format->fmt.pix.subimg_pixelformat;
-
-  ret = isx012_get_range_of_framesize(&support);
-  if (ret != OK)
-    {
-      return ret;
-    }
-
-  CHECK_RANGE(format->fmt.pix.width,
-              support.stepwise.min_width,
-              support.stepwise.max_width,
-              support.stepwise.step_width);
-
-  CHECK_RANGE(format->fmt.pix.height,
-              support.stepwise.min_height,
-              support.stepwise.max_height,
-              support.stepwise.step_height);
-
-  if (support.pixel_format == V4L2_PIX_FMT_JPEG_WITH_SUBIMG)
-    {
-      CHECK_RANGE(format->fmt.pix.subimg_width,
-                  support.subimg.stepwise.min_width,
-                  support.subimg.stepwise.max_width,
-                  support.subimg.stepwise.step_width);
-
-      CHECK_RANGE(format->fmt.pix.subimg_height,
-                  support.subimg.stepwise.min_height,
-                  support.subimg.stepwise.max_height,
-                  support.subimg.stepwise.step_height);
-    }
-
-  return OK;
-}
-
-static int isx012_set_format(FAR struct v4l2_format *format)
-{
-  int                     ret;
-  int8_t                  max_fps;
-  struct v4l2_frmivalenum frmival;
-  isx012_modeparam_t      mode_param;
-  FAR isx012_modeparam_t  *current_param;
-  FAR struct isx012_dev_s *priv = &g_isx012_private;
-
-  ret = isx012_try_format(format);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  frmival.index               = 0;
-  frmival.buf_type            = format->type;
-  frmival.pixel_format        = format->fmt.pix.pixelformat;
-  frmival.width               = format->fmt.pix.width;
-  frmival.height              = format->fmt.pix.height;
-  frmival.subimg_pixel_format = format->fmt.pix.subimg_pixelformat;
-  frmival.subimg_width        = format->fmt.pix.subimg_width;
-  frmival.subimg_height       = format->fmt.pix.subimg_height;
-
-  max_fps = isx012_get_maximum_fps(&frmival);
-  if (max_fps < 0)
-    {
-      return max_fps;
-    }
-
-  switch (format->type)
-    {
-      case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-        current_param = &priv->param.video;
-        break;
-
-      case V4L2_BUF_TYPE_STILL_CAPTURE:
-        current_param = &priv->param.still;
-        break;
-
-      default:
-        return -EINVAL;
-    }
-
-  memcpy(&mode_param, current_param, sizeof(mode_param));
-
-  mode_param.format    = format->fmt.pix.pixelformat;
-  mode_param.hsize     = format->fmt.pix.width;
-  mode_param.vsize     = format->fmt.pix.height;
-  mode_param.int_hsize = format->fmt.pix.subimg_width;
-  mode_param.int_vsize = format->fmt.pix.subimg_height;
-
-  if (mode_param.fps < max_fps)
-    {
-      mode_param.fps = max_fps;
-    }
-
-  ret = isx012_set_mode_param(priv,
-                              format->type,
-                              &mode_param);
-  if (ret != OK)
-    {
-      return ret;
-    }
-
-  memcpy(current_param, &mode_param, sizeof(mode_param));
-
-  return OK;
-}
-
-static int isx012_get_format(FAR struct v4l2_format *format)
-{
-  FAR struct isx012_dev_s *priv = &g_isx012_private;
-  FAR isx012_modeparam_t  *current_param;
-
-  if (format->type == V4L2_BUF_TYPE_STILL_CAPTURE)
-    {
-      current_param = &priv->param.still;
-    }
-  else
-    {
-      current_param = &priv->param.video;
-    }
-
-  format->fmt.pix.pixelformat        = current_param->format;
-  format->fmt.pix.subimg_pixelformat = V4L2_PIX_FMT_UYVY;
-  format->fmt.pix.width              = current_param->hsize;
-  format->fmt.pix.height             = current_param->vsize;
-  format->fmt.pix.subimg_width       = current_param->int_hsize;
-  format->fmt.pix.subimg_height      = current_param->int_vsize;
-
-  return OK;
-}
-
-static int isx012_set_supported_frminterval(uint32_t fps_index,
-                                            FAR struct v4l2_fract *interval)
-{
-  switch (fps_index)
-    {
-      case REGVAL_FPSTYPE_120FPS:
-        interval->numerator   = 1;
-        interval->denominator = 120;
-
-        break;
-
-      case REGVAL_FPSTYPE_60FPS:
-        interval->numerator   = 1;
-        interval->denominator = 60;
-
-        break;
-
-      case REGVAL_FPSTYPE_30FPS:
-        interval->numerator   = 1;
-        interval->denominator = 30;
-
-        break;
-
-      case REGVAL_FPSTYPE_15FPS:
-        interval->numerator   = 1;
-        interval->denominator = 15;
-
-        break;
-
-      case REGVAL_FPSTYPE_10FPS:
-        interval->numerator   = 1;
-        interval->denominator = 10;
-
-        break;
-
-      case REGVAL_FPSTYPE_7_5FPS:
-        interval->numerator   = 2;
-        interval->denominator = 15;
-
-        break;
-
-      case REGVAL_FPSTYPE_6FPS:
-        interval->numerator   = 1;
-        interval->denominator = 6;
-
-        break;
-
-      case REGVAL_FPSTYPE_5FPS:
-        interval->numerator   = 1;
-        interval->denominator = 5;
-
-        break;
-
-      default:
-        return -EINVAL;
-    }
-
-  return OK;
-}
-
-static int8_t isx012_get_maximum_fps(FAR struct v4l2_frmivalenum *frmival)
-{
-  int     ret;
-  uint8_t max_fps = REGVAL_FPSTYPE_120FPS;
-
-  if (frmival == NULL)
-    {
-      return -EINVAL;
-    }
-
-  ret = isx012_check_fmt(frmival->buf_type, frmival->pixel_format);
-  if (ret != OK)
-    {
-      return ret;
-    }
-
-  switch (frmival->pixel_format)
-    {
-      case V4L2_PIX_FMT_UYVY:                /* YUV 4:2:2 */
-        if ((frmival->width  < OUT_YUV_HSIZE_MIN) ||
-            (frmival->height < OUT_YUV_VSIZE_MIN) ||
-            (frmival->width  > OUT_YUV_15FPS_HSIZE_MAX) ||
-            (frmival->height > OUT_YUV_15FPS_VSIZE_MAX))
+      case IMGSENSOR_PIX_FMT_UYVY:                /* YUV 4:2:2 */
+
+        if ((main_w < OUT_YUV_HSIZE_MIN) ||
+            (main_h < OUT_YUV_VSIZE_MIN) ||
+            (main_w > OUT_YUV_15FPS_HSIZE_MAX) ||
+            (main_h > OUT_YUV_15FPS_VSIZE_MAX))
           {
             /* IN frame size is out of range */
 
             return -EINVAL;
           }
-        else if ((frmival->width  <= OUT_YUV_120FPS_HSIZE_MAX) &&
-                 (frmival->height <= OUT_YUV_120FPS_VSIZE_MAX))
+        else if ((main_w <= OUT_YUV_120FPS_HSIZE_MAX) &&
+                 (main_h <= OUT_YUV_120FPS_VSIZE_MAX))
           {
-            /* support 120FPS, 60FPS, 30FPS, 15FPS, 7.5FPS, 6FPS, and 5FPS */
-
             max_fps = REGVAL_FPSTYPE_120FPS;
           }
         else
           {
-            /* support 60FPS, 30FPS, 15FPS, 7.5FPS, 6FPS, and 5FPS */
-
             max_fps = REGVAL_FPSTYPE_60FPS;
           }
 
         break;
 
-      case V4L2_PIX_FMT_JPEG:                /* JPEG */
-        if ((frmival->width  < OUT_JPG_HSIZE_MIN) ||
-            (frmival->height < OUT_JPG_VSIZE_MIN) ||
-            (frmival->width  > OUT_JPG_15FPS_HSIZE_MAX) ||
-            (frmival->height > OUT_JPG_15FPS_VSIZE_MAX))
+      case IMGSENSOR_PIX_FMT_JPEG:                /* JPEG */
+
+        if ((main_w < OUT_JPG_HSIZE_MIN) ||
+            (main_h < OUT_JPG_VSIZE_MIN) ||
+            (main_w > OUT_JPG_15FPS_HSIZE_MAX) ||
+            (main_h > OUT_JPG_15FPS_VSIZE_MAX))
           {
             /* IN frame size is out of range */
 
             return -EINVAL;
           }
-        else if ((frmival->width  <= OUT_JPG_120FPS_HSIZE_MAX) &&
-                 (frmival->height <= OUT_JPG_120FPS_VSIZE_MAX))
+        else if ((main_w <= OUT_JPG_120FPS_HSIZE_MAX) &&
+                 (main_h <= OUT_JPG_120FPS_VSIZE_MAX))
           {
-             /* support 120FPS, 60FPS, 30FPS, 15FPS, 7.5FPS, 6FPS, and 5FPS */
-
             max_fps = REGVAL_FPSTYPE_120FPS;
           }
-        else if ((frmival->width  <= OUT_JPG_60FPS_HSIZE_MAX) &&
-                 (frmival->height <= OUT_JPG_60FPS_VSIZE_MAX))
+        else if ((main_w <= OUT_JPG_60FPS_HSIZE_MAX) &&
+                 (main_h <= OUT_JPG_60FPS_VSIZE_MAX))
           {
-            /* support 60FPS, 30FPS, 15FPS, 7.5FPS, 6FPS, and 5FPS */
-
             max_fps = REGVAL_FPSTYPE_60FPS;
           }
-        else if ((frmival->width  <= OUT_JPG_30FPS_HSIZE_MAX) &&
-                 (frmival->height <= OUT_JPG_30FPS_VSIZE_MAX))
+        else if ((main_w <= OUT_JPG_30FPS_HSIZE_MAX) &&
+                 (main_h <= OUT_JPG_30FPS_VSIZE_MAX))
           {
-            /* support 30FPS, 15FPS, 7.5FPS, 6FPS, and 5FPS */
-
             max_fps = REGVAL_FPSTYPE_30FPS;
           }
         else
           {
-            /* support 15FPS, 7.5FPS, 6FPS, and 5FPS */
-
             max_fps = REGVAL_FPSTYPE_15FPS;
           }
 
         break;
 
-      case V4L2_PIX_FMT_JPEG_WITH_SUBIMG:    /* JPEG + YUV 4:2:2 */
-        if (frmival->subimg_pixel_format != V4L2_PIX_FMT_UYVY)
-          {
-            /* Unsupported pixel format */
+      case IMGSENSOR_PIX_FMT_JPEG_WITH_SUBIMG: /* JPEG + sub image */
 
-            return -EINVAL;
+        if (nr_fmt == 1)
+          {
+            sub_w = OUT_YUV_HSIZE_MIN;
+            sub_h = OUT_YUV_VSIZE_MIN;
+          }
+        else
+          {
+            if (fmt[IMGSENSOR_FMT_SUB].pixelformat
+                != IMGSENSOR_PIX_FMT_UYVY)
+              {
+                /* Unsupported pixel format */
+
+                return -EINVAL;
+              }
+
+            sub_w  = fmt[IMGSENSOR_FMT_SUB].width;
+            sub_h  = fmt[IMGSENSOR_FMT_SUB].height;
           }
 
-        if ((frmival->width         < OUT_JPG_HSIZE_MIN) ||
-            (frmival->height        < OUT_JPG_VSIZE_MIN) ||
-            (frmival->width         > OUT_JPGINT_15FPS_HSIZE_MAX) ||
-            (frmival->height        > OUT_JPGINT_15FPS_VSIZE_MAX) ||
-            (frmival->subimg_width  < OUT_YUV_HSIZE_MIN) ||
-            (frmival->subimg_height < OUT_YUV_VSIZE_MIN) ||
-            (frmival->subimg_width  > OUT_YUVINT_30FPS_HSIZE_MAX) ||
-            (frmival->subimg_height > OUT_YUVINT_30FPS_VSIZE_MAX))
+        if ((main_w < OUT_JPG_HSIZE_MIN) ||
+            (main_h < OUT_JPG_VSIZE_MIN) ||
+            (main_w > OUT_JPGINT_15FPS_HSIZE_MAX) ||
+            (main_h > OUT_JPGINT_15FPS_VSIZE_MAX) ||
+            (sub_w  < OUT_YUV_HSIZE_MIN) ||
+            (sub_h  < OUT_YUV_VSIZE_MIN) ||
+            (sub_w  > OUT_YUVINT_30FPS_HSIZE_MAX) ||
+            (sub_h  > OUT_YUVINT_30FPS_VSIZE_MAX))
           {
             /* IN frame size is out of range */
 
             return -EINVAL;
           }
-        else if ((frmival->width  <= OUT_JPGINT_30FPS_HSIZE_MAX) &&
-                 (frmival->height <= OUT_JPGINT_30FPS_VSIZE_MAX))
+        else if ((main_w <= OUT_JPGINT_30FPS_HSIZE_MAX) &&
+                 (main_h <= OUT_JPGINT_30FPS_VSIZE_MAX))
           {
-            /* support 30FPS, 15FPS, 7.5FPS, 6FPS, 5FPS */
-
             max_fps = REGVAL_FPSTYPE_30FPS;
           }
         else
           {
-            /* support 15FPS, 7.5FPS, 6FPS, 5FPS */
-
             max_fps = REGVAL_FPSTYPE_15FPS;
           }
 
@@ -2374,1038 +1423,688 @@ static int8_t isx012_get_maximum_fps(FAR struct v4l2_frmivalenum *frmival)
         return -EINVAL;
     }
 
-  return (int8_t)max_fps;
+  return max_fps;
 }
 
-static int isx012_get_range_of_frameinterval
-           (FAR struct v4l2_frmivalenum *frmival)
+static int isx012_replace_frameinterval_to_regval
+           (FAR imgsensor_interval_t *interval)
 {
-  int    ret;
-  int8_t max_fps;
+  /* Avoid multiplication overflow */
 
-  max_fps = isx012_get_maximum_fps(frmival);
-  if (max_fps < 0)
-    {
-      return max_fps;
-    }
-
-  frmival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-  ret = isx012_set_supported_frminterval(frmival->index + max_fps,
-                                         &frmival->discrete);
-  return ret;
-}
-
-static int isx012_change_fraction_to_fps(FAR struct v4l2_fract *interval)
-{
-  if (interval->denominator == interval->numerator * 120)         /* 120FPS */
-    {
-      return REGVAL_FPSTYPE_120FPS;
-    }
-  else if(interval->denominator == interval->numerator * 60)      /* 60FPS */
-    {
-      return REGVAL_FPSTYPE_60FPS;
-    }
-  else if(interval->denominator == interval->numerator * 30)      /* 30FPS */
-    {
-      return REGVAL_FPSTYPE_30FPS;
-    }
-  else if(interval->denominator == interval->numerator * 15)      /* 15FPS */
-    {
-      return REGVAL_FPSTYPE_15FPS;
-    }
-  else if (interval->denominator == interval->numerator * 10)     /* 10FPS */
-    {
-      return REGVAL_FPSTYPE_10FPS;
-    }
-  else if(interval->denominator * 10 == interval->numerator * 75) /* 7.5FPS */
-    {
-      return REGVAL_FPSTYPE_7_5FPS;
-    }
-  else if(interval->denominator == interval->numerator * 6)       /* 6FPS */
-    {
-      return REGVAL_FPSTYPE_6FPS;
-    }
-  else if(interval->denominator == interval->numerator * 5)       /* 5FPS */
-    {
-      return REGVAL_FPSTYPE_5FPS;
-    }
-  else
+  if ((interval->denominator * 2) / 2 != interval->denominator)
     {
       return -EINVAL;
     }
-}
 
-static int isx012_set_frameinterval(FAR struct v4l2_streamparm *parm)
-{
-  int                     ret;
-  int8_t                  fps;
-  int8_t                  max_fps;
-  isx012_modeparam_t      mode_param;
-  FAR isx012_modeparam_t  *current_param;
-  struct v4l2_frmivalenum frmival;
-  FAR struct isx012_dev_s *priv = &g_isx012_private;
+  /* Avoid division by zero */
 
-  fps = isx012_change_fraction_to_fps(&parm->parm.capture.timeperframe);
-  if (fps < 0)
+  if (interval->numerator == 0)
     {
-      return fps;
+      return -EINVAL;
     }
 
-  frmival.buf_type = parm->type;
-  switch (frmival.buf_type)
+  /* Support only 1/x or 2/x. */
+
+  if (((interval->denominator * 2) % interval->numerator) != 0)
     {
-      case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-        current_param = &priv->param.video;
-        break;
+      return -EINVAL;
+    }
 
-      case V4L2_BUF_TYPE_STILL_CAPTURE:
-        current_param = &priv->param.still;
-        break;
+  /* Switch by FPS * 2 */
 
-      default:
+  switch ((interval->denominator * 2) / interval->numerator)
+    {
+      case 240 : /* 120FPS */
+        return REGVAL_FPSTYPE_120FPS;
+
+      case 120 : /* 60FPS */
+        return REGVAL_FPSTYPE_60FPS;
+
+      case 60 :  /* 30FPS */
+        return REGVAL_FPSTYPE_30FPS;
+
+      case 30 :  /* 15FPS */
+        return REGVAL_FPSTYPE_15FPS;
+
+      case 20 :  /* 10FPS */
+        return REGVAL_FPSTYPE_10FPS;
+
+      case 15 :  /* 7.5FPS */
+        return REGVAL_FPSTYPE_7_5FPS;
+
+      case 12 :  /* 6FPS */
+        return REGVAL_FPSTYPE_6FPS;
+
+      case 10 :  /* 5FPS */
+        return REGVAL_FPSTYPE_5FPS;
+
+      default :
         return -EINVAL;
     }
+}
 
-  memcpy(&mode_param, current_param, sizeof(mode_param));
+static int isx012_validate_frame_setting(imgsensor_stream_type_t type,
+                                         uint8_t nr_fmt,
+                                         FAR imgsensor_format_t *fmt,
+                                         FAR imgsensor_interval_t *interval)
+{
+  int max_fps;
+  int arg_fps;
 
-  /* Get maximum fps settable value in current image format */
-
-  frmival.pixel_format        = mode_param.format;
-  frmival.height              = mode_param.vsize;
-  frmival.width               = mode_param.hsize;
-  frmival.subimg_pixel_format = V4L2_PIX_FMT_UYVY;
-  frmival.subimg_height       = mode_param.int_vsize;
-  frmival.subimg_width        = mode_param.int_hsize;
-  max_fps = isx012_get_maximum_fps(&frmival);
-  if (max_fps < 0)
-    {
-      return fps;
-    }
-
-  if (fps < max_fps)
+  if ((fmt == NULL) ||
+      (interval == NULL))
     {
       return -EINVAL;
     }
 
-  mode_param.fps = fps;
+  if ((nr_fmt < 1) || (nr_fmt > 2))
+    {
+      return -EINVAL;
+    }
 
-  ret = isx012_set_mode_param(priv,
-                              parm->type,
-                              &mode_param);
+  max_fps = isx012_get_maximum_fps(nr_fmt, fmt);
+  if (max_fps == -EINVAL)
+    {
+      return -EINVAL;
+    }
+
+  arg_fps = isx012_replace_frameinterval_to_regval(interval);
+  if (arg_fps == -EINVAL)
+    {
+      return -EINVAL;
+    }
+
+  if (max_fps > arg_fps)
+    {
+      return -EINVAL;
+    }
+
+  return OK;
+}
+
+static int isx012_start_capture(imgsensor_stream_type_t type,
+                                uint8_t nr_fmt,
+                                FAR imgsensor_format_t *fmt,
+                                FAR imgsensor_interval_t *interval)
+{
+  int ret;
+
+  FAR struct isx012_dev_s *priv = &g_isx012_private;
+
+  ret = isx012_validate_frame_setting(type, nr_fmt, fmt, interval);
   if (ret != OK)
     {
       return ret;
     }
 
-  memcpy(current_param, &mode_param, sizeof(mode_param));
-
-  return OK;
+  return isx012_set_mode_param(priv, type, nr_fmt, fmt, interval);
 }
 
-static int isx012_get_range_of_ctrlval(FAR struct v4l2_query_ext_ctrl *range)
+static int isx012_stop_capture(imgsensor_stream_type_t type)
 {
-  if (range == NULL)
-    {
-      return -EINVAL;
-    }
-
-  switch (range->ctrl_class)
-    {
-      case V4L2_CTRL_CLASS_USER:
-        switch (range->id)
-          {
-            case V4L2_CID_BRIGHTNESS:
-              range->type          = ISX012_TYPE_BRIGHTNESS;
-              range->minimum       = ISX012_MIN_BRIGHTNESS;
-              range->maximum       = ISX012_MAX_BRIGHTNESS;
-              range->step          = ISX012_STEP_BRIGHTNESS;
-              range->default_value = ISX012_DEF_BRIGHTNESS;
-              strncpy(range->name,
-                      ISX012_NAME_BRIGHTNESS,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_CONTRAST:
-              range->type          = ISX012_TYPE_CONTRAST;
-              range->minimum       = ISX012_MIN_CONTRAST;
-              range->maximum       = ISX012_MAX_CONTRAST;
-              range->step          = ISX012_STEP_CONTRAST;
-              range->default_value = ISX012_DEF_CONTRAST;
-              strncpy(range->name,
-                      ISX012_NAME_CONTRAST,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_SATURATION:
-              range->type          = ISX012_TYPE_SATURATION;
-              range->minimum       = ISX012_MIN_SATURATION;
-              range->maximum       = ISX012_MAX_SATURATION;
-              range->step          = ISX012_STEP_SATURATION;
-              range->default_value = ISX012_DEF_SATURATION;
-              strncpy(range->name,
-                      ISX012_NAME_SATURATION,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_HUE:
-              range->type          = ISX012_TYPE_HUE;
-              range->minimum       = ISX012_MIN_HUE;
-              range->maximum       = ISX012_MAX_HUE;
-              range->step          = ISX012_STEP_HUE;
-              range->default_value = ISX012_DEF_HUE;
-              strncpy(range->name,
-                      ISX012_NAME_HUE,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_AUTO_WHITE_BALANCE:
-              range->type          = ISX012_TYPE_AUTOWB;
-              range->minimum       = ISX012_MIN_AUTOWB;
-              range->maximum       = ISX012_MAX_AUTOWB;
-              range->step          = ISX012_STEP_AUTOWB;
-              range->default_value = ISX012_DEF_AUTOWB;
-              strncpy(range->name,
-                      ISX012_NAME_AUTOWB,
-                      sizeof(range->name));
-
-              break;
-            case V4L2_CID_GAMMA_CURVE:
-              range->type          = ISX012_TYPE_GAMMACURVE;
-              range->minimum       = ISX012_MIN_GAMMACURVE;
-              range->maximum       = ISX012_MAX_GAMMACURVE;
-              range->step          = ISX012_STEP_GAMMACURVE;
-              range->default_value = ISX012_DEF_GAMMACURVE;
-              strncpy(range->name,
-                      ISX012_NAME_GAMMACURVE,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_EXPOSURE:
-              range->type          = ISX012_TYPE_EXPOSURE;
-              range->minimum       = ISX012_MIN_EXPOSURE;
-              range->maximum       = ISX012_MAX_EXPOSURE;
-              range->step          = ISX012_STEP_EXPOSURE;
-              range->default_value = ISX012_DEF_EXPOSURE;
-              strncpy(range->name,
-                      ISX012_NAME_EXPOSURE,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_HFLIP:
-              range->type          = ISX012_TYPE_HFLIP;
-              range->minimum       = ISX012_MIN_HFLIP;
-              range->maximum       = ISX012_MAX_HFLIP;
-              range->step          = ISX012_STEP_HFLIP;
-              range->default_value = ISX012_DEF_HFLIP;
-              strncpy(range->name,
-                      ISX012_NAME_HFLIP,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_VFLIP:
-              range->type          = ISX012_TYPE_VFLIP;
-              range->minimum       = ISX012_MIN_VFLIP;
-              range->maximum       = ISX012_MAX_VFLIP;
-              range->step          = ISX012_STEP_VFLIP;
-              range->default_value = ISX012_DEF_VFLIP;
-              strncpy(range->name,
-                      ISX012_NAME_VFLIP,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_HFLIP_STILL:
-              range->type          = ISX012_TYPE_HFLIP_STILL;
-              range->minimum       = ISX012_MIN_HFLIP_STILL;
-              range->maximum       = ISX012_MAX_HFLIP_STILL;
-              range->step          = ISX012_STEP_HFLIP_STILL;
-              range->default_value = ISX012_DEF_HFLIP_STILL;
-              strncpy(range->name,
-                      ISX012_NAME_HFLIP_STILL,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_VFLIP_STILL:
-              range->type          = ISX012_TYPE_VFLIP_STILL;
-              range->minimum       = ISX012_MIN_VFLIP_STILL;
-              range->maximum       = ISX012_MAX_VFLIP_STILL;
-              range->step          = ISX012_STEP_VFLIP_STILL;
-              range->default_value = ISX012_DEF_VFLIP_STILL;
-              strncpy(range->name,
-                      ISX012_NAME_VFLIP_STILL,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_SHARPNESS:
-              range->type          = ISX012_TYPE_SHARPNESS;
-              range->minimum       = ISX012_MIN_SHARPNESS;
-              range->maximum       = ISX012_MAX_SHARPNESS;
-              range->step          = ISX012_STEP_SHARPNESS;
-              range->default_value = ISX012_DEF_SHARPNESS;
-              strncpy(range->name,
-                      ISX012_NAME_SHARPNESS,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_COLOR_KILLER:
-              range->type          = ISX012_TYPE_COLORKILLER;
-              range->minimum       = ISX012_MIN_COLORKILLER;
-              range->maximum       = ISX012_MAX_COLORKILLER;
-              range->step          = ISX012_STEP_COLORKILLER;
-              range->default_value = ISX012_DEF_COLORKILLER;
-              strncpy(range->name,
-                      ISX012_NAME_COLORKILLER,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_COLORFX:
-              range->type          = ISX012_TYPE_COLOREFFECT;
-              range->minimum       = ISX012_MIN_COLOREFFECT;
-              range->maximum       = ISX012_MAX_COLOREFFECT;
-              range->step          = ISX012_STEP_COLOREFFECT;
-              range->default_value = ISX012_DEF_COLOREFFECT;
-              strncpy(range->name,
-                      ISX012_NAME_COLOREFFECT,
-                      sizeof(range->name));
-
-              break;
-
-            default: /* Unsupported control id */
-
-              return -EINVAL;
-          }
-
-        break;
-
-      case V4L2_CTRL_CLASS_CAMERA:
-        switch (range->id)
-          {
-            case V4L2_CID_EXPOSURE_AUTO:
-              range->type          = ISX012_TYPE_EXPOSUREAUTO;
-              range->minimum       = ISX012_MIN_EXPOSUREAUTO;
-              range->maximum       = ISX012_MAX_EXPOSUREAUTO;
-              range->step          = ISX012_STEP_EXPOSUREAUTO;
-              range->default_value = ISX012_DEF_EXPOSUREAUTO;
-              strncpy(range->name,
-                      ISX012_NAME_EXPOSUREAUTO,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_EXPOSURE_ABSOLUTE:
-              range->type          = ISX012_TYPE_EXPOSURETIME;
-              range->minimum       = ISX012_MIN_EXPOSURETIME;
-              range->maximum       = ISX012_MAX_EXPOSURETIME;
-              range->step          = ISX012_STEP_EXPOSURETIME;
-              range->default_value = ISX012_DEF_EXPOSURETIME;
-              strncpy(range->name,
-                      ISX012_NAME_EXPOSURETIME,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_EXPOSURE_METERING:
-              range->type          = ISX012_TYPE_PHOTOMETRY;
-              range->minimum       = ISX012_MIN_PHOTOMETRY;
-              range->maximum       = ISX012_MAX_PHOTOMETRY;
-              range->step          = ISX012_STEP_PHOTOMETRY;
-              range->default_value = ISX012_DEF_PHOTOMETRY;
-              strncpy(range->name,
-                      ISX012_NAME_PHOTOMETRY,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_ZOOM_ABSOLUTE:
-              range->type          = ISX012_TYPE_ZOOM;
-              range->minimum       = ISX012_MIN_ZOOM;
-              range->maximum       = ISX012_MAX_ZOOM;
-              range->step          = ISX012_STEP_ZOOM;
-              range->default_value = ISX012_DEF_ZOOM;
-              strncpy(range->name,
-                      ISX012_NAME_ZOOM,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
-              range->type          = ISX012_TYPE_PRESETWB;
-              range->minimum       = ISX012_MIN_PRESETWB;
-              range->maximum       = ISX012_MAX_PRESETWB;
-              range->step          = ISX012_STEP_PRESETWB;
-              range->default_value = ISX012_DEF_PRESETWB;
-              strncpy(range->name,
-                      ISX012_NAME_PRESETWB,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_WIDE_DYNAMIC_RANGE:
-              range->type          = ISX012_TYPE_YGAMMA;
-              range->minimum       = ISX012_MIN_YGAMMA;
-              range->maximum       = ISX012_MAX_YGAMMA;
-              range->step          = ISX012_STEP_YGAMMA;
-              range->default_value = ISX012_DEF_YGAMMA;
-              strncpy(range->name,
-                      ISX012_NAME_YGAMMA,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_ISO_SENSITIVITY:
-              range->type          = ISX012_TYPE_ISO;
-              range->minimum       = ISX012_MIN_ISO;
-              range->maximum       = ISX012_MAX_ISO;
-              range->step          = ISX012_STEP_ISO;
-              range->default_value = ISX012_DEF_ISO;
-              strncpy(range->name,
-                      ISX012_NAME_ISO,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_ISO_SENSITIVITY_AUTO:
-              range->type          = ISX012_TYPE_ISOAUTO;
-              range->minimum       = ISX012_MIN_ISOAUTO;
-              range->maximum       = ISX012_MAX_ISOAUTO;
-              range->step          = ISX012_STEP_ISOAUTO;
-              range->default_value = ISX012_DEF_ISOAUTO;
-              strncpy(range->name,
-                      ISX012_NAME_ISOAUTO,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_3A_LOCK:
-              range->type          = ISX012_TYPE_3ALOCK;
-              range->minimum       = ISX012_MIN_3ALOCK;
-              range->maximum       = ISX012_MAX_3ALOCK;
-              range->step          = ISX012_STEP_3ALOCK;
-              range->default_value = ISX012_DEF_3ALOCK;
-              strncpy(range->name,
-                      ISX012_NAME_3ALOCK,
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_3A_PARAMETER:
-              range->type          = V4L2_CTRL_TYPE_U16;
-              range->minimum       = 0;
-              range->maximum       = 65535;
-              range->step          = 1;
-              range->elems         = 3;
-              strncpy(range->name,
-                      "AWB/AE parameter",
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_3A_STATUS:
-              range->type          = V4L2_CTRL_TYPE_INTEGER;
-              range->minimum       = 0;
-              range->maximum       = 3;
-              range->step          = 1;
-              strncpy(range->name,
-                      "AWB/AE status",
-                      sizeof(range->name));
-
-              break;
-
-            case V4L2_CID_SCENE_MODE:
-              range->type          = V4L2_CTRL_TYPE_INTEGER_MENU;
-              range->minimum       = 0;
-              range->maximum       = ARRAY_NENTRIES(g_isx012_scene_params);
-              range->step          = 1;
-              range->default_value = V4L2_SCENE_MODE_NONE;
-              strncpy(range->name,
-                      "Scene Mode",
-                      sizeof(range->name));
-
-              break;
-
-            default: /* Unsupported control id */
-
-              return -EINVAL;
-          }
-
-        break;
-
-      case V4L2_CTRL_CLASS_JPEG:
-        switch (range->id)
-          {
-            case V4L2_CID_JPEG_COMPRESSION_QUALITY:
-              range->type          = ISX012_TYPE_JPGQUALITY;
-              range->minimum       = ISX012_MIN_JPGQUALITY;
-              range->maximum       = ISX012_MAX_JPGQUALITY;
-              range->step          = ISX012_STEP_JPGQUALITY;
-              range->default_value = ISX012_DEF_JPGQUALITY;
-              strncpy(range->name,
-                      ISX012_NAME_JPGQUALITY,
-                      sizeof(range->name));
-
-              break;
-
-            default: /* Unsupported control id */
-
-              return -EINVAL;
-          }
-
-        break;
-
-      default: /* Unsupported control class */
-
-        return -EINVAL;
-    }
-
   return OK;
 }
 
-static int isx012_get_menu_of_ctrlval(FAR struct v4l2_querymenu *menu)
+static int isx012_get_supported_value
+             (uint32_t id, FAR imgsensor_supported_value_t *value)
 {
-  if (menu == NULL)
+  int ret = OK;
+  imgsensor_capability_range_t *range = &value->u.range;
+  imgsensor_capability_discrete_t *discrete = &value->u.discrete;
+  imgsensor_capability_elems_t *elems = &value->u.elems;
+
+  ASSERT(value);
+
+  switch (id)
     {
-      return -EINVAL;
-    }
-
-  switch (menu->ctrl_class)
-    {
-      case V4L2_CTRL_CLASS_USER:
-        switch (menu->id)
-          {
-            case V4L2_CID_COLORFX:
-              if (menu->index > ISX012_MAX_COLOREFFECT)
-                {
-                  return -EINVAL;
-                }
-
-              menu->value = g_isx012_supported_colorfx[menu->index].v4l2;
-
-              break;
-
-            default: /* Unsupported control id */
-
-              return -EINVAL;
-          }
+      case IMGSENSOR_ID_BRIGHTNESS:
+        value->type          = IMGSENSOR_CTRL_TYPE_INTEGER;
+        range->minimum       = ISX012_MIN_BRIGHTNESS;
+        range->maximum       = ISX012_MAX_BRIGHTNESS;
+        range->step          = ISX012_STEP_BRIGHTNESS;
+        range->default_value = ISX012_DEF_BRIGHTNESS;
 
         break;
 
-      case V4L2_CTRL_CLASS_CAMERA:
-        switch (menu->id)
-          {
-            case V4L2_CID_EXPOSURE_METERING:
-              if (menu->index > ISX012_MAX_PHOTOMETRY)
-                {
-                  return -EINVAL;
-                }
-
-              menu->value = g_isx012_supported_photometry[menu->index].v4l2;
-
-              break;
-
-            case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
-              if (menu->index > ISX012_MAX_PRESETWB)
-                {
-                  return -EINVAL;
-                }
-
-              menu->value = g_isx012_supported_presetwb[menu->index].v4l2;
-
-              break;
-
-            case V4L2_CID_ISO_SENSITIVITY:
-              if (menu->index > ISX012_MAX_ISO)
-                {
-                  return -EINVAL;
-                }
-
-              menu->value = g_isx012_supported_iso[menu->index].v4l2;
-
-              break;
-
-            case V4L2_CID_SCENE_MODE:
-              if (menu->index > ARRAY_NENTRIES(g_isx012_scene_params))
-                {
-                  return -EINVAL;
-                }
-
-              if (menu->index == 0)
-                {
-                  menu->value = V4L2_SCENE_MODE_NONE;
-                }
-              else
-                {
-                  menu->value = g_isx012_scene_params[menu->index - 1].mode;
-                }
-
-              break;
-
-            default: /* Unsupported control id */
-
-              return -EINVAL;
-          }
+      case IMGSENSOR_ID_CONTRAST:
+        value->type          = IMGSENSOR_CTRL_TYPE_U8FIXEDPOINT_Q7;
+        range->minimum       = ISX012_MIN_CONTRAST;
+        range->maximum       = ISX012_MAX_CONTRAST;
+        range->step          = ISX012_STEP_CONTRAST;
+        range->default_value = ISX012_DEF_CONTRAST;
 
         break;
 
-      default: /* Unsupported control class */
+      case IMGSENSOR_ID_SATURATION:
+        value->type          = IMGSENSOR_CTRL_TYPE_INTEGER;
+        range->minimum       = ISX012_MIN_SATURATION;
+        range->maximum       = ISX012_MAX_SATURATION;
+        range->step          = ISX012_STEP_SATURATION;
+        range->default_value = ISX012_DEF_SATURATION;
 
-        return -EINVAL;
+        break;
+
+      case IMGSENSOR_ID_HUE:
+        value->type          = IMGSENSOR_CTRL_TYPE_INTEGER;
+        range->minimum       = ISX012_MIN_HUE;
+        range->maximum       = ISX012_MAX_HUE;
+        range->step          = ISX012_STEP_HUE;
+        range->default_value = ISX012_DEF_HUE;
+
+        break;
+
+      case IMGSENSOR_ID_AUTO_WHITE_BALANCE:
+        value->type          = IMGSENSOR_CTRL_TYPE_BOOLEAN;
+        range->minimum       = ISX012_MIN_AUTOWB;
+        range->maximum       = ISX012_MAX_AUTOWB;
+        range->step          = ISX012_STEP_AUTOWB;
+        range->default_value = ISX012_DEF_AUTOWB;
+
+        break;
+      case IMGSENSOR_ID_GAMMA_CURVE:
+        value->type          = IMGSENSOR_CTRL_TYPE_U16;
+        elems->minimum       = ISX012_MIN_GAMMACURVE;
+        elems->maximum       = ISX012_MAX_GAMMACURVE;
+        elems->step          = ISX012_STEP_GAMMACURVE;
+        elems->nr_elems      = ISX012_ELEMS_GAMMACURVE;
+
+        break;
+
+      case IMGSENSOR_ID_EXPOSURE:
+        value->type          = IMGSENSOR_CTRL_TYPE_INTEGER_TIMES_3;
+        range->minimum       = ISX012_MIN_EXPOSURE;
+        range->maximum       = ISX012_MAX_EXPOSURE;
+        range->step          = ISX012_STEP_EXPOSURE;
+        range->default_value = ISX012_DEF_EXPOSURE;
+
+        break;
+
+      case IMGSENSOR_ID_HFLIP_VIDEO:
+        value->type          = IMGSENSOR_CTRL_TYPE_BOOLEAN;
+        range->minimum       = ISX012_MIN_HFLIP;
+        range->maximum       = ISX012_MAX_HFLIP;
+        range->step          = ISX012_STEP_HFLIP;
+        range->default_value = ISX012_DEF_HFLIP;
+
+        break;
+
+      case IMGSENSOR_ID_VFLIP_VIDEO:
+        value->type          = IMGSENSOR_CTRL_TYPE_BOOLEAN;
+        range->minimum       = ISX012_MIN_VFLIP;
+        range->maximum       = ISX012_MAX_VFLIP;
+        range->step          = ISX012_STEP_VFLIP;
+        range->default_value = ISX012_DEF_VFLIP;
+
+        break;
+
+      case IMGSENSOR_ID_HFLIP_STILL:
+        value->type          = IMGSENSOR_CTRL_TYPE_BOOLEAN;
+        range->minimum       = ISX012_MIN_HFLIP_STILL;
+        range->maximum       = ISX012_MAX_HFLIP_STILL;
+        range->step          = ISX012_STEP_HFLIP_STILL;
+        range->default_value = ISX012_DEF_HFLIP_STILL;
+
+        break;
+
+      case IMGSENSOR_ID_VFLIP_STILL:
+        value->type          = IMGSENSOR_CTRL_TYPE_BOOLEAN;
+        range->minimum       = ISX012_MIN_VFLIP_STILL;
+        range->maximum       = ISX012_MAX_VFLIP_STILL;
+        range->step          = ISX012_STEP_VFLIP_STILL;
+        range->default_value = ISX012_DEF_VFLIP_STILL;
+
+        break;
+
+      case IMGSENSOR_ID_SHARPNESS:
+        value->type          = IMGSENSOR_CTRL_TYPE_INTEGER;
+        range->minimum       = ISX012_MIN_SHARPNESS;
+        range->maximum       = ISX012_MAX_SHARPNESS;
+        range->step          = ISX012_STEP_SHARPNESS;
+        range->default_value = ISX012_DEF_SHARPNESS;
+
+        break;
+
+      case IMGSENSOR_ID_COLOR_KILLER:
+        value->type          = IMGSENSOR_CTRL_TYPE_BOOLEAN;
+        range->minimum       = ISX012_MIN_COLORKILLER;
+        range->maximum       = ISX012_MAX_COLORKILLER;
+        range->step          = ISX012_STEP_COLORKILLER;
+        range->default_value = ISX012_DEF_COLORKILLER;
+
+        break;
+
+      case IMGSENSOR_ID_COLORFX:
+        value->type = IMGSENSOR_CTRL_TYPE_INTEGER_MENU;
+        discrete->nr_values
+          = ARRAY_NENTRIES(g_isx012_colorfx_actual);
+        discrete->values = g_isx012_colorfx_actual;
+        discrete->default_value = IMGSENSOR_COLORFX_NONE;
+
+        break;
+
+      case IMGSENSOR_ID_EXPOSURE_AUTO:
+        value->type          = IMGSENSOR_CTRL_TYPE_INTEGER;
+        range->minimum       = ISX012_MIN_EXPOSUREAUTO;
+        range->maximum       = ISX012_MAX_EXPOSUREAUTO;
+        range->step          = ISX012_STEP_EXPOSUREAUTO;
+        range->default_value = ISX012_DEF_EXPOSUREAUTO;
+
+        break;
+
+      case IMGSENSOR_ID_EXPOSURE_ABSOLUTE:
+        value->type          = IMGSENSOR_CTRL_TYPE_INTEGER;
+        range->minimum       = ISX012_MIN_EXPOSURETIME;
+        range->maximum       = ISX012_MAX_EXPOSURETIME;
+        range->step          = ISX012_STEP_EXPOSURETIME;
+        range->default_value = ISX012_DEF_EXPOSURETIME;
+
+        break;
+
+      case IMGSENSOR_ID_EXPOSURE_METERING:
+        value->type = IMGSENSOR_CTRL_TYPE_INTEGER_MENU;
+        discrete->nr_values
+          = ARRAY_NENTRIES(g_isx012_photometry_actual);
+        discrete->values = g_isx012_photometry_actual;
+        discrete->default_value
+          = IMGSENSOR_EXPOSURE_METERING_AVERAGE;
+
+        break;
+
+      case IMGSENSOR_ID_AUTO_N_PRESET_WB:
+        value->type = IMGSENSOR_CTRL_TYPE_INTEGER_MENU;
+        discrete->nr_values = ARRAY_NENTRIES(g_isx012_presetwb_actual);
+        discrete->values = g_isx012_presetwb_actual;
+        discrete->default_value = IMGSENSOR_WHITE_BALANCE_AUTO;
+
+        break;
+
+      case IMGSENSOR_ID_WIDE_DYNAMIC_RANGE:
+        value->type          = IMGSENSOR_CTRL_TYPE_BOOLEAN;
+        range->minimum       = ISX012_MIN_YGAMMA;
+        range->maximum       = ISX012_MAX_YGAMMA;
+        range->step          = ISX012_STEP_YGAMMA;
+        range->default_value = ISX012_DEF_YGAMMA;
+
+        break;
+
+      case IMGSENSOR_ID_ISO_SENSITIVITY:
+        value->type             = IMGSENSOR_CTRL_TYPE_INTEGER_MENU;
+        discrete->nr_values     = ARRAY_NENTRIES(g_isx012_iso_actual);
+        discrete->values        = g_isx012_iso_actual;
+        discrete->default_value = 0;
+
+        break;
+
+      case IMGSENSOR_ID_ISO_SENSITIVITY_AUTO:
+        value->type          = IMGSENSOR_CTRL_TYPE_INTEGER;
+        range->minimum       = ISX012_MIN_ISOAUTO;
+        range->maximum       = ISX012_MAX_ISOAUTO;
+        range->step          = ISX012_STEP_ISOAUTO;
+        range->default_value = ISX012_DEF_ISOAUTO;
+
+        break;
+
+      case IMGSENSOR_ID_3A_LOCK:
+        value->type          = IMGSENSOR_CTRL_TYPE_BITMASK;
+        range->minimum       = ISX012_MIN_3ALOCK;
+        range->maximum       = ISX012_MAX_3ALOCK;
+        range->step          = ISX012_STEP_3ALOCK;
+        range->default_value = ISX012_DEF_3ALOCK;
+
+        break;
+
+      case IMGSENSOR_ID_3A_PARAMETER:
+        value->type          = IMGSENSOR_CTRL_TYPE_U16;
+        elems->minimum       = 0;
+        elems->maximum       = 65535;
+        elems->step          = 1;
+        elems->nr_elems      = ISX012_ELEMS_3APARAM;
+
+        break;
+
+      case IMGSENSOR_ID_3A_STATUS:
+        value->type          = IMGSENSOR_CTRL_TYPE_INTEGER;
+        range->minimum       = 0;
+        range->maximum       = 3;
+        range->step          = 1;
+        range->default_value = 3;
+
+        break;
+
+      case IMGSENSOR_ID_JPEG_QUALITY:
+        value->type          = IMGSENSOR_CTRL_TYPE_INTEGER;
+        range->minimum       = ISX012_MIN_JPGQUALITY;
+        range->maximum       = ISX012_MAX_JPGQUALITY;
+        range->step          = ISX012_STEP_JPGQUALITY;
+        range->default_value = ISX012_DEF_JPGQUALITY;
+
+        break;
+
+      default: /* Unsupported parameter */
+        ret = -EINVAL;
+
+        break;
     }
 
-  return OK;
+  return ret;
 }
 
-static int isx012_get_ctrlval(uint16_t ctrl_class,
-                                FAR struct v4l2_ext_control *control)
+static int isx012_get_value(uint32_t id,
+                            uint32_t size,
+                            FAR imgsensor_value_t *value)
 {
   FAR struct isx012_dev_s *priv = &g_isx012_private;
-  int16_t    readvalue;
+  uint16_t   readvalue;
   uint8_t    cnt;
   uint8_t    threea_enable;
   uint16_t   read_src;
   uint16_t   *read_dst;
-  int        ret = -EINVAL;
-  int        sn;
+  int        ret = OK;
 
-  if (control == NULL)
+  ASSERT(value);
+
+  switch (id)
     {
-      return -EINVAL;
+      case IMGSENSOR_ID_BRIGHTNESS:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_BRIGHTNESS,
+                                  ISX012_SIZE_BRIGHTNESS);
+
+        value->value32 = (int32_t)(int8_t)(0x00ff & readvalue);
+        break;
+
+      case IMGSENSOR_ID_CONTRAST:
+        value->value32 = isx012_getreg(priv,
+                                       ISX012_REG_CONTRAST,
+                                       ISX012_SIZE_CONTRAST);
+        break;
+
+      case IMGSENSOR_ID_SATURATION:
+        value->value32 = isx012_getreg(priv,
+                                       ISX012_REG_SATURATION,
+                                       ISX012_SIZE_SATURATION);
+        break;
+
+      case IMGSENSOR_ID_HUE:
+        value->value32 = isx012_getreg(priv,
+                                       ISX012_REG_HUE,
+                                       ISX012_SIZE_HUE);
+        break;
+
+      case IMGSENSOR_ID_AUTO_WHITE_BALANCE:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_AUTOWB,
+                                  ISX012_SIZE_AUTOWB);
+
+        /* Convert to video driver's value */
+
+        value->value32 = (readvalue & REGVAL_CPUEXT_BIT_AWBSTOP) ? 0 : 1;
+
+        break;
+
+      case IMGSENSOR_ID_GAMMA_CURVE:
+        if (value->p_u16 == NULL)
+          {
+            return -EINVAL;
+          }
+
+        if (size != ISX012_ELEMS_GAMMACURVE * sizeof(uint16_t))
+          {
+            return -EINVAL;
+          }
+
+        read_src = ISX012_REG_GAMMACURVE;
+        read_dst = value->p_u16;
+
+        for (cnt = 0; cnt < ISX012_ELEMS_GAMMACURVE; cnt++)
+          {
+            *read_dst = isx012_getreg(priv,
+                                      read_src,
+                                      ISX012_SIZE_GAMMACURVE);
+            read_src += ISX012_SIZE_GAMMACURVE;
+            read_dst++;
+          }
+
+        break;
+
+      case IMGSENSOR_ID_EXPOSURE:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_EXPOSURE,
+                                  ISX012_SIZE_EXPOSURE);
+
+        value->value32 = (int32_t)(int8_t)(0x00ff & readvalue);
+
+        break;
+
+      case IMGSENSOR_ID_HFLIP_VIDEO:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_HFLIP,
+                                  ISX012_SIZE_HFLIP);
+
+        value->value32 = (readvalue & REGVAL_READVECT_BIT_H) ? 1 : 0;
+
+        break;
+
+      case IMGSENSOR_ID_VFLIP_VIDEO:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_VFLIP,
+                                  ISX012_SIZE_VFLIP);
+
+        value->value32 = (readvalue & REGVAL_READVECT_BIT_V) ? 1 : 0;
+
+        break;
+
+      case IMGSENSOR_ID_HFLIP_STILL:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_HFLIP_STILL,
+                                  ISX012_SIZE_HFLIP_STILL);
+
+        value->value32 = (readvalue & REGVAL_READVECT_BIT_H) ? 1 : 0;
+
+        break;
+
+      case IMGSENSOR_ID_VFLIP_STILL:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_VFLIP_STILL,
+                                  ISX012_SIZE_VFLIP_STILL);
+
+        value->value32 = (readvalue & REGVAL_READVECT_BIT_V) ? 1 : 0;
+
+        break;
+
+      case IMGSENSOR_ID_SHARPNESS:
+        value->value32 = isx012_getreg(priv,
+                                       ISX012_REG_SHARPNESS,
+                                       ISX012_SIZE_SHARPNESS);
+        break;
+
+      case IMGSENSOR_ID_COLOR_KILLER:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_COLORKILLER,
+                                  ISX012_SIZE_COLORKILLER);
+
+        value->value32 = (readvalue == REGVAL_EFFECT_MONOTONE) ? 1 : 0;
+
+        break;
+
+      case IMGSENSOR_ID_COLORFX:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_COLOREFFECT,
+                                  ISX012_SIZE_COLOREFFECT);
+
+        ret = -EINVAL;
+        for (cnt = 0; cnt < ARRAY_NENTRIES(g_isx012_colorfx_regval); cnt++)
+          {
+            if (g_isx012_colorfx_regval[cnt] == readvalue)
+              {
+                value->value32 = g_isx012_colorfx_actual[cnt];
+                ret = OK;
+                break;
+              }
+          }
+
+        break;
+
+      case IMGSENSOR_ID_EXPOSURE_AUTO:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_EXPOSURETIME,
+                                  ISX012_SIZE_EXPOSURETIME);
+
+        value->value32 = readvalue ?
+                         IMGSENSOR_EXPOSURE_MANUAL : IMGSENSOR_EXPOSURE_AUTO;
+
+        break;
+
+      case IMGSENSOR_ID_EXPOSURE_ABSOLUTE:
+        value->value32 = isx012_getreg(priv,
+                                       ISX012_REG_EXPOSURETIME,
+                                       ISX012_SIZE_EXPOSURETIME);
+
+        break;
+
+      case IMGSENSOR_ID_AUTO_N_PRESET_WB:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_PRESETWB,
+                                  ISX012_SIZE_PRESETWB);
+
+        for (cnt = 0; cnt < ARRAY_NENTRIES(g_isx012_presetwb_regval); cnt++)
+          {
+            if (g_isx012_presetwb_regval[cnt] == readvalue)
+              {
+                value->value32 = g_isx012_presetwb_actual[cnt];
+                ret = OK;
+                break;
+              }
+          }
+
+        break;
+
+      case IMGSENSOR_ID_WIDE_DYNAMIC_RANGE:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_YGAMMA,
+                                  ISX012_SIZE_YGAMMA);
+        value->value32 = readvalue ? 0 : 1;
+
+        break;
+
+      case IMGSENSOR_ID_ISO_SENSITIVITY:
+        readvalue = isx012_getreg(priv, ISX012_REG_ISO, ISX012_SIZE_ISO);
+
+        ret = -EINVAL;
+        for (cnt = 0; cnt < ARRAY_NENTRIES(g_isx012_presetwb_regval); cnt++)
+          {
+            if (g_isx012_iso_regval[cnt] == readvalue)
+              {
+                value->value32 = g_isx012_iso_actual[cnt];
+                ret = OK;
+                break;
+              }
+          }
+
+        break;
+
+      case IMGSENSOR_ID_ISO_SENSITIVITY_AUTO:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_ISOAUTO,
+                                  ISX012_SIZE_ISOAUTO);
+
+        value->value32 = (readvalue == REGVAL_ISO_AUTO) ?
+                         IMGSENSOR_ISO_SENSITIVITY_AUTO :
+                         IMGSENSOR_ISO_SENSITIVITY_MANUAL;
+
+        break;
+
+      case IMGSENSOR_ID_EXPOSURE_METERING:
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_PHOTOMETRY,
+                                  ISX012_SIZE_PHOTOMETRY);
+
+        ret = -EINVAL;
+        for (cnt = 0;
+             cnt < ARRAY_NENTRIES(g_isx012_photometry_regval);
+             cnt++)
+          {
+            if (g_isx012_photometry_regval[cnt] == readvalue)
+              {
+                value->value32 = g_isx012_photometry_actual[cnt];
+                ret = OK;
+                break;
+              }
+          }
+
+        break;
+
+      case IMGSENSOR_ID_3A_PARAMETER:
+        if (value->p_u16 == NULL)
+          {
+            return -EINVAL;
+          }
+
+        if (size != ISX012_ELEMS_3APARAM * sizeof(uint16_t))
+          {
+            return -EINVAL;
+          }
+
+        /* Get AWB parameter */
+
+        value->p_u16[0] = isx012_getreg(priv, RATIO_R, 2);
+        value->p_u16[1] = isx012_getreg(priv, RATIO_B, 2);
+
+        /* Get AE parameter */
+
+        value->p_u16[2] = isx012_getreg(priv, AELEVEL, 2);
+
+        break;
+
+      case IMGSENSOR_ID_3A_STATUS:
+
+        /* Initialize returned status */
+
+        value->value32 = IMGSENSOR_3A_STATUS_STABLE;
+
+        /* Get AWB/AE enable or not */
+
+        threea_enable = isx012_getreg(priv, CPUEXT, 1);
+
+        if ((threea_enable & REGVAL_CPUEXT_BIT_AWBSTOP)
+               != REGVAL_CPUEXT_BIT_AWBSTOP)
+          {
+            readvalue = isx012_getreg(priv, AWBSTS, 1);
+            if (readvalue != REGVAL_AWBSTS_STOP) /* AWB is not stopped */
+              {
+                value->value32 |= IMGSENSOR_3A_STATUS_AWB_OPERATING;
+              }
+          }
+
+        if ((threea_enable & REGVAL_CPUEXT_BIT_AESTOP)
+               != REGVAL_CPUEXT_BIT_AESTOP)
+          {
+            readvalue = isx012_getreg(priv, AESTS, 1);
+            if (readvalue != REGVAL_AESTS_STOP) /* AE is not stopped */
+              {
+                value->value32 |= IMGSENSOR_3A_STATUS_AE_OPERATING;
+              }
+          }
+        break;
+
+      case IMGSENSOR_ID_JPEG_QUALITY:
+        value->value32 = isx012_getreg(priv,
+                                       ISX012_REG_JPGQUALITY,
+                                       ISX012_SIZE_JPGQUALITY);
+        break;
+
+      default: /* Unsupported id */
+
+        ret = -EINVAL;
+        break;
     }
 
-  /* This driver use only SN1, SN2 and SN3 registers.
-   * So, sn > 2 is impossible.
-   */
-
-  sn = isx012_getreg(priv, SCENE_SELECT, 1);
-  ASSERT(sn <= 2);
-
-  switch (ctrl_class)
-    {
-      case V4L2_CTRL_CLASS_USER:
-        switch (control->id)
-          {
-            case V4L2_CID_BRIGHTNESS:
-              control->value = isx012_getreg(priv,
-                                             ISX012_REG_BRIGHTNESS,
-                                             ISX012_SIZE_BRIGHTNESS);
-              break;
-
-            case V4L2_CID_CONTRAST:
-              control->value = isx012_getreg(priv,
-                                             ISX012_REG_CONTRAST,
-                                             ISX012_SIZE_CONTRAST);
-              break;
-
-            case V4L2_CID_SATURATION:
-              control->value = isx012_getreg(priv,
-                                             g_isx012_sat_addr[sn],
-                                             ISX012_SIZE_SATURATION);
-              break;
-
-            case V4L2_CID_HUE:
-              control->value = isx012_getreg(priv,
-                                             g_isx012_hue_addr[sn],
-                                             ISX012_SIZE_HUE);
-              break;
-
-            case V4L2_CID_AUTO_WHITE_BALANCE:
-              readvalue = isx012_getreg(priv,
-                                        ISX012_REG_AUTOWB,
-                                        ISX012_SIZE_AUTOWB);
-
-              /* Convert to V4L2 value */
-
-              if (readvalue & REGVAL_CPUEXT_BIT_AWBSTOP)
-                {
-                  control->value = false;
-                }
-              else
-                {
-                  control->value = true;
-                }
-
-              break;
-
-            case V4L2_CID_GAMMA_CURVE:
-              if (control->p_u16 == NULL)
-                {
-                  return -EINVAL;
-                }
-
-              read_src = g_isx012_gamma_addr[sn];
-              read_dst = control->p_u16;
-
-              for (cnt = 0; cnt < ISX012_ELEMS_GAMMACURVE; cnt++)
-                {
-                  *read_dst = isx012_getreg(priv,
-                                            read_src,
-                                            ISX012_SIZE_GAMMACURVE);
-                  read_src += ISX012_SIZE_GAMMACURVE;
-                  read_dst++;
-                }
-
-              break;
-
-            case V4L2_CID_EXPOSURE:
-              control->value = isx012_getreg(priv,
-                                             ISX012_REG_EXPOSURE,
-                                             ISX012_SIZE_EXPOSURE);
-              break;
-
-            case V4L2_CID_HFLIP:
-              readvalue = isx012_getreg(priv,
-                                        ISX012_REG_HFLIP,
-                                        ISX012_SIZE_HFLIP);
-
-              if (readvalue & REGVAL_READVECT_BIT_H)
-                {
-                  control->value = true;
-                }
-              else
-                {
-                  control->value = false;
-                }
-
-              break;
-
-            case V4L2_CID_VFLIP:
-              readvalue = isx012_getreg(priv,
-                                        ISX012_REG_VFLIP,
-                                        ISX012_SIZE_VFLIP);
-
-              if (readvalue & REGVAL_READVECT_BIT_V)
-                {
-                  control->value = true;
-                }
-              else
-                {
-                  control->value = false;
-                }
-
-              break;
-
-            case V4L2_CID_HFLIP_STILL:
-              readvalue = isx012_getreg(priv,
-                                        ISX012_REG_HFLIP_STILL,
-                                        ISX012_SIZE_HFLIP_STILL);
-
-              if (readvalue & REGVAL_READVECT_BIT_H)
-                {
-                  control->value = true;
-                }
-              else
-                {
-                  control->value = false;
-                }
-
-              break;
-
-            case V4L2_CID_VFLIP_STILL:
-              readvalue = isx012_getreg(priv,
-                                        ISX012_REG_VFLIP_STILL,
-                                        ISX012_SIZE_VFLIP_STILL);
-
-              if (readvalue & REGVAL_READVECT_BIT_V)
-                {
-                  control->value = true;
-                }
-              else
-                {
-                  control->value = false;
-                }
-
-              break;
-
-            case V4L2_CID_SHARPNESS:
-              control->value = isx012_getreg(priv,
-                                             g_isx012_shrp_addr[sn],
-                                             ISX012_SIZE_SHARPNESS);
-              break;
-
-            case V4L2_CID_COLOR_KILLER:
-              readvalue = isx012_getreg(priv,
-                                        ISX012_REG_COLORKILLER,
-                                        ISX012_SIZE_COLORKILLER);
-
-              if (readvalue == REGVAL_EFFECT_MONOTONE)
-                {
-                  control->value = true;
-                }
-              else
-                {
-                  control->value = false;
-                }
-
-              break;
-
-            case V4L2_CID_COLORFX:
-              readvalue = isx012_getreg(priv,
-                                        ISX012_REG_COLOREFFECT,
-                                        ISX012_SIZE_COLOREFFECT);
-
-              for (cnt = 0; cnt <= ISX012_MAX_COLOREFFECT; cnt++)
-                {
-                  if (g_isx012_supported_colorfx[cnt].regval == readvalue)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              control->value = g_isx012_supported_colorfx[cnt].v4l2;
-
-              break;
-
-            default: /* Unsupported control id */
-
-              return -EINVAL;
-          }
-
-        break;
-
-      case V4L2_CTRL_CLASS_CAMERA:
-        switch (control->id)
-          {
-            case V4L2_CID_EXPOSURE_AUTO:
-              readvalue = isx012_getreg(priv,
-                                        g_isx012_exptime_addr[sn],
-                                        ISX012_SIZE_EXPOSURETIME);
-
-              if (readvalue)
-                {
-                  control->value = V4L2_EXPOSURE_MANUAL;
-                }
-              else
-                {
-                  control->value = V4L2_EXPOSURE_AUTO;
-                }
-
-              break;
-
-            case V4L2_CID_EXPOSURE_ABSOLUTE:
-              control->value = isx012_getreg(priv,
-                                             g_isx012_exptime_addr[sn],
-                                             ISX012_SIZE_EXPOSURETIME);
-
-              break;
-
-            case V4L2_CID_SCENE_MODE:
-              control->value = g_isx012_scene;
-
-              break;
-
-            case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
-              readvalue = isx012_getreg(priv,
-                                        g_isx012_wb_addr[sn],
-                                        ISX012_SIZE_PRESETWB);
-
-              for (cnt = 0; cnt <= ISX012_MAX_PRESETWB; cnt++)
-                {
-                  if (g_isx012_supported_presetwb[cnt].regval == readvalue)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              control->value = g_isx012_supported_presetwb[cnt].v4l2;
-
-              break;
-
-            case V4L2_CID_WIDE_DYNAMIC_RANGE:
-              readvalue = isx012_getreg(priv,
-                                        ISX012_REG_YGAMMA,
-                                        ISX012_SIZE_YGAMMA);
-              if (readvalue)
-                {
-                  control->value = false;
-                }
-              else
-                {
-                  control->value = true;
-                }
-
-              break;
-
-            case V4L2_CID_ISO_SENSITIVITY:
-              readvalue = isx012_getreg(priv,
-                                        g_isx012_iso_addr[sn],
-                                        ISX012_SIZE_ISO);
-
-              for (cnt = 0; cnt <= ISX012_MAX_ISO; cnt++)
-                {
-                  if (g_isx012_supported_iso[cnt].regval == readvalue)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              control->value = g_isx012_supported_iso[cnt].v4l2;
-
-              break;
-
-            case V4L2_CID_ISO_SENSITIVITY_AUTO:
-              readvalue = isx012_getreg(priv,
-                                        g_isx012_iso_addr[sn],
-                                        ISX012_SIZE_ISOAUTO);
-              if (readvalue == REGVAL_ISO_AUTO)
-                {
-                  control->value = V4L2_ISO_SENSITIVITY_AUTO;
-                }
-              else
-                {
-                  control->value = V4L2_ISO_SENSITIVITY_MANUAL;
-                }
-              break;
-
-            case V4L2_CID_EXPOSURE_METERING:
-              readvalue = isx012_getreg(priv,
-                                        g_isx012_meter_addr[sn],
-                                        ISX012_SIZE_PHOTOMETRY);
-
-              for (cnt = 0; cnt <= ISX012_MAX_PHOTOMETRY; cnt++)
-                {
-                  if (g_isx012_supported_photometry[cnt].regval == readvalue)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              control->value = g_isx012_supported_photometry[cnt].v4l2;
-
-              break;
-
-            case V4L2_CID_3A_PARAMETER:
-              if (control->p_u16 == NULL)
-                {
-                  return -EINVAL;
-                }
-
-              /* Get AWB parameter */
-
-              control->p_u16[0] = isx012_getreg(priv,
-                                                RATIO_R,
-                                                2);
-              control->p_u16[1] = isx012_getreg(priv,
-                                                RATIO_B,
-                                                2);
-
-              /* Get AE parameter */
-
-              control->p_u16[2] = isx012_getreg(priv,
-                                                AELEVEL,
-                                                2);
-
-              break;
-
-            case V4L2_CID_3A_STATUS:
-
-              /* Initialize returned status */
-
-              control->value = V4L2_3A_STATUS_STABLE;
-
-              /* Get AWB/AE enable or not */
-
-              threea_enable = isx012_getreg(priv,
-                                            CPUEXT,
-                                            1);
-
-              /* Check AWB */
-
-              if ((threea_enable & REGVAL_CPUEXT_BIT_AWBSTOP) != REGVAL_CPUEXT_BIT_AWBSTOP)
-                {
-                  /* Check AWB status */
-
-                  readvalue = isx012_getreg(priv,
-                                            AWBSTS,
-                                            1);
-                  if (readvalue != REGVAL_AWBSTS_STOP) /* AWB is not stopped */
-                    {
-                      control->value |= V4L2_3A_STATUS_AWB_OPERATING;
-                    }
-                }
-
-              /* Check AE */
-
-              if ((threea_enable & REGVAL_CPUEXT_BIT_AESTOP) != REGVAL_CPUEXT_BIT_AESTOP)
-                {
-                  /* Check AE status */
-
-                  readvalue = isx012_getreg(priv,
-                                            AESTS,
-                                            1);
-                  if (readvalue != REGVAL_AESTS_STOP) /* AE is not stopped */
-                    {
-                      control->value |= V4L2_3A_STATUS_AE_OPERATING;
-                    }
-                }
-              break;
-
-            default: /* Unsupported control id */
-
-              return -EINVAL;
-          }
-
-        break;
-
-      case V4L2_CTRL_CLASS_JPEG:
-        switch (control->id)
-          {
-            case V4L2_CID_JPEG_COMPRESSION_QUALITY:
-              control->value = isx012_getreg(priv,
-                                             ISX012_REG_JPGQUALITY,
-                                             ISX012_SIZE_JPGQUALITY);
-              break;
-
-            default: /* Unsupported control id */
-
-              return -EINVAL;
-          }
-
-        break;
-
-      default: /* Unsupported control class */
-
-        return -EINVAL;
-    }
-
-  return OK;
+  return ret;
 }
 
-static int isx012_set_ctrlval(uint16_t ctrl_class,
-                                FAR struct v4l2_ext_control *control)
+static int isx012_set_value(uint32_t id,
+                            uint32_t size,
+                            FAR imgsensor_value_t value)
 {
   FAR struct isx012_dev_s *priv = &g_isx012_private;
   int       ret = -EINVAL;
@@ -3415,1142 +2114,582 @@ static int isx012_set_ctrlval(uint16_t ctrl_class,
   uint16_t  regval;
   uint16_t  exposure_time_lsb;
   uint16_t  exposure_time_msb;
-  struct isx012_scene_params_s *sptbl;
-  uint8_t sn;
 
-  if (control == NULL)
+  switch (id)
     {
-      return -EINVAL;
-    }
-
-  /* This driver use only SN1, SN2 and SN3 registers.
-   * So, sn > 2 is impossible.
-   */
-
-  sn = isx012_getreg(priv, SCENE_SELECT, 1);
-  ASSERT(sn <= 2);
-
-  switch (ctrl_class)
-    {
-      case V4L2_CTRL_CLASS_USER:
-        switch (control->id)
+      case IMGSENSOR_ID_BRIGHTNESS:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_BRIGHTNESS,
+                             ISX012_MAX_BRIGHTNESS,
+                             ISX012_STEP_BRIGHTNESS);
+        if (ret != OK)
           {
-            case V4L2_CID_BRIGHTNESS:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_BRIGHTNESS,
-                          ISX012_MAX_BRIGHTNESS,
-                          ISX012_STEP_BRIGHTNESS);
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_BRIGHTNESS,
-                                  control->value,
-                                  ISX012_SIZE_BRIGHTNESS);
-              if (ret < 0)
-                {
-                  break;
-                }
-
-              /* This register is updated if scene is selected.
-               * So, save original value to be able to restore.
-               */
-
-              sn = isx012_getreg(priv, SCENE_SELECT, 1);
-              if (sn == 0)
-                {
-                  g_isx012_brightness = control->value;
-                }
-
-              break;
-
-            case V4L2_CID_CONTRAST:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_CONTRAST,
-                          ISX012_MAX_CONTRAST,
-                          ISX012_STEP_CONTRAST);
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_CONTRAST,
-                                  control->value,
-                                  ISX012_SIZE_CONTRAST);
-              if (ret < 0)
-                {
-                  break;
-                }
-
-              /* This register is updated if scene is selected.
-               * So, save original value to be able to restore.
-               */
-
-              sn = isx012_getreg(priv, SCENE_SELECT, 1);
-              if (sn == 0)
-                {
-                  g_isx012_contrast = control->value;
-                }
-
-              break;
-
-            case V4L2_CID_SATURATION:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_SATURATION,
-                          ISX012_MAX_SATURATION,
-                          ISX012_STEP_SATURATION);
-
-              ret = isx012_putreg(priv,
-                                  g_isx012_sat_addr[sn],
-                                  control->value,
-                                  ISX012_SIZE_SATURATION);
-
-              break;
-
-            case V4L2_CID_HUE:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_HUE,
-                          ISX012_MAX_HUE,
-                          ISX012_STEP_HUE);
-
-              ret = isx012_putreg(priv,
-                                  g_isx012_hue_addr[sn],
-                                  control->value,
-                                  ISX012_SIZE_HUE);
-
-              break;
-
-            case V4L2_CID_AUTO_WHITE_BALANCE:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_AUTOWB,
-                          ISX012_MAX_AUTOWB,
-                          ISX012_STEP_AUTOWB);
-
-              regval = isx012_getreg(priv,
-                                     ISX012_REG_AUTOWB,
-                                     ISX012_SIZE_AUTOWB);
-
-              if (control->value)
-                {
-                  /* Because true means setting auto white balance
-                   * turn off the stop bit
-                   */
-
-                  regval &= ~REGVAL_CPUEXT_BIT_AWBSTOP;
-                }
-              else
-                {
-                  /* Because false means stopping auto white balance,
-                   * turn on the stop bit.
-                   */
-
-                  regval |= REGVAL_CPUEXT_BIT_AWBSTOP;
-                }
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_AUTOWB,
-                                  regval,
-                                  ISX012_SIZE_AUTOWB);
-
-              break;
-
-            case V4L2_CID_GAMMA_CURVE:
-              if (control->p_u16 == NULL)
-                {
-                  return -EINVAL;
-                }
-
-              write_src = control->p_u16;
-              write_dst = g_isx012_gamma_addr[sn];
-
-              for (cnt = 0; cnt < ISX012_ELEMS_GAMMACURVE; cnt++)
-                {
-                  CHECK_RANGE(*write_src,
-                              ISX012_MIN_GAMMACURVE,
-                              ISX012_MAX_GAMMACURVE,
-                              ISX012_STEP_GAMMACURVE);
-
-                  ret = isx012_putreg(priv,
-                                      write_dst,
-                                      *write_src,
-                                      ISX012_SIZE_GAMMACURVE);
-
-                  write_src++;
-                  write_dst += ISX012_SIZE_GAMMACURVE;
-                }
-
-              break;
-
-            case V4L2_CID_EXPOSURE:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_EXPOSURE,
-                          ISX012_MAX_EXPOSURE,
-                          ISX012_STEP_EXPOSURE);
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_EXPOSURE,
-                                  control->value,
-                                  ISX012_SIZE_EXPOSURE);
-
-              break;
-
-            case V4L2_CID_HFLIP:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_HFLIP,
-                          ISX012_MAX_HFLIP,
-                          ISX012_STEP_HFLIP);
-
-              regval = isx012_getreg(priv,
-                                     ISX012_REG_HFLIP,
-                                     ISX012_SIZE_HFLIP);
-
-              if (control->value)
-                {
-                  regval |= REGVAL_READVECT_BIT_H;
-                }
-              else
-                {
-                  regval &= ~REGVAL_READVECT_BIT_H;
-                }
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_HFLIP,
-                                  regval,
-                                  ISX012_SIZE_HFLIP);
-
-              break;
-
-            case V4L2_CID_VFLIP:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_VFLIP,
-                          ISX012_MAX_VFLIP,
-                          ISX012_STEP_VFLIP);
-
-              regval = isx012_getreg(priv,
-                                     ISX012_REG_VFLIP,
-                                     ISX012_SIZE_VFLIP);
-
-              if (control->value)
-                {
-                  regval |= REGVAL_READVECT_BIT_V;
-                }
-              else
-                {
-                  regval &= ~REGVAL_READVECT_BIT_V;
-                }
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_VFLIP,
-                                  regval,
-                                  ISX012_SIZE_VFLIP);
-
-              break;
-
-            case V4L2_CID_HFLIP_STILL:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_HFLIP_STILL,
-                          ISX012_MAX_HFLIP_STILL,
-                          ISX012_STEP_HFLIP_STILL);
-
-              regval = isx012_getreg(priv,
-                                     ISX012_REG_HFLIP_STILL,
-                                     ISX012_SIZE_HFLIP_STILL);
-
-              if (control->value)
-                {
-                  regval |= REGVAL_READVECT_BIT_H;
-                }
-              else
-                {
-                  regval &= ~REGVAL_READVECT_BIT_H;
-                }
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_HFLIP_STILL,
-                                  regval,
-                                  ISX012_SIZE_HFLIP_STILL);
-
-              break;
-
-            case V4L2_CID_VFLIP_STILL:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_VFLIP_STILL,
-                          ISX012_MAX_VFLIP_STILL,
-                          ISX012_STEP_VFLIP_STILL);
-
-              regval = isx012_getreg(priv,
-                                     ISX012_REG_VFLIP_STILL,
-                                     ISX012_SIZE_VFLIP_STILL);
-
-              if (control->value)
-                {
-                  regval |= REGVAL_READVECT_BIT_V;
-                }
-              else
-                {
-                  regval &= ~REGVAL_READVECT_BIT_V;
-                }
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_VFLIP_STILL,
-                                  regval,
-                                  ISX012_SIZE_VFLIP_STILL);
-
-              break;
-
-            case V4L2_CID_SHARPNESS:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_SHARPNESS,
-                          ISX012_MAX_SHARPNESS,
-                          ISX012_STEP_SHARPNESS);
-
-              ret = isx012_putreg(priv,
-                                  g_isx012_shrp_addr[sn],
-                                  control->value,
-                                  ISX012_SIZE_SHARPNESS);
-
-              break;
-
-            case V4L2_CID_COLOR_KILLER:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_COLORKILLER,
-                          ISX012_MAX_COLORKILLER,
-                          ISX012_STEP_COLORKILLER);
-
-              if (control->value)
-                {
-                  regval = REGVAL_EFFECT_MONOTONE;
-                }
-              else
-                {
-                  regval = REGVAL_EFFECT_NONE;
-                }
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_COLORKILLER,
-                                  regval,
-                                  ISX012_SIZE_COLORKILLER);
-
-              break;
-
-            case V4L2_CID_COLORFX:
-              for (cnt = 0; cnt <= ISX012_MAX_COLOREFFECT; cnt++)
-                {
-                  if (g_isx012_supported_colorfx[cnt].v4l2 == control->value)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_COLOREFFECT,
-                                  g_isx012_supported_colorfx[cnt].regval,
-                                  ISX012_SIZE_COLOREFFECT);
-
-              break;
-
-            default: /* Unsupported control id */
-
-              return -EINVAL;
+            break;
+          }
+
+        ret = isx012_putreg(priv,
+                            ISX012_REG_BRIGHTNESS,
+                            value.value32,
+                            ISX012_SIZE_BRIGHTNESS);
+        break;
+
+      case IMGSENSOR_ID_CONTRAST:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_CONTRAST,
+                             ISX012_MAX_CONTRAST,
+                             ISX012_STEP_CONTRAST);
+        if (ret != OK)
+          {
+            break;
+          }
+
+        ret = isx012_putreg(priv,
+                            ISX012_REG_CONTRAST,
+                            value.value32,
+                            ISX012_SIZE_CONTRAST);
+        break;
+
+      case IMGSENSOR_ID_SATURATION:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_SATURATION,
+                             ISX012_MAX_SATURATION,
+                             ISX012_STEP_SATURATION);
+        if (ret != OK)
+          {
+            break;
+          }
+
+        ret = isx012_putreg(priv,
+                            ISX012_REG_SATURATION,
+                            value.value32,
+                            ISX012_SIZE_SATURATION);
+        break;
+
+      case IMGSENSOR_ID_HUE:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_HUE,
+                             ISX012_MAX_HUE,
+                             ISX012_STEP_HUE);
+        if (ret != OK)
+          {
+            break;
+          }
+
+        ret = isx012_putreg(priv,
+                            ISX012_REG_HUE,
+                            value.value32,
+                            ISX012_SIZE_HUE);
+        break;
+
+      case IMGSENSOR_ID_AUTO_WHITE_BALANCE:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_AUTOWB,
+                             ISX012_MAX_AUTOWB,
+                             ISX012_STEP_AUTOWB);
+        if (ret != OK)
+          {
+            break;
+          }
+
+        regval = isx012_getreg(priv,
+                               ISX012_REG_AUTOWB,
+                               ISX012_SIZE_AUTOWB);
+
+        if (value.value32)
+          {
+            /* Because true means setting auto white balance
+             * turn off the stop bit
+             */
+
+            regval &= ~REGVAL_CPUEXT_BIT_AWBSTOP;
+          }
+        else
+          {
+            /* Because false means stopping auto white balance,
+             * turn on the stop bit.
+             */
+
+            regval |= REGVAL_CPUEXT_BIT_AWBSTOP;
+          }
+
+        ret = isx012_putreg(priv,
+                            ISX012_REG_AUTOWB,
+                            regval,
+                            ISX012_SIZE_AUTOWB);
+        break;
+
+      case IMGSENSOR_ID_GAMMA_CURVE:
+        if (value.p_u16 == NULL)
+          {
+            return -EINVAL;
+          }
+
+        if (size != ISX012_ELEMS_GAMMACURVE * 2)
+          {
+            return -EINVAL;
+          }
+
+        write_src = value.p_u16;
+        write_dst = ISX012_REG_GAMMACURVE;
+
+        for (cnt = 0; cnt < ISX012_ELEMS_GAMMACURVE; cnt++)
+          {
+            ret = VALIDATE_VALUE(*write_src,
+                                 ISX012_MIN_GAMMACURVE,
+                                 ISX012_MAX_GAMMACURVE,
+                                 ISX012_STEP_GAMMACURVE);
+            if (ret != OK)
+              {
+                break;
+              }
+
+            ret = isx012_putreg(priv,
+                                write_dst,
+                                *write_src,
+                                ISX012_SIZE_GAMMACURVE);
+
+            write_src++;
+            write_dst += ISX012_SIZE_GAMMACURVE;
           }
 
         break;
 
-      case V4L2_CTRL_CLASS_CAMERA:
-        switch (control->id)
+      case IMGSENSOR_ID_EXPOSURE:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_EXPOSURE,
+                             ISX012_MAX_EXPOSURE,
+                             ISX012_STEP_EXPOSURE);
+        if (ret != OK)
           {
-            case V4L2_CID_EXPOSURE_AUTO:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_EXPOSUREAUTO,
-                          ISX012_MAX_EXPOSUREAUTO,
-                          ISX012_STEP_EXPOSUREAUTO);
+            break;
+          }
 
-              if (control->value == V4L2_EXPOSURE_AUTO)
-                {
-                  /* Register is the same as V4L2_CID_EXPOSURE_ABSOLUTE.
-                   * If this register value = REGVAL_EXPOSURETIME_AUTO(=0),
-                   *  it means auto. Otherwise, it means manual.
-                   */
+        ret = isx012_putreg(priv,
+                            ISX012_REG_EXPOSURE,
+                            value.value32,
+                            ISX012_SIZE_EXPOSURE);
 
-                  ret = isx012_putreg(priv,
-                                      g_isx012_exptime_addr[sn],
-                                      REGVAL_EXPOSURETIME_AUTO,
-                                      ISX012_SIZE_EXPOSURETIME);
-                }
-              else
-                {
-                  /* In manual case, read current value of register which
-                   * value adjusted automatically by ISX012 HW is set to.
-                   * It has 32bits length which is composed of LSB 16bits
-                   *  and MSB 16bits.
-                   */
+        break;
 
-                  exposure_time_lsb = isx012_getreg
-                                      (priv,
-                                       ISX012_REG_EXPOSUREAUTOVALUE_LSB,
-                                       ISX012_SIZE_EXPOSUREAUTOVALUE);
-                  exposure_time_msb = isx012_getreg
-                                      (priv,
-                                       ISX012_REG_EXPOSUREAUTOVALUE_MSB,
-                                       ISX012_SIZE_EXPOSUREAUTOVALUE);
+      case IMGSENSOR_ID_HFLIP_VIDEO:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_HFLIP,
+                             ISX012_MAX_HFLIP,
+                             ISX012_STEP_HFLIP);
+        if (ret != OK)
+          {
+            break;
+          }
 
-                  /* Register value adjusted automatically by ISX012 HW
-                   *  has the different unit from manual value register.
-                   *   automatic value register : 1   microsec unit
-                   *   manual    value register : 100 microsec unit
-                   */
+        regval = isx012_getreg(priv,
+                               ISX012_REG_HFLIP,
+                               ISX012_SIZE_HFLIP);
 
-                  regval = (uint16_t)(((exposure_time_msb << 16)
-                                        | exposure_time_lsb)
-                                       / ISX012_UNIT_EXPOSURETIME_US);
-                  ret = isx012_putreg(priv,
-                                      g_isx012_exptime_addr[sn],
-                                      regval,
-                                      ISX012_SIZE_EXPOSURETIME);
-                }
+        if (value.value32)
+          {
+            regval |= REGVAL_READVECT_BIT_H;
+          }
+        else
+          {
+            regval &= ~REGVAL_READVECT_BIT_H;
+          }
 
-              break;
+        ret = isx012_putreg(priv,
+                            ISX012_REG_HFLIP,
+                            regval,
+                            ISX012_SIZE_HFLIP);
+        break;
 
-            case V4L2_CID_EXPOSURE_ABSOLUTE:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_EXPOSURETIME,
-                          ISX012_MAX_EXPOSURETIME,
-                          ISX012_STEP_EXPOSURETIME);
+      case IMGSENSOR_ID_VFLIP_VIDEO:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_VFLIP,
+                             ISX012_MAX_VFLIP,
+                             ISX012_STEP_VFLIP);
+        if (ret != OK)
+          {
+            break;
+          }
 
-              ret = isx012_putreg(priv,
-                                  g_isx012_exptime_addr[sn],
-                                  control->value,
-                                  ISX012_SIZE_EXPOSURETIME);
-              break;
+        regval = isx012_getreg(priv,
+                               ISX012_REG_VFLIP,
+                               ISX012_SIZE_VFLIP);
 
-            case V4L2_CID_WIDE_DYNAMIC_RANGE:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_YGAMMA,
-                          ISX012_MAX_YGAMMA,
-                          ISX012_STEP_YGAMMA);
+        if (value.value32)
+          {
+            regval |= REGVAL_READVECT_BIT_V;
+          }
+        else
+          {
+            regval &= ~REGVAL_READVECT_BIT_V;
+          }
 
-              if (control->value)
-                {
-                  regval = REGVAL_YGAMMA_AUTO;
-                }
-              else
-                {
-                  regval = REGVAL_YGAMMA_OFF;
-                }
+        ret = isx012_putreg(priv,
+                            ISX012_REG_VFLIP,
+                            regval,
+                            ISX012_SIZE_VFLIP);
+        break;
 
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_YGAMMA,
-                                  regval,
-                                  ISX012_SIZE_YGAMMA);
+      case IMGSENSOR_ID_HFLIP_STILL:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_HFLIP_STILL,
+                             ISX012_MAX_HFLIP_STILL,
+                             ISX012_STEP_HFLIP_STILL);
+        if (ret != OK)
+          {
+            break;
+          }
 
-              break;
+        regval = isx012_getreg(priv,
+                               ISX012_REG_HFLIP_STILL,
+                               ISX012_SIZE_HFLIP_STILL);
 
-            case V4L2_CID_ISO_SENSITIVITY:
-              for (cnt = 0; cnt <= ISX012_MAX_ISO; cnt++)
-                {
-                  if (g_isx012_supported_iso[cnt].v4l2
-                       == control->value)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
+        if (value.value32)
+          {
+            regval |= REGVAL_READVECT_BIT_H;
+          }
+        else
+          {
+            regval &= ~REGVAL_READVECT_BIT_H;
+          }
 
-              if (ret != OK)
-                {
-                  return ret;
-                }
+        ret = isx012_putreg(priv,
+                            ISX012_REG_HFLIP_STILL,
+                            regval,
+                            ISX012_SIZE_HFLIP_STILL);
 
-              ret = isx012_putreg(priv,
-                                  g_isx012_iso_addr[sn],
-                                  g_isx012_supported_iso[cnt].regval,
-                                  ISX012_SIZE_ISO);
+        break;
 
-              break;
+      case IMGSENSOR_ID_VFLIP_STILL:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_VFLIP_STILL,
+                             ISX012_MAX_VFLIP_STILL,
+                             ISX012_STEP_VFLIP_STILL);
+        if (ret != OK)
+          {
+            break;
+          }
 
-            case V4L2_CID_ISO_SENSITIVITY_AUTO:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_ISOAUTO,
-                          ISX012_MAX_ISOAUTO,
-                          ISX012_STEP_ISOAUTO);
+        regval = isx012_getreg(priv,
+                               ISX012_REG_VFLIP_STILL,
+                               ISX012_SIZE_VFLIP_STILL);
 
-              if (control->value == V4L2_ISO_SENSITIVITY_AUTO)
-                {
-                  ret = isx012_putreg(priv,
-                                      g_isx012_iso_addr[sn],
-                                      REGVAL_ISO_AUTO,
-                                      ISX012_SIZE_ISOAUTO);
-                }
-              else
-                {
-                  /* In manual case, read auto adjust value and set it */
+        if (value.value32)
+          {
+            regval |= REGVAL_READVECT_BIT_V;
+          }
+        else
+          {
+            regval &= ~REGVAL_READVECT_BIT_V;
+          }
 
-                  regval = isx012_getreg(priv,
-                                         ISX012_REG_ISOAUTOVALUE,
-                                         ISX012_SIZE_ISOAUTOVALUE);
-                  ret = isx012_putreg(priv,
-                                      g_isx012_iso_addr[sn],
-                                      regval,
-                                      ISX012_SIZE_ISO);
-                }
+        ret = isx012_putreg(priv,
+                            ISX012_REG_VFLIP_STILL,
+                            regval,
+                            ISX012_SIZE_VFLIP_STILL);
+        break;
 
-              break;
+      case IMGSENSOR_ID_SHARPNESS:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_SHARPNESS,
+                             ISX012_MAX_SHARPNESS,
+                             ISX012_STEP_SHARPNESS);
+        if (ret != OK)
+          {
+            break;
+          }
 
-            case V4L2_CID_EXPOSURE_METERING:
-              for (cnt = 0; cnt <= ISX012_MAX_PHOTOMETRY; cnt++)
-                {
-                  if (g_isx012_supported_photometry[cnt].v4l2
-                       == control->value)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
+        ret = isx012_putreg(priv,
+                            ISX012_SIZE_SHARPNESS,
+                            value.value32,
+                            ISX012_SIZE_SHARPNESS);
+        break;
 
-              if (ret != OK)
-                {
-                  return ret;
-                }
+      case IMGSENSOR_ID_COLOR_KILLER:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_COLORKILLER,
+                             ISX012_MAX_COLORKILLER,
+                             ISX012_STEP_COLORKILLER);
+        if (ret != OK)
+          {
+            break;
+          }
 
-              ret = isx012_putreg(priv,
-                                  g_isx012_meter_addr[sn],
-                                  g_isx012_supported_photometry[cnt].regval,
-                                  ISX012_SIZE_PHOTOMETRY);
+        ret = isx012_putreg
+                (priv,
+                 ISX012_REG_COLORKILLER,
+                 value.value32 ? REGVAL_EFFECT_MONOTONE : REGVAL_EFFECT_NONE,
+                 ISX012_SIZE_COLORKILLER);
 
-              break;
+        break;
 
-            case V4L2_CID_SCENE_MODE:
-              if (control->value == V4L2_SCENE_MODE_NONE)
-                {
-                  ret = leave_scene(priv);
-                }
-              else
-                {
-                  sptbl = search_snparam_tbl(control->value);
-                  if (sptbl)
-                    {
-                      ret = reflect_scene_parameter(priv, sptbl);
-                    }
-                }
-
-              if (ret == OK)
-                {
-                  g_isx012_scene = control->value;
-                }
-
-              break;
-
-            case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
-              for (cnt = 0; cnt <= ISX012_MAX_PRESETWB; cnt++)
-                {
-                  if (g_isx012_supported_presetwb[cnt].v4l2 == control->value)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              ret = isx012_putreg(priv,
-                                  g_isx012_wb_addr[sn],
-                                  g_isx012_supported_presetwb[cnt].regval,
-                                  ISX012_SIZE_PRESETWB);
-
-              break;
-
-            case V4L2_CID_3A_LOCK:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_3ALOCK,
-                          ISX012_MAX_3ALOCK,
-                          ISX012_STEP_3ALOCK);
-
-              regval = 0;
-
-              if ((control->value & V4L2_LOCK_EXPOSURE)
-                    == V4L2_LOCK_EXPOSURE)
-                {
-                  regval |= REGVAL_CPUEXT_BIT_AESTOP;
-                }
-
-              if ((control->value & V4L2_LOCK_WHITE_BALANCE)
-                    == V4L2_LOCK_WHITE_BALANCE)
-                {
-                  regval |= REGVAL_CPUEXT_BIT_AWBSTOP;
-                }
-
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_3ALOCK,
-                                  regval,
-                                  ISX012_SIZE_3ALOCK);
-
-              break;
-
-            case V4L2_CID_3A_PARAMETER:
-              /* AWB parameter : red */
-
-              ret = isx012_putreg(priv,
-                                  INIT_CONT_INR,
-                                  control->p_u16[0],
-                                  2);
-              ret = isx012_putreg(priv,
-                                  INIT_CONT_OUTR,
-                                  control->p_u16[0],
-                                  2);
-
-              /* AWB parameter : blue */
-
-              ret = isx012_putreg(priv,
-                                  INIT_CONT_INB,
-                                  control->p_u16[1],
-                                  2);
-              ret = isx012_putreg(priv,
-                                  INIT_CONT_OUTB,
-                                  control->p_u16[1],
-                                  2);
-
-              /* AE parameter */
-
-              ret = isx012_putreg(priv,
-                                  AE_START_LEVEL,
-                                  control->p_u16[2],
-                                  2);
-
-
-              break;
-
-            default: /* Unsupported control id */
-
-              return -EINVAL;
+      case IMGSENSOR_ID_COLORFX:
+        for (cnt = 0; cnt < ARRAY_NENTRIES(g_isx012_colorfx_actual); cnt++)
+          {
+            if (g_isx012_colorfx_actual[cnt] == value.value32)
+              {
+                ret = isx012_putreg(priv,
+                                    ISX012_REG_COLOREFFECT,
+                                    g_isx012_colorfx_regval[cnt],
+                                    ISX012_SIZE_COLOREFFECT);
+                break;
+              }
           }
 
         break;
 
-      case V4L2_CTRL_CLASS_JPEG:
-        switch (control->id)
+      case IMGSENSOR_ID_EXPOSURE_AUTO:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_EXPOSUREAUTO,
+                             ISX012_MAX_EXPOSUREAUTO,
+                             ISX012_STEP_EXPOSUREAUTO);
+        if (ret != OK)
           {
-            case V4L2_CID_JPEG_COMPRESSION_QUALITY:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_JPGQUALITY,
-                          ISX012_MAX_JPGQUALITY,
-                          ISX012_STEP_JPGQUALITY);
+            break;
+          }
 
-              ret = isx012_putreg(priv,
-                                  ISX012_REG_JPGQUALITY,
-                                  control->value,
-                                  ISX012_SIZE_JPGQUALITY);
-              break;
+        if (value.value32 == IMGSENSOR_EXPOSURE_AUTO)
+          {
+            /* Register is the same as IMGSENSOR_ID_EXPOSURE_ABSOLUTE.
+             * If this register value = REGVAL_EXPOSURETIME_AUTO(=0),
+             *  it means auto. Otherwise, it means manual.
+             */
 
-            default: /* Unsupported control id */
+            ret = isx012_putreg(priv,
+                                ISX012_REG_EXPOSURETIME,
+                                REGVAL_EXPOSURETIME_AUTO,
+                                ISX012_SIZE_EXPOSURETIME);
+          }
+        else
+          {
+            /* In manual case, read current value of register which
+             * value adjusted automatically by ISX012 HW is set to.
+             * It has 32bits length which is composed of LSB 16bits
+             *  and MSB 16bits.
+             */
 
-              return -EINVAL;
+            exposure_time_lsb = isx012_getreg
+                                (priv,
+                                 ISX012_REG_EXPOSUREAUTOVALUE_LSB,
+                                 ISX012_SIZE_EXPOSUREAUTOVALUE);
+            exposure_time_msb = isx012_getreg
+                                (priv,
+                                 ISX012_REG_EXPOSUREAUTOVALUE_MSB,
+                                 ISX012_SIZE_EXPOSUREAUTOVALUE);
+
+            /* Register value adjusted automatically by ISX012 HW
+             *  has the different unit from manual value register.
+             *   automatic value register : 1   microsec unit
+             *   manual    value register : 100 microsec unit
+             */
+
+            regval = (uint16_t)(((exposure_time_msb << 16)
+                                  | exposure_time_lsb)
+                                 / ISX012_UNIT_EXPOSURETIME_US);
+            ret = isx012_putreg(priv,
+                                ISX012_REG_EXPOSURETIME,
+                                regval,
+                                ISX012_SIZE_EXPOSURETIME);
           }
 
         break;
 
-      default: /* Unsupported control class */
+      case IMGSENSOR_ID_EXPOSURE_ABSOLUTE:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_EXPOSURETIME,
+                             ISX012_MAX_EXPOSURETIME,
+                             ISX012_STEP_EXPOSURETIME);
+        if (ret != OK)
+          {
+            break;
+          }
 
-        return -EINVAL;
+        ret = isx012_putreg(priv,
+                            ISX012_REG_EXPOSURETIME,
+                            value.value32,
+                            ISX012_SIZE_EXPOSURETIME);
+        break;
+
+      case IMGSENSOR_ID_WIDE_DYNAMIC_RANGE:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_YGAMMA,
+                             ISX012_MAX_YGAMMA,
+                             ISX012_STEP_YGAMMA);
+        if (ret != OK)
+          {
+            break;
+          }
+
+        if (value.value32)
+          {
+            regval = REGVAL_YGAMMA_AUTO;
+          }
+        else
+          {
+            regval = REGVAL_YGAMMA_OFF;
+          }
+
+        ret = isx012_putreg
+                (priv,
+                 ISX012_REG_YGAMMA,
+                 value.value32 ? REGVAL_YGAMMA_AUTO : REGVAL_YGAMMA_OFF,
+                 ISX012_SIZE_YGAMMA);
+
+        break;
+
+      case IMGSENSOR_ID_ISO_SENSITIVITY:
+        for (cnt = 0; cnt < ARRAY_NENTRIES(g_isx012_iso_actual); cnt++)
+          {
+            if (g_isx012_iso_actual[cnt]
+                 == value.value32)
+              {
+                ret = isx012_putreg(priv,
+                                    ISX012_REG_ISO,
+                                    g_isx012_iso_regval[cnt],
+                                    ISX012_SIZE_ISO);
+                break;
+              }
+          }
+
+        break;
+
+      case IMGSENSOR_ID_ISO_SENSITIVITY_AUTO:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_ISOAUTO,
+                             ISX012_MAX_ISOAUTO,
+                             ISX012_STEP_ISOAUTO);
+        if (ret != OK)
+          {
+            break;
+          }
+
+        if (value.value32 == IMGSENSOR_ISO_SENSITIVITY_AUTO)
+          {
+            ret = isx012_putreg(priv,
+                                ISX012_REG_ISOAUTO,
+                                REGVAL_ISO_AUTO,
+                                ISX012_SIZE_ISOAUTO);
+          }
+        else
+          {
+            /* In manual case, read auto adjust value and set it */
+
+            regval = isx012_getreg(priv,
+                                   ISX012_REG_ISOAUTOVALUE,
+                                   ISX012_SIZE_ISOAUTOVALUE);
+            ret = isx012_putreg(priv,
+                                ISX012_REG_ISO,
+                                regval,
+                                ISX012_SIZE_ISO);
+          }
+
+        break;
+
+      case IMGSENSOR_ID_EXPOSURE_METERING:
+        for (cnt = 0;
+             cnt < ARRAY_NENTRIES(g_isx012_photometry_actual);
+             cnt++)
+          {
+            if (g_isx012_photometry_actual[cnt]
+                 == value.value32)
+              {
+                ret = isx012_putreg(priv,
+                                    ISX012_REG_PHOTOMETRY,
+                                    g_isx012_photometry_regval[cnt],
+                                    ISX012_SIZE_PHOTOMETRY);
+                break;
+              }
+          }
+
+        break;
+
+      case IMGSENSOR_ID_AUTO_N_PRESET_WB:
+        for (cnt = 0;
+             cnt < ARRAY_NENTRIES(g_isx012_presetwb_actual);
+             cnt++)
+          {
+            if (g_isx012_presetwb_actual[cnt] == value.value32)
+              {
+                ret = isx012_putreg(priv,
+                                    ISX012_REG_PRESETWB,
+                                    g_isx012_presetwb_regval[cnt],
+                                    ISX012_SIZE_PRESETWB);
+                break;
+              }
+          }
+
+        break;
+
+      case IMGSENSOR_ID_3A_LOCK:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_3ALOCK,
+                             ISX012_MAX_3ALOCK,
+                             ISX012_STEP_3ALOCK);
+        if (ret != OK)
+          {
+            break;
+          }
+
+        regval = 0;
+
+        if ((value.value32 & IMGSENSOR_LOCK_EXPOSURE)
+              == IMGSENSOR_LOCK_EXPOSURE)
+          {
+            regval |= REGVAL_CPUEXT_BIT_AESTOP;
+          }
+
+        if ((value.value32 & IMGSENSOR_LOCK_WHITE_BALANCE)
+              == IMGSENSOR_LOCK_WHITE_BALANCE)
+          {
+            regval |= REGVAL_CPUEXT_BIT_AWBSTOP;
+          }
+
+        ret = isx012_putreg(priv,
+                            ISX012_REG_3ALOCK,
+                            regval,
+                            ISX012_SIZE_3ALOCK);
+
+        break;
+
+      case IMGSENSOR_ID_3A_PARAMETER:
+
+        /* AWB parameter : red */
+
+        ret = isx012_putreg(priv, INIT_CONT_INR, value.p_u16[0], 2);
+        ret = isx012_putreg(priv, INIT_CONT_OUTR, value.p_u16[0], 2);
+
+        /* AWB parameter : blue */
+
+        ret = isx012_putreg(priv, INIT_CONT_INB, value.p_u16[1], 2);
+        ret = isx012_putreg(priv, INIT_CONT_OUTB, value.p_u16[1], 2);
+
+        /* AE parameter */
+
+        ret = isx012_putreg(priv, AE_START_LEVEL, value.p_u16[2], 2);
+
+        break;
+
+      case IMGSENSOR_ID_JPEG_QUALITY:
+        ret = VALIDATE_VALUE(value.value32,
+                             ISX012_MIN_JPGQUALITY,
+                             ISX012_MAX_JPGQUALITY,
+                             ISX012_STEP_JPGQUALITY);
+        if (ret != OK)
+          {
+            break;
+          }
+
+        ret = isx012_putreg(priv,
+                            ISX012_REG_JPGQUALITY,
+                            value.value32,
+                            ISX012_SIZE_JPGQUALITY);
+        break;
+
+      default: /* Unsupported control id */
+
+        break;
     }
 
   return ret;
-}
-
-static int isx012_get_range_of_sceneparam(enum v4l2_scene_mode mode,
-                                          FAR struct v4l2_query_ext_ctrl
-                                          * range)
-{
-  struct isx012_scene_params_s *sptbl;
-
-  if (range == NULL)
-    {
-      return -EINVAL;
-    }
-
-  sptbl = search_snparam_tbl(mode);
-  if (sptbl == NULL)
-    {
-      return -EINVAL;
-    }
-
-  switch (range->ctrl_class)
-    {
-      case V4L2_CTRL_CLASS_USER:
-        switch (range->id)
-          {
-            case V4L2_CID_BRIGHTNESS:
-            case V4L2_CID_CONTRAST:
-            case V4L2_CID_SATURATION:
-            case V4L2_CID_HUE:
-            case V4L2_CID_SHARPNESS:
-            case V4L2_CID_GAMMA_CURVE:
-              break;
-
-            default:
-              return -EINVAL;
-          }
-
-        break;
-
-      case V4L2_CTRL_CLASS_CAMERA:
-        switch (range->id)
-          {
-            case V4L2_CID_EXPOSURE_ABSOLUTE:
-            case V4L2_CID_EXPOSURE_AUTO:
-            case V4L2_CID_ISO_SENSITIVITY:
-            case V4L2_CID_ISO_SENSITIVITY_AUTO:
-            case V4L2_CID_EXPOSURE_METERING:
-            case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
-              break;
-
-            default:
-              return -EINVAL;
-          }
-
-        break;
-
-      default:
-        return -EINVAL;
-    }
-
-  return isx012_get_range_of_ctrlval(range);
-}
-
-static int isx012_get_menu_of_sceneparam(enum v4l2_scene_mode mode,
-                                         FAR struct v4l2_querymenu *menu)
-{
-  struct isx012_scene_params_s *sptbl;
-
-  if (menu == NULL)
-    {
-      return -EINVAL;
-    }
-
-  sptbl = search_snparam_tbl(mode);
-  if (sptbl == NULL)
-    {
-      return -EINVAL;
-    }
-
-  switch (menu->ctrl_class)
-    {
-      case V4L2_CTRL_CLASS_CAMERA:
-        switch (menu->id)
-          {
-            case V4L2_CID_ISO_SENSITIVITY:
-            case V4L2_CID_EXPOSURE_METERING:
-            case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
-              break;
-
-            default:
-              return -EINVAL;
-          }
-
-        break;
-
-      default:
-        return -EINVAL;
-    }
-
-  return isx012_get_menu_of_ctrlval(menu);
-}
-
-static int isx012_get_sceneparam(enum v4l2_scene_mode mode,
-                                 uint16_t ctrl_class,
-                                 FAR struct v4l2_ext_control *control)
-{
-  int ret = -EINVAL;
-  int cnt;
-  struct isx012_scene_params_s *sptbl;
-
-  sptbl = search_snparam_tbl(mode);
-  if (sptbl == NULL)
-    {
-      return -EINVAL;
-    }
-
-  switch (ctrl_class)
-    {
-      case V4L2_CTRL_CLASS_USER:
-        switch (control->id)
-          {
-            case V4L2_CID_BRIGHTNESS:
-              control->value = sptbl->brightness;
-              break;
-
-            case V4L2_CID_CONTRAST:
-              control->value = sptbl->contrast;
-              break;
-
-            case V4L2_CID_SATURATION:
-              control->value = sptbl->saturation;
-              break;
-
-            case V4L2_CID_HUE:
-              control->value = sptbl->hue;
-              break;
-
-            case V4L2_CID_SHARPNESS:
-              control->value = sptbl->sharpness;
-              break;
-
-            case V4L2_CID_GAMMA_CURVE:
-              memcpy(control->p_u16, sptbl->gamma, ISX012_ELEMS_GAMMACURVE);
-              break;
-
-            default:
-              return -EINVAL;
-          }
-
-        break;
-
-      case V4L2_CTRL_CLASS_CAMERA:
-        switch (control->id)
-          {
-            case V4L2_CID_EXPOSURE_ABSOLUTE:
-              control->value = sptbl->exptime;
-              break;
-
-            case V4L2_CID_EXPOSURE_AUTO:
-              if (sptbl->exptime_auto)
-                {
-                  control->value = V4L2_EXPOSURE_AUTO;
-                }
-              else
-                {
-                  control->value = V4L2_EXPOSURE_MANUAL;
-                }
-
-              break;
-
-            case V4L2_CID_ISO_SENSITIVITY:
-              for (cnt = 0; cnt <= ISX012_MAX_ISO; cnt++)
-                {
-                  if (g_isx012_supported_iso[cnt].regval
-                       == sptbl->iso)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              control->value = g_isx012_supported_iso[cnt].v4l2;
-              break;
-
-            case V4L2_CID_ISO_SENSITIVITY_AUTO:
-              control->value = sptbl->iso_auto;
-              break;
-
-            case V4L2_CID_EXPOSURE_METERING:
-              for (cnt = 0; cnt <= ISX012_MAX_PHOTOMETRY; cnt++)
-                {
-                  if (g_isx012_supported_photometry[cnt].regval
-                       == sptbl->expmeter)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              control->value = g_isx012_supported_photometry[cnt].v4l2;
-              break;
-
-            case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
-              for (cnt = 0; cnt <= ISX012_MAX_PRESETWB; cnt++)
-                {
-                  if (g_isx012_supported_presetwb[cnt].regval == sptbl->wb)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              control->value = g_isx012_supported_presetwb[cnt].v4l2;
-              break;
-
-            default:
-              return -EINVAL;
-          }
-
-        break;
-
-      default:
-        return -EINVAL;
-    }
-
-  return OK;
-}
-
-static int isx012_set_sceneparam(enum v4l2_scene_mode mode,
-                                 uint16_t ctrl_class,
-                                 FAR struct v4l2_ext_control *control)
-{
-  int ret = -EINVAL;
-  int cnt;
-  uint16_t *p_val;
-  struct isx012_scene_params_s *sptbl;
-
-  sptbl = search_snparam_tbl(mode);
-  if (sptbl == NULL)
-    {
-      return -EINVAL;
-    }
-
-  switch (ctrl_class)
-    {
-      case V4L2_CTRL_CLASS_USER:
-        switch (control->id)
-          {
-            case V4L2_CID_BRIGHTNESS:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_BRIGHTNESS,
-                          ISX012_MAX_BRIGHTNESS,
-                          ISX012_STEP_BRIGHTNESS);
-
-              sptbl->brightness = control->value;
-              break;
-
-            case V4L2_CID_CONTRAST:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_CONTRAST,
-                          ISX012_MAX_CONTRAST,
-                          ISX012_STEP_CONTRAST);
-
-              sptbl->contrast = control->value;
-              break;
-
-            case V4L2_CID_SATURATION:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_SATURATION,
-                          ISX012_MAX_SATURATION,
-                          ISX012_STEP_SATURATION);
-
-              sptbl->saturation = control->value;
-              break;
-
-            case V4L2_CID_HUE:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_HUE,
-                          ISX012_MAX_HUE,
-                          ISX012_STEP_HUE);
-
-              sptbl->hue = control->value;
-              break;
-
-            case V4L2_CID_SHARPNESS:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_SHARPNESS,
-                          ISX012_MAX_SHARPNESS,
-                          ISX012_STEP_SHARPNESS);
-
-              sptbl->sharpness = control->value;
-              break;
-
-            case V4L2_CID_GAMMA_CURVE:
-              p_val = control->p_u16;
-              for (cnt = 0; cnt < ISX012_ELEMS_GAMMACURVE; cnt++)
-                {
-                  CHECK_RANGE(*p_val,
-                              ISX012_MIN_GAMMACURVE,
-                              ISX012_MAX_GAMMACURVE,
-                              ISX012_STEP_GAMMACURVE);
-                  p_val++;
-                }
-
-              memcpy(sptbl->gamma, control->p_u16, ISX012_ELEMS_GAMMACURVE);
-              break;
-
-            default:
-              return -EINVAL;
-          }
-
-        break;
-
-      case V4L2_CTRL_CLASS_CAMERA:
-        switch (control->id)
-          {
-            case V4L2_CID_EXPOSURE_ABSOLUTE:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_EXPOSURETIME,
-                          ISX012_MAX_EXPOSURETIME,
-                          ISX012_STEP_EXPOSURETIME);
-
-              sptbl->exptime = control->value;
-              sptbl->exptime_auto = false;
-              break;
-
-            case V4L2_CID_EXPOSURE_AUTO:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_EXPOSUREAUTO,
-                          ISX012_MAX_EXPOSUREAUTO,
-                          ISX012_STEP_EXPOSUREAUTO);
-
-              if (control->value == V4L2_EXPOSURE_AUTO)
-                {
-                  sptbl->exptime_auto = true;
-                }
-              else
-                {
-                  sptbl->exptime_auto = false;
-                }
-
-              break;
-
-            case V4L2_CID_ISO_SENSITIVITY:
-              for (cnt = 0; cnt <= ISX012_MAX_ISO; cnt++)
-                {
-                  if (g_isx012_supported_iso[cnt].v4l2
-                       == control->value)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              sptbl->iso = g_isx012_supported_iso[cnt].regval;
-              sptbl->iso_auto = false;
-              break;
-
-            case V4L2_CID_ISO_SENSITIVITY_AUTO:
-              CHECK_RANGE(control->value,
-                          ISX012_MIN_ISOAUTO,
-                          ISX012_MAX_ISOAUTO,
-                          ISX012_STEP_ISOAUTO);
-
-              sptbl->iso_auto = control->value;
-              break;
-
-            case V4L2_CID_EXPOSURE_METERING:
-              for (cnt = 0; cnt <= ISX012_MAX_PHOTOMETRY; cnt++)
-                {
-                  if (g_isx012_supported_photometry[cnt].v4l2
-                       == control->value)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              sptbl->expmeter = g_isx012_supported_photometry[cnt].regval;
-
-              break;
-
-            case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
-              for (cnt = 0; cnt <= ISX012_MAX_PRESETWB; cnt++)
-                {
-                  if (g_isx012_supported_presetwb[cnt].v4l2 == control->value)
-                    {
-                      ret = OK;
-                      break;
-                    }
-                }
-
-              if (ret != OK)
-                {
-                  return ret;
-                }
-
-              sptbl->wb = g_isx012_supported_presetwb[cnt].regval;
-              break;
-
-            default:
-              return -EINVAL;
-          }
-
-        break;
-
-      default:
-        return -EINVAL;
-    }
-
-  return OK;
-}
-
-static int isx012_refresh(void)
-{
-  int ret = 0;
-  uint8_t mask_num;
-  int i;
-  FAR struct isx012_dev_s *priv = &g_isx012_private;
-
-  if (priv->state != STATE_ISX012_ACTIVE)
-    {
-      /* In inactive state, setting is reflected in activated timing */
-
-      return OK;
-    }
-
-  if (priv->mode != REGVAL_MODESEL_MON)
-    {
-      return -EPERM;
-    }
-
-  /* Set MONI_REFRESH */
-
-  isx012_putreg(priv, INTCLR0, CM_CHANGED_STS, 1);
-  ret = isx012_putreg(priv, MONI_REFRESH, 1, 1);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  /* Wait CM_CHANGED */
-
-  ret = isx012_chk_int_state(priv, CM_CHANGED_STS,
-                                   CAMERA_MODE_DELAY_TIME,
-                                   CAMERA_MODE_WAIT_TIME,
-                                   CAMERA_MODE_TIMEOUT);
-  if (ret != 0)
-    {
-      return ret;
-    }
-
-  /* Invalid frame skip */
-
-  isx012_putreg(priv, INTCLR0, VINT_STS, 1);
-  mask_num = isx012_getreg(priv, RO_MASK_NUM, sizeof(mask_num));
-  for (i = 0; i < mask_num; i++)
-    {
-      /* Wait Next VINT */
-
-      ret = isx012_chk_int_state(priv, VINT_STS, VINT_DELAY_TIME,
-                                       VINT_WAIT_TIME, VINT_TIMEOUT);
-      if (ret != 0)
-        {
-          return ret;
-        }
-    }
-
-  return OK;
 }
 
 static int isx012_set_shd(FAR isx012_dev_t *priv)
@@ -4748,7 +2887,8 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int isx012_register(FAR struct i2c_master_s *i2c)
+
+int isx012_initialize(FAR struct i2c_master_s *i2c)
 {
   FAR struct isx012_dev_s *priv = &g_isx012_private;
 
@@ -4758,25 +2898,15 @@ int isx012_register(FAR struct i2c_master_s *i2c)
   priv->i2c_addr   = ISX012_I2C_SLV_ADDR;
   priv->i2c_freq   = I2CFREQ_STANDARD;
 
+  /* Regiser image sensor operations variable */
+
+  imgsensor_register(&g_isx012_ops);
+
   /* Initialize other information */
 
   priv->state      = STATE_ISX012_POWEROFF;
 
   return OK;
-}
-
-int isx012_unregister(void)
-{
-  /* no procedure */
-
-  return OK;
-}
-
-FAR struct video_sensctrl_ops_s *isx012_initialize(void)
-{
-  /* return address of image senser device operations variable */
-
-  return &g_isx012_sensctrl_ops;
 }
 
 int isx012_uninitialize(void)

@@ -225,6 +225,14 @@ extern "C"
 
 #define V4L2_PIX_FMT_JPEG_WITH_SUBIMG v4l2_fourcc('J', 'S', 'U', 'B')
 
+/* YUV 4:2:2 for sub image */
+
+#define V4L2_PIX_FMT_SUBIMG_UYVY v4l2_fourcc('S', 'Y', 'U', 'V')
+
+/* RGB565 for sub image */
+
+#define V4L2_PIX_FMT_SUBIMG_RGB565 v4l2_fourcc('S', 'R', 'G', 'B')
+
 /* MAX length of v4l2_fmtdesc description string */
 
 #define V4L2_FMT_DSC_MAX       (32)
@@ -244,6 +252,7 @@ extern "C"
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
 /* Buffer type.
  *  Currently, support only V4L2_BUF_TYPE_VIDEO_CAPTURE and
  *  V4L2_BUF_TYPE_STILL_CAPTURE.
@@ -379,7 +388,6 @@ struct v4l2_fmtdesc
   uint32_t flags;
   char     description[V4L2_FMT_DSC_MAX];   /* Description string */
   uint32_t pixelformat;                     /* Format fourcc      */
-  uint32_t subimg_pixelformat;              /* Format fourcc      */
 };
 
 enum v4l2_frmsizetypes
@@ -411,33 +419,16 @@ struct v4l2_frmsizeenum
   uint32_t  buf_type;           /* enum #v4l2_buf_type */
   uint32_t  pixel_format;       /* Pixel format */
   uint32_t  type;               /* Frame size type the device supports. */
-  union
-  {                             /* Frame size */
-    struct v4l2_frmsize_discrete discrete; /* Use in type =
-                                            *    V4L2_FRMSIZE_TYPE_DISCRETE
-                                            *    case
-                                            */
-    struct v4l2_frmsize_stepwise stepwise; /* Use in type =
-                                            *    V4L2_FRMSIZE_TYPE_CONTINUOUS
-                                            *    or V4L2_FRMSIZE_TYPE_STEPWISE
-                                            *    case
-                                            */
-  };
-  uint32_t  subimg_pixel_format; /* Pixel format of sub image */
-  uint32_t  subimg_type;         /* Frame size type of subimage. */
+
+  /* In type == V4L2_FRMSIZE_TYPE_DISCRETE case, use discrete.
+   * Otherwise, use stepwise.
+   */
 
   union
-    {                            /* Frame size of subimage */
-    struct v4l2_frmsize_discrete discrete; /* Use in subimg_type =
-                                            *    V4L2_FRMSIZE_TYPE_DISCRETE
-                                            *    case
-                                            */
-    struct v4l2_frmsize_stepwise stepwise; /* Use in subimg_type =
-                                            *    V4L2_FRMSIZE_TYPE_CONTINUOUS
-                                            *    or V4L2_FRMSIZE_TYPE_STEPWISE
-                                            *    case
-                                            */
-    } subimg;
+  {
+    struct v4l2_frmsize_discrete discrete;
+    struct v4l2_frmsize_stepwise stepwise;
+  };
 };
 
 /* type of frame interval enumeration */
@@ -473,9 +464,6 @@ struct v4l2_frmivalenum
   uint32_t pixel_format;        /* Pixel format */
   uint16_t width;               /* Frame width */
   uint16_t height;              /* Frame height */
-  uint32_t subimg_pixel_format; /* Pixel format for sub image */
-  uint16_t subimg_width;        /* Frame width  for sub image */
-  uint16_t subimg_height;       /* Frame height for sub image */
   uint32_t type;                /* Frame interval type */
   union
   {                             /* Frame interval */
@@ -491,9 +479,6 @@ struct v4l2_pix_format
   uint16_t  width;              /* Image width in pixels */
   uint16_t  height;             /* Image height in pixels */
   uint32_t  pixelformat;        /* The pixel format  or type of compression. */
-  uint16_t  subimg_width;       /* sub image width in pixels in case of pixelformat = V4L2_PIX_FMT_JPEG_WITH_SUBIMG */
-  uint16_t  subimg_height;      /* sub image height in pixels in case of pixelformat = V4L2_PIX_FMT_JPEG_WITH_SUBIMG */
-  uint32_t  subimg_pixelformat; /* The pixel format of sub image in case of pixelformat = V4L2_PIX_FMT_JPEG_WITH_SUBIMG */
   uint32_t  field;              /* enum #v4l2_field */
   uint32_t  bytesperline;       /* for padding, zero if unused */
   uint32_t  sizeimage;          /* Size in bytes of the buffer to hold a complete image */
@@ -602,7 +587,7 @@ struct v4l2_querymenu
     char    name[32];       /* name of menu  */
     int64_t value;          /* value of menu */
   };
-} __attribute__ ((packed));
+};
 
 struct v4l2_control
 {
@@ -628,7 +613,7 @@ struct v4l2_ext_control
     uint32_t *p_u32;   /* QUERY_EXT_CTRL type = U32 */
     void     *ptr;
   };
-} __attribute__ ((packed));
+};
 
 struct v4l2_ext_controls
 {
@@ -665,9 +650,6 @@ struct v4s_querymenu_scene
   enum v4l2_scene_mode       mode;     /* scene mode to be queried */
   struct v4l2_querymenu      menu;     /* same as VIDIOC_QUERYMENU */
 };
-
-extern FAR const struct video_sensctrl_ops_s *g_video_sensctrl_ops;
-extern FAR const struct video_imgdata_ops_s  *g_video_imgdata_ops;
 
 /****************************************************************************
  * Public Function Prototypes
