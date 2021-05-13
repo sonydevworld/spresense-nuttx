@@ -800,7 +800,7 @@ static int video_dqbuf(FAR struct video_mng_s *vmng,
               leave_critical_section(flags);
             }
 
-          nxsem_wait(dqbuf_wait_flg);
+          nxsem_wait_uninterruptible(dqbuf_wait_flg);
         }
       while (type_inf->wait_dma.waitend_cause ==
                    VIDEO_WAITEND_CAUSE_STILLSTOP);
