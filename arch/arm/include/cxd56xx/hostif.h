@@ -1,7 +1,7 @@
 /****************************************************************************
- * arch/arm/src/cxd56xx/cxd56_gnss.h
+ * arch/arm/include/cxd56xx/hostif.h
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   Copyright 2021 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,20 +33,59 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_CXD56XX_CXD56_GNSS_H
-#define __ARCH_ARM_SRC_CXD56XX_CXD56_GNSS_H
+#ifndef __ARCH_ARM_INCLUDE_CXD56XX_HOSTIF_H
+#define __ARCH_ARM_INCLUDE_CXD56XX_HOSTIF_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
-#include <debug.h>
+#include <stdint.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+/* Host interface maximum number of buffers */
+
+#define MAX_BUFFER_NUM 32
+
+/* Host interface buffer attributes */
+
+#define HOSTIF_BUFF_ATTR_ADDR_OFFSET(n) (((n) & 0x3) << 4)
+                                           /* 2 to the power of n */
+#define HOSTIF_BUFF_ATTR_FIXLEN   (0 << 2) /* fixed length */
+#define HOSTIF_BUFF_ATTR_VARLEN   (1 << 2) /* variable length */
+#define HOSTIF_BUFF_ATTR_WRITE    (0 << 1) /* from target to host */
+#define HOSTIF_BUFF_ATTR_READ     (1 << 1) /* from host to target */
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+/* Common buffer configuration */
+
+struct hostif_buff_s
+{
+  uint16_t size;
+  uint16_t flag;
+};
+
+/* I2C buffer configuration */
+
+struct hostif_i2cconf_s
+{
+  int                  address; /* slave address */
+  struct hostif_buff_s buff[MAX_BUFFER_NUM];
+};
+
+/* SPI buffer configuration */
+
+struct hostif_spiconf_s
+{
+  struct hostif_buff_s buff[MAX_BUFFER_NUM];
+};
 
 #ifndef __ASSEMBLY__
 
@@ -59,50 +98,54 @@ extern "C"
 #define EXTERN extern
 #endif
 
-/* GNSS specific debug */
-
-#ifdef CONFIG_CXD56_GNSS_DEBUG_ERROR
-#  define gnsserr(fmt, ...)   _err(fmt, ## __VA_ARGS__)
-#else
-#  define gnsserr(fmt, ...)
-#endif
-
-#ifdef CONFIG_CXD56_GNSS_DEBUG_WARN
-#  define gnsswarn(fmt, ...)  _warn(fmt, ## __VA_ARGS__)
-#else
-#  define gnsswarn(fmt, ...)
-#endif
-
-#ifdef CONFIG_CXD56_GNSS_DEBUG_INFO
-#  define gnssinfo(fmt, ...)  _info(fmt, ## __VA_ARGS__)
-#else
-#  define gnssinfo(fmt, ...)
-#endif
-
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Name: cxd56_gnssinitialize
+ * Name: hostif_i2cinitialize
  *
  * Description:
- *   Initialize GNSS device
+ *   Initialize the host interface for I2C slave
  *
- * Input Parameters:
- *   devpath - The full path to the driver to register. E.g., "/dev/gps"
+ * Input Parameter:
+ *   config - pointer to I2C buffer configuration
  *
  * Returned Value:
- *   Zero (OK) on success; a negated errno value on failure.
+ *   Return 0 on success. Otherwise, return a negated errno.
  *
  ****************************************************************************/
 
-int cxd56_gnssinitialize(FAR const char *devpath);
+int hostif_i2cinitialize(FAR struct hostif_i2cconf_s *config);
 
-#undef EXTERN
-#if defined(__cplusplus)
-}
-#endif
+/****************************************************************************
+ * Name: hostif_spiinitialize
+ *
+ * Description:
+ *   Initialize the host interface for SPI slave
+ *
+ * Input Parameter:
+ *   config - pointer to SPI buffer configuration
+ *
+ * Returned Value:
+ *   Return 0 on success. Otherwise, return a negated errno.
+ *
+ ****************************************************************************/
+
+int hostif_spiinitialize(FAR struct hostif_spiconf_s *config);
+
+/****************************************************************************
+ * Name: hostif_uninitialize
+ *
+ * Description:
+ *   Uninitialize the host interface
+ *
+ * Returned Value:
+ *   Return 0 on success. Otherwise, return a negated errno.
+ *
+ ****************************************************************************/
+
+int hostif_uninitialize(void);
 
 #endif /* __ASSEMBLY__ */
-#endif /* __ARCH_ARM_SRC_CXD56XX_CXD56_GNSS_H */
+#endif /* __ARCH_ARM_INCLUDE_CXD56XX_HOSTIF_H */
