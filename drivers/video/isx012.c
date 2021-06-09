@@ -793,6 +793,10 @@ static int isx012_replace_fmt_to_regval(uint8_t nr_fmt,
         ret = REGVAL_OUTFMT_YUV;
         break;
 
+      case IMGSENSOR_PIX_FMT_RGB565:
+        ret = REGVAL_OUTFMT_RGB;
+        break;
+
       case IMGSENSOR_PIX_FMT_JPEG:
         ret = REGVAL_OUTFMT_JPEG;
         break;
@@ -821,7 +825,8 @@ static bool is_movie_needed(uint8_t fmt, uint8_t fps)
 {
   bool need = true;
 
-  if (fmt == IMGSENSOR_PIX_FMT_UYVY)
+  if ((fmt == IMGSENSOR_PIX_FMT_UYVY) ||
+      (fmt == IMGSENSOR_PIX_FMT_RGB565))
     {
       if (fps >= REGVAL_FPSTYPE_30FPS)   /* This means fps <= 30 */
         {
@@ -1318,6 +1323,7 @@ static int8_t isx012_get_maximum_fps(uint8_t nr_fmt,
   switch (fmt[IMGSENSOR_FMT_MAIN].pixelformat)
     {
       case IMGSENSOR_PIX_FMT_UYVY:                /* YUV 4:2:2 */
+      case IMGSENSOR_PIX_FMT_RGB565:              /* RGB565 */
 
         if ((main_w < OUT_YUV_HSIZE_MIN) ||
             (main_h < OUT_YUV_VSIZE_MIN) ||
