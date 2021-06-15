@@ -34,12 +34,12 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/i2c/i2c_master.h>
 #include <arch/board/board.h>
-#include <arch/chip/cisif.h>
+#include <arch/chip/cxd56_cisif.h>
 #include <arch/irq.h>
 
 #include <nuttx/video/isx012.h>
-#include <nuttx/video/isx012_reg.h>
-#include <nuttx/video/isx012_range.h>
+#include "isx012_reg.h"
+#include "isx012_range.h"
 #include <nuttx/video/video_halif.h>
 
 /****************************************************************************
