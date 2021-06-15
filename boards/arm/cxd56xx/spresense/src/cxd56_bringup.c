@@ -109,6 +109,10 @@
 #  include <nuttx/video/fb.h>
 #endif
 
+#ifdef CONFIG_CXD56_CISIF
+#  include <arch/chip/cisif.h>
+#endif
+
 #include "spresense.h"
 
 /****************************************************************************
@@ -191,9 +195,6 @@ int cxd56_bringup(void)
 {
   struct pm_cpu_wakelock_s wlock;
   int ret;
-#ifdef CONFIG_VIDEO_ISX012
-  FAR const struct video_devops_s *devops;
-#endif
 
   ret = nsh_cpucom_initialize();
   if (ret < 0)
@@ -375,22 +376,18 @@ int cxd56_bringup(void)
   ret = board_isx012_initialize(IMAGER_I2C);
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialize ISX012 board. %d\n", ret);
+      _err("ERROR: Failed to initialize ISX012 board. %d\n", errno);
     }
+#endif /* CONFIG_VIDEO_ISX012 */
 
-  devops  = isx012_initialize();
-  if (devops == NULL)
-    {
-      _err("ERROR: Failed to populate ISX012 devops. %d\n", ret);
-    }
-
-  ret = video_register_lhalf(devops);
+#ifdef CONFIG_CXD56_CISIF
+  ret = cxd56_cisif_initialize();
   if (ret < 0)
     {
-       _err("ERROR: Video lower half register failed.\n");
+      _err("ERROR: Failed to initialize CISIF. %d\n", errno);
+      ret = ERROR;
     }
-
-#endif /* CONFIG_VIDEO_ISX012 */
+#endif /* CONFIG_CXD56_CISIF */
 
 #if defined(CONFIG_CXD56_SDIO)
   /* In order to prevent Hi-Z from being input to the SD Card controller,
