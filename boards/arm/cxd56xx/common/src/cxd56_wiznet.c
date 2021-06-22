@@ -136,7 +136,7 @@ static void wiznet_irq_attach(bool attach, xcpt_t handler, FAR void *arg)
 
 static void wiznet_irq_enable(bool enable)
 {
-  irqstate_t flags = spin_lock_irqsave();
+  irqstate_t flags = spin_lock_irqsave(NULL);
 
   if (enable)
     {
