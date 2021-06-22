@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_wdt.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,6 +28,7 @@
 #endif
 #include <nuttx/arch.h>
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <errno.h>
 
@@ -50,7 +36,7 @@
 #include <nuttx/timers/watchdog.h>
 #include <arch/board/board.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "cxd56_clock.h"
 #include "cxd56_wdt.h"
 #include "cxd56_powermgr.h"
@@ -76,6 +62,7 @@
 /****************************************************************************
  * Private Types
  ****************************************************************************/
+
 /* This structure provides the private representation of the "lower-half"
  * driver state structure.  This structure must be cast-compatible with the
  * well-known watchdog_lowerhalf_s structure.
@@ -175,8 +162,8 @@ static uint32_t cxd56_getreg(uintptr_t regaddr)
 
   uint32_t regval = getreg32(regaddr);
 
-  /* Is this the same value that we read from the same register last time?  Are
-   * we polling the register?  If so, suppress some of the output.
+  /* Is this the same value that we read from the same register last time?
+   * Are we polling the register? If so, suppress some of the output.
    */
 
   if (regaddr == prevaddr && regval == preval)
@@ -282,8 +269,8 @@ static int cxd56_wdtinterrupt(int irq, FAR void *context, FAR void *arg)
  *   Start the watchdog timer, resetting the time to the current timeout,
  *
  * Input Parameters:
- *   lower - A pointer the publicly visible representation of the "lower-half"
- *           driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *
  * Returned Values:
  *   Zero on success; a negated errno value on failure.
@@ -311,8 +298,8 @@ static int cxd56_start(FAR struct watchdog_lowerhalf_s *lower)
  *   Stop the watchdog timer
  *
  * Input Parameters:
- *   lower - A pointer the publicly visible representation of the "lower-half"
- *           driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *
  * Returned Values:
  *   Zero on success; a negated errno value on failure.
@@ -339,8 +326,8 @@ static int cxd56_stop(FAR struct watchdog_lowerhalf_s *lower)
  *   the atchdog timer or "petting the dog".
  *
  * Input Parameters:
- *   lower - A pointer the publicly visible representation of the "lower-half"
- *           driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *
  * Returned Values:
  *   Zero on success; a negated errno value on failure.
@@ -410,9 +397,9 @@ static int cxd56_getstatus(FAR struct watchdog_lowerhalf_s *lower,
     }
 
   wdinfo("Status     :\n");
-  wdinfo("  flags    : %08x\n", status->flags);
-  wdinfo("  timeout  : %d\n", status->timeout);
-  wdinfo("  timeleft : %d\n", status->timeleft);
+  wdinfo("  flags    : %08" PRIx32 "\n", status->flags);
+  wdinfo("  timeout  : %" PRId32 "\n", status->timeout);
+  wdinfo("  timeleft : %" PRId32 "\n", status->timeleft);
   return OK;
 }
 
@@ -441,7 +428,7 @@ static int cxd56_settimeout(FAR struct watchdog_lowerhalf_s *lower,
   uint64_t llreload;
 
   DEBUGASSERT(priv);
-  wdinfo("Entry: timeout=%d\n", timeout);
+  wdinfo("Entry: timeout=%" PRId32 "\n", timeout);
 
   if ((timeout == 0) || (timeout > WDT_MAX_TIMEOUT))
     {
@@ -481,7 +468,8 @@ static int cxd56_settimeout(FAR struct watchdog_lowerhalf_s *lower,
 
   priv->reload = reload;
 
-  wdinfo("reload=%u timeout: %d->%d\n", reload, timeout, priv->timeout);
+  wdinfo("reload=%" PRIu32 " timeout: %" PRId32 "->%" PRId32 "\n",
+         reload, timeout, priv->timeout);
 
   /* Set the WDT register according to calculated value */
 
@@ -568,8 +556,8 @@ static xcpt_t cxd56_capture(FAR struct watchdog_lowerhalf_s *lower,
  *   are forwarded to the lower half driver through this method.
  *
  * Input Parameters:
- *   lower - A pointer the publicly visible representation of the "lower-half"
- *           driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *   cmd   - The ioctol command value
  *   arg   - The optional argument that accompanies the 'cmd'.  The
  *           interpretation of this argument depends on the particular
@@ -619,9 +607,9 @@ static int cxd56_pm_event(uint8_t id)
 
       case CXD56_PM_CALLBACK_ID_CLK_CHG_END:
       case CXD56_PM_CALLBACK_ID_HOT_BOOT:
-        /* If watchdog has been already running before the clock is changed or
-         * entering in hot sleep , re-start the watchdog  timer with a timeout
-         * value based on the new watchdog timer clock.
+        /* If watchdog has been already running before the clock is changed
+         * or entering in hot sleep, re-start the watchdog timer with a
+         * timeout value based on the new watchdog timer clock.
          */
 
         if (priv->started)
@@ -634,6 +622,7 @@ static int cxd56_pm_event(uint8_t id)
       default:
         break;
     }
+
   return 0;
 }
 

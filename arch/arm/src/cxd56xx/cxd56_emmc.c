@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_emmc.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,7 +38,7 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "cxd56_clock.h"
 #include "cxd56_emmc.h"
 #include "hardware/cxd56_emmc.h"
@@ -118,12 +103,13 @@ struct cxd56_emmc_state_s
 static int       cxd56_emmc_open(FAR struct inode *inode);
 static int       cxd56_emmc_close(FAR struct inode *inode);
 static ssize_t   cxd56_emmc_read(FAR struct inode *inode,
-                                 unsigned char *buffer, size_t start_sector,
+                                 unsigned char *buffer,
+                                 blkcnt_t start_sector,
                                  unsigned int nsectors);
 #if !defined(CONFIG_MMCSD_READONLY)
 static ssize_t   cxd56_emmc_write(FAR struct inode *inode,
                                   const unsigned char *buffer,
-                                  size_t start_sector,
+                                  blkcnt_t start_sector,
                                   unsigned int nsectors);
 #endif
 static int       cxd56_emmc_geometry(FAR struct inode *inode,
@@ -155,9 +141,9 @@ struct cxd56_emmc_state_s g_emmcdev;
  * Private Functions
  ****************************************************************************/
 
-static void emmc_takesem(FAR sem_t *sem)
+static int emmc_takesem(FAR sem_t *sem)
 {
-  nxsem_wait_uninterruptible(sem);
+  return nxsem_wait_uninterruptible(sem);
 }
 
 static void emmc_givesem(FAR sem_t *sem)
@@ -363,7 +349,7 @@ static int emmc_checkresponse(void)
 
   if (resp & R1STATUS_ALL_ERR)
     {
-      ferr("Response error %08x\n", resp);
+      ferr("Response error %08" PRIx32 "\n", resp);
       return -EIO;
     }
 
@@ -377,6 +363,7 @@ static void emmc_send(int datatype, uint32_t opcode, uint32_t arg,
   uint32_t mask;
   uint32_t cmd;
   uint32_t status;
+  int ret;
 
   /* Get current interrupt mask, leave SDIO relative bits. */
 
@@ -440,7 +427,11 @@ static void emmc_send(int datatype, uint32_t opcode, uint32_t arg,
 
   /* Wait for command or data transfer done */
 
-  emmc_takesem(&g_waitsem);
+  ret = emmc_takesem(&g_waitsem);
+  if (ret < 0)
+    {
+      return;
+    }
 
   /* Restore interrupt mask */
 
@@ -708,7 +699,12 @@ static int cxd56_emmc_readsectors(FAR struct cxd56_emmc_state_s *priv,
       return -ENOMEM;
     }
 
-  emmc_takesem(&priv->excsem);
+  ret = emmc_takesem(&priv->excsem);
+  if (ret < 0)
+    {
+      kmm_free(descs);
+      return ret;
+    }
 
   putreg32(nsectors * SECTOR_SIZE, EMMC_BYTCNT);
   emmc_send(EMMC_NON_DATA, SET_BLOCK_COUNT, nsectors, EMMC_RESP_R1);
@@ -739,7 +735,7 @@ static int cxd56_emmc_readsectors(FAR struct cxd56_emmc_state_s *priv,
   if (idsts &
       (EMMC_IDSTS_FBE | EMMC_IDSTS_DU | EMMC_IDSTS_CES | EMMC_IDSTS_AIS))
     {
-      ferr("DMA status failed. %08x\n", idsts);
+      ferr("DMA status failed. %08" PRIx32 "\n", idsts);
       ret = -EIO;
     }
 
@@ -752,7 +748,7 @@ finish:
 
 #if !defined(CONFIG_MMCSD_READONLY)
 static int cxd56_emmc_writesectors(FAR struct cxd56_emmc_state_s *priv,
-                                   const void *buf, size_t start_sector,
+                                   const void *buf, blkcnt_t start_sector,
                                    unsigned int nsectors)
 {
   struct emmc_dma_desc_s *descs;
@@ -765,7 +761,12 @@ static int cxd56_emmc_writesectors(FAR struct cxd56_emmc_state_s *priv,
       return -ENOMEM;
     }
 
-  emmc_takesem(&priv->excsem);
+  ret = emmc_takesem(&priv->excsem);
+  if (ret < 0)
+    {
+      kmm_free(descs);
+      return ret;
+    }
 
   putreg32(nsectors * SECTOR_SIZE, EMMC_BYTCNT);
   emmc_send(EMMC_NON_DATA, SET_BLOCK_COUNT, nsectors, EMMC_RESP_R1);
@@ -797,7 +798,7 @@ static int cxd56_emmc_writesectors(FAR struct cxd56_emmc_state_s *priv,
   if (idsts &
       (EMMC_IDSTS_FBE | EMMC_IDSTS_DU | EMMC_IDSTS_CES | EMMC_IDSTS_AIS))
     {
-      ferr("DMA status error. %08x\n", idsts);
+      ferr("DMA status error. %08" PRIx32 "\n", idsts);
       ret = -EIO;
     }
 
@@ -825,13 +826,19 @@ finish:
 static int cxd56_emmc_open(FAR struct inode *inode)
 {
   FAR struct cxd56_emmc_state_s *priv;
+  int ret;
 
   DEBUGASSERT(inode && inode->i_private);
   priv = (FAR struct cxd56_emmc_state_s *)inode->i_private;
 
   /* Just increment the reference count on the driver */
 
-  emmc_takesem(&priv->excsem);
+  ret = emmc_takesem(&priv->excsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   priv->crefs++;
   emmc_givesem(&priv->excsem);
   return OK;
@@ -840,6 +847,7 @@ static int cxd56_emmc_open(FAR struct inode *inode)
 static int cxd56_emmc_close(FAR struct inode *inode)
 {
   FAR struct cxd56_emmc_state_s *priv;
+  int ret;
 
   DEBUGASSERT(inode && inode->i_private);
   priv = (FAR struct cxd56_emmc_state_s *)inode->i_private;
@@ -847,14 +855,19 @@ static int cxd56_emmc_close(FAR struct inode *inode)
   /* Decrement the reference count on the block driver */
 
   DEBUGASSERT(priv->crefs > 0);
-  emmc_takesem(&priv->excsem);
+  ret = emmc_takesem(&priv->excsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   priv->crefs--;
   emmc_givesem(&priv->excsem);
   return OK;
 }
 
 static ssize_t cxd56_emmc_read(FAR struct inode *inode,
-                               unsigned char *buffer, size_t start_sector,
+                               unsigned char *buffer, blkcnt_t start_sector,
                                unsigned int nsectors)
 {
   FAR struct cxd56_emmc_state_s *priv;
@@ -863,7 +876,7 @@ static ssize_t cxd56_emmc_read(FAR struct inode *inode,
   DEBUGASSERT(inode && inode->i_private);
   priv = (FAR struct cxd56_emmc_state_s *)inode->i_private;
 
-  finfo("Read sector %d (%d sectors) to %p\n",
+  finfo("Read sector %" PRIu32 " (%u sectors) to %p\n",
         start_sector, nsectors, buffer);
 
   ret = cxd56_emmc_readsectors(priv, buffer, start_sector, nsectors);
@@ -879,7 +892,7 @@ static ssize_t cxd56_emmc_read(FAR struct inode *inode,
 #if !defined(CONFIG_MMCSD_READONLY)
 static ssize_t cxd56_emmc_write(FAR struct inode *inode,
                                 const unsigned char *buffer,
-                                size_t start_sector,
+                                blkcnt_t start_sector,
                                 unsigned int nsectors)
 {
   FAR struct cxd56_emmc_state_s *priv;
@@ -888,7 +901,7 @@ static ssize_t cxd56_emmc_write(FAR struct inode *inode,
   DEBUGASSERT(inode && inode->i_private);
   priv = (FAR struct cxd56_emmc_state_s *)inode->i_private;
 
-  finfo("Write %p to sector %d (%d sectors)\n", buffer,
+  finfo("Write %p to sector %" PRIu32 " (%u sectors)\n", buffer,
         start_sector, nsectors);
 
   ret = cxd56_emmc_writesectors(priv, buffer, start_sector, nsectors);
@@ -923,10 +936,6 @@ static int cxd56_emmc_geometry(FAR struct inode *inode,
   return OK;
 }
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
 int cxd56_emmcinitialize(void)
 {
   FAR struct cxd56_emmc_state_s *priv;
@@ -939,7 +948,7 @@ int cxd56_emmcinitialize(void)
   memset(priv, 0, sizeof(struct cxd56_emmc_state_s));
   nxsem_init(&priv->excsem, 0, 1);
   nxsem_init(&g_waitsem, 0, 0);
-  nxsem_setprotocol(&g_waitsem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&g_waitsem, SEM_PRIO_NONE);
 
   ret = emmc_hwinitialize();
   if (ret != OK)
@@ -977,6 +986,10 @@ int cxd56_emmcinitialize(void)
 
   return OK;
 }
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
 
 int emmc_uninitialize(void)
 {

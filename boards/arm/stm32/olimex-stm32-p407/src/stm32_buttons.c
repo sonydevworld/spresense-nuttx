@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32/olimex-stm32-p407/src/stm32_buttons.c
  *
- *   Copyright (C) 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -56,19 +41,27 @@
  * Private Data
  ****************************************************************************/
 
-/* Pin configuration for each STM32F4 Discovery button.  This array is indexed by
- * the BUTTON_* definitions in board.h
+/* Pin configuration for each STM32F4 Discovery button. This array is indexed
+ * by the BUTTON_* definitions in board.h
  */
 
 static const uint32_t g_buttons[NUM_BUTTONS] =
 {
   GPIO_BTN_TAMPER,
   GPIO_BTN_WKUP,
-  GPIO_BTN_RIGHT,
-  GPIO_BTN_UP,
-  GPIO_BTN_LEFT,
-  GPIO_BTN_DOWN,
-  GPIO_BTN_CENTER
+
+  /* The Joystick is treated like the other buttons unless
+   * CONFIG_INPUT_DJOYSTICK is defined, then it is assumed that they should
+   * be used by the discrete joystick driver.
+   */
+
+#ifndef CONFIG_INPUT_DJOYSTICK
+  GPIO_JOY_RIGHT,
+  GPIO_JOY_UP,
+  GPIO_JOY_LEFT,
+  GPIO_JOY_DOWN,
+  GPIO_JOY_CENTER
+#endif
 };
 
 /****************************************************************************
@@ -79,14 +72,14 @@ static const uint32_t g_buttons[NUM_BUTTONS] =
  * Name: board_button_initialize
  *
  * Description:
- *   board_button_initialize() must be called to initialize button resources.  After
- *   that, board_buttons() may be called to collect the current state of all
- *   buttons or board_button_irq() may be called to register button interrupt
- *   handlers.
+ *   board_button_initialize() must be called to initialize button resources.
+ *   After that, board_buttons() may be called to collect the current state
+ *   of all buttons or board_button_irq() may be called to register button
+ *   interrupt handlers.
  *
  ****************************************************************************/
 
-void board_button_initialize(void)
+uint32_t board_button_initialize(void)
 {
   int i;
 
@@ -98,6 +91,8 @@ void board_button_initialize(void)
     {
       stm32_configgpio(g_buttons[i]);
     }
+
+  return NUM_BUTTONS;
 }
 
 /****************************************************************************
@@ -120,30 +115,32 @@ uint32_t board_buttons(void)
       ret |= BUTTON_WKUP_BIT;
     }
 
-  if (stm32_gpioread(g_buttons[BUTTON_RIGHT]))
+#ifndef CONFIG_INPUT_DJOYSTICK
+  if (stm32_gpioread(g_buttons[JOYSTICK_RIGHT]))
     {
-      ret |= BUTTON_RIGHT_BIT;
+      ret |= JOYSTICK_RIGHT_BIT;
     }
 
-  if (stm32_gpioread(g_buttons[BUTTON_UP]))
+  if (stm32_gpioread(g_buttons[JOYSTICK_UP]))
     {
-      ret |= BUTTON_UP_BIT;
+      ret |= JOYSTICK_UP_BIT;
     }
 
-  if (stm32_gpioread(g_buttons[BUTTON_LEFT]))
+  if (stm32_gpioread(g_buttons[JOYSTICK_LEFT]))
     {
-      ret |= BUTTON_LEFT_BIT;
+      ret |= JOYSTICK_LEFT_BIT;
     }
 
-  if (stm32_gpioread(g_buttons[BUTTON_DOWN]))
+  if (stm32_gpioread(g_buttons[JOYSTICK_DOWN]))
     {
-      ret |= BUTTON_DOWN_BIT;
+      ret |= JOYSTICK_DOWN_BIT;
     }
 
-  if (stm32_gpioread(g_buttons[BUTTON_CENTER]))
+  if (stm32_gpioread(g_buttons[JOYSTICK_CENTER]))
     {
-      ret |= BUTTON_CENTER_BIT;
+      ret |= JOYSTICK_CENTER_BIT;
     }
+#endif
 
   return ret;
 }
@@ -152,20 +149,20 @@ uint32_t board_buttons(void)
  * Button support.
  *
  * Description:
- *   board_button_initialize() must be called to initialize button resources.  After
- *   that, board_buttons() may be called to collect the current state of all
- *   buttons or board_button_irq() may be called to register button interrupt
- *   handlers.
+ *   board_button_initialize() must be called to initialize button resources.
+ *   After that, board_buttons() may be called to collect the current state
+ *   of all buttons or board_button_irq() may be called to register button
+ *   interrupt handlers.
  *
- *   After board_button_initialize() has been called, board_buttons() may be called to
- *   collect the state of all buttons.  board_buttons() returns an 32-bit bit set
- *   with each bit associated with a button.  See the BUTTON_*_BIT
- *   definitions in board.h for the meaning of each bit.
+ *   After board_button_initialize() has been called, board_buttons() may be
+ *   called to collect the state of all buttons.  board_buttons() returns an
+ *   32-bit bit set with each bit associated with a button.  See the
+ *   BUTTON_*_BIT definitions in board.h for the meaning of each bit.
  *
- *   board_button_irq() may be called to register an interrupt handler that will
- *   be called when a button is depressed or released.  The ID value is a
- *   button enumeration value that uniquely identifies a button resource. See the
- *   BUTTON_* definitions in board.h for the meaning of enumeration
+ *   board_button_irq() may be called to register an interrupt handler that
+ *   will be called when a button is depressed or released. The ID value is a
+ *   button enumeration value that uniquely identifies a button resource. See
+ *   the BUTTON_* definitions in board.h for the meaning of enumeration
  *   value.
  *
  ****************************************************************************/
@@ -179,7 +176,8 @@ int board_button_irq(int id, xcpt_t irqhandler, FAR void *arg)
 
   if (id >= MIN_IRQBUTTON && id <= MAX_IRQBUTTON)
     {
-      ret = stm32_gpiosetevent(g_buttons[id], true, true, true, irqhandler, arg);
+      ret = stm32_gpiosetevent(g_buttons[id], true, true, true,
+                               irqhandler, arg);
     }
 
   return ret;

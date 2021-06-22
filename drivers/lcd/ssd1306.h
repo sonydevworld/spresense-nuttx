@@ -1,44 +1,29 @@
-/**************************************************************************************
+/****************************************************************************
  * drivers/lcd/ssd1306.h
  *
- *   Copyright (C) 2015 Alan Carvalho de Assis
- *   Author: Alan Carvalho de Assis <acassis@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- **************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __DRIVERS_LCD_SSD1306_H
-#define __DRIVERS_LCD_SSD1306_H 1
+#define __DRIVERS_LCD_SSD1306_H
 
-/**************************************************************************************
+/****************************************************************************
  * Included Files
- **************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -48,24 +33,18 @@
 #include <nuttx/lcd/lcd.h>
 #include <nuttx/lcd/ssd1306.h>
 
-/**************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- **************************************************************************************/
-/* Configuration **********************************************************************/
+ ****************************************************************************/
+
+/* Configuration ************************************************************/
+
 /* Limitations of the current configuration that I hope to fix someday */
 
-#ifndef CONFIG_SSD1306_NINTERFACES
-#  define CONFIG_SSD1306_NINTERFACES 1
-#endif
-
-#if CONFIG_SSD1306_NINTERFACES != 1
-#  warning "This implementation supports only a single SSD1306 device"
-#  undef CONFIG_SSD1306_NINTERFACES
-#  define CONFIG_SSD1306_NINTERFACES 1
-#endif
-
-#if !defined(CONFIG_LCD_SH1106_OLED_132) && !defined(CONFIG_LCD_UG2864HSWEG01) && \
-    !defined(CONFIG_LCD_UG2832HSWEG04) && !defined(CONFIG_LCD_DD12864WO4A) && \
+#if !defined(CONFIG_LCD_SH1106_OLED_132) && \
+    !defined(CONFIG_LCD_UG2864HSWEG01) && \
+    !defined(CONFIG_LCD_UG2832HSWEG04) && \
+    !defined(CONFIG_LCD_DD12864WO4A) && \
     !defined(CONFIG_LCD_HILETGO)
 #  error "Unknown and unsupported SSD1306 LCD"
 #endif
@@ -79,15 +58,15 @@
 #  undef CONFIG_LCD_RPORTRAIT
 #endif
 
-/**************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- **************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_NX_BGCOLOR
 #  define CONFIG_NX_BGCOLOR SSD1306_Y1_BLACK
 #endif
 
-/* SSD1306 Commands *******************************************************************/
+/* SSD1306 Commands *********************************************************/
 
 #define SSD1306_SETCOLL(ad)      (0x00 | ((ad) & 0x0f)) /* Set Lower Column Address: (00h - 0fh) */
 #define SSD1306_SETCOLH(ad)      (0x10 | ((ad) & 0x0f)) /* Set Higher Column Address: (10h - 1fh) */
@@ -144,11 +123,13 @@
 #define SSD1309_SETMEMORY        (0x20)
 #  define SSD1309_MEMADDR(ma)    ((ma) & 0x03)
 
-/* Color Properties *******************************************************************/
+/* Color Properties *********************************************************/
+
 /* Display Resolution
  *
- * The SSD1306 display controller can handle a resolution of 132x64. The UG-2864HSWEG01
- * on the base board is 128x64; the UG-2832HSWEG04 is 128x32.
+ * The SSD1306 display controller can handle a resolution of 132x64.
+ * The UG-2864HSWEG01 on the base board is 128x64; the UG-2832HSWEG04
+ * is 128x32.
  */
 
 #if defined(CONFIG_LCD_UG2864HSWEG01)
@@ -268,9 +249,9 @@
 #define LS_BIT                    (1 << 0)
 #define MS_BIT                    (1 << 7)
 
-/**************************************************************************************
+/****************************************************************************
  * Public Type Definition
- **************************************************************************************/
+ ****************************************************************************/
 
 /* This structure describes the state of the SSD1306 driver */
 
@@ -292,26 +273,27 @@ struct ssd1306_dev_s
 
   FAR const struct ssd1306_priv_s *board_priv; /* Board specific structure */
 
- /* The SSD1306 does not support reading from the display memory in SPI mode.
-  * Since there is 1 BPP and access is byte-by-byte, it is necessary to keep
-  * a shadow copy of the framebuffer memory. At 128x64, this amounts to 1KB.
-  */
+  /* The SSD1306 does not support reading from the display memory in SPI
+   * mode. Since there is 1 BPP and access is byte-by-byte, it is necessary
+   * to keep a shadow copy of the framebuffer memory. At 128x64, this
+   * amounts to 1 KB.
+   */
 
   uint8_t fb[SSD1306_DEV_FBSIZE];
 };
 
-/**************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- **************************************************************************************/
+ ****************************************************************************/
 
 int ssd1306_sendbyte(FAR struct ssd1306_dev_s *priv, uint8_t regval);
-int ssd1306_sendblk(FAR struct ssd1306_dev_s *priv, uint8_t *data, uint8_t len);
+int ssd1306_sendblk(FAR struct ssd1306_dev_s *priv, uint8_t *data,
+                    uint8_t len);
 
 #ifdef CONFIG_LCD_SSD1306_SPI
 void ssd1306_select(FAR struct ssd1306_dev_s *priv, bool cs);
 void ssd1306_cmddata(FAR struct ssd1306_dev_s *priv, bool cmd);
 void ssd1306_configspi(FAR struct spi_dev_s *spi);
-
 #else
 #  define ssd1306_select(priv, cs)
 #  define ssd1306_cmddata(priv, cmd)
@@ -319,4 +301,3 @@ void ssd1306_configspi(FAR struct spi_dev_s *spi);
 #endif
 
 #endif /* __DRIVERS_LCD_SSD1306_H */
-

@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/renesas/src/m16c/m16c_schedulesigaction.c
  *
- *   Copyright (C) 2009-2010, 2015-2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,7 +36,7 @@
 #include "up_arch.h"
 
 /****************************************************************************
- * Public Funictions
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
@@ -61,7 +46,7 @@
  *   This function is called by the OS when one or more
  *   signal handling actions have been queued for execution.
  *   The architecture specific code must configure things so
- *   that the 'igdeliver' callback is executed on the thread
+ *   that the 'sigdeliver' callback is executed on the thread
  *   specified by 'tcb' as soon as possible.
  *
  *   This function may be called from interrupt handling logic.
@@ -85,17 +70,14 @@
  *       currently executing task -- just call the signal
  *       handler now.
  *
+ * Assumptions:
+ *   Called from critical section
+ *
  ****************************************************************************/
 
 void up_schedule_sigaction(struct tcb_s *tcb, sig_deliver_t sigdeliver)
 {
-  irqstate_t flags;
-
   sinfo("tcb=0x%p sigdeliver=0x%p\n", tcb, sigdeliver);
-
-  /* Make sure that interrupts are disabled */
-
-  flags = enter_critical_section();
 
   /* Refuse to handle nested signal actions */
 
@@ -135,7 +117,7 @@ void up_schedule_sigaction(struct tcb_s *tcb, sig_deliver_t sigdeliver)
 
               tcb->xcp.sigdeliver    = sigdeliver;
               tcb->xcp.saved_pc[0]   = g_current_regs[REG_PC];
-              tcb->xcp.saved_pc[1]   = g_current_regs[REG_PC+1];
+              tcb->xcp.saved_pc[1]   = g_current_regs[REG_PC + 1];
               tcb->xcp.saved_flg     = g_current_regs[REG_FLG];
 
               /* Then set up to vector to the trampoline with interrupts
@@ -143,7 +125,7 @@ void up_schedule_sigaction(struct tcb_s *tcb, sig_deliver_t sigdeliver)
                */
 
               g_current_regs[REG_PC]   = (uint32_t)up_sigdeliver >> 8;
-              g_current_regs[REG_PC+1] = (uint32_t)up_sigdeliver;
+              g_current_regs[REG_PC + 1] = (uint32_t)up_sigdeliver;
               g_current_regs[REG_FLG] &= ~M16C_FLG_I;
 
               /* And make sure that the saved context in the TCB
@@ -169,7 +151,7 @@ void up_schedule_sigaction(struct tcb_s *tcb, sig_deliver_t sigdeliver)
 
           tcb->xcp.sigdeliver     = sigdeliver;
           tcb->xcp.saved_pc[0]    = tcb->xcp.regs[REG_PC];
-          tcb->xcp.saved_pc[1]    = tcb->xcp.regs[REG_PC+1];
+          tcb->xcp.saved_pc[1]    = tcb->xcp.regs[REG_PC + 1];
           tcb->xcp.saved_flg      = tcb->xcp.regs[REG_FLG];
 
           /* Then set up to vector to the trampoline with interrupts
@@ -177,10 +159,8 @@ void up_schedule_sigaction(struct tcb_s *tcb, sig_deliver_t sigdeliver)
            */
 
           tcb->xcp.regs[REG_PC]   = (uint32_t)up_sigdeliver >> 8;
-          tcb->xcp.regs[REG_PC+1] = (uint32_t)up_sigdeliver;
+          tcb->xcp.regs[REG_PC + 1] = (uint32_t)up_sigdeliver;
           tcb->xcp.regs[REG_FLG] &= ~M16C_FLG_I;
         }
     }
-
-  leave_critical_section(flags);
 }

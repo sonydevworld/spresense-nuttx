@@ -2,8 +2,8 @@ README
 ======
 
 README for NuttX port to the Tiva TM4C123G LaunchPad.  The Tiva TM4C123G
-LaunchPad Evaluation Board is a low-cost evaluation platform for ARM®
-Cortex™-M4F-based microcontrollers from Texas Instruments.
+LaunchPad Evaluation Board is a low-cost evaluation platform for ARM
+Cortex-M4F-based microcontrollers from Texas Instruments.
 
 Contents
 ========
@@ -147,7 +147,7 @@ AT24 Serial EEPROM
   2014-12-12:  I was unsuccessful getting my AT24 module to work on the TM4C123G
     LaunchPad.  I was unable to successuflly communication with the AT24 via
     I2C.  I did verify I2C using the I2C tool and other I2C devices and I now
-    belive that my AT24 module is not fully functional.
+    believe that my AT24 module is not fully functional.
 
 I2C Tool
 ========
@@ -184,12 +184,12 @@ I2C Tool
     Where <cmd> is one of:
 
       Show help     : ?
-      List busses   : bus
+      List buses    : bus
       List devices  : dev [OPTIONS] <first> <last>
-      Read register : get [OPTIONS] [<repititions>]
+      Read register : get [OPTIONS] [<repetitions>]
       Show help     : help
-      Write register: set [OPTIONS] <value> [<repititions>]
-      Verify access : verf [OPTIONS] [<value>] [<repititions>]
+      Write register: set [OPTIONS] <value> [<repetitions>]
+      Verify access : verf [OPTIONS] [<value>] [<repetitions>]
 
     Where common "sticky" OPTIONS include:
       [-a addr] is the I2C device address (hex).  Default: 03 Current: 03
@@ -197,7 +197,7 @@ I2C Tool
       [-r regaddr] is the I2C device register address (hex).  Default: 00 Current: 00
       [-w width] is the data width (8 or 16 decimal).  Default: 8 Current: 8
       [-s|n], send/don't send start between command and data.  Default: -n Current: -n
-      [-i|j], Auto increment|don't increment regaddr on repititions.  Default: NO Current: NO
+      [-i|j], Auto increment|don't increment regaddr on repetitions.  Default: NO Current: NO
       [-f freq] I2C frequency.  Default: 100000 Current: 100000
 
     NOTES:
@@ -385,7 +385,7 @@ Serial Console
     UART1_CTS - PF.1 or PC.5
 
   NOTE: board.h currently selects PB.0, PB.1, PF.0 and PF.1 for UART1, but
-  that can be changed by editting board.h
+  that can be changed by editing board.h
 
   UART2-5, 7 are also available, UART2 is not recommended because it shares
   some pin usage with USB device mode.  UART6 is not available because its
@@ -453,7 +453,7 @@ MCP2515 - SPI - CAN
 
   I like CANbus, and having an MCP2515 CAN Bus Module laying around
   gave me the idea to implement it on the TM4C123GXL (Launchpad).
-  Nuttx already had implemented it on the STM32. So a lot of work already
+  NuttX already had implemented it on the STM32. So a lot of work already
   has been done. It uses SPI and with this Launchpad we use SSI.
 
   Here is how I have the MCP2515 Module connected. But you can change
@@ -613,7 +613,7 @@ Where <subdir> is one of the following:
        b. Execute 'make menuconfig' in nuttx/ in order to start the
           reconfiguration process.
 
-    2. By default, this configuration uses the CodeSourcery toolchain
+    2. By default, this configuration uses the ARM EABI toolchain
        for Windows and builds under Cygwin (or probably MSYS).  That
        can easily be reconfigured, of course.
 

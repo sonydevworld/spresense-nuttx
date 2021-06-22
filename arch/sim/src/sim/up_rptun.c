@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/sim/src/sim/up_rptun.c
  *
- *   Copyright (C) 2019 Xiaomi Inc. All rights reserved.
- *   Author: Chao An <anchao@pinecone.net>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -42,6 +27,8 @@
 #include <nuttx/rptun/rptun.h>
 #include <nuttx/serial/uart_rpmsg.h>
 #include <nuttx/syslog/syslog_rpmsg.h>
+#include <nuttx/timers/arch_rtc.h>
+#include <nuttx/timers/rpmsg_rtc.h>
 
 #include "up_internal.h"
 
@@ -94,7 +81,8 @@ static const char *sim_rptun_get_firmware(struct rptun_dev_s *dev)
   return NULL;
 }
 
-static const struct rptun_addrenv_s *sim_rptun_get_addrenv(struct rptun_dev_s *dev)
+static const struct rptun_addrenv_s *
+  sim_rptun_get_addrenv(struct rptun_dev_s *dev)
 {
   return NULL;
 }
@@ -191,9 +179,9 @@ int up_rptun_init(void)
 {
   int ret;
 
-  g_dev.shmem = shmem_open("rptun-shmem",
-                           sizeof(*g_dev.shmem),
-                           CONFIG_SIM_RPTUN_MASTER);
+  g_dev.shmem = host_alloc_shmem("rptun-shmem",
+                                 sizeof(*g_dev.shmem),
+                                 CONFIG_SIM_RPTUN_MASTER);
   if (g_dev.shmem == NULL)
     {
       return -ENOMEM;
@@ -205,18 +193,20 @@ int up_rptun_init(void)
 
       rsc->rsc_tbl_hdr.ver          = 1;
       rsc->rsc_tbl_hdr.num          = 1;
-      rsc->offset[0]                = offsetof(struct rptun_rsc_s, rpmsg_vdev);
+      rsc->offset[0]                = offsetof(struct rptun_rsc_s,
+                                               rpmsg_vdev);
       rsc->rpmsg_vdev.type          = RSC_VDEV;
       rsc->rpmsg_vdev.id            = VIRTIO_ID_RPMSG;
       rsc->rpmsg_vdev.dfeatures     = 1 << VIRTIO_RPMSG_F_NS
-                                    | 1 << VIRTIO_RPMSG_F_BIND
+                                    | 1 << VIRTIO_RPMSG_F_ACK
                                     | 1 << VIRTIO_RPMSG_F_BUFSZ;
       rsc->rpmsg_vdev.num_of_vrings = 2;
       rsc->rpmsg_vring0.align       = 8;
       rsc->rpmsg_vring0.num         = 8;
       rsc->rpmsg_vring1.align       = 8;
       rsc->rpmsg_vring1.num         = 8;
-      rsc->buf_size                 = 0x800;
+      rsc->config.rxbuf_size        = 0x800;
+      rsc->config.txbuf_size        = 0x800;
 
       g_dev.shmem->base             = (uintptr_t)g_dev.shmem;
     }
@@ -228,7 +218,7 @@ int up_rptun_init(void)
 
       while (g_dev.shmem->base == 0)
         {
-          up_hostusleep(1000);
+          host_sleep(1000);
         }
 
       s_addrenv[0].va               = (uintptr_t)g_dev.shmem;
@@ -241,16 +231,16 @@ int up_rptun_init(void)
   ret = rptun_initialize(&g_dev.rptun);
   if (ret < 0)
     {
-      shmem_close(g_dev.shmem);
+      host_free_shmem(g_dev.shmem);
       return ret;
     }
 
-#ifdef CONFIG_SYSLOG_RPMSG
-  syslog_rpmsg_init();
-#endif
-
 #ifdef CONFIG_SYSLOG_RPMSG_SERVER
   syslog_rpmsg_server_init();
+#endif
+
+#if CONFIG_SIM_RPTUN_MASTER == 0
+  up_rtc_set_lowerhalf(rpmsg_rtc_initialize("server", 0));
 #endif
 
 #ifdef CONFIG_FS_HOSTFS_RPMSG
@@ -264,6 +254,7 @@ int up_rptun_init(void)
   return 0;
 }
 
+#if CONFIG_RPMSG_UART
 void rpmsg_serialinit(void)
 {
 #if CONFIG_SIM_RPTUN_MASTER
@@ -272,3 +263,4 @@ void rpmsg_serialinit(void)
   uart_rpmsg_init("server", "proxy", 4096, true);
 #endif
 }
+#endif

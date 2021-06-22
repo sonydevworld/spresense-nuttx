@@ -1,45 +1,24 @@
 ############################################################################
 # boards/arm/lc823450/lc823450-xgevk/kernel/Makefile
 #
-#   Copyright 2018 Sony Video & Sound Products Inc.
-#   Author: Masayuki Ishikawa <Masayuki.Ishikawa@jp.sony.com>
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.  The
+# ASF licenses this file to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance with the
+# License.  You may obtain a copy of the License at
 #
-# Based on boards/stm32f4discovery/kernel/Makefile
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
-# 3. Neither the name NuttX nor the names of its contributors may be
-#    used to endorse or promote products derived from this software
-#    without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
-# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
-
-# This is the directory for the board-specific header files
-
-BOARD_INCLUDE = $(TOPDIR)$(DELIM)boards$(DELIM)$(CONFIG_ARCH)$(DELIM)$(CONFIG_ARCH_CHIP)$(DELIM)$(CONFIG_ARCH_BOARD)$(DELIM)include
+include $(TOPDIR)/Make.defs
 
 # The entry point name (if none is provided in the .config file)
 
@@ -49,19 +28,19 @@ ENTRYPT = $(patsubst "%",%,$(CONFIG_USER_ENTRYPOINT))
 # Get the paths to the libraries and the links script path in format that
 # is appropriate for the host OS
 
-ifeq ($(WINTOOL),y)
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
   # Windows-native toolchains
   USER_LIBPATHS = ${shell for path in $(USERLIBS); do dir=`dirname $(TOPDIR)$(DELIM)$$path`;echo "-L\"`cygpath -w $$dir`\"";done}
-  USER_LDSCRIPT = -T "${shell cygpath -w $(TOPDIR)$(DELIM)boards$(DELIM)$(CONFIG_ARCH)$(DELIM)$(CONFIG_ARCH_CHIP)$(DELIM)$(CONFIG_ARCH_BOARD)$(DELIM)scripts$(DELIM)memory.ld}"
-  USER_LDSCRIPT += -T "${shell cygpath -w $(TOPDIR)$(DELIM)boards$(DELIM)$(CONFIG_ARCH)$(DELIM)$(CONFIG_ARCH_CHIP)$(DELIM)$(CONFIG_ARCH_BOARD)$(DELIM)scripts$(DELIM)user-space.ld}"
+  USER_LDSCRIPT = -T "${shell cygpath -w $(BOARD_DIR)$(DELIM)scripts$(DELIM)memory.ld}"
+  USER_LDSCRIPT += -T "${shell cygpath -w $(BOARD_DIR)$(DELIM)scripts$(DELIM)user-space.ld}"
   USER_HEXFILE += "${shell cygpath -w $(TOPDIR)$(DELIM)nuttx_user.hex}"
   USER_SRECFILE += "${shell cygpath -w $(TOPDIR)$(DELIM)nuttx_user.srec}"
   USER_BINFILE += "${shell cygpath -w $(TOPDIR)$(DELIM)nuttx_user.bin}"
 else
   # Linux/Cygwin-native toolchain
   USER_LIBPATHS = $(addprefix -L$(TOPDIR)$(DELIM),$(dir $(USERLIBS)))
-  USER_LDSCRIPT = -T$(TOPDIR)$(DELIM)boards$(DELIM)$(CONFIG_ARCH)$(DELIM)$(CONFIG_ARCH_CHIP)$(DELIM)$(CONFIG_ARCH_BOARD)$(DELIM)scripts$(DELIM)memory.ld
-  USER_LDSCRIPT += -T$(TOPDIR)$(DELIM)boards$(DELIM)$(CONFIG_ARCH)$(DELIM)$(CONFIG_ARCH_CHIP)$(DELIM)$(CONFIG_ARCH_BOARD)$(DELIM)scripts$(DELIM)user-space.ld
+  USER_LDSCRIPT = -T$(BOARD_DIR)$(DELIM)scripts$(DELIM)memory.ld
+  USER_LDSCRIPT += -T$(BOARD_DIR)$(DELIM)scripts$(DELIM)user-space.ld
   USER_HEXFILE += "$(TOPDIR)$(DELIM)nuttx_user.hex"
   USER_SRECFILE += "$(TOPDIR)$(DELIM)nuttx_user.srec"
   USER_BINFILE += "$(TOPDIR)$(DELIM)nuttx_user.bin"

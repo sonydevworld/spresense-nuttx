@@ -13,16 +13,29 @@ choice
 config ARCH_CHIP_NRF52832
 	bool "NRF52832"
 	select ARCH_FAMILY_NRF52
-	select ARCH_FAMILY_NRF52832
-	#select NRF52_HAVE_I2C_MASTER
-	#select NRF52_HAVE_UART
+	select NRF52_HAVE_BPROT
+
+config ARCH_CHIP_NRF52833
+	bool "NRF52832"
+	select ARCH_FAMILY_NRF52
+	select NRF52_HAVE_ACL
+	select NRF52_HAVE_UART1
+	select NRF52_HAVE_PORT1
+	select NRF52_HAVE_SPI3_MASTER
+	select NRF52_HAVE_USBDEV
+	select NRF52_HAVE_PWM3
 
 config ARCH_CHIP_NRF52840
 	bool "NRF52840"
 	select ARCH_FAMILY_NRF52
-	select ARCH_FAMILY_NRF52840
-	#select NRF52_HAVE_I2C_MASTER
-	#select NRF52_HAVE_UART
+	select NRF52_HAVE_ACL
+	select NRF52_HAVE_UART1
+	select NRF52_HAVE_PORT1
+	select NRF52_HAVE_SPI3_MASTER
+	select NRF52_HAVE_QSPI
+	select NRF52_HAVE_USBDEV
+	select NRF52_HAVE_PWM3
+	select NRF52_HAVE_CRYPTOCELL
 
 endchoice # NRF52 Chip Selection
 
@@ -32,27 +45,67 @@ config ARCH_FAMILY_NRF52
 	bool
 	default n
 
-config ARCH_FAMILY_NRF52832
-	bool
-	default n
-
-config ARCH_FAMILY_NRF52840
-	bool
-	default n
-
 # Peripheral support
+
+config NRF52_HAVE_BPROT
+	bool
+	default n
+
+config NRF52_HAVE_ACL
+	bool
+	default n
+
+config NRF52_HAVE_UART1
+	bool
+	default n
+
+config NRF52_HAVE_PORT1
+	bool
+	default n
+
+config NRF52_HAVE_SPI3_MASTER
+	bool
+	default n
+
+config NRF52_HAVE_QSPI
+	bool
+	default n
+
+config NRF52_HAVE_USBDEV
+	bool
+	default n
+
+config NRF52_HAVE_PWM3
+	bool
+	default n
+
+config NRF52_HAVE_CRYPTOCELL
+	bool
+	default n
 
 # Peripheral Selection
 
-config NRF52_HAVE_I2C_MASTER
+config NRF52_I2C_MASTER
 	bool
 	default n
 
-config NRF52_HAVE_SPI_MASTER
+config NRF52_SPI_MASTER
 	bool
 	default n
 
-config NRF52_HAVE_UART
+config NRF52_UART
+	bool
+	default n
+
+config NRF52_TIMER
+	bool
+	default n
+
+config NRF52_PWM
+	bool
+	default n
+
+config NRF52_RTC
 	bool
 	default n
 
@@ -61,18 +114,58 @@ menu "NRF52 Peripheral Selection"
 config NRF52_I2C0_MASTER
 	bool "I2C0 Master"
 	default n
-	select NRF52_HAVE_I2C_MASTER
+	select NRF52_I2C_MASTER
 
 config NRF52_I2C1_MASTER
 	bool "I2C1 Master"
 	default n
-	select NRF52_HAVE_I2C_MASTER
+	select NRF52_I2C_MASTER
+
+config NRF52_SPI0_MASTER
+	bool "SPI0 Master"
+	default n
+	select NRF52_SPI_MASTER
+
+config NRF52_SPI1_MASTER
+	bool "SPI1 Master"
+	default n
+	select NRF52_SPI_MASTER
+
+config NRF52_SPI2_MASTER
+	bool "SPI2 Master"
+	default n
+	select NRF52_SPI_MASTER
+
+config NRF52_SPI3_MASTER
+	bool "SPI3 Master"
+	default n
+	select NRF52_SPI_MASTER
+	depends on NRF52_HAVE_SPI3_MASTER
+
+if NRF52_SPI_MASTER
+
+config NRF52_SPI_MASTER_INTERRUPTS
+	bool "SPI Master interrupts support"
+	default n
+
+endif
+
+config NRF52_GPIOTE
+	bool "GPIOTE (GPIO interrupts)"
+	default n
 
 config NRF52_UART0
 	bool "UART0"
 	default n
 	select UART0_SERIALDRIVER
-	select NRF52_HAVE_UART
+	select NRF52_UART
+
+config NRF52_UART1
+	bool "UART1"
+	default n
+	depends on NRF52_HAVE_UART1
+	select UART1_SERIALDRIVER
+	select NRF52_UART
 
 config NRF52_RNG
 	bool "Random Generator"
@@ -82,14 +175,205 @@ config NRF52_RNG
 config NRF52_QSPI
 	bool "QSPI"
 	default n
-	depends on ARCH_CHIP_NRF52840
+	depends on NRF52_HAVE_QSPI
 
 config NRF52_WDT
 	bool "Watchdog (WDT)"
 	default n
 	select WATCHDOG
 
+config NRF52_RADIO
+	bool "RADIO"
+	depends on EXPERIMENTAL
+	depends on !NRF52_SOFTDEVICE_CONTROLLER
+	default n
+
+config NRF52_NFCT
+	bool "NFCT"
+	default n
+
+config NRF52_SAADC
+	bool "SAADC"
+	default n
+
+config NRF52_TIMER0
+	bool "TIMER0"
+	select NRF52_TIMER
+	depends on !NRF52_SOFTDEVICE_CONTROLLER
+	default n
+
+config NRF52_TIMER1
+	bool "TIMER1"
+	select NRF52_TIMER
+	default n
+
+config NRF52_TIMER2
+	bool "TIMER2"
+	select NRF52_TIMER
+	default n
+
+config NRF52_TIMER3
+	bool "TIMER3"
+	select NRF52_TIMER
+	default n
+
+config NRF52_TIMER4
+	bool "TIMER4"
+	select NRF52_TIMER
+	default n
+
+config NRF52_PWM0
+	bool "PWM0"
+	select NRF52_PWM
+	default n
+
+config NRF52_PWM1
+	bool "PWM1"
+	select NRF52_PWM
+	default n
+
+config NRF52_PWM2
+	bool "PWM2"
+	select NRF52_PWM
+	default n
+
+config NRF52_PWM3
+	bool "PWM3"
+	depends on NRF52_HAVE_PWM3
+	select NRF52_PWM
+	default n
+
+config NRF52_PPI
+  bool "PPI"
+  default n
+
+config NRF52_RTC0
+	bool "RTC0"
+	select NRF52_RTC
+	depends on !NRF52_SOFTDEVICE_CONTROLLER
+	default n
+
+config NRF52_RTC1
+	bool "RTC1"
+	select NRF52_RTC
+	default n
+
+config NRF52_RTC2
+	bool "RTC2"
+	select NRF52_RTC
+	default n
+
+config NRF52_I2S
+	bool "I2S"
+	default n
+
+config NRF52_USBDEV
+	bool "USB Device"
+	default n
+	depends on NRF52_HAVE_USBDEV
+
+config NRF52_COMP
+	bool "COMP"
+	default n
+
 endmenu # NRF52 Peripheral Selection
+
+menu "Clock Configuration"
+
+config NRF52_HFCLK_XTAL
+  bool "Enable HFCLK from external crystal"
+  default n
+  ---help---
+    If the board includes an external high-frequency crystal, enable this
+    option to supply the HFCLK. If this option is disabled, the internal
+    oscillator will be used.
+    Note that the RADIO peripheral requires the HFCLK to be used.
+
+config NRF52_USE_LFCLK
+  bool "Enable LFCLK"
+  default n
+  ---help---
+    Enable low-frequency clock.
+
+if NRF52_USE_LFCLK
+
+choice
+	prompt "LFCLK source"
+	default NRF52_LFCLK_XTAL
+
+config NRF52_LFCLK_XTAL
+	bool "External 32.768Khz crystal"
+
+config NRF52_LFCLK_RC
+	bool "Internal RC oscillator"
+
+config NRF52_LFCLK_SYNTH
+  bool "Synthesized from HFCLK"
+
+endchoice
+
+endif # NRF52_USE_LFCLK
+
+endmenu # Clock Configuration
+
+menu "System Timer"
+
+config NRF52_SYSTIMER
+  bool
+  default y
+
+choice
+  prompt "System Timer Source"
+  default NRF52_SYSTIMER_SYSTICK
+  ---help---
+    Choose which hardware resource will drive NuttX
+    system time
+
+config NRF52_SYSTIMER_SYSTICK
+  bool "SysTick"
+  select TIMER_ARCH
+  select TIMER
+  select ARMV7M_SYSTICK
+  ---help---
+    Use ARM SysTick. It can be used for tickless and
+    non-tickless mode.
+
+    NOTE: nRF52 implementation of WFE/WFI involves is
+    incompatible with SysTick. This means that if
+    you choose this option, WFE/WFI will not be used
+    in idle loop.
+
+config NRF52_SYSTIMER_RTC
+  bool "RTC"
+  select NRF52_RTC
+  select SCHED_TICKLESS
+  select SCHED_TICKLESS_ALARM
+  select NRF52_USE_LFCLK
+  ---help---
+    Use RTC timer in tickless mode.
+
+endchoice
+
+if NRF52_SYSTIMER_RTC
+
+config NRF52_SYSTIMER_RTC_INSTANCE
+  int "RTC timer instance"
+  default 0 if !NRF52_SOFTDEVICE_CONTROLLER
+  default 1 if NRF52_SOFTDEVICE_CONTROLLER
+  range 0 2
+  ---help---
+    Which RTC instance to use to drive the system timer
+
+endif
+
+endmenu # System Timer
+
+config NRF52_DCDC
+  bool "Enable DC/DC regulator"
+  default n
+  ---help---
+    This option enables the DC/DC regulator, which reduces
+    current consumption. This requires extra circuitry (inductors).
 
 config NRF52_FLASH_PREFETCH
 	bool "Enable FLASH Pre-fetch"
@@ -106,8 +390,338 @@ config NRF52_PROGMEM
 
 menu "GPIO Interrupt Configuration"
 
-config NRF52_GPIOIRQ
-	bool "Support GPIO Interrupts"
-	default n
+config NRF52_PER_PIN_INTERRUPTS
+	bool "Per-pin interrupt callbacks"
+	default n if DEFAULT_SMALL
+	default y if !DEFAULT_SMALL
+	depends on NRF52_GPIOTE
+	---help---
+		The GPIOTE peripheral supports a limited number of channels which can
+		be set to EVENT mode and thus generate interrupts on pin state changes.
+		Another mechanism offered by the GPIO/GPIOTE peripherals is the PORT
+		event. This event is generated from a signal shared by all pins in
+		the GPIO port.
+
+		This option enables the ability to set per-pin callbacks that will
+		be invoked from the main GPIOTE ISR when a PORT event is generated.
+		As this involves extra storage to store each callback, this option can
+		be disabled to save space. In such case, it is possible to set a callback
+		for the whole PORT event directly.
 
 endmenu # GPIO Interrupt Configuration
+
+menu "PWM configuration"
+
+config NRF52_PWM_MULTICHAN
+	bool "PWM Multiple Output Channels"
+	default n
+
+if NRF52_PWM_MULTICHAN
+
+if NRF52_PWM0
+
+config NRF52_PWM0_CH0
+	bool "PWM0 Channel 0 Output"
+	default n
+	---help---
+		Enables channel 0 output.
+
+config NRF52_PWM0_CH1
+	bool "PWM0 Channel 1 Output"
+	default n
+	---help---
+		Enables channel 1 output.
+
+config NRF52_PWM0_CH2
+	bool "PWM0 Channel 2 Output"
+	default n
+	---help---
+		Enables channel 2 output.
+
+config NRF52_PWM0_CH3
+	bool "PWM0 Channel 3 Output"
+	default n
+	---help---
+		Enables channel 3 output.
+
+endif # NRF52_PWM0
+
+if NRF52_PWM1
+
+config NRF52_PWM1_CH0
+	bool "PWM1 Channel 0 Output"
+	default n
+	---help---
+		Enables channel 0 output.
+
+config NRF52_PWM1_CH1
+	bool "PWM1 Channel 1 Output"
+	default n
+	---help---
+		Enables channel 1 output.
+
+config NRF52_PWM1_CH2
+	bool "PWM1 Channel 2 Output"
+	default n
+	---help---
+		Enables channel 2 output.
+
+config NRF52_PWM1_CH3
+	bool "PWM1 Channel 3 Output"
+	default n
+	---help---
+		Enables channel 3 output.
+
+endif # NRF52_PWM1
+
+if NRF52_PWM2
+
+config NRF52_PWM2_CH0
+	bool "PWM2 Channel 0 Output"
+	default n
+	---help---
+		Enables channel 0 output.
+
+config NRF52_PWM2_CH1
+	bool "PWM2 Channel 1 Output"
+	default n
+	---help---
+		Enables channel 1 output.
+
+config NRF52_PWM2_CH2
+	bool "PWM2 Channel 2 Output"
+	default n
+	---help---
+		Enables channel 2 output.
+
+config NRF52_PWM2_CH3
+	bool "PWM2 Channel 3 Output"
+	default n
+	---help---
+		Enables channel 3 output.
+
+endif # NRF52_PWM2
+
+if NRF52_PWM3
+
+config NRF52_PWM3_CH0
+	bool "PWM3 Channel 0 Output"
+	default n
+	---help---
+		Enables channel 0 output.
+
+config NRF52_PWM3_CH1
+	bool "PWM3 Channel 1 Output"
+	default n
+	---help---
+		Enables channel 1 output.
+
+config NRF52_PWM3_CH2
+	bool "PWM3 Channel 2 Output"
+	default n
+	---help---
+		Enables channel 2 output.
+
+config NRF52_PWM3_CH3
+	bool "PWM3 Channel 3 Output"
+	default n
+	---help---
+		Enables channel 3 output.
+
+endif # NRF52_PWM3
+
+endif # !NRF52_PWM_MULTICHAN
+
+if !NRF52_PWM_MULTICHAN
+
+config NRF52_PWM0_CHANNEL
+	int "PWM0 Output Channel"
+	depends on NRF52_PWM0
+	default 0
+	range 0 3
+
+config NRF52_PWM1_CHANNEL
+	int "PWM1 Output Channel"
+	depends on NRF52_PWM1
+	default 0
+	range 0 3
+
+config NRF52_PWM2_CHANNEL
+	int "PWM2 Output Channel"
+	depends on NRF52_PWM2
+	default 0
+	range 0 3
+
+config NRF52_PWM3_CHANNEL
+	int "PWM3 Output Channel"
+	depends on NRF52_PWM3
+	default 0
+	range 0 3
+
+endif # !NRF52_PWM_MULTICHAN
+
+endmenu # PWM configuration
+
+menu "SAADC Configuration"
+
+if NRF52_SAADC
+
+choice
+  prompt "SAADC trigger selection"
+  default NRF52_SAADC_TASK
+  ---help---
+    Choose mode for sample rate control
+
+config NRF52_SAADC_TASK
+  bool "SAADC Task trigger"
+
+config NRF52_SAADC_TIMER
+  bool "SAADC Timer trigger"
+
+endchoice # SAADC trigger selection
+
+if NRF52_SAADC_TIMER
+
+config NRF52_SAADC_TIMER_CC
+	int "SAADC Timer CC"
+	default 0
+	range 80 2047
+
+endif #NRF52_SAADC_TIMER
+
+config NRF52_SAADC_OVERSAMPLE
+	int "SAADC oversample"
+	default 0
+	range 0 8
+	---help---
+		SAADC oversample control
+
+config NRF52_SAADC_RESOLUTION
+	int "SAADC resolution"
+	default 0
+	range 0 3
+	---help---
+		SAADC resolution 0 - 8 bits, 1 - 10 bits, 2 - 12 bits, 3 - 14 bits
+
+config NRF52_SAADC_CHANNELS
+	int "SAADC channels"
+	default 8
+	range 0 8
+	---help---
+		SAADC channels
+
+config NRF52_SAADC_LIMITS
+	bool "SAADC limits enable"
+	default n
+	---help---
+		SAADC limist enable
+
+endif # NRF52_SAADC
+
+endmenu # SAADC Configuration
+
+menu "SPI Configuration"
+
+config NRF52_SPI_MASTER_WORKAROUND_1BYTE_TRANSFER
+	bool "Master 1 Byte transfer anomaly workaround"
+	depends on NRF52_SPI_MASTER && ARCH_CHIP_NRF52832
+	select NRF52_PPI
+	default y
+	---help---
+		Enable the workaround to fix SPI Master 1 byte transfer bug
+		which occurs in NRF52832 revision 1 and revision 2.
+endmenu
+
+menu "I2C Master Configuration"
+
+config NRF52_I2C_MASTER_DISABLE_NOSTART
+	bool "Disable the I2C Master NOSTART flag support"
+	default n
+	---help---
+		To combine two i2c messages that are part of a
+		single transaction (NO_STOP-NO_START) the nrf52
+		hardware requires these be joined into a single
+		transfer. This can be expensive and some devices
+		can get away with multi-part transfers as separate
+		transfers.  Enable this at your own risk!
+
+config NRF52_I2C_MASTER_COPY_BUF_SIZE
+	int "Static buffer size for NOSTART flag support"
+	depends on !NRF52_I2C_MASTER_DISABLE_NOSTART
+	default 4
+	---help---
+		To combine two i2c messages that are part of a
+		single transaction (NO_STOP-NO_START) the nrf52
+		hardware requires these be joined into a single
+		transfer. This static buffer will be used if the
+		transaction will fit otherwise it will fall back
+		on malloc.
+
+endmenu
+
+menuconfig NRF52_SOFTDEVICE_CONTROLLER
+	bool "SoftDevice Controller"
+	select CONFIG_ARMV7M_USEBASEPRI
+	select CONFIG_ARCH_RAMVECTORS
+	select NRF52_USE_LFCLK
+	select NRF52_LFCLK_XTAL
+	---help---
+		This enables use of Nordic SoftDevice controller
+		(SDC). It is a library version of a subset of 
+		full SoftDevice, which only includes the BLE
+		controller implementation.
+
+		It makes use of RTC0, TIMER0, RADIO and RNG, so
+		these will be unavailable for direct use by user.
+		It also makes use of PPI channel range 17-31.
+
+if NRF52_SOFTDEVICE_CONTROLLER
+
+config NRF52_SDC_CLOCK_ACCURACY
+	int "Clock Accuracy [PPM]"
+	default 250
+	---help---
+		Select the clock accuracy depending on the chosen low-frequency clock
+		source
+
+config NRF52_SDC_SLAVE_COUNT
+	int "Number of slave roles to support (also master)"
+	default 1
+	---help---
+		This controls how many slave connections will be supported. It also
+		determines the number of master roles from the following:
+
+		MASTER_ROLES = CONFIG_BLUETOOTH_MAX_CONN - NRF52_SDC_SLAVE_COUNT
+
+		So by choosing these two variables you can control both capabilities.
+
+config NRF52_SDC_ADVERTISING
+	bool "Support advertising"
+	default y
+
+config NRF52_SDC_SCANNING
+	bool "Support scanning"
+	default y
+
+config NRF52_SDC_LE_2M_PHY
+	bool "Support LE 2M PHY"
+	default y
+
+config NRF52_SDC_LE_CODED_PHY
+	bool "Support LE Coded PHY"
+	default y
+
+config NRF52_SDC_DLE
+	bool "Support Data Length Extension (DLE)"
+	default y
+
+config NRF52_SDC_VERSION
+	int "SoftDevice version"
+	default 132 if ARCH_CHIP_NRF52832
+	default 140 if ARCH_CHIP_NRF52840
+	---help---
+		The softdevice version to use. This depends on the particular chip
+		to use. See official Nordic documentation on which chips are supported
+		in each version.
+endif
+

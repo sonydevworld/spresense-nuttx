@@ -1,46 +1,31 @@
-/******************************************************************************
+/****************************************************************************
  * arch/arm/src/stm32h7/hardware/stm32h7x3xx_flash.h
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Authors: Mateusz Szafoni <raiden00@railab.me>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_STM32H7_HARDWARE_STM32H7X3XX_FLASH_H
 #define __ARCH_ARM_SRC_STM32H7_HARDWARE_STM32H7X3XX_FLASH_H
 
-/******************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- *****************************************************************************/
+ ****************************************************************************/
 
-/* Register Offsets *****************************************************************/
+/* Register Offsets *********************************************************/
 
 #define STM32_FLASH_ACR_OFFSET         0x0000 /* Access control register */
 #define STM32_FLASH_KEYR1_OFFSET       0x0004 /* Key register for bank 1 */
@@ -84,7 +69,7 @@
 #define STM32_FLASH_BANK1_OFFSET       0x0000 /* Bank 1 registers offset */
 #define STM32_FLASH_BANK2_OFFSET       0x0100 /* Bank 2 registers offset */
 
-/* Register Addresses ***************************************************************/
+/* Register Addresses *******************************************************/
 
 #define STM32_FLASH_ACR                (STM32_FLASHIF_BASE + STM32_FLASH_ACR_OFFSET)
 #define STM32_FLASH_KEYR1              (STM32_FLASHIF_BASE + STM32_FLASH_KEYR1_OFFSET)
@@ -125,11 +110,11 @@
 #define STM32_FLASH_CRCEADD2R          (STM32_FLASHIF_BASE + STM32_FLASH_CRCEADD2R_OFFSET)
 #define STM32_FLASH_ECC_FA2R           (STM32_FLASHIF_BASE + STM32_FLASH_ECC_FA2R_OFFSET)
 
-/* Register Bitfield Definitions ****************************************************/
+/* Register Bitfield Definitions ********************************************/
 
 /* Flash Access Control Register (ACR) Bank 1 or 2 */
 
-#define FLASH_ACR_LATENCY_SHIFT        (0)        /* Bits 0-3: Latency */
+#define FLASH_ACR_LATENCY_SHIFT        (0)                              /* Bits 0-3: Latency */
 #define FLASH_ACR_LATENCY_MASK         (15 << FLASH_ACR_LATENCY_SHIFT)
 #  define FLASH_ACR_LATENCY(n)         ((n) << FLASH_ACR_LATENCY_SHIFT) /* n wait states */
 #  define FLASH_ACR_LATENCY_0          (0 << FLASH_ACR_LATENCY_SHIFT)   /* 0000: Zero wait states */
@@ -148,27 +133,29 @@
 #  define FLASH_ACR_LATENCY_13         (13 << FLASH_ACR_LATENCY_SHIFT)  /* 1101: Thirteen wait states */
 #  define FLASH_ACR_LATENCY_14         (14 << FLASH_ACR_LATENCY_SHIFT)  /* 1110: Fourteen wait states */
 #  define FLASH_ACR_LATENCY_15         (15 << FLASH_ACR_LATENCY_SHIFT)  /* 1111: Fifteen wait states */
-#define FLASH_ACR_WRHIGHFREQ_SHIFT     (4)        /* Bitd 4-5: Flash signal delay */
+#define FLASH_ACR_WRHIGHFREQ_SHIFT     (4)                              /* Bitd 4-5: Flash signal delay */
 #define FLASH_ACR_WRHIGHFREQ_MASK      (3 << FLASH_ACR_WRHIGHFREQ_SHIFT)
 #  define FLASH_ACR_WRHIGHFREQ(n)      ((n) << FLASH_ACR_WRHIGHFREQ_SHIFT)
 
 /* Flash Control Register (CR) Bank 1 or 2 (if different) */
 
-#define FLASH_CR_LOCK                  (1 << 0)   /* Bit 0:  Lock */
-#define FLASH_CR_PG                    (1 << 1)   /* Bit 1:  Programming */
-#define FLASH_CR_SER                   (1 << 2)   /* Bit 2:  Sector erase */
-#define FLASH_CR_BER                   (1 << 3)   /* Bit 3: Bank erase */
-#define FLASH_CR_PSIZE_SHIFT           (4)        /* Bits 4-5: Program size */
+#define FLASH_CR_LOCK                  (1 << 0)                    /* Bit 0:  Lock */
+#define FLASH_CR_PG                    (1 << 1)                    /* Bit 1:  Programming */
+#define FLASH_CR_SER                   (1 << 2)                    /* Bit 2:  Sector erase */
+#define FLASH_CR_BER                   (1 << 3)                    /* Bit 3: Bank erase */
+#define FLASH_CR_PSIZE_SHIFT           (4)                         /* Bits 4-5: Program size */
 #define FLASH_CR_PSIZE_MASK            (3 << FLASH_CR_PSIZE_SHIFT)
 #  define FLASH_CR_PSIZE_X8            (0 << FLASH_CR_PSIZE_SHIFT) /* 00: x8 */
 #  define FLASH_CR_PSIZE_X16           (1 << FLASH_CR_PSIZE_SHIFT) /* 01: x16 */
 #  define FLASH_CR_PSIZE_X32           (2 << FLASH_CR_PSIZE_SHIFT) /* 10: x32 */
 #  define FLASH_CR_PSIZE_X64           (3 << FLASH_CR_PSIZE_SHIFT) /* 11: x64 */
-#define FLASH_CR_FW                    (1 << 6)   /* Bit 6: Force write */
-#define FLASH_CR_START                 (1 << 7)   /* Bit 7: Erase start */
-#define FLASH_CR_SNB_SHIFT             (8)        /* Bits 8-10: Sector number */
+#define FLASH_CR_FW                    (1 << 6)                    /* Bit 6: Force write */
+#define FLASH_CR_START                 (1 << 7)                    /* Bit 7: Erase start */
+#define FLASH_CR_SNB_SHIFT             (8)                         /* Bits 8-10: Sector number */
 #define FLASH_CR_SNB_MASK              (15 << FLASH_CR_SNB_SHIFT)  /* Used to clear FLASH_CR_SNB bits */
-#  define FLASH_CR_SNB(n)              ((uint32_t)(n & 0x7) << FLASH_CR_SNB_SHIFT) /* Sector n, n=0..7 */
+
+#  define FLASH_CR_SNB(n)              ((uint32_t)((n) & 0x7) << FLASH_CR_SNB_SHIFT) /* Sector n, n=0..7 */
+
                                                   /* Bits 11-13: Reserved */
 #define FLASH_CR_SPSS2                 (1 << 14)  /* Bit 14: Bank1 Reserved, Bank 2 special sector selection bit */
 #define FLASH_CR_CRCEN                 (1 << 15)  /* Bit 15: CRC control enable */
@@ -177,14 +164,14 @@
 #define FLASH_CR_PGSERRIE              (1 << 18)  /* Bit 18: Programming sequence error interrupt enable */
 #define FLASH_CR_STRBERRIE             (1 << 19)  /* Bit 19: Strobe error interrupt enable */
                                                   /* Bit 20: Reserved */
-#define FLASH_CR_INCERRIE              (1 << 21)  /* Bit 21: Inconsistency error interrupt enbale */
+#define FLASH_CR_INCERRIE              (1 << 21)  /* Bit 21: Inconsistency error interrupt enable */
 #define FLASH_CR_OPERRIE               (1 << 22)  /* Bit 22: Write/erase error interrupt enable */
 #define FLASH_CR_RDPERRIE              (1 << 23)  /* Bit 23: Read protection error interrupt enable */
 #define FLASH_CR_RDSERRIE              (1 << 24)  /* Bit 24: Secure error interrupt enable */
 #define FLASH_CR_SNECCERRIE            (1 << 25)  /* Bit 25: ECC single correction error interrupt enable */
 #define FLASH_CR_DBECCERRIE            (1 << 26)  /* Bit 26: ECC double detection error interrupt enable */
 #define FLASH_CR_CRCENDIE              (1 << 27)  /* Bit 27: CRC end of calculation interrupt enable */
-                                                  /* Bits 28-31: Reserverd */
+                                                  /* Bits 28-31: Reserved */
 
 /* Flash Status Register (SR)  Bank 1 or 2 */
 

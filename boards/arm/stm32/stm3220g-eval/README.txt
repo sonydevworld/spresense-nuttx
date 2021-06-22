@@ -422,7 +422,7 @@ STM3220G-EVAL-specific Configuration Options
 
     CONFIG_SDIO_DMA - Support DMA data transfers.  Requires CONFIG_STM32_SDIO
       and CONFIG_STM32_DMA2.
-    CONFIG_STM32_SDIO_PRI - Select SDIO interrupt prority.  Default: 128
+    CONFIG_STM32_SDIO_PRI - Select SDIO interrupt priority.  Default: 128
     CONFIG_STM32_SDIO_DMAPRIO - Select SDIO DMA interrupt priority.
       Default:  Medium
     CONFIG_STM32_SDIO_WIDTH_D1_ONLY - Select 1-bit transfer mode.  Default:
@@ -433,7 +433,7 @@ STM3220G-EVAL-specific Configuration Options
     CONFIG_STM32_MII_MCO1 - Use MCO1 to clock the MII interface
     CONFIG_STM32_MII_MCO2 - Use MCO2 to clock the MII interface
     CONFIG_STM32_RMII - Support Ethernet RMII interface
-    CONFIG_STM32_AUTONEG - Use PHY autonegotion to determine speed and mode
+    CONFIG_STM32_AUTONEG - Use PHY autonegotiation to determine speed and mode
     CONFIG_STM32_ETHFD - If CONFIG_STM32_AUTONEG is not defined, then this
       may be defined to select full duplex mode. Default: half-duplex
     CONFIG_STM32_ETH100MBPS - If CONFIG_STM32_AUTONEG is not defined, then this
@@ -512,7 +512,7 @@ Where <subdir> is one of the following:
   dhcpd:
   -----
 
-    This builds the DCHP server using the apps/examples/dhcpd application
+    This builds the DHCP server using the apps/examples/dhcpd application
     (for execution from FLASH.) See apps/examples/README.txt for information
     about the dhcpd example.
 
@@ -534,13 +534,13 @@ Where <subdir> is one of the following:
 
       CONFIG_HOST_WINDOWS=y
       CONFIG_WINDOWS_CYGWIN=y
-      CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y
+      CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y
 
   nettest:
   -------
 
     This configuration directory may be used to verify networking performance
-    using the STM32's Ethernet controller. It uses apps/examples/nettest to excercise the
+    using the STM32's Ethernet controller. It uses apps/examples/nettest to exercise the
     TCP/IP network.
 
     CONFIG_EXAMPLES_NETTEST_SERVER=n                       : Target is configured as the client
@@ -564,7 +564,7 @@ Where <subdir> is one of the following:
 
         CONFIG_HOST_WINDOWS=y                    : Windows
         CONFIG_WINDOWS_CYGWIN=y                  : Under Cygwin
-        CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y  : CodeSourcery under Windows
+        CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y      : GNU EABI toolchain for Windows
 
        Than can, of course, be easily changes by reconfiguring per Note 1.
 
@@ -573,7 +573,7 @@ Where <subdir> is one of the following:
     Configures the NuttShell (nsh) located at apps/examples/nsh.  The
     Configuration enables both the serial and telnet NSH interfaces.
 
-    CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y       : CodeSourcery under Windows
+    CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y           : GNU EABI toolchain for Windows
     CONFIG_NSH_DHCPC=n                            : DHCP is disabled
     CONFIG_NSH_IPADDR=(192<<24|168<<16|13<<8|161) : Target IP address 192.168.8.161
     CONFIG_NSH_DRIPADDR=(192<<24|168<<16|13<<8|1) : Host IP address 192.168.8.1
@@ -734,7 +734,7 @@ Where <subdir> is one of the following:
     There are some special settings to make life with only a Telnet
 
     CONFIG_RAMLOG=y - Enable the RAM-based logging feature.
-    CONFIG_RAMLOG_CONSOLE=y - Use the RAM logger as the default console.
+    CONFIG_CONSOLE_SYSLOG=y - Use the RAM logger as the default console.
       This means that any console output from non-Telnet threads will
       go into the circular buffer in RAM.
     CONFIG_RAMLOG_SYSLOG - This enables the RAM-based logger as the
@@ -815,7 +815,7 @@ Where <subdir> is one of the following:
           reconfiguration process.
 
     2. This configuration is currently set up to build under Cygwin on
-       a Windows machine using the CodeSourcery Windows toolchain.
+       a Windows machine using the ARM EABI GCC Windows toolchain.
        That configuration can be easy changed as described in Note 1.
 
   telnetd:
@@ -843,4 +843,4 @@ Where <subdir> is one of the following:
 
       CONFIG_HOST_WINDOWS=y
       CONFIG_WINDOWS_CYGWIN=y
-      CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y
+      CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y

@@ -54,6 +54,7 @@
 
 #include <stdint.h>
 #include <nuttx/config.h>
+#include <nuttx/net/ethernet.h>
 
 /****************************************************************************
  * Public Definitions
@@ -76,7 +77,7 @@
  */
 
 #define __IPv4_HDRLEN 20  /* Must match IPv4_HDRLEN in include/nuttx/net/ip.h */
-#define __IPv6_HDRLEN 40  /* Must match IPv4_HDRLEN in include/nuttx/net/ip.h */
+#define __IPv6_HDRLEN 40  /* Must match IPv6_HDRLEN in include/nuttx/net/ip.h */
 #define __UDP_HDRLEN  8   /* Must match UDP_HDRLEN in include/nuttx/net/udp.h */
 #define __TCP_HDRLEN  20  /* Must match TCP_HDRLEN in include/nuttx/net/tcp.h */
                           /* REVISIT: Not really a constant */
@@ -150,8 +151,8 @@
 #endif
 
 #ifdef CONFIG_NET_LOOPBACK
-#  define _MIN_LO_PKTSIZE      MIN(_MIN_ETH_PKTSIZE,  1518)
-#  define _MAX_LO_PKTSIZE      MAX(_MAX_ETH_PKTSIZE, 574)
+#  define _MIN_LO_PKTSIZE      MIN(_MIN_ETH_PKTSIZE, 574)
+#  define _MAX_LO_PKTSIZE      MAX(_MAX_ETH_PKTSIZE, 1518)
 #else
 #  define _MIN_LO_PKTSIZE      _MIN_ETH_PKTSIZE
 #  define _MAX_LO_PKTSIZE      _MAX_ETH_PKTSIZE
@@ -184,9 +185,21 @@
 #define MIN_NETDEV_PKTSIZE      _MIN_6LOWPAN_PKTSIZE
 #define MAX_NETDEV_PKTSIZE      _MAX_6LOWPAN_PKTSIZE
 
-/* For the loopback device, we will use the largest MTU */
+/* The loopback driver packet buffer should be quite large.  The larger the
+ * loopback packet buffer, the better will be TCP performance of the loopback
+ * transfers.  The Linux loopback device historically used packet buffers of
+ * size 16Kb, but that was increased in recent Linux versions to 64Kb.  Those
+ * sizes may be excessive for resource constrained MCUs, however.
+ *
+ * For the loopback driver, we enforce a lower limit that is the maximum
+ * packet size of all enabled link layer protocols.
+ */
 
+#if CONFIG_NET_LOOPBACK_PKTSIZE < MAX_NETDEV_PKTSIZE
 #  define NET_LO_PKTSIZE        MAX_NETDEV_PKTSIZE
+#else
+#  define NET_LO_PKTSIZE        CONFIG_NET_LOOPBACK_PKTSIZE
+#endif
 
 /* Layer 3/4 Configuration Options ******************************************/
 
@@ -198,17 +211,6 @@
  */
 
 #define IP_TTL 64
-
-#ifdef CONFIG_NET_TCP_REASSEMBLY
-#  ifndef CONFIG_NET_TCP_REASS_MAXAGE
-  /* The maximum time an IP fragment should wait in the reassembly
-   * buffer before it is dropped.  Units are deci-seconds, the range
-   * of the timer is 8-bits.
-   */
-
-#    define CONFIG_NET_TCP_REASS_MAXAGE (20*10) /* 20 seconds */
-#  endif
-#endif
 
 /* Network drivers often receive packets with garbage at the end
  * and are longer than the size of packet in the TCP header.  The
@@ -240,8 +242,8 @@
 #  endif
 #endif
 
-/* The UDP maximum packet size. This is should not be to set to more
- * than NETDEV_PKTSIZE(d) - NET_LL_HDRLEN(dev) - __UDP_HDRLEN - IPv*_HDRLEN.
+/* The UDP maximum packet size. This should not be set to more than
+ * NETDEV_PKTSIZE(d) - NET_LL_HDRLEN(dev) - __UDP_HDRLEN - IPv*_HDRLEN.
  */
 
 #define UDP_MSS(d,h)               (NETDEV_PKTSIZE(d) - NET_LL_HDRLEN(d) - __UDP_HDRLEN - (h))
@@ -338,12 +340,15 @@
 #  define MAX_UDP_MSS           __MAX_UDP_MSS(__IPv4_HDRLEN)
 #endif
 
-/* If IPv6 is support, it will have the smaller MSS */
+/* If IPv6 is supported, it will have the smaller MSS. */
 
 #ifdef CONFIG_NET_IPv6
 #  undef  MIN_UDP_MSS
 #  define MIN_IPv6_UDP_MSS      __MIN_UDP_MSS(__IPv6_HDRLEN)
 #  define MIN_UDP_MSS           __MIN_UDP_MSS(__IPv6_HDRLEN)
+#  ifndef MAX_UDP_MSS
+#    define MAX_UDP_MSS         __MAX_UDP_MSS(__IPv6_HDRLEN)
+#  endif
 #endif
 
 /* TCP configuration options */
@@ -383,10 +388,7 @@
 
 /* The initial retransmission timeout counted in timer pulses.
  * REVISIT:  TCP RTO really should be calculated dynamically for each TCP
- * connection:
- *
- * https://unix.stackexchange.com/questions/210367/changing-the-tcp-rto-value-in-linux
- * http://sgros.blogspot.com/2012/02/calculating-tcp-rto.html
+ * connection.
  */
 
 #ifdef CONFIG_NET_TCP_RTO
@@ -412,12 +414,12 @@
 
 #define TCP_MAXSYNRTX 5
 
-/* The TCP maximum segment size. This is should not be set to more
- * than NETDEV_PKTSIZE(dev) - NET_LL_HDRLEN(dev) - IPvN_HDRLEN - __TCP_HDRLEN.
+/* The TCP maximum segment size. This should not be set to more than
+ * NETDEV_PKTSIZE(dev) - NET_LL_HDRLEN(dev) - IPvN_HDRLEN - __TCP_HDRLEN.
  *
  * In the case where there are multiple network devices with different
- * link layer protocols, each network device may support a different UDP
- * MSS value.  Here we arbitrarily select the minimum MSS for that case.
+ * link layer protocols, each network device may support a different MSS
+ * value.  Here we arbitrarily select the minimum MSS for that case.
  *
  * REVISIT: __TCP_HDRLEN is not really a constant!
  */
@@ -505,7 +507,7 @@
 #endif
 
 /* If IPv4 is supported, it will have the larger MSS.
- * NOTE: MSS calcuation excludes the __TCP_HDRLEN.
+ * NOTE: MSS calculation excludes the __TCP_HDRLEN.
  */
 
 #ifdef CONFIG_NET_IPv6
@@ -526,14 +528,26 @@
 #  define MAX_TCP_MSS           __MAX_TCP_MSS(__IPv4_HDRLEN)
 #endif
 
-/* If IPv6 is supported, it will have the smaller MSS */
+/* If IPv6 is supported, it will have the smaller MSS. */
 
 #ifdef CONFIG_NET_IPv6
 #  undef MIN_TCP_MSS
 #  define MIN_TCP_MSS           __MIN_TCP_MSS(__IPv6_HDRLEN)
 #endif
 
-/* How long a connection should stay in the TIME_WAIT state. */
+/* How long a connection should stay in the TIME_WAIT state (in units of
+ * seconds).
+ *
+ * TIME_WAIT is often also known as the 2MSL wait state.  This is because
+ * the socket that transitions to TIME_WAIT stays there for a period that
+ * is 2 x Maximum Segment Lifetime in duration.  The MSL is the maximum
+ * amount of time that any segment can remain valid on the network before
+ * being discarded.  This time limit is ultimately bounded by the TTL field
+ * in the IP datagram that is used to transmit the TCP segment.  RFC 793
+ * specifies MSL as 2 minutes but most systems permit this value to be tuned.
+ * Here a default TIME_WAIT (2MSL) 2 minutes is used, half the value
+ * specified by RFC 793.
+ */
 
 #ifdef CONFIG_NET_TCP_WAIT_TIMEOUT
 #  define TCP_TIME_WAIT_TIMEOUT CONFIG_NET_TCP_WAIT_TIMEOUT
@@ -575,27 +589,13 @@
 #  endif
 #endif
 
-/* General configuration options */
-
-/* Delay after receive to catch a following packet.  No delay should be
- * required if TCP/IP read-ahead buffering is enabled.
- */
-
-#ifndef CONFIG_NET_TCP_RECVDELAY
-#  ifdef CONFIG_NET_TCP_READAHEAD
-#    define CONFIG_NET_TCP_RECVDELAY 0
-#  else
-#    define CONFIG_NET_TCP_RECVDELAY 5
-#  endif
-#endif
-
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/
 
 /* Statistics datatype
  *
- * This typedef defines the dataype used for keeping statistics in
+ * This typedef defines the datatype used for keeping statistics in
  * the network.
  */
 

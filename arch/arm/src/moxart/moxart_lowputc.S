@@ -40,8 +40,6 @@
 #include <nuttx/config.h>
 
 #include "chip.h"
-#include "up_arch.h"
-#include "up_internal.h"
 
 /**************************************************************************
  * Pre-processor Definitions
@@ -72,7 +70,7 @@
  **************************************************************************/
 
 /**************************************************************************
- * Name: up_lowputc
+ * Name: arm_lowputc
  **************************************************************************/
 
 /* This assembly language version has the advantage that it can does not
@@ -81,9 +79,9 @@
  */
 
 	.text
-	.global	up_lowputc
-	.type	up_lowputc, function
-up_lowputc:
+	.global	arm_lowputc
+	.type	arm_lowputc, function
+arm_lowputc:
 	/* On entry, r0 holds the character to be printed */
 
 	ldr	r2, =UART0_BASE	/* r2=UART0 base */
@@ -100,25 +98,25 @@ up_lowputc:
 	 * register.
 	 */
 
-	strb     r0, [r2, #UART_THR]
+	strb	r0, [r2, #UART_THR]
 
-	/* Wait for the tranmsit holding regiser (THR) to be
-	 * emptied. This is detemined when bit 6 of the LSR
+	/* Wait for the tranmsit holding register (THR) to be
+	 * emptied. This is determined when bit 6 of the LSR
 	 * is set.
 	 */
 
-2:	ldrb     r1, [r2, #UART_LSR]
-	tst     r1, #UART_LSR_THRE
-	beq     2b
+2:	ldrb	r1, [r2, #UART_LSR]
+	tst	r1, #UART_LSR_THRE
+	beq	2b
 
 	/* If the character that we just sent was a linefeed,
 	 * then send a carriage return as well.
 	 */
 
-	teq     r0, #'\n'
-	moveq   r0, #'\r'
-	beq     1b
+	teq	r0, #'\n'
+	moveq	r0, #'\r'
+	beq	1b
 
 	/* And return */
 
-	mov     pc, lr
+	mov	pc, lr

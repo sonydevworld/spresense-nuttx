@@ -1,37 +1,20 @@
 /****************************************************************************
  * fs/nxffs/nxffs_pack.c
  *
- *   Copyright (C) 2011, 2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References: Linux/Documentation/filesystems/romfs.txt
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -41,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <stdint.h>
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
@@ -52,11 +36,7 @@
 #include "nxffs.h"
 
 /****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Public Types
+ * Private Types
  ****************************************************************************/
 
 /* This structure supports access to one inode data stream */
@@ -341,7 +321,8 @@ static inline int nxffs_startpos(FAR struct nxffs_volume_s *volume,
            */
 
           nbytes += blkentry.datlen;
-          offset  = blkentry.hoffset + SIZEOF_NXFFS_DATA_HDR + blkentry.datlen;
+          offset  = blkentry.hoffset + SIZEOF_NXFFS_DATA_HDR +
+                    blkentry.datlen;
         }
 
       /* Make sure there is space at this location for an inode header */
@@ -458,10 +439,10 @@ static int nxffs_destsetup(FAR struct nxffs_volume_s *volume,
   /* The destination can be in one of three of states:
    *
    * State 1: The inode position was not yet been found.  This condition can
-   * only occur on initial entry into nxffs_packblock() when there we no space
-   * for the inode header at the end of the previous block.  We must now be
-   * at the beginning of a shiny new I/O block, so we should always have
-   * space for a new inode header right here.
+   * only occur on initial entry into nxffs_packblock() when there we no
+   * space for the inode header at the end of the previous block.  We must
+   * now be at the beginning of a shiny new I/O block, so we should always
+   * have space for a new inode header right here.
    */
 
   if (pack->dest.entry.hoffset == 0)
@@ -532,8 +513,8 @@ static int nxffs_destsetup(FAR struct nxffs_volume_s *volume,
       pack->iooffset += namlen;
     }
 
-  /* State 3: Inode header not-written, inode name written.  Still need the position
-   * of the first data block.
+  /* State 3: Inode header not-written, inode name written.  Still need the
+   * position of the first data block.
    *
    * Deal with the special case where the source inode is a zero length file
    * with no data blocks to be transferred.
@@ -543,16 +524,16 @@ static int nxffs_destsetup(FAR struct nxffs_volume_s *volume,
     {
       if (pack->dest.entry.doffset == 0)
         {
-          /* Will the data block header plus a minimal amount of data fit in this
-           * block? (or the whole file if the file is very small).
+          /* Will the data block header plus a minimal amount of data fit in
+           * this block? (or the whole file if the file is very small).
            */
 
           mindata = MIN(NXFFS_MINDATA, pack->dest.entry.datlen);
           if (pack->iooffset + SIZEOF_NXFFS_DATA_HDR + mindata >
               volume->geo.blocksize)
             {
-              /* No.. return an indication that we are at the end of the block
-               * and try again later.
+              /* No.. return an indication that we are at the end of the
+               * block and try again later.
                */
 
               ret = -ENOSPC;
@@ -564,29 +545,31 @@ static int nxffs_destsetup(FAR struct nxffs_volume_s *volume,
           pack->dest.entry.doffset = nxffs_packtell(volume, pack);
           pack->iooffset          += SIZEOF_NXFFS_DATA_HDR;
 
-          /* Initialize the output data stream to start with the first data block */
+          /* Initialize the output data stream to start with the first data
+           * block
+           */
 
           pack->dest.blkoffset     = pack->dest.entry.doffset;
           pack->dest.blklen        = 0;
           pack->dest.blkpos        = 0;
         }
 
-      /* State 4:  Starting a new block.  Verify that there is space in the current
-       * block for another (minimal sized) block
+      /* State 4:  Starting a new block.  Verify that there is space in the
+       * current block for another (minimal sized) block
        */
 
       if (pack->dest.blkoffset == 0)
         {
-          /* Will the data block header plus a minimal amount of data fit in this
-           * block? (or the whole file if the file is very small).
+          /* Will the data block header plus a minimal amount of data fit in
+           * this block? (or the whole file if the file is very small).
            */
 
           mindata = MIN(NXFFS_MINDATA, pack->dest.entry.datlen);
           if (pack->iooffset + SIZEOF_NXFFS_DATA_HDR + mindata >
               volume->geo.blocksize)
             {
-              /* No.. return an indication that we are at the end of the block
-               * and try again later.
+              /* No.. return an indication that we are at the end of the
+               * block and try again later.
                */
 
               ret = -ENOSPC;
@@ -695,7 +678,8 @@ static int nxffs_wrinodehdr(FAR struct nxffs_volume_s *volume,
       /* Calculate the CRC */
 
       crc = crc32((FAR const uint8_t *)inode, SIZEOF_NXFFS_INODE_HDR);
-      crc = crc32part((FAR const uint8_t *)pack->dest.entry.name, namlen, crc);
+      crc = crc32part((FAR const uint8_t *)pack->dest.entry.name, namlen,
+                      crc);
 
       /* Finish the inode header */
 
@@ -709,7 +693,7 @@ static int nxffs_wrinodehdr(FAR struct nxffs_volume_s *volume,
       ret = nxffs_updateinode(volume, &pack->dest.entry);
       if (ret < 0)
         {
-          ferr("ERROR: Failed to update inode info: %s\n", -ret);
+          ferr("ERROR: Failed to update inode info: %d\n", -ret);
         }
     }
 
@@ -746,9 +730,9 @@ static void nxffs_wrdathdr(FAR struct nxffs_volume_s *volume,
 
   if (pack->dest.blklen > 0)
     {
-      /* Get the offset in the block corresponding to the location of the data
-       * block header.  NOTE:  This must lie in the same block as we currently have
-       * buffered.
+      /* Get the offset in the block corresponding to the location of the
+       * data block header.  NOTE:  This must lie in the same block as we
+       * currently have buffered.
        */
 
       ioblock  = nxffs_getblock(volume, pack->dest.blkoffset);
@@ -932,8 +916,8 @@ static inline int nxffs_packblock(FAR struct nxffs_volume_s *volume,
     }
 
   /* Loop, transferring data from the source block to the destination pack
-   * buffer until either (1) the source stream is exhausted, (2) the destination
-   * block is full, or (3) an error occurs.
+   * buffer until either (1) the source stream is exhausted, (2) the
+   * destination block is full, or (3) an error occurs.
    */
 
   for (; ; )
@@ -966,8 +950,8 @@ static inline int nxffs_packblock(FAR struct nxffs_volume_s *volume,
           ret = nxffs_nextentry(volume, offset, &pack->src.entry);
           if (ret < 0)
             {
-              /* No more valid inode entries.  Just return an end-of-flash error
-               * indication.
+              /* No more valid inode entries.  Just return an end-of-flash
+               * error indication.
                */
 
               return -ENOSPC;
@@ -993,10 +977,11 @@ static inline int nxffs_packblock(FAR struct nxffs_volume_s *volume,
            * the inode header?
            */
 
-          if (pack->iooffset + SIZEOF_NXFFS_INODE_HDR > volume->geo.blocksize)
+          if (pack->iooffset + SIZEOF_NXFFS_INODE_HDR >
+              volume->geo.blocksize)
             {
-              /* No, just return success... we will handle this condition when
-               * this function is called on the next I/O block.
+              /* No, just return success... we will handle this condition
+               * when this function is called on the next I/O block.
                */
 
               return OK;
@@ -1007,9 +992,9 @@ static inline int nxffs_packblock(FAR struct nxffs_volume_s *volume,
           ret = nxffs_destsetup(volume, pack);
           if (ret < 0)
             {
-              /* -ENOSPC is a special return value which simply means that all of the
-               * has been used up to the end.  We need to return OK in this case and
-               * resume at the next block.
+              /* -ENOSPC is a special return value which simply means that
+               * all of the has been used up to the end.  We need to return
+               * OK in this case and resume at the next block.
                */
 
               if (ret == -ENOSPC)
@@ -1018,7 +1003,8 @@ static inline int nxffs_packblock(FAR struct nxffs_volume_s *volume,
                 }
               else
                 {
-                  ferr("ERROR: Failed to configure the dest stream: %d\n", -ret);
+                  ferr("ERROR: Failed to configure the dest stream: %d\n",
+                       -ret);
                   return ret;
                 }
             }
@@ -1041,7 +1027,9 @@ static inline int nxffs_packblock(FAR struct nxffs_volume_s *volume,
 
       if (pack->iooffset >= volume->geo.blocksize)
         {
-          /* Yes.. Write the destination data block header and return success */
+          /* Yes.. Write the destination data block header and return
+           * success
+           */
 
           nxffs_wrdathdr(volume, pack);
           return OK;
@@ -1085,10 +1073,10 @@ nxffs_setupwriter(FAR struct nxffs_volume_s *volume,
        * this packing activity.  The writer may have failed in one of several
        * different stages:
        *
-       *   hoffset == 0: The write failed early before even FLASH for the inode
-       *     header was set aside.
-       *   noffset == 0: The write failed after the inode header was set aside,
-       *     but before the inode name was written.
+       *   hoffset == 0: The write failed early before even FLASH for the
+       *     inode header was set aside.
+       *   noffset == 0: The write failed after the inode header was set
+       *     aside, but before the inode name was written.
        *   doffset == 0: The write failed after writing the inode name, bue
        *     before any data blocks were written to FLASH.
        *
@@ -1186,8 +1174,8 @@ static inline int nxffs_packwriter(FAR struct nxffs_volume_s *volume,
     }
 
   /* Loop, transferring data from the source block to the destination pack
-   * buffer until either (1) the source stream is exhausted, (2) the destination
-   * block is full, or (3) an error occurs.
+   * buffer until either (1) the source stream is exhausted, (2) the
+   * destination block is full, or (3) an error occurs.
    */
 
   for (; ; )
@@ -1241,7 +1229,9 @@ static inline int nxffs_packwriter(FAR struct nxffs_volume_s *volume,
 
       if (pack->iooffset >= volume->geo.blocksize)
         {
-          /* Yes.. Write the destination data block header and return success */
+          /* Yes.. Write the destination data block header and return
+           * success
+           */
 
           nxffs_wrdathdr(volume, pack);
           return OK;
@@ -1291,10 +1281,10 @@ int nxffs_pack(FAR struct nxffs_volume_s *volume)
   if (iooffset == 0)
     {
       /* Offset zero is only returned if no valid blocks were found on the
-       * FLASH media or if there are no valid inode entries on the FLASH after
-       * the first valid block.  There are two possibilities:  (1) there
-       * really is nothing on the FLASH, or (2) there is a file being written
-       * to the FLASH now.
+       * FLASH media or if there are no valid inode entries on the FLASH
+       * after the first valid block.  There are two possibilities:  (1)
+       * there* really is nothing on the FLASH, or (2) there is a file being
+       * written to the FLASH now.
        */
 
       /* Is there a writer? */
@@ -1303,7 +1293,7 @@ int nxffs_pack(FAR struct nxffs_volume_s *volume)
       if (wrfile)
         {
           /* If there is a write, just set ioffset to the offset of data in
-           * first block. Setting 'packed' to true will supress normal inode
+           * first block. Setting 'packed' to true will suppress normal inode
            * packing operation.  Then we can start compacting the FLASH.
            */
 
@@ -1354,16 +1344,17 @@ int nxffs_pack(FAR struct nxffs_volume_s *volume)
       if (ret == -ENOSPC)
         {
           /* In the case where the volume is full, nxffs_startpos() will
-           * recalculate the free FLASH offset and store it in iooffset.  There
-           * may be deleted files at the end of FLASH.  In this case, we don't
-           * have to pack any files, we simply have to erase FLASH at the end.
-           * But don't do this unless there is some particularly big FLASH
-           * savings (otherwise, we risk wearing out these final blocks).
+           * recalculate the free FLASH offset and store it in iooffset.
+           * There may be deleted files at the end of FLASH.  In this case,
+           * we don't have to pack any files, we simply have to erase FLASH
+           * at the end. But don't do this unless there is some particularly
+           * big FLASH savings (otherwise, we risk wearing out these final
+           * blocks).
            */
 
           if (iooffset + CONFIG_NXFFS_TAILTHRESHOLD < volume->froffset)
             {
-              /* Setting 'packed' to true will supress normal inode packing
+              /* Setting 'packed' to true will suppress normal inode packing
                * operation.
                */
 
@@ -1423,10 +1414,12 @@ start_pack:
        * previously marked bad blocks.
        */
 
-      ret = MTD_BREAD(volume->mtd, pack.block0, volume->blkper, volume->pack);
+      ret = MTD_BREAD(volume->mtd, pack.block0, volume->blkper,
+                      volume->pack);
       if (ret < 0)
         {
-          ferr("ERROR: Failed to read erase block %d: %d\n", eblock, -ret);
+          ferr("ERROR: Failed to read erase block %jd: %d\n",
+               (intmax_t)eblock, -ret);
           goto errout_with_pack;
         }
 
@@ -1502,7 +1495,8 @@ start_pack:
                       if (ret < 0)
                         {
                           /* The error -ENOSPC is a special value that simply
-                           * means that there is nothing further to be packed.
+                           * means that there is nothing further to be
+                           * packed.
                            */
 
                           if (ret == -ENOSPC)
@@ -1510,10 +1504,11 @@ start_pack:
                               packed = true;
 
                               /* Writing is performed at the end of the free
-                               * FLASH region and this implementation is restricted
-                               * to a single writer.  The new inode is not
-                               * written to FLASH until the writer is closed
-                               * and so will not be found by nxffs_packblock().
+                               * FLASH region and this implementation is
+                               * restricted to a single writer.  The new
+                               * inode is not written to FLASH until the
+                               * writer is closed and so will not be found
+                               * by nxffs_packblock().
                                */
 
                               wrfile = nxffs_setupwriter(volume, &pack);
@@ -1522,15 +1517,17 @@ start_pack:
                             {
                               /* Otherwise, something really bad happened */
 
-                              ferr("ERROR: Failed to pack into block %d: %d\n",
-                                   block, ret);
+                              ferr("ERROR: Failed to pack into block %jd: "
+                                   "%d\n",
+                                   (intmax_t)block, ret);
                               goto errout_with_pack;
                             }
                         }
                     }
 
-                  /* If all of the "normal" inodes have been packed, then check if
-                   * we need to pack the current, in-progress write operation.
+                  /* If all of the "normal" inodes have been packed, then
+                   * check if we need to pack the current, in-progress write
+                   * operation.
                    */
 
                   if (wrfile)
@@ -1543,7 +1540,8 @@ start_pack:
                       if (ret < 0)
                         {
                           /* The error -ENOSPC is a special value that simply
-                           * means that there is nothing further to be packed.
+                           * means that there is nothing further to be
+                           * packed.
                            */
 
                           if (ret == -ENOSPC)
@@ -1554,8 +1552,9 @@ start_pack:
                             {
                               /* Otherwise, something really bad happened */
 
-                              ferr("ERROR: Failed to pack into block %d: %d\n",
-                                   block, ret);
+                              ferr("ERROR: Failed to pack into block %jd: "
+                                   "%d\n",
+                                   (intmax_t)block, ret);
                               goto errout_with_pack;
                             }
                         }
@@ -1588,18 +1587,19 @@ start_pack:
       ret = MTD_ERASE(volume->mtd, eblock, 1);
       if (ret < 0)
         {
-          ferr("ERROR: Failed to erase block %d [%d]: %d\n",
-               eblock, pack.block0, -ret);
+          ferr("ERROR: Failed to erase block %jd [%jd]: %d\n",
+               (intmax_t)eblock, (intmax_t)pack.block0, -ret);
           goto errout_with_pack;
         }
 
       /* Write the packed I/O block to FLASH */
 
-      ret = MTD_BWRITE(volume->mtd, pack.block0, volume->blkper, volume->pack);
+      ret = MTD_BWRITE(volume->mtd, pack.block0, volume->blkper,
+                       volume->pack);
       if (ret < 0)
         {
-          ferr("ERROR: Failed to write erase block %d [%d]: %d\n",
-               eblock, pack.block0, -ret);
+          ferr("ERROR: Failed to write erase block %jd [%jd]: %d\n",
+               (intmax_t)eblock, (intmax_t)pack.block0, -ret);
           goto errout_with_pack;
         }
     }

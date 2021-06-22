@@ -1,53 +1,35 @@
-/*****************************************************************************
+/****************************************************************************
  * arch/arm/src/str71x/str71x_head.S
  *
- *   Copyright (C) 2008-2009, 2012 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+ ****************************************************************************/
 
-/*****************************************************************************
+/****************************************************************************
  * Included Files
- *****************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>		/* NuttX configuration settings */
-#include <arch/board/board.h>	/* Board-specific settings */
 
-#include "arm.h"				/* ARM-specific settings */
-#include "chip.h"				/* Chip-specific settings */
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm.h"			/* ARM-specific settings */
+#include "chip.h"			/* Chip-specific settings */
 
-/*****************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- *****************************************************************************/
+ ****************************************************************************/
 
 /* This file holds the NuttX start logic that runs when the STR711
  * is reset.  This logic must be located at address 0x4000:0000 in
@@ -55,50 +37,50 @@
  * reset.
  */
 
-/*****************************************************************************
+/****************************************************************************
  * External references
- *****************************************************************************/
+ ****************************************************************************/
 
 	.globl	str71x_prccuinit			/* Clock initialization */
-	.globl	up_lowsetup					/* Early initialization of UART */
+	.globl	up_lowsetup				/* Early initialization of UART */
 #ifdef USE_EARLYSERIALINIT
-	.globl	up_earlyserialinit			/* Early initialization of serial driver */
+	.globl	arm_earlyserialinit			/* Early initialization of serial driver */
 #endif
 #ifdef CONFIG_ARCH_LEDS
-	.globl	board_autoled_initialize	/* Boot LED setup */
+	.globl	board_autoled_initialize		/* Boot LED setup */
 #endif
 #ifdef CONFIG_DEBUG_FEATURES
-	.globl	up_lowputc					/* Low-level debug output */
+	.globl	arm_lowputc				/* Low-level debug output */
 #endif
-	.globl	nx_start					/* NuttX entry point */
+	.globl	nx_start				/* NuttX entry point */
 
-/*****************************************************************************
+/****************************************************************************
  * Macros
- *****************************************************************************/
+ ****************************************************************************/
 
-/*****************************************************************************
+/****************************************************************************
  * Name: showprogress
  *
  * Description:
  *   Print a character on the UART to show boot status. This macro will
  *   modify r0, r1, r2 and r14
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 	.macro	showprogress, code
 #ifdef CONFIG_DEBUG_FEATURES
 	mov		r0, #\code
-	bl		up_lowputc
+	bl		arm_lowputc
 #endif
 	.endm
 
-/*****************************************************************************
+/****************************************************************************
  * Name: emiinit
  *
  * Description:
  *   Initialize external memory banks 0-3 as configured
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 	.macro	emiinit, base, value
 #if defined(CONFIG_STR71X_BANK0) || defined(CONFIG_STR71X_BANK1) || \
@@ -119,7 +101,7 @@
 #  define EXTMEM_GPIO_BITSET 0x0000000f		/* P2.0-3 */
 #endif
 
-	ldr		\base, =STR71X_GPIO_BASE		; Configure P2.0 to P2.3/7 in AF_PP mode
+	ldr		\base, =STR71X_GPIO_BASE		/* Configure P2.0 to P2.3/7 in AF_PP mode */
 	ldr		\value, [\base, #STR71X_GPIO_PC0_OFFSET]
 	orr		\value, \value, #EXTMEM_GPIO_BITSET
 	str		\value, [\base, #STR71X_GPIO_PC0_OFFSET]
@@ -254,7 +236,7 @@
 #endif
 	.endm
 
-/*****************************************************************************
+/****************************************************************************
  * Name: eicinit
  *
  * Description:
@@ -272,7 +254,7 @@
  *   At the time of IRQ processing, the IVR will contain the decoded IRQ
  *   number needed by NuttX.
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 	.macro	eicinit, eicbase, value, irqno, offset
 	/* Disable and clear all interrupts */
@@ -343,13 +325,13 @@ eicloop:
 	blt		eicloop
 	.endm
 
-/*****************************************************************************
+/****************************************************************************
  * Name: periphinit
  *
  * Description:
  *   Disable all perfipherals (except EIC)
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 	.macro	periphinit, value, base1, base2
 #ifndef CONFIG_STR71X_DISABLE_PERIPHINIT
@@ -361,12 +343,12 @@ eicloop:
 	/* Disable all APB1 peripherals */
 
 	ldr		\value, =STR71X_APB1_APB1ALL
-	strh	\value, [\base1, #STR71X_APB_CKDIS_OFFSET]
+	strh		\value, [\base1, #STR71X_APB_CKDIS_OFFSET]
 
 	/* Disable all(or most) APB2 peripherals */
 
 	ldr		\value, =(STR71X_APB2_APB2ALL & ~STR71X_APB2_EIC)
-	strh	\value, [\base2, #STR71X_APB_CKDIS_OFFSET]
+	strh		\value, [\base2, #STR71X_APB_CKDIS_OFFSET]
 
 	/* Allow EMI and USB */
 
@@ -376,11 +358,11 @@ eicloop:
 #else
 	ldr		\value, =STR71X_RCCUPER_EMI
 #endif
-	strh	\value, [\base1, #STR71X_RCCU_PER_OFFSET]
+	strh		\value, [\base1, #STR71X_RCCU_PER_OFFSET]
 #endif
 	.endm
 
-/*****************************************************************************
+/****************************************************************************
  * Name: remap
  *
  * Description:
@@ -389,14 +371,14 @@ eicloop:
  *   map the memory appropriately for the execution configuration.  Various
  *   options are possible, but only boot from FLASH is currently supported.
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 	.macro	remap, base, value
 
 	/* Read the PCU BOOTCR register */
 
 	ldr		\base, =STR71X_PCU_BASE
-	ldrh	\value, [\base, #STR71X_PCU_BOOTCR_OFFSET]
+	ldrh		\value, [\base, #STR71X_PCU_BOOTCR_OFFSET]
 
 	/* Mask out the old boot mode bits and set the boot mode to FLASH */
 
@@ -405,16 +387,16 @@ eicloop:
 
 	/* Save the modified BOOTCR register */
 
-	strh	\value, [\base, #STR71X_PCU_BOOTCR_OFFSET]
+	strh		\value, [\base, #STR71X_PCU_BOOTCR_OFFSET]
 	.endm
 
-/*****************************************************************************
+/****************************************************************************
  * Text
- *****************************************************************************/
+ ****************************************************************************/
 
 	.text
 
-/*****************************************************************************
+/****************************************************************************
  * Name: _vector_table
  *
  * Description:
@@ -423,45 +405,45 @@ eicloop:
  *   address 0x00000000).  The first entry in the vector table is the reset
  *   vector and this is the code that will execute when the processor is reset.
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 	.globl	_vector_table
 	.type	_vector_table, %function
 _vector_table:
-	ldr		pc, .Lresethandler			/* 0x00: Reset */
+	ldr		pc, .Lresethandler		/* 0x00: Reset */
 	ldr		pc, .Lundefinedhandler		/* 0x04: Undefined instruction */
-	ldr		pc, .Lswihandler			/* 0x08: Software interrupt */
+	ldr		pc, .Lswihandler		/* 0x08: Software interrupt */
 	ldr		pc, .Lprefetchaborthandler	/* 0x0c: Prefetch abort */
 	ldr		pc, .Ldataaborthandler		/* 0x10: Data abort */
-	.long	0							/* 0x14: Reserved vector */
-	ldr		pc, .Lirqhandler			/* 0x18: IRQ */
-	ldr		pc, .Lfiqhandler			/* 0x1c: FIQ */
+	.long	0					/* 0x14: Reserved vector */
+	ldr		pc, .Lirqhandler		/* 0x18: IRQ */
+	ldr		pc, .Lfiqhandler		/* 0x1c: FIQ */
 
 	.globl	__start
-	.globl	up_vectorundefinsn
-	.globl	up_vectorswi
-	.globl	up_vectorprefetch
-	.globl	up_vectordata
-	.globl	up_vectorirq
-	.globl	up_vectorfiq
+	.globl	arm_vectorundefinsn
+	.globl	arm_vectorsvc
+	.globl	arm_vectorprefetch
+	.globl	arm_vectordata
+	.globl	arm_vectorirq
+	.globl	arm_vectorfiq
 
 .Lresethandler:
 	.long	__start
 .Lundefinedhandler:
-	.long	up_vectorundefinsn
+	.long	arm_vectorundefinsn
 .Lswihandler:
-	.long	up_vectorswi
+	.long	arm_vectorsvc
 .Lprefetchaborthandler:
-	.long	up_vectorprefetch
+	.long	arm_vectorprefetch
 .Ldataaborthandler:
-	.long	up_vectordata
+	.long	arm_vectordata
 .Lirqhandler:
-	.long	up_vectorirq
+	.long	arm_vectorirq
 .Lfiqhandler:
-	.long	up_vectorfiq
+	.long	arm_vectorfiq
 	.size	_vector_table, . - _vector_table
 
-/*****************************************************************************
+/****************************************************************************
  * Name: __start
  *
  * Description:
@@ -469,7 +451,7 @@ _vector_table:
  *   the processor is reset.  It initializes hardware and then gives
  *   control to NuttX.
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 	.global __start
 	.type	__start, #function
@@ -488,16 +470,16 @@ __flashstart:
 
 	/* Setup the initial processor mode */
 
-	mov		r0, #(SVC_MODE | PSR_I_BIT | PSR_F_BIT )
+	mov		r0, #(PSR_MODE_SVC | PSR_I_BIT | PSR_F_BIT )
 	msr		cpsr, r0
 
 	/* Initialize the external memory interface (EMI) */
 
-	emiinit	r0, r1
+	emiinit		r0, r1
 
 	/* Initialize the enhanced interrupt controller (EIC) */
 
-	eicinit	r0, r1, r2, r3
+	eicinit		r0, r1, r2, r3
 
 	/* Disable all peripherals except EIC */
 
@@ -505,27 +487,27 @@ __flashstart:
 
 	/* Map memory appropriately for configuration */
 
-	remap	r0, r1
+	remap		r0, r1
 
 	/* Setup system stack (and get the BSS range) */
 
 	adr		r0, LC0
-	ldmia	r0, {r4, r5, sp}
+	ldmia		r0, {r4, r5, sp}
 
 	/* Clear system BSS section */
 
 	mov		r0, #0
 1:	cmp		r4, r5
-	strcc	r0, [r4], #4
+	strcc		r0, [r4], #4
 	bcc		1b
 
 	/* Copy system .data sections from FLASH to new home in RAM. */
 
 	adr		r3, LC2
-	ldmia	r3, {r0, r1, r2}
+	ldmia		r3, {r0, r1, r2}
 
-2:	ldmia	r0!, {r3 - r10}
-	stmia	r1!, {r3 - r10}
+2:	ldmia		r0!, {r3 - r10}
+	stmia		r1!, {r3 - r10}
 	cmp		r1, r2
 	blt		2b
 
@@ -538,16 +520,16 @@ __flashstart:
 	 */
 
 	bl		up_lowsetup
-	showprogress 'A'
+	showprogress	'A'
 
 	/* Perform early serial initialization */
 
 	mov		fp, #0
 #ifdef USE_EARLYSERIALINIT
-	bl		up_earlyserialinit
+	bl		arm_earlyserialinit
 #endif
 
-	showprogress 'B'
+	showprogress	'B'
 
 	/* Call C++ constructors */
 
@@ -558,16 +540,16 @@ ctor_loop:
 	cmp		r0, r1
 	beq		ctor_end
 	ldr		r2, [r0], #4
-	stmfd	sp!, {r0-r1}
+	stmfd		sp!, {r0-r1}
 	mov		lr, pc
 	mov		pc, r2
-	ldmfd	sp!, {r0-r1}
+	ldmfd		sp!, {r0-r1}
 	b		ctor_loop
 ctor_end:
 
-	showprogress 'C'
+	showprogress	'C'
 #endif
-	showprogress '\n'
+	showprogress	'\n'
 
 	/* Initialize onboard LEDs */
 
@@ -588,17 +570,17 @@ dtor_loop:
 	cmp		r0, r1
 	beq		dtor_end
 	ldr		r2, [r0], #4
-	stmfd	sp!, {r0-r1}
+	stmfd		sp!, {r0-r1}
 	mov		lr, pc
 	mov		pc, r2
-	ldmfd	sp!, {r0-r1}
+	ldmfd		sp!, {r0-r1}
 	b		dtor_loop
 dtor_end:
 #endif
 
 	/* Variables:
 	 * _sbss is the start of the BSS region (see ld.script)
-	 * _ebss is the end of the BSS regsion (see ld.script)
+	 * _ebss is the end of the BSS region (see ld.script)
 	 * The idle task stack starts at the end of BSS and is
 	 * of size CONFIG_IDLETHREAD_STACKSIZE.  The heap continues
 	 * from there until the end of memory.  See g_idle_topstack

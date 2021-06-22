@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/tms570/tms570_serial.c
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -58,8 +43,8 @@
 
 #include <arch/board/board.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "hardware/tms570_sci.h"
 #include "tms570_lowputc.h"
@@ -282,7 +267,9 @@ static inline void tms570_serialout(struct tms570_dev_s *priv, int offset,
 static inline void tms570_restoresciint(struct tms570_dev_s *priv,
                                         uint32_t ints)
 {
-  /* Restore the previous interrupt state (assuming all interrupts disabled) */
+  /* Restore the previous interrupt state (assuming all interrupts
+   * disabled)
+   */
 
   tms570_serialout(priv, TMS570_SCI_SETINT_OFFSET, ints);
 }
@@ -364,9 +351,10 @@ static void tms570_shutdown(struct uart_dev_s *dev)
  *   the setup() method is called, however, the serial console may operate in
  *   a non-interrupt driven mode during the boot phase.
  *
- *   RX and TX interrupts are not enabled when by the attach method (unless the
- *   hardware supports multiple levels of interrupt enabling).  The RX and TX
- *   interrupts are not enabled until the txint() and rxint() methods are called.
+ *   RX and TX interrupts are not enabled when by the attach method (unless
+ *   the hardware supports multiple levels of interrupt enabling).  The RX
+ *   and TX interrupts are not enabled until the txint() and rxint() methods
+ *   are called.
  *
  ****************************************************************************/
 
@@ -395,8 +383,8 @@ static int tms570_attach(struct uart_dev_s *dev)
  *
  * Description:
  *   Detach SCI interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception
- *   is the serial console which is never shutdown.
+ *   closed normally just before the shutdown method is called.  The
+ *   exception is the serial console which is never shutdown.
  *
  ****************************************************************************/
 
@@ -432,10 +420,11 @@ static int tms570_interrupt(int irq, void *context, FAR void *arg)
   for (; ; )
     {
       /* Get the next pending interrupt.  For most interrupts, reading the
-       * INVECT0 register clears the corresonding INTFLAG.
+       * INVECT0 register clears the corresponding INTFLAG.
        */
 
-      intvec = tms570_serialin(priv, TMS570_SCI_INTVECT0_OFFSET) & SCI_INTVECT_MASK;
+      intvec = tms570_serialin(priv, TMS570_SCI_INTVECT0_OFFSET) & \
+               SCI_INTVECT_MASK;
 
       /* Handle the pending interrupt */
 
@@ -445,6 +434,7 @@ static int tms570_interrupt(int irq, void *context, FAR void *arg)
             return OK;
 
           case SCI_INTVECT_WAKEUP:  /* Wake-up interrupt */
+
             /* SCI sets the WAKEUP flag if bus activity on the RX line
              * either prevents power-down mode from being entered, or RX
              * line activity causes an exit from power-down mode. If
@@ -480,7 +470,9 @@ static int tms570_interrupt(int irq, void *context, FAR void *arg)
 
           case SCI_INTVECT_TX:      /* Tranmit interrupt */
             {
-              /* Transmit data register available ... process outgoing bytes */
+              /* Transmit data register available ...
+               * process outgoing bytes
+               */
 
               uart_xmitchars(dev);
             }
@@ -551,10 +543,6 @@ static int tms570_ioctl(struct file *filep, int cmd, unsigned long arg)
             break;
           }
 
-        /* Return baud */
-
-        cfsetispeed(termiosp, priv->config.baud);
-
         /* Return parity */
 
         termiosp->c_cflag = ((priv->config.parity != 0) ? PARENB : 0) |
@@ -563,6 +551,10 @@ static int tms570_ioctl(struct file *filep, int cmd, unsigned long arg)
         /* Return stop bits */
 
         termiosp->c_cflag |= (priv->config.stopbits2) ? CSTOPB : 0;
+
+        /* Return baud */
+
+        cfsetispeed(termiosp, priv->config.baud);
 
         /* Return number of bits */
 
@@ -728,8 +720,8 @@ static void tms570_rxint(struct uart_dev_s *dev, bool enable)
 
   if (enable)
     {
-      /* Receive an interrupt when their is anything in the Rx data register (or an Rx
-       * timeout occurs).
+      /* Receive an interrupt when their is anything in the Rx data register
+       * (or an RX timeout occurs).
        */
 
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
@@ -753,7 +745,8 @@ static void tms570_rxint(struct uart_dev_s *dev, bool enable)
 static bool tms570_rxavailable(struct uart_dev_s *dev)
 {
   struct tms570_dev_s *priv = (struct tms570_dev_s *)dev->priv;
-  return ((tms570_serialin(priv, TMS570_SCI_FLR_OFFSET) & SCI_FLR_RXRDY) != 0);
+  return ((tms570_serialin(priv, TMS570_SCI_FLR_OFFSET) & \
+          SCI_FLR_RXRDY) != 0);
 }
 
 /****************************************************************************
@@ -821,7 +814,8 @@ static void tms570_txint(struct uart_dev_s *dev, bool enable)
 static bool tms570_txready(struct uart_dev_s *dev)
 {
   struct tms570_dev_s *priv = (struct tms570_dev_s *)dev->priv;
-  return ((tms570_serialin(priv, TMS570_SCI_FLR_OFFSET) & SCI_FLR_TXRDY) != 0);
+  return ((tms570_serialin(priv, TMS570_SCI_FLR_OFFSET) & \
+          SCI_FLR_TXRDY) != 0);
 }
 
 /****************************************************************************
@@ -835,7 +829,8 @@ static bool tms570_txready(struct uart_dev_s *dev)
 static bool tms570_txempty(struct uart_dev_s *dev)
 {
   struct tms570_dev_s *priv = (struct tms570_dev_s *)dev->priv;
-  return ((tms570_serialin(priv, TMS570_SCI_FLR_OFFSET) & SCI_FLR_TXEMPTY) != 0);
+  return ((tms570_serialin(priv, TMS570_SCI_FLR_OFFSET) & \
+          SCI_FLR_TXEMPTY) != 0);
 }
 
 /****************************************************************************
@@ -843,14 +838,14 @@ static bool tms570_txempty(struct uart_dev_s *dev)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_serialinit
+ * Name: arm_serialinit
  *
  * Description:
  *   Register serial console and serial ports.
  *
  ****************************************************************************/
 
-void up_serialinit(void)
+void arm_serialinit(void)
 {
   /* Disable all SCIS */
 

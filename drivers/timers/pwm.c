@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/timers/pwm.c
  *
- *   Copyright (C) 2011-2013, 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,6 +25,7 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -68,16 +54,20 @@
 
 struct pwm_upperhalf_s
 {
-  uint8_t           crefs;    /* The number of times the device has been opened */
-  volatile bool     started;  /* True: pulsed output is being generated */
+  uint8_t           crefs;          /* The number of times the device has
+                                     * been opened */
+  volatile bool     started;        /* True: pulsed output is being
+                                     * generated */
 #ifdef CONFIG_PWM_PULSECOUNT
-  volatile bool     waiting;  /* True: Caller is waiting for the pulse count to expire */
+  volatile bool     waiting;        /* True: Caller is waiting for the pulse
+                                     * count to expire */
 #endif
-  sem_t             exclsem;  /* Supports mutual exclusion */
+  sem_t             exclsem;        /* Supports mutual exclusion */
 #ifdef CONFIG_PWM_PULSECOUNT
-  sem_t             waitsem;  /* Used to wait for the pulse count to expire */
+  sem_t             waitsem;        /* Used to wait for the pulse count to
+                                     * expire */
 #endif
-  struct pwm_info_s info;     /* Pulsed output characteristics */
+  struct pwm_info_s info;           /* Pulsed output characteristics */
   FAR struct pwm_lowerhalf_s *dev;  /* lower-half state */
 };
 
@@ -128,16 +118,16 @@ static void pwm_dump(FAR const char *msg, FAR const struct pwm_info_s *info,
   int i;
 #endif
 
-  pwminfo("%s: frequency: %d", msg, info->frequency);
+  pwminfo("%s: frequency: %" PRId32 "\n", msg, info->frequency);
 
 #ifdef CONFIG_PWM_MULTICHAN
   for (i = 0; i < CONFIG_PWM_NCHANNELS; i++)
     {
-      pwminfo(" channel: %d duty: %08x",
+      pwminfo(" channel: %d duty: %08" PRIx32 "\n",
               info->channels[i].channel, info->channels[i].duty);
     }
 #else
-  pwminfo(" duty: %08x", info->duty);
+  pwminfo(" duty: %08" PRIx32 "\n", info->duty);
 #endif
 
 #ifdef CONFIG_PWM_PULSECOUNT
@@ -259,7 +249,7 @@ static int pwm_close(FAR struct file *filep)
       /* Disable the PWM device */
 
       DEBUGASSERT(lower->ops->shutdown != NULL);
-      pwminfo("calling shutdown: %d\n");
+      pwminfo("calling shutdown\n");
 
       lower->ops->shutdown(lower);
     }
@@ -336,7 +326,8 @@ static int pwm_start(FAR struct pwm_upperhalf_s *upper, unsigned int oflags)
        * We do these things before starting the PWM to avoid race conditions.
        */
 
-      upper->waiting = (upper->info.count > 0) && ((oflags & O_NONBLOCK) == 0);
+      upper->waiting = (upper->info.count > 0) &&
+                       ((oflags & O_NONBLOCK) == 0);
       upper->started = true;
 
       /* Invoke the bottom half method to start the pulse train */
@@ -360,7 +351,12 @@ static int pwm_start(FAR struct pwm_upperhalf_s *upper, unsigned int oflags)
                * clear the waiting flag.
                */
 
-              nxsem_wait_uninterruptible(&upper->waitsem);
+              ret = nxsem_wait_uninterruptible(&upper->waitsem);
+              if (ret < 0)
+                {
+                  upper->started = false;
+                  upper->waiting = false;
+                }
             }
         }
       else
@@ -440,19 +436,21 @@ static int pwm_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   switch (cmd)
     {
-      /* PWMIOC_SETCHARACTERISTICS - Set the characteristics of the next pulsed
-       *   output.  This command will neither start nor stop the pulsed output.
-       *   It will either setup the configuration that will be used when the
-       *   output is started; or it will change the characteristics of the pulsed
-       *   output on the fly if the timer is already started.
+      /* PWMIOC_SETCHARACTERISTICS - Set the characteristics of the next
+       *   pulsed output.  This command will neither start nor stop the
+       *   pulsed output.  It will either setup the configuration that will
+       *   be used when the output is started; or it will change the
+       *   characteristics of the pulsed output on the fly if the timer is
+       *   already started.
        *
-       *   ioctl argument:  A read-only reference to struct pwm_info_s that provides
-       *   the characteristics of the pulsed output.
+       *   ioctl argument:  A read-only reference to struct pwm_info_s that
+       *   provides the characteristics of the pulsed output.
        */
 
       case PWMIOC_SETCHARACTERISTICS:
         {
-          FAR const struct pwm_info_s *info = (FAR const struct pwm_info_s *)((uintptr_t)arg);
+          FAR const struct pwm_info_s *info =
+            (FAR const struct pwm_info_s *)((uintptr_t)arg);
           DEBUGASSERT(info != NULL && lower->ops->start != NULL);
 
           pwm_dump("PWMIOC_SETCHARACTERISTICS", info, upper->started);
@@ -461,7 +459,9 @@ static int pwm_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
           memcpy(&upper->info, info, sizeof(struct pwm_info_s));
 
-          /* If PWM is already running, then re-start it with the new characteristics */
+          /* If PWM is already running, then re-start it with the new
+           * characteristics.
+           */
 
           if (upper->started)
             {
@@ -474,8 +474,9 @@ static int pwm_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
         break;
 
-      /* PWMIOC_GETCHARACTERISTICS - Get the currently selected characteristics of
-       *   the pulsed output (independent of whether the output is start or stopped).
+      /* PWMIOC_GETCHARACTERISTICS - Get the currently selected
+       * characteristics of the pulsed output (independent of whether the
+       * output is start or stopped).
        *
        *   ioctl argument:  A reference to struct pwm_info_s to receive the
        *   characteristics of the pulsed output.
@@ -483,7 +484,8 @@ static int pwm_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case PWMIOC_GETCHARACTERISTICS:
         {
-          FAR struct pwm_info_s *info = (FAR struct pwm_info_s *)((uintptr_t)arg);
+          FAR struct pwm_info_s *info =
+            (FAR struct pwm_info_s *)((uintptr_t)arg);
           DEBUGASSERT(info != NULL);
 
           memcpy(info, &upper->info, sizeof(struct pwm_info_s));
@@ -492,8 +494,8 @@ static int pwm_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
         break;
 
-      /* PWMIOC_START - Start the pulsed output.  The PWMIOC_SETCHARACTERISTICS
-       *   command must have previously been sent.
+      /* PWMIOC_START - Start the pulsed output.  The
+       *   PWMIOC_SETCHARACTERISTICS  command must have previously been sent.
        *
        *   ioctl argument:  None
        */
@@ -533,7 +535,9 @@ static int pwm_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
         break;
 
-      /* Any unrecognized IOCTL commands might be platform-specific ioctl commands */
+      /* Any unrecognized IOCTL commands might be platform-specific ioctl
+       * commands.
+       */
 
       default:
         {
@@ -568,9 +572,9 @@ static int pwm_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  *     filesystem.  The recommended convention is to name all PWM drivers
  *     as "/dev/pwm0", "/dev/pwm1", etc.  where the driver path differs only
  *     in the "minor" number at the end of the device name.
- *   dev - A pointer to an instance of lower half timer driver.  This instance
- *     is bound to the PWM driver and must persists as long as the driver
- *     persists.
+ *   dev - A pointer to an instance of lower half timer driver.  This
+ *     instance is bound to the PWM driver and must persists as long as the
+ *     driver persists.
  *
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
@@ -583,24 +587,27 @@ int pwm_register(FAR const char *path, FAR struct pwm_lowerhalf_s *dev)
 
   /* Allocate the upper-half data structure */
 
-  upper = (FAR struct pwm_upperhalf_s *)kmm_zalloc(sizeof(struct pwm_upperhalf_s));
+  upper = (FAR struct pwm_upperhalf_s *)
+    kmm_zalloc(sizeof(struct pwm_upperhalf_s));
   if (!upper)
     {
       pwmerr("Allocation failed\n");
       return -ENOMEM;
     }
 
-  /* Initialize the PWM device structure (it was already zeroed by kmm_zalloc()) */
+  /* Initialize the PWM device structure (it was already zeroed by
+   * kmm_zalloc()).
+   */
 
   nxsem_init(&upper->exclsem, 0, 1);
 #ifdef CONFIG_PWM_PULSECOUNT
   nxsem_init(&upper->waitsem, 0, 0);
 
-  /* The wait semaphore is used for signaling and, hence, should not have priority
-   * inheritance enabled.
+  /* The wait semaphore is used for signaling and, hence, should not have
+   * priority inheritance enabled.
    */
 
-  nxsem_setprotocol(&upper->waitsem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&upper->waitsem, SEM_PRIO_NONE);
 #endif
 
   upper->dev = dev;

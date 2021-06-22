@@ -43,6 +43,8 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
+#include <math.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -62,7 +64,6 @@
 #include <nuttx/audio/i2s.h>
 #include <nuttx/audio/audio.h>
 #include <nuttx/audio/cs43l22.h>
-#include <nuttx/lib/math.h>
 
 #include "cs43l22.h"
 
@@ -76,17 +77,20 @@ static
 uint8_t cs43l22_readreg(FAR struct cs43l22_dev_s *priv, uint8_t regaddr);
 static void cs43l22_writereg(FAR struct cs43l22_dev_s *priv, uint8_t regaddr,
                              uint8_t regval);
-static void cs43l22_takesem(sem_t * sem);
+static int  cs43l22_takesem(FAR sem_t *sem);
+static int  cs43l22_forcetake(FAR sem_t *sem);
 #define     cs43l22_givesem(s) nxsem_post(s)
 
 #ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
 static inline uint16_t cs43l22_scalevolume(uint16_t volume, b16_t scale);
-static void cs43l22_setvolume(FAR struct cs43l22_dev_s *priv, uint16_t volume,
-                              bool mute);
+static void cs43l22_setvolume(FAR struct cs43l22_dev_s *priv,
+                              uint16_t volume, bool mute);
 #endif
 #ifndef CONFIG_AUDIO_EXCLUDE_TONE
-static void cs43l22_setbass(FAR struct cs43l22_dev_s *priv, uint8_t bass);
-static void cs43l22_settreble(FAR struct cs43l22_dev_s *priv, uint8_t treble);
+static void cs43l22_setbass(FAR struct cs43l22_dev_s *priv,
+                            uint8_t bass);
+static void cs43l22_settreble(FAR struct cs43l22_dev_s *priv,
+                              uint8_t treble);
 #endif
 
 static void cs43l22_setdatawidth(FAR struct cs43l22_dev_s *priv);
@@ -112,21 +116,25 @@ static void cs43l22_returnbuffers(FAR struct cs43l22_dev_s *priv);
 static int  cs43l22_sendbuffer(FAR struct cs43l22_dev_s *priv);
 
 #ifdef CONFIG_AUDIO_MULTI_SESSION
-static int  cs43l22_start(FAR struct audio_lowerhalf_s *dev, FAR void *session);
+static int  cs43l22_start(FAR struct audio_lowerhalf_s *dev,
+                          FAR void *session);
 #else
 static int  cs43l22_start(FAR struct audio_lowerhalf_s *dev);
 #endif
 #ifndef CONFIG_AUDIO_EXCLUDE_STOP
 #ifdef CONFIG_AUDIO_MULTI_SESSION
-static int  cs43l22_stop(FAR struct audio_lowerhalf_s *dev, FAR void *session);
+static int  cs43l22_stop(FAR struct audio_lowerhalf_s *dev,
+                         FAR void *session);
 #else
 static int  cs43l22_stop(FAR struct audio_lowerhalf_s *dev);
 #endif
 #endif
 #ifndef CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
 #ifdef CONFIG_AUDIO_MULTI_SESSION
-static int  cs43l22_pause(FAR struct audio_lowerhalf_s *dev, FAR void *session);
-static int  cs43l22_resume(FAR struct audio_lowerhalf_s *dev, FAR void *session);
+static int  cs43l22_pause(FAR struct audio_lowerhalf_s *dev,
+                          FAR void *session);
+static int  cs43l22_resume(FAR struct audio_lowerhalf_s *dev,
+                           FAR void *session);
 #else
 static int  cs43l22_pause(FAR struct audio_lowerhalf_s *dev);
 static int  cs43l22_resume(FAR struct audio_lowerhalf_s *dev);
@@ -269,7 +277,6 @@ uint8_t cs43l22_readreg(FAR struct cs43l22_dev_s *priv, uint8_t regaddr)
         }
       else
         {
-
           /* The I2C transfer was successful... break out of the loop and
            * return the value read.
            */
@@ -286,13 +293,13 @@ uint8_t cs43l22_readreg(FAR struct cs43l22_dev_s *priv, uint8_t regaddr)
   return 0;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: cs43l22_writereg
  *
  * Description:
  *   Write the specified 16-bit register to the CS43L22 device.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static void
 cs43l22_writereg(FAR struct cs43l22_dev_s *priv, uint8_t regaddr,
@@ -355,28 +362,65 @@ cs43l22_writereg(FAR struct cs43l22_dev_s *priv, uint8_t regaddr,
     }
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: cs43l22_takesem
  *
  * Description:
- *  Take a semaphore count, handling the nasty EINTR return if we are interrupted
- *  by a signal.
+ *  Take a semaphore count, handling the nasty EINTR return if we are
+ *  interrupted by a signal.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-static void cs43l22_takesem(sem_t * sem)
+static int cs43l22_takesem(FAR sem_t *sem)
 {
-  nxsem_wait_uninterruptible(sem);
+  return nxsem_wait_uninterruptible(sem);
 }
 
-/************************************************************************************
+/****************************************************************************
+ * Name: cs43l22_forcetake
+ *
+ * Description:
+ *   This is just another wrapper but this one continues even if the thread
+ *   is canceled.  This must be done in certain conditions where were must
+ *   continue in order to clean-up resources.
+ *
+ ****************************************************************************/
+
+static int cs43l22_forcetake(FAR sem_t *sem)
+{
+  int result;
+  int ret = OK;
+
+  do
+    {
+      result = nxsem_wait_uninterruptible(sem);
+
+      /* The only expected error would -ECANCELED meaning that the
+       * parent thread has been canceled.  We have to continue and
+       * terminate the poll in this case.
+       */
+
+      DEBUGASSERT(result == OK || result == -ECANCELED);
+      if (ret == OK && result < 0)
+        {
+          /* Remember the first failure */
+
+          ret = result;
+        }
+    }
+  while (result < 0);
+
+  return ret;
+}
+
+/****************************************************************************
  * Name: cs43l22_scalevolume
  *
  * Description:
- *   Set the right and left volume values in the CS43L22 device based on the current
- *   volume and balance settings.
+ *   Set the right and left volume values in the CS43L22 device based on the
+ *   current volume and balance settings.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
 static inline uint16_t cs43l22_scalevolume(uint16_t volume, b16_t scale)
@@ -385,14 +429,14 @@ static inline uint16_t cs43l22_scalevolume(uint16_t volume, b16_t scale)
 }
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: cs43l22_setvolume
  *
  * Description:
- *   Set the right and left volume values in the CS43L22 device based on the current
- *   volume and balance settings.
+ *   Set the right and left volume values in the CS43L22 device based on the
+ *   current volume and balance settings.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
 static void
@@ -420,7 +464,7 @@ cs43l22_setvolume(FAR struct cs43l22_dev_s *priv, uint16_t volume, bool mute)
       leftlevel = ((((1000 - priv->balance) * 100) / 500) * volume) / 100;
     }
 
-/* Calculate the right channel volume level {0..1000} */
+  /* Calculate the right channel volume level {0..1000} */
 
   if (priv->balance >= 500)
     {
@@ -442,10 +486,10 @@ cs43l22_setvolume(FAR struct cs43l22_dev_s *priv, uint16_t volume, bool mute)
 
   /* Set the volume */
 
-   regval = (rightlevel + 0x19) & 0xff;
-   cs43l22_writereg(priv, CS43L22_MS_VOL_CTRL_A, regval);
-   regval = ((leftlevel + 0x19) & 0xff);
-   cs43l22_writereg(priv, CS43L22_MS_VOL_CTRL_B, regval);
+  regval = (rightlevel + 0x19) & 0xff;
+  cs43l22_writereg(priv, CS43L22_MS_VOL_CTRL_A, regval);
+  regval = ((leftlevel + 0x19) & 0xff);
+  cs43l22_writereg(priv, CS43L22_MS_VOL_CTRL_B, regval);
 
 #if 0
   regval = (rightlevel + 0x01) & 0xff;
@@ -474,7 +518,7 @@ cs43l22_setvolume(FAR struct cs43l22_dev_s *priv, uint16_t volume, bool mute)
 }
 #endif /* CONFIG_AUDIO_EXCLUDE_VOLUME */
 
-/************************************************************************************
+/****************************************************************************
  * Name: cs43l22_setbass
  *
  * Description:
@@ -482,7 +526,7 @@ cs43l22_setvolume(FAR struct cs43l22_dev_s *priv, uint16_t volume, bool mute)
  *
  *   The level and range are in whole percentage levels (0-100).
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_AUDIO_EXCLUDE_TONE
 static void cs43l22_setbass(FAR struct cs43l22_dev_s *priv, uint8_t bass)
@@ -492,7 +536,7 @@ static void cs43l22_setbass(FAR struct cs43l22_dev_s *priv, uint8_t bass)
 }
 #endif /* CONFIG_AUDIO_EXCLUDE_TONE */
 
-/************************************************************************************
+/****************************************************************************
  * Name: cs43l22_settreble
  *
  * Description:
@@ -500,7 +544,7 @@ static void cs43l22_setbass(FAR struct cs43l22_dev_s *priv, uint8_t bass)
  *
  *   The level and range are in whole percentage levels (0-100).
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_AUDIO_EXCLUDE_TONE
 static void cs43l22_settreble(FAR struct cs43l22_dev_s *priv, uint8_t treble)
@@ -523,11 +567,13 @@ static void cs43l22_setdatawidth(FAR struct cs43l22_dev_s *priv)
   if (priv->bpsamp == 16)
     {
       /* Reset default default setting */
+
       priv->i2s->ops->i2s_txdatawidth(priv->i2s, 16);
     }
   else
     {
       /* This should select 8-bit with no companding */
+
       priv->i2s->ops->i2s_txdatawidth(priv->i2s, 8);
     }
 }
@@ -583,17 +629,20 @@ static int cs43l22_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
         switch (caps->ac_subtype)
           {
             case AUDIO_TYPE_QUERY:
+
               /* We don't decode any formats!  Only something above us in
                * the audio stream can perform decoding on our behalf.
                */
 
               /* The types of audio units we implement */
 
-              caps->ac_controls.b[0] = AUDIO_TYPE_OUTPUT | AUDIO_TYPE_FEATURE |
-                                     AUDIO_TYPE_PROCESSING;
+              caps->ac_controls.b[0] =
+                AUDIO_TYPE_OUTPUT | AUDIO_TYPE_FEATURE |
+                AUDIO_TYPE_PROCESSING;
               break;
 
             case AUDIO_FMT_MIDI:
+
               /* We only support Format 0 */
 
               caps->ac_controls.b[0] = AUDIO_SUBFMT_END;
@@ -618,10 +667,11 @@ static int cs43l22_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
 
               /* Report the Sample rates we support */
 
-              caps->ac_controls.b[0] = AUDIO_SAMP_RATE_8K | AUDIO_SAMP_RATE_11K |
-                                       AUDIO_SAMP_RATE_16K | AUDIO_SAMP_RATE_22K |
-                                       AUDIO_SAMP_RATE_32K | AUDIO_SAMP_RATE_44K |
-                                       AUDIO_SAMP_RATE_48K;
+              caps->ac_controls.b[0] =
+                AUDIO_SAMP_RATE_8K | AUDIO_SAMP_RATE_11K |
+                AUDIO_SAMP_RATE_16K | AUDIO_SAMP_RATE_22K |
+                AUDIO_SAMP_RATE_32K | AUDIO_SAMP_RATE_44K |
+                AUDIO_SAMP_RATE_48K;
               break;
 
             case AUDIO_FMT_MP3:
@@ -639,19 +689,24 @@ static int cs43l22_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
 
       case AUDIO_TYPE_FEATURE:
 
-        /* If the sub-type is UNDEF, then report the Feature Units we support */
+        /* If the sub-type is UNDEF, then report the Feature Units we
+         * support.
+         */
 
         if (caps->ac_subtype == AUDIO_FU_UNDEF)
           {
-            /* Fill in the ac_controls section with the Feature Units we have */
+            /* Fill in the ac_controls section with the Feature Units we
+             * have.
+             */
 
-            caps->ac_controls.b[0] = AUDIO_FU_VOLUME | AUDIO_FU_BASS | AUDIO_FU_TREBLE;
+            caps->ac_controls.b[0] = AUDIO_FU_VOLUME | AUDIO_FU_BASS |
+                                     AUDIO_FU_TREBLE;
             caps->ac_controls.b[1] = AUDIO_FU_BALANCE >> 8;
           }
         else
           {
-            /* TODO:  Do we need to provide specific info for the Feature Units,
-             * such as volume setting ranges, etc.?
+            /* TODO:  Do we need to provide specific info for the Feature
+             * Units, such as volume setting ranges, etc.?
              */
           }
 
@@ -664,18 +719,22 @@ static int cs43l22_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
         switch (caps->ac_subtype)
           {
             case AUDIO_PU_UNDEF:
+
               /* Provide the type of Processing Units we support */
 
               caps->ac_controls.b[0] = AUDIO_PU_STEREO_EXTENDER;
               break;
 
             case AUDIO_PU_STEREO_EXTENDER:
+
               /* Provide capabilities of our Stereo Extender */
 
-              caps->ac_controls.b[0] = AUDIO_STEXT_ENABLE | AUDIO_STEXT_WIDTH;
+              caps->ac_controls.b[0] =
+                AUDIO_STEXT_ENABLE | AUDIO_STEXT_WIDTH;
               break;
 
             default:
+
               /* Other types of processing uint we don't support */
 
               break;
@@ -748,7 +807,8 @@ cs43l22_configure(FAR struct audio_lowerhalf_s *dev,
               {
                 /* Scale the volume setting to the range {76..255} */
 
-                cs43l22_setvolume(priv, (179 * volume / 1000) + 76, priv->mute);
+                cs43l22_setvolume(priv, (179 * volume / 1000) + 76,
+                                  priv->mute);
               }
             else
               {
@@ -778,7 +838,7 @@ cs43l22_configure(FAR struct audio_lowerhalf_s *dev,
               }
            }
           break;
-#endif  /* CONFIG_AUDIO_EXCLUDE_VOLUME */
+#endif /* CONFIG_AUDIO_EXCLUDE_VOLUME */
 
 #ifndef CONFIG_AUDIO_EXCLUDE_TONE
         case AUDIO_FU_BASS:
@@ -820,7 +880,7 @@ cs43l22_configure(FAR struct audio_lowerhalf_s *dev,
               }
           }
           break;
-#endif  /* CONFIG_AUDIO_EXCLUDE_TONE */
+#endif /* CONFIG_AUDIO_EXCLUDE_TONE */
 
         default:
           auderr("    ERROR: Unrecognized feature unit\n");
@@ -945,6 +1005,7 @@ cs43l22_senddone(FAR struct i2s_dev_s *i2s,
   priv->inflight--;
 
   /* Save the result of the transfer */
+
   /* REVISIT:  This can be overwritten */
 
   priv->result = result;
@@ -954,12 +1015,12 @@ cs43l22_senddone(FAR struct i2s_dev_s *i2s,
    * buffers in the done queue that need to be cleaned up.
    */
 
-  msg.msgId = AUDIO_MSG_COMPLETE;
-  ret = nxmq_send(priv->mq, (FAR const char *)&msg, sizeof(msg),
-                  CONFIG_CS43L22_MSG_PRIO);
+  msg.msg_id = AUDIO_MSG_COMPLETE;
+  ret = file_mq_send(&priv->mq, (FAR const char *)&msg, sizeof(msg),
+                     CONFIG_CS43L22_MSG_PRIO);
   if (ret < 0)
     {
-      auderr("ERROR: nxmq_send failed: %d\n", ret);
+      auderr("ERROR: file_mq_send failed: %d\n", ret);
     }
 }
 
@@ -1047,7 +1108,7 @@ static int cs43l22_sendbuffer(FAR struct cs43l22_dev_s *priv)
   irqstate_t flags;
   uint32_t timeout;
   int shift;
-  int ret = OK;
+  int ret;
 
   /* Loop while there are audio buffers to be sent and we have few than
    * CONFIG_CS43L22_INFLIGHT then "in-flight"
@@ -1061,7 +1122,12 @@ static int cs43l22_sendbuffer(FAR struct cs43l22_dev_s *priv)
    * only while accessing 'inflight'.
    */
 
-  cs43l22_takesem(&priv->pendsem);
+  ret = cs43l22_takesem(&priv->pendsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   while (priv->inflight < CONFIG_CS43L22_INFLIGHT &&
          dq_peek(&priv->pendq) != NULL && !priv->paused)
     {
@@ -1128,7 +1194,8 @@ static int cs43l22_sendbuffer(FAR struct cs43l22_dev_s *priv)
  ****************************************************************************/
 
 #ifdef CONFIG_AUDIO_MULTI_SESSION
-static int cs43l22_start(FAR struct audio_lowerhalf_s *dev, FAR void *session)
+static int cs43l22_start(FAR struct audio_lowerhalf_s *dev,
+           FAR void *session)
 #else
 static int cs43l22_start(FAR struct audio_lowerhalf_s *dev)
 #endif
@@ -1143,24 +1210,27 @@ static int cs43l22_start(FAR struct audio_lowerhalf_s *dev)
   audinfo("Entry\n");
 
   /* Exit reduced power modes of operation */
+
   /* REVISIT */
 
   /* Create a message queue for the worker thread */
 
-  snprintf(priv->mqname, sizeof(priv->mqname), "/tmp/%X", priv);
+  snprintf(priv->mqname, sizeof(priv->mqname), "/tmp/%" PRIXPTR,
+           (uintptr_t)priv);
 
   attr.mq_maxmsg  = 16;
   attr.mq_msgsize = sizeof(struct audio_msg_s);
   attr.mq_curmsgs = 0;
   attr.mq_flags   = 0;
 
-  priv->mq = mq_open(priv->mqname, O_RDWR | O_CREAT, 0644, &attr);
-  if (priv->mq == NULL)
+  ret = file_mq_open(&priv->mq, priv->mqname,
+                     O_RDWR | O_CREAT, 0644, &attr);
+  if (ret < 0)
     {
       /* Error creating message queue! */
 
       auderr("ERROR: Couldn't allocate message queue\n");
-      return -ENOMEM;
+      return ret;
     }
 
   /* Join any old worker thread we had created to prevent a memory leak */
@@ -1215,10 +1285,10 @@ static int cs43l22_stop(FAR struct audio_lowerhalf_s *dev)
 
   /* Send a message to stop all audio streaming */
 
-  term_msg.msgId = AUDIO_MSG_STOP;
+  term_msg.msg_id = AUDIO_MSG_STOP;
   term_msg.u.data = 0;
-  nxmq_send(priv->mq, (FAR const char *)&term_msg, sizeof(term_msg),
-            CONFIG_CS43L22_MSG_PRIO);
+  file_mq_send(&priv->mq, (FAR const char *)&term_msg, sizeof(term_msg),
+               CONFIG_CS43L22_MSG_PRIO);
 
   /* Join the worker thread */
 
@@ -1226,6 +1296,7 @@ static int cs43l22_stop(FAR struct audio_lowerhalf_s *dev)
   priv->threadid = 0;
 
   /* Enter into a reduced power usage mode */
+
   /* REVISIT: */
 
   return OK;
@@ -1242,7 +1313,8 @@ static int cs43l22_stop(FAR struct audio_lowerhalf_s *dev)
 
 #ifndef CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
 #  ifdef CONFIG_AUDIO_MULTI_SESSION
-static int cs43l22_pause(FAR struct audio_lowerhalf_s *dev, FAR void *session)
+static int cs43l22_pause(FAR struct audio_lowerhalf_s *dev,
+                         FAR void *session)
 #  else
 static int cs43l22_pause(FAR struct audio_lowerhalf_s *dev)
 #  endif
@@ -1272,7 +1344,8 @@ static int cs43l22_pause(FAR struct audio_lowerhalf_s *dev)
 
 #ifndef CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
 #  ifdef CONFIG_AUDIO_MULTI_SESSION
-static int cs43l22_resume(FAR struct audio_lowerhalf_s *dev, FAR void *session)
+static int cs43l22_resume(FAR struct audio_lowerhalf_s *dev,
+                          FAR void *session)
 #  else
 static int cs43l22_resume(FAR struct audio_lowerhalf_s *dev)
 #  endif
@@ -1314,33 +1387,39 @@ static int cs43l22_enqueuebuffer(FAR struct audio_lowerhalf_s *dev,
   audinfo("Enqueueing: apb=%p curbyte=%d nbytes=%d flags=%04x\n",
           apb, apb->curbyte, apb->nbytes, apb->flags);
 
+  ret = cs43l22_takesem(&priv->pendsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   /* Take a reference on the new audio buffer */
 
   apb_reference(apb);
 
   /* Add the new buffer to the tail of pending audio buffers */
 
-  cs43l22_takesem(&priv->pendsem);
   apb->flags |= AUDIO_APB_OUTPUT_ENQUEUED;
   dq_addlast(&apb->dq_entry, &priv->pendq);
   cs43l22_givesem(&priv->pendsem);
 
-  /* Send a message to the worker thread indicating that a new buffer has been
-   * enqueued.  If mq is NULL, then the playing has not yet started.  In that
-   * case we are just "priming the pump" and we don't need to send any message.
+  /* Send a message to the worker thread indicating that a new buffer has
+   * been enqueued.  If mq is NULL, then the playing has not yet started.
+   * In that case we are just "priming the pump" and we don't need to send
+   * any message.
    */
 
   ret = OK;
-  if (priv->mq != NULL)
+  if (priv->mq.f_inode != NULL)
     {
-      term_msg.msgId  = AUDIO_MSG_ENQUEUE;
+      term_msg.msg_id  = AUDIO_MSG_ENQUEUE;
       term_msg.u.data = 0;
 
-      ret = nxmq_send(priv->mq, (FAR const char *)&term_msg,
-                      sizeof(term_msg), CONFIG_CS43L22_MSG_PRIO);
+      ret = file_mq_send(&priv->mq, (FAR const char *)&term_msg,
+                         sizeof(term_msg), CONFIG_CS43L22_MSG_PRIO);
       if (ret < 0)
         {
-          auderr("ERROR: nxmq_send failed: %d\n", ret);
+          auderr("ERROR: file_mq_send failed: %d\n", ret);
         }
     }
 
@@ -1373,6 +1452,7 @@ static int cs43l22_cancelbuffer(FAR struct audio_lowerhalf_s *dev,
 static int cs43l22_ioctl(FAR struct audio_lowerhalf_s *dev, int cmd,
                          unsigned long arg)
 {
+  int ret = OK;
 #ifdef CONFIG_AUDIO_DRIVER_SPECIFIC_BUFFERS
   FAR struct ap_buffer_info_s *bufinfo;
 #endif
@@ -1410,11 +1490,12 @@ static int cs43l22_ioctl(FAR struct audio_lowerhalf_s *dev, int cmd,
 #endif
 
       default:
+        ret = -ENOTTY;
         audinfo("Ignored\n");
         break;
     }
 
-  return OK;
+  return ret;
 }
 
 /****************************************************************************
@@ -1437,7 +1518,12 @@ static int cs43l22_reserve(FAR struct audio_lowerhalf_s *dev)
 
   /* Borrow the APBQ semaphore for thread sync */
 
-  cs43l22_takesem(&priv->pendsem);
+  ret = cs43l22_takesem(&priv->pendsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   if (priv->reserved)
     {
       ret = -EBUSY;
@@ -1472,13 +1558,15 @@ static int cs43l22_reserve(FAR struct audio_lowerhalf_s *dev)
  ****************************************************************************/
 
 #ifdef CONFIG_AUDIO_MULTI_SESSION
-static int cs43l22_release(FAR struct audio_lowerhalf_s *dev, FAR void *session)
+static int cs43l22_release(FAR struct audio_lowerhalf_s *dev,
+                           FAR void *session)
 #else
 static int cs43l22_release(FAR struct audio_lowerhalf_s *dev)
 #endif
 {
   FAR struct cs43l22_dev_s *priv = (FAR struct cs43l22_dev_s *)dev;
-  void *value;
+  FAR void *value;
+  int ret;
 
   /* Join any old worker thread we had created to prevent a memory leak */
 
@@ -1490,14 +1578,14 @@ static int cs43l22_release(FAR struct audio_lowerhalf_s *dev)
 
   /* Borrow the APBQ semaphore for thread sync */
 
-  cs43l22_takesem(&priv->pendsem);
+  ret = cs43l22_forcetake(&priv->pendsem);
 
   /* Really we should free any queued buffers here */
 
   priv->reserved = false;
   cs43l22_givesem(&priv->pendsem);
 
-  return OK;
+  return ret;
 }
 
 /****************************************************************************
@@ -1597,7 +1685,8 @@ static void *cs43l22_workerthread(pthread_addr_t pvarg)
 
       /* Wait for messages from our message queue */
 
-      msglen = nxmq_receive(priv->mq, (FAR char *)&msg, sizeof(msg), &prio);
+      msglen = file_mq_receive(&priv->mq, (FAR char *)&msg,
+                               sizeof(msg), &prio);
 
       /* Handle the case when we return with no message */
 
@@ -1609,7 +1698,7 @@ static void *cs43l22_workerthread(pthread_addr_t pvarg)
 
       /* Process the message */
 
-      switch (msg.msgId)
+      switch (msg.msg_id)
         {
           /* The ISR has requested more data.  We will catch this case at
            * the top of the loop.
@@ -1623,6 +1712,7 @@ static void *cs43l22_workerthread(pthread_addr_t pvarg)
 
 #ifndef CONFIG_AUDIO_EXCLUDE_STOP
           case AUDIO_MSG_STOP:
+
             /* Indicate that we are terminating */
 
             audinfo("AUDIO_MSG_STOP: Terminating\n");
@@ -1646,7 +1736,7 @@ static void *cs43l22_workerthread(pthread_addr_t pvarg)
             break;
 
           default:
-            auderr("ERROR: Ignoring message ID %d\n", msg.msgId);
+            auderr("ERROR: Ignoring message ID %d\n", msg.msg_id);
             break;
         }
     }
@@ -1657,7 +1747,7 @@ static void *cs43l22_workerthread(pthread_addr_t pvarg)
 
   /* Return any pending buffers in our pending queue */
 
-  cs43l22_takesem(&priv->pendsem);
+  cs43l22_forcetake(&priv->pendsem);
   while ((apb = (FAR struct ap_buffer_s *)dq_remfirst(&priv->pendq)) != NULL)
     {
       /* Release our reference to the buffer */
@@ -1681,9 +1771,8 @@ static void *cs43l22_workerthread(pthread_addr_t pvarg)
 
   /* Close the message queue */
 
-  mq_close(priv->mq);
-  mq_unlink(priv->mqname);
-  priv->mq = NULL;
+  file_mq_close(&priv->mq);
+  file_mq_unlink(priv->mqname);
 
   /* Send an AUDIO_MSG_COMPLETE message to the client */
 
@@ -1722,7 +1811,8 @@ static void cs43l22_audio_output(FAR struct cs43l22_dev_s *priv)
 
   /* SPK always off and HP always on */
 
-  regval = CS43L22_PDN_HPB_ON | CS43L22_PDN_HPA_ON | CS43L22_PDN_SPKB_OFF | CS43L22_PDN_SPKA_OFF;
+  regval = CS43L22_PDN_HPB_ON | CS43L22_PDN_HPA_ON | CS43L22_PDN_SPKB_OFF |
+           CS43L22_PDN_SPKA_OFF;
   cs43l22_writereg(priv, CS43L22_POWER_CTRL2, regval);
 
   /* Clock configuration: Auto detection */
@@ -1841,7 +1931,7 @@ static void cs43l22_reset(FAR struct cs43l22_dev_s *priv)
   priv->nchannels  = CS43L22_DEFAULT_NCHANNELS;
   priv->bpsamp     = CS43L22_DEFAULT_BPSAMP;
 #if !defined(CONFIG_AUDIO_EXCLUDE_VOLUME) && !defined(CONFIG_AUDIO_EXCLUDE_BALANCE)
-  priv->balance    = 500;          // b16HALF; /* Center balance */
+  priv->balance    = 500;          /* b16HALF = Center balance */
 #endif
 
   /* Software reset.  This puts all CS43L22 registers back in their
@@ -1889,10 +1979,9 @@ static void cs43l22_reset(FAR struct cs43l22_dev_s *priv)
  *
  ****************************************************************************/
 
-FAR struct audio_lowerhalf_s *cs43l22_initialize(FAR struct i2c_master_s *i2c,
-                                                 FAR struct i2s_dev_s *i2s,
-                                                 FAR const struct
-                                                 cs43l22_lower_s *lower)
+FAR struct audio_lowerhalf_s *
+  cs43l22_initialize(FAR struct i2c_master_s *i2c, FAR struct i2s_dev_s *i2s,
+                     FAR const struct cs43l22_lower_s *lower)
 {
   FAR struct cs43l22_dev_s *priv;
   uint16_t regval;
@@ -1903,7 +1992,8 @@ FAR struct audio_lowerhalf_s *cs43l22_initialize(FAR struct i2c_master_s *i2c,
 
   /* Allocate a CS43L22 device structure */
 
-  priv = (FAR struct cs43l22_dev_s *)kmm_zalloc(sizeof(struct cs43l22_dev_s));
+  priv = (FAR struct cs43l22_dev_s *)
+    kmm_zalloc(sizeof(struct cs43l22_dev_s));
   if (priv)
     {
       /* Initialize the CS43L22 device structure.  Since we used kmm_zalloc,
@@ -1921,10 +2011,12 @@ FAR struct audio_lowerhalf_s *cs43l22_initialize(FAR struct i2c_master_s *i2c,
 
       /* Initialize I2C */
 
-      audinfo("address=%02x frequency=%d\n", lower->address, lower->frequency);
+      audinfo("address=%02x frequency=%" PRId32 "\n",
+              lower->address, lower->frequency);
 
-      /* Software reset.  This puts all CS43L22 registers back in their default
-       * state. */
+      /* Software reset.  This puts all CS43L22 registers back in their
+       * default state.
+       */
 
       CS43L22_HW_RESET(priv->lower);
 

@@ -10,6 +10,7 @@ menu "LC823450 Peripheral Support"
 config LC823450_IPL2
 	bool "IPL2"
 	default n
+	select BCH
 
 config LC823450_UART0
 	bool "UART0"
@@ -219,7 +220,7 @@ config HRT_TIMER
 	default n
 
 config DVFS
-	bool "Dynamic Voltage and Frequencey Scaling"
+	bool "Dynamic Voltage and Frequency Scaling"
 	default n
 
 endmenu

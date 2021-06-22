@@ -1,36 +1,20 @@
 /****************************************************************************
- *  sched/mqueue/mq_rcvinternal.c
+ * sched/mqueue/mq_rcvinternal.c
  *
- *   Copyright (C) 2007, 2008, 2012-2013, 2016-2017 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -69,8 +53,9 @@
  *   are common to both functions.
  *
  * Input Parameters:
- *   mqdes - Message Queue Descriptor
- *   msg - Buffer to receive the message
+ *   msgq   - Message queue descriptor
+ *   oflags - flags from user set
+ *   msg    - Buffer to receive the message
  *   msglen - Size of the buffer in bytes
  *
  * Returned Value:
@@ -80,25 +65,26 @@
  *   EPERM    Message queue opened not opened for reading.
  *   EMSGSIZE 'msglen' was less than the maxmsgsize attribute of the message
  *            queue.
- *   EINVAL   Invalid 'msg' or 'mqdes'
+ *   EINVAL   Invalid 'msg' or 'msgq'
  *
  ****************************************************************************/
 
-int nxmq_verify_receive(mqd_t mqdes, FAR char *msg, size_t msglen)
+int nxmq_verify_receive(FAR struct mqueue_inode_s *msgq,
+                        int oflags, FAR char *msg, size_t msglen)
 {
   /* Verify the input parameters */
 
-  if (!msg || !mqdes)
+  if (!msg || !msgq)
     {
       return -EINVAL;
     }
 
-  if ((mqdes->oflags & O_RDOK) == 0)
+  if ((oflags & O_RDOK) == 0)
     {
       return -EPERM;
     }
 
-  if (msglen < (size_t)mqdes->msgq->maxmsgsize)
+  if (msglen < (size_t)msgq->maxmsgsize)
     {
       return -EMSGSIZE;
     }
@@ -116,7 +102,8 @@ int nxmq_verify_receive(mqd_t mqdes, FAR char *msg, size_t msglen)
  *   returns it.
  *
  * Input Parameters:
- *   mqdes  - Message queue descriptor
+ *   msgq   - Message queue descriptor
+ *   oflags - flags from user set
  *   rcvmsg - The caller-provided location in which to return the newly
  *            received message.
  *
@@ -133,10 +120,10 @@ int nxmq_verify_receive(mqd_t mqdes, FAR char *msg, size_t msglen)
  *
  ****************************************************************************/
 
-int nxmq_wait_receive(mqd_t mqdes, FAR struct mqueue_msg_s **rcvmsg)
+int nxmq_wait_receive(FAR struct mqueue_inode_s *msgq,
+                      int oflags, FAR struct mqueue_msg_s **rcvmsg)
 {
   FAR struct tcb_s *rtcb;
-  FAR struct mqueue_inode_s *msgq;
   FAR struct mqueue_msg_s *newmsg;
   int ret;
 
@@ -158,34 +145,28 @@ int nxmq_wait_receive(mqd_t mqdes, FAR struct mqueue_msg_s **rcvmsg)
     }
 #endif
 
-  /* Get a pointer to the message queue */
-
-  msgq = mqdes->msgq;
-
   /* Get the message from the head of the queue */
 
-  while ((newmsg = (FAR struct mqueue_msg_s *)sq_remfirst(&msgq->msglist)) == NULL)
+  while ((newmsg = (FAR struct mqueue_msg_s *)sq_remfirst(&msgq->msglist))
+          == NULL)
     {
       /* The queue is empty!  Should we block until there the above condition
        * has been satisfied?
        */
 
-      if ((mqdes->oflags & O_NONBLOCK) == 0)
+      if ((oflags & O_NONBLOCK) == 0)
         {
-          int saved_errno;
-
           /* Yes.. Block and try again */
 
           rtcb           = this_task();
           rtcb->msgwaitq = msgq;
           msgq->nwaitnotempty++;
 
-          /* "Borrow" the per-task errno to communication wake-up error
+          /* Initialize the 'errcode" used to communication wake-up error
            * conditions.
            */
 
-          saved_errno    = rtcb->pterrno;
-          rtcb->pterrno  = OK;
+          rtcb->errcode  = OK;
 
           /* Make sure this is not the idle task, descheduling that
            * isn't going to end well.
@@ -200,9 +181,7 @@ int nxmq_wait_receive(mqd_t mqdes, FAR struct mqueue_msg_s **rcvmsg)
            * errno value (should be either EINTR or ETIMEDOUT).
            */
 
-          ret            = rtcb->pterrno;
-          rtcb->pterrno  = saved_errno;
-
+          ret = rtcb->errcode;
           if (ret != OK)
             {
               return -ret;
@@ -211,7 +190,7 @@ int nxmq_wait_receive(mqd_t mqdes, FAR struct mqueue_msg_s **rcvmsg)
       else
         {
           /* The queue was empty, and the O_NONBLOCK flag was set for the
-           * message queue description referred to by 'mqdes'.
+           * message queue description.
            */
 
           return -EAGAIN;
@@ -224,7 +203,10 @@ int nxmq_wait_receive(mqd_t mqdes, FAR struct mqueue_msg_s **rcvmsg)
 
   if (newmsg)
     {
-      msgq->nmsgs--;
+      if (msgq->nmsgs-- == msgq->maxmsgs)
+        {
+          nxmq_pollnotify(msgq, POLLOUT);
+        }
     }
 
   *rcvmsg = newmsg;
@@ -242,13 +224,14 @@ int nxmq_wait_receive(mqd_t mqdes, FAR struct mqueue_msg_s **rcvmsg)
  *   and disposes of the message structure
  *
  * Input Parameters:
- *   mqdes - Message queue descriptor
+ *   msgq    - Message queue descriptor
  *   mqmsg   - The message obtained by mq_waitmsg()
  *   ubuffer - The address of the user provided buffer to receive the message
  *   prio    - The user-provided location to return the message priority.
  *
  * Returned Value:
- *   Returns the length of the received message.  This function does not fail.
+ *   Returns the length of the received message.  This function does not
+ *   fail.
  *
  * Assumptions:
  * - The caller has provided all validity checking of the input parameters
@@ -259,12 +242,12 @@ int nxmq_wait_receive(mqd_t mqdes, FAR struct mqueue_msg_s **rcvmsg)
  *
  ****************************************************************************/
 
-ssize_t nxmq_do_receive(mqd_t mqdes, FAR struct mqueue_msg_s *mqmsg,
+ssize_t nxmq_do_receive(FAR struct mqueue_inode_s *msgq,
+                        FAR struct mqueue_msg_s *mqmsg,
                         FAR char *ubuffer, unsigned int *prio)
 {
   FAR struct tcb_s *btcb;
   irqstate_t flags;
-  FAR struct mqueue_inode_s *msgq;
   ssize_t rcvmsglen;
 
   /* Get the length of the message (also the return value) */
@@ -288,7 +271,6 @@ ssize_t nxmq_do_receive(mqd_t mqdes, FAR struct mqueue_msg_s *mqmsg,
 
   /* Check if any tasks are waiting for the MQ not full event. */
 
-  msgq = mqdes->msgq;
   if (msgq->nwaitnotfull > 0)
     {
       /* Find the highest priority task that is waiting for
@@ -300,7 +282,9 @@ ssize_t nxmq_do_receive(mqd_t mqdes, FAR struct mqueue_msg_s *mqmsg,
       flags = enter_critical_section();
       for (btcb = (FAR struct tcb_s *)g_waitingformqnotfull.head;
            btcb && btcb->msgwaitq != msgq;
-           btcb = btcb->flink);
+           btcb = btcb->flink)
+        {
+        }
 
       /* If one was found, unblock it.  NOTE:  There is a race
        * condition here:  the queue might be full again by the

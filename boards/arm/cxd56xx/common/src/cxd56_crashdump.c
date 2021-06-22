@@ -1,36 +1,20 @@
 /****************************************************************************
  * boards/arm/cxd56xx/common/src/cxd56_crashdump.c
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: David Sidrane <david_s5@nscdg.com>
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,12 +31,14 @@
 #include <debug.h>
 #include <time.h>
 
+#include <nuttx/kmalloc.h>
+
 #include <arch/chip/backuplog.h>
 #include <arch/chip/crashdump.h>
 #include "cxd56_wdt.h"
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 /****************************************************************************
  * Private Functions
@@ -114,7 +100,7 @@ static void copy_reverse(stack_word_t *dest, stack_word_t *src, int size)
  ****************************************************************************/
 
 void board_crashdump(uintptr_t currentsp, FAR void *tcb,
-                     FAR const uint8_t *filename, int lineno)
+                     FAR const char *filename, int lineno)
 {
   FAR struct tcb_s *rtcb;
   fullcontext_t *pdump;
@@ -125,7 +111,7 @@ void board_crashdump(uintptr_t currentsp, FAR void *tcb,
 #ifdef CONFIG_CXD56_BACKUPLOG
   pdump = up_backuplog_alloc("crash", sizeof(fullcontext_t));
 #else
-  pdump = malloc(sizeof(fullcontext_t));
+  pdump = kmm_malloc(sizeof(fullcontext_t));
 #endif
   if (!pdump)
     {
@@ -195,21 +181,17 @@ void board_crashdump(uintptr_t currentsp, FAR void *tcb,
       pdump->info.stacks.user.sp = currentsp;
     }
 
-  if (pdump->info.pid == 0)
-    {
-      pdump->info.stacks.user.top = g_idle_topstack - 4;
-      pdump->info.stacks.user.size = CONFIG_IDLETHREAD_STACKSIZE;
-    }
-  else
-    {
-      pdump->info.stacks.user.top = (uint32_t)rtcb->adj_stack_ptr;
-      pdump->info.stacks.user.size = (uint32_t)rtcb->adj_stack_size;
-    }
+  pdump->info.stacks.user.top = (uint32_t)rtcb->adj_stack_ptr;
+  pdump->info.stacks.user.size = (uint32_t)rtcb->adj_stack_size;
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
   /* Get the limits on the interrupt stack memory */
 
+#ifdef CONFIG_SMP
+  pdump->info.stacks.interrupt.top = (uint32_t)arm_intstack_base();
+#else
   pdump->info.stacks.interrupt.top = (uint32_t)&g_intstackbase;
+#endif
   pdump->info.stacks.interrupt.size  = (CONFIG_ARCH_INTERRUPTSTACK & ~3);
 
   /* If In interrupt Context save the interrupt stack data centered
@@ -225,9 +207,9 @@ void board_crashdump(uintptr_t currentsp, FAR void *tcb,
 
   /* Is it Invalid? */
 
-  if (!(pdump->info.stacks.interrupt.sp <= pdump->info.stacks.interrupt.top &&
-        pdump->info.stacks.interrupt.sp > pdump->info.stacks.interrupt.top -
-        pdump->info.stacks.interrupt.size))
+  if (!(pdump->info.stacks.interrupt.sp <= pdump->info.stacks.interrupt.top
+      && pdump->info.stacks.interrupt.sp > pdump->info.stacks.interrupt.top
+       - pdump->info.stacks.interrupt.size))
     {
       pdump->info.flags |= INVALID_INTSTACK_PTR;
     }

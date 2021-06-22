@@ -1,37 +1,20 @@
 /****************************************************************************
  * arch/arm/src/lc823450/lc823450_spi.c
  *
- *   Copyright 2014,2015,2016,2017 Sony Video & Sound Products Inc.
- *   Author: Nobutaka Toyoshima <Nobutaka.Toyoshima@jp.sony.com>
- *   Author: Masatoshi Tateishi <Masatoshi.Tateishi@jp.sony.com>
- *   Author: Masayuki Ishikawa <Masayuki.Ishikawa@jp.sony.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -42,6 +25,7 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <errno.h>
@@ -52,7 +36,7 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/spi/spi.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "chip.h"
 
 #include "lc823450_syscontrol.h"
@@ -69,7 +53,7 @@
 #endif
 
 #ifndef MIN
-#  define MIN(a, b) ((a) > (b) ? b : a)
+#  define MIN(a, b) ((a) > (b) ? (b) : (a))
 #endif
 
 /****************************************************************************
@@ -101,13 +85,16 @@ struct lc823450_spidev_s
 #ifndef CONFIG_SPI_OWNBUS
 static int      spi_lock(FAR struct spi_dev_s *dev, bool lock);
 #endif
-static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev, uint32_t frequency);
+static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev,
+                                 uint32_t frequency);
 static void     spi_setmode(FAR struct spi_dev_s *dev, enum spi_mode_e mode);
 static void     spi_setbits(FAR struct spi_dev_s *dev, int nbits);
-static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t ch);
+static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd);
 #ifndef CONFIG_SPI_EXCHANGE
-static void     spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer, size_t nwords);
-static void     spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer, size_t nwords);
+static void     spi_sndblock(FAR struct spi_dev_s *dev,
+                             FAR const void *buffer, size_t nwords);
+static void     spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer,
+                              size_t nwords);
 #endif
 
 /****************************************************************************
@@ -138,7 +125,10 @@ static const struct spi_ops_s g_spiops =
 
 static struct lc823450_spidev_s g_spidev =
 {
-  .spidev            = { &g_spiops },
+  .spidev            =
+    {
+      &g_spiops
+    },
 };
 
 /****************************************************************************
@@ -179,7 +169,8 @@ static int spi_lock(FAR struct spi_dev_s *dev, bool lock)
  *
  ****************************************************************************/
 
-static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev, uint32_t frequency)
+static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev,
+                                 uint32_t frequency)
 {
   FAR struct lc823450_spidev_s *priv = (FAR struct lc823450_spidev_s *)dev;
   unsigned long  sysclk = lc823450_get_systemfreq();
@@ -193,7 +184,7 @@ static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev, uint32_t frequency)
     }
 #endif
 
-  for (div = 0xFE; div >= 0; div--)
+  for (div = 0xfe; div >= 0; div--)
     {
       if (frequency >= sysclk / (4 * (256 - div)))
         {
@@ -201,7 +192,8 @@ static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev, uint32_t frequency)
         }
     }
 
-  spiinfo("Frequency %d -> %d\n", frequency, sysclk / (4 * (256 - div)));
+  spiinfo("Frequency %" PRId32 " -> %ld\n",
+          frequency, sysclk / (4 * (256 - div)));
 
   actual = sysclk / (4 * (256 - div));
   putreg32(div, LC823450_SPI_BRG);
@@ -333,30 +325,30 @@ static void spi_dma_callback(DMA_HANDLE hdma, void *arg, int result)
  ****************************************************************************/
 
 #ifdef CONFIG_LC823450_SPI_DMA
-static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
+static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 {
   spi_sndblock(dev, &wd, 1);
   return 0;
 }
 #else /* CONFIG_LC823450_SPI_DMA */
-static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
+static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 {
-  putreg16(wd, LC823450_SPI_STR);
+  putreg16((uint16_t)wd, LC823450_SPI_STR);
 
   modifyreg32(LC823450_SPI_ISR, 0, SPI_ISR_SPIF);
 
   modifyreg32(LC823450_SPI_SMD, 0, SPI_SMD_SSTR);
 
-  /* Wait for Tranfer done */
+  /* Wait for Transfer done */
 
   while ((getreg32(LC823450_SPI_ISR) & SPI_ISR_SPIF) == 0)
     ;
 
-  return getreg16(LC823450_SPI_SRR);
+  return (uint32_t)getreg16(LC823450_SPI_SRR);
 }
 #endif
 
-/*************************************************************************
+/****************************************************************************
  * Name: spi_sndblock
  *
  * Description:
@@ -395,7 +387,7 @@ static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer,
                         LC823450_DMA_DSTWIDTH_BYTE |
                         LC823450_DMA_SRCINC,
                         (uint32_t)buffer, /* LC823450_SPI_STR */
-                        LC823450_SPI_TxFF, len);
+                        LC823450_SPI_TXFF, len);
 
       lc823450_dmastart(priv->hdma, spi_dma_callback, &priv->dma_wait);
 
@@ -408,8 +400,8 @@ static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer,
 
   /* Wait for FIFO empty */
 
-  putreg32(SPI_ISR_TxEMP, LC823450_SPI_ISR);
-  while ((getreg32(LC823450_SPI_ISR) & SPI_ISR_TxEMP) != 0)
+  putreg32(SPI_ISR_TXEMP, LC823450_SPI_ISR);
+  while ((getreg32(LC823450_SPI_ISR) & SPI_ISR_TXEMP) != 0)
     ;
 
   /* Wait for Tx reg empty */
@@ -431,14 +423,14 @@ static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer,
     {
       for (i = 0; i < nwords; i++)
         {
-          spi_send(dev, *buf16++);
+          spi_send(dev, (uint32_t)*buf16++);
         }
     }
   else
     {
       for (i = 0; i < nwords; i++)
         {
-          spi_send(dev, *buf++);
+          spi_send(dev, (uint32_t)*buf++);
         }
     }
 #endif /* CONFIG_LC823450_SPI_DMA */
@@ -455,9 +447,10 @@ static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer,
  *   dev -    Device-specific state data
  *   buffer - A pointer to the buffer in which to receive data
  *   nwords - the length of data that can be received in the buffer in number
- *            of words.  The wordsize is determined by the number of bits-per-word
- *            selected for the SPI interface.  If nbits <= 8, the data is
- *            packed into uint8_t's; if nbits >8, the data is packed into uint16_t's
+ *            of words.  The wordsize is determined by the number of
+ *            bits-per-word selected for the SPI interface.  If nbits <= 8,
+ *            the data is packed into uint8_t's; if nbits >8, the data is
+ *            packed into uint16_t's
  *
  * Returned Value:
  *   None
@@ -465,7 +458,8 @@ static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer,
  ****************************************************************************/
 
 #ifndef CONFIG_SPI_EXCHANGE
-static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer, size_t nwords)
+static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer,
+                          size_t nwords)
 {
   FAR struct lc823450_spidev_s *priv = (FAR struct lc823450_spidev_s *)dev;
   int i;
@@ -476,14 +470,14 @@ static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer, size_t nw
     {
       for (i = 0; i < nwords; i++)
         {
-          *buf16++ = spi_send(dev, 0xffff);
+          *buf16++ = (uint16_t)spi_send(dev, 0xffff);
         }
     }
   else
     {
       for (i = 0; i < nwords; i++)
         {
-          *buf++ = spi_send(dev,  0xffff);
+          *buf++ = (uint8_t)spi_send(dev,  0xffff);
         }
     }
 }
@@ -558,7 +552,7 @@ FAR struct spi_dev_s *lc823450_spibus_initialize(int port)
 
       /* use FIFO */
 
-      putreg32(SPI_TxFF_EN | SPI_TxFF_WL8, LC823450_SPI_FFCTL);
+      putreg32(SPI_TXFF_EN | SPI_TXFF_WL8, LC823450_SPI_FFCTL);
 #endif /* CONFIG_LC823450_SPI_DMA */
     }
 

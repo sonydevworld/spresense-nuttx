@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/imxrt/imxrt_lowputc.c
  *
- *   Copyright (C) 2018, 2019 Gregory Nutt. All rights reserved.
- *   Author: Ivan Ucherdzhiev <ivanucherdjiev@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,7 +28,7 @@
 #include <fixedmath.h>
 #include <assert.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "hardware/imxrt_iomuxc.h"
 #include "hardware/imxrt_pinmux.h"
@@ -55,7 +40,7 @@
 #include "imxrt_gpio.h"
 #include "imxrt_lowputc.h"
 
-#include "up_internal.h"
+#include "arm_internal.h"
 
 #include <arch/board/board.h> /* Include last:  has dependencies */
 
@@ -393,6 +378,7 @@ int imxrt_lpuart_configure(uint32_t base,
   uint32_t calculated_baud;
   uint32_t baud_diff;
   uint32_t regval;
+  uint32_t regval2;
 
   if ((getreg32(IMXRT_CCM_CSCDR1) & CCM_CSCDR1_UART_CLK_SEL) != 0)
     {
@@ -413,7 +399,8 @@ int imxrt_lpuart_configure(uint32_t base,
       src_freq = (BOARD_XTAL_FREQUENCY * pll3_div) / 6;
     }
 
-  uart_div    = (getreg32(IMXRT_CCM_CSCDR1) & CCM_CSCDR1_UART_CLK_PODF_MASK) + 1;
+  uart_div    = (getreg32(IMXRT_CCM_CSCDR1) &
+                 CCM_CSCDR1_UART_CLK_PODF_MASK) + 1;
   lpuart_freq = src_freq / uart_div;
 
   /* This LPUART instantiation uses a slightly different baud rate
@@ -451,9 +438,11 @@ int imxrt_lpuart_configure(uint32_t base,
 
       /* Select the better value between srb and (sbr + 1) */
 
-      if (temp_diff > (config->baud - (lpuart_freq / (temp_osr * (temp_sbr + 1)))))
+      if (temp_diff > (config->baud -
+                      (lpuart_freq / (temp_osr * (temp_sbr + 1)))))
         {
-          temp_diff = config->baud - (lpuart_freq / (temp_osr * (temp_sbr + 1)));
+          temp_diff = config->baud -
+                      (lpuart_freq / (temp_osr * (temp_sbr + 1)));
           temp_sbr++;
         }
 
@@ -496,7 +485,7 @@ int imxrt_lpuart_configure(uint32_t base,
   else if (config->users485)
     {
       /* Both TX and RX side can't control RTS, so this gives
-       * the RX side precidence. This should have been filtered
+       * the RX side precedence. This should have been filtered
        * in layers above anyway, but it's just a precaution.
        */
 
@@ -540,13 +529,13 @@ int imxrt_lpuart_configure(uint32_t base,
       regval |= LPUART_CTRL_PE | LPUART_CTRL_PT_EVEN;
     }
 
-  if (config->bits == 8)
-    {
-      regval &= ~LPUART_CTRL_M;
-    }
-  else if (config->bits == 9)
+  if (config->bits == 9 || (config->bits == 8 && config->parity != 0))
     {
       regval |= LPUART_CTRL_M;
+    }
+  else if ((config->bits == 8))
+    {
+      regval &= ~LPUART_CTRL_M;
     }
   else
     {
@@ -556,8 +545,10 @@ int imxrt_lpuart_configure(uint32_t base,
       return ERROR;
     }
 
-  putreg32(LPUART_FIFO_RXFE | LPUART_FIFO_RXIDEN_1 | LPUART_FIFO_TXFE ,
-           base + IMXRT_LPUART_FIFO_OFFSET);
+  regval2  = getreg32(base + IMXRT_LPUART_FIFO_OFFSET);
+  regval2 |= LPUART_FIFO_RXFLUSH | LPUART_FIFO_TXFLUSH |
+             LPUART_FIFO_RXFE | LPUART_FIFO_RXIDEN_1 | LPUART_FIFO_TXFE;
+  putreg32(regval2 , base + IMXRT_LPUART_FIFO_OFFSET);
 
   regval |= LPUART_CTRL_RE | LPUART_CTRL_TE;
   putreg32(regval, base + IMXRT_LPUART_CTRL_OFFSET);
@@ -584,13 +575,16 @@ void imxrt_lowputc(int ch)
     {
     }
 
-  /* If the character to output is a newline, then pre-pend a carriage return */
+  /* If the character to output is a newline, then pre-pend a carriage
+   * return
+   */
 
   if (ch == '\n')
     {
       /* Send the carriage return by writing it into the UART_TXD register. */
 
-      putreg32((uint32_t)'\r', IMXRT_CONSOLE_BASE + IMXRT_LPUART_DATA_OFFSET);
+      putreg32((uint32_t)'\r', IMXRT_CONSOLE_BASE +
+                               IMXRT_LPUART_DATA_OFFSET);
 
       /* Wait for the transmit register to be emptied. When the TXFE bit is
        * non-zero, the TX Buffer FIFO is empty.
@@ -605,14 +599,5 @@ void imxrt_lowputc(int ch)
   /* Send the character by writing it into the UART_TXD register. */
 
   putreg32((uint32_t)ch, IMXRT_CONSOLE_BASE + IMXRT_LPUART_DATA_OFFSET);
-
-  /* Wait for the transmit register to be emptied. When the TXFE bit is
-   * non-zero, the TX Buffer FIFO is empty.
-   */
-
-  while ((getreg32(IMXRT_CONSOLE_BASE + IMXRT_LPUART_STAT_OFFSET) &
-         LPUART_STAT_TDRE) == 0)
-    {
-    }
 }
 #endif

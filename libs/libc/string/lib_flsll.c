@@ -1,5 +1,5 @@
 /****************************************************************************
- * libs/libc/string/lib_fls.c
+ * libs/libc/string/lib_flsll.c
  *
  *   Copyright (C) 2017 Haltian Ltd. All rights reserved.
  *   Author: Jussi Kivilinna <jussi.kivilinna@haltian.com>
@@ -95,4 +95,3 @@ int flsll(long long j)
 }
 
 #endif
-

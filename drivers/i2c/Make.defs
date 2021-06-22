@@ -44,6 +44,10 @@ ifeq ($(CONFIG_I2C_DRIVER),y)
 CSRCS += i2c_driver.c
 endif
 
+ifeq ($(CONFIG_I2C_BITBANG),y)
+CSRCS += i2c_bitbang.c
+endif
+
 # Include the selected I2C multiplexer drivers
 
 ifeq ($(CONFIG_I2CMULTIPLEXER_PCA9540BDP),y)
@@ -54,6 +58,6 @@ endif
 
 DEPPATH += --dep-path i2c
 VPATH += :i2c
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)i2c}
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)i2c}
 
 endif  # CONFIG_I2C

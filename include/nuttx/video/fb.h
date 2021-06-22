@@ -1,36 +1,20 @@
 /****************************************************************************
  * include/nuttx/video/fb.h
  *
- *   Copyright (C) 2008-2011, 2013, 2016-2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -52,8 +36,8 @@
  * Pre-processor definitions
  ****************************************************************************/
 
-/* Color format definitions.  The pretty much define the color pixel processing
- * organization of the video controller.
+/* Color format definitions.  This pretty much defines the color pixel
+ * processing organization of the video controller.
  */
 
 /* Monochrome Formats *******************************************************/
@@ -66,7 +50,7 @@
 #define FB_FMT_GREY           FB_FMT_Y8 /* BPP=8 */
 #define FB_FMT_Y800           FB_FMT_Y8 /* BPP=8 */
 
-#define FB_ISMONO(f)          ((f) >= FB_FMT_Y4) && (f) <= FB_FMT_Y16)
+#define FB_ISMONO(f)          (((f) >= FB_FMT_Y4) && (f) <= FB_FMT_Y16)
 
 /* RGB video formats ********************************************************/
 
@@ -92,8 +76,8 @@
 
 #define FB_FMT_RGBRAW         16          /* BPP=? */
 
-/* Raw RGB with arbitrary sample packing within a pixel. Packing and precision
- * of R, G and B components is determined by bit masks for each.
+/* Raw RGB with arbitrary sample packing within a pixel. Packing and
+ * precision of R, G and B components is determined by bit masks for each.
  */
 
 #define FB_FMT_RGBBTFLD16     17          /* BPP=16 */
@@ -110,7 +94,7 @@
 #define FB_FMT_RGBT16         22          /* BPP=16 */
 #define FB_FMT_RGBT32         23          /* BPP=32 */
 
-#define FB_ISRGB(f)           ((f) >= FB_FMT_RGB1) && (f) <= FB_FMT_RGBT32)
+#define FB_ISRGB(f)           (((f) >= FB_FMT_RGB1) && (f) <= FB_FMT_RGBT32)
 
 /* Packed YUV Formats *******************************************************/
 
@@ -148,7 +132,7 @@
 #define FB_FMT_Y42T           44          /* BPP=16  UYVY LSB for transparency */
 #define FB_FMT_YUVP           45          /* BPP=24? YCbCr 4:2:2 Y0U0Y1V0 order */
 
-#define FB_ISYUVPACKED(f)     ((f) >= FB_FMT_AYUV) && (f) <= FB_FMT_YUVP)
+#define FB_ISYUVPACKED(f)     (((f) >= FB_FMT_AYUV) && (f) <= FB_FMT_YUVP)
 
 /* Packed Planar YUV Formats ************************************************/
 
@@ -196,7 +180,7 @@
 #  define FB_CUR_XOR          0x10        /* Use XOR vs COPY ROP on image */
 #endif
 
-/* Hardware overlay acceleration *******************************************/
+/* Hardware overlay acceleration ********************************************/
 
 #ifdef CONFIG_FB_OVERLAY
 #  define FB_ACCL_TRANSP      0x01        /* Hardware tranparency support */
@@ -245,11 +229,11 @@
                                                *           fb_setcursor_s */
 #endif
 
-#ifdef CONFIG_LCD_UPDATE
+#ifdef CONFIG_FB_UPDATE
 #  define FBIO_UPDATE         _FBIOC(0x0007)  /* Update a rectangular region in
                                                * the framebuffer
                                                * Argument: read-only struct
-                                               *           nxgl_rect_s */
+                                               *           fb_area_s */
 #endif
 
 #ifdef CONFIG_FB_SYNC
@@ -324,15 +308,6 @@ struct fb_planeinfo_s
   uint8_t    bpp;         /* Bits per pixel */
 };
 
-#ifdef CONFIG_FB_OVERLAY
-/* This structure describes the transparency. */
-
-struct fb_transp_s
-{
-  uint8_t    transp;      /* Transparency */
-  uint8_t    transp_mode; /* Transparency mode */
-};
-
 /* This structure describes an area. */
 
 struct fb_area_s
@@ -341,6 +316,15 @@ struct fb_area_s
   fb_coord_t y;           /* y-offset of the area */
   fb_coord_t w;           /* Width of the area */
   fb_coord_t h;           /* Height of the area */
+};
+
+#ifdef CONFIG_FB_OVERLAY
+/* This structure describes the transparency. */
+
+struct fb_transp_s
+{
+  uint8_t    transp;      /* Transparency */
+  uint8_t    transp_mode; /* Transparency mode */
 };
 
 /* This structure describes one overlay. */
@@ -445,7 +429,9 @@ struct fb_cursorsize_s
 };
 #endif
 
-/* The following are used to get/get the cursor attributes via IOCTL command. */
+/* The following are used to get/get the cursor attributes via IOCTL
+ * command.
+ */
 
 struct fb_cursorattrib_s
 {
@@ -509,9 +495,18 @@ struct fb_vtable_s
                    FAR struct fb_setcursor_s *settings);
 #endif
 
+#ifdef CONFIG_FB_UPDATE
+  /* The following are provided only if the video hardware need extera
+   * notification to update display content.
+   */
+
+  int (*updatearea)(FAR struct fb_vtable_s *vtable,
+                    FAR const struct fb_area_s *area);
+#endif
+
 #ifdef CONFIG_FB_SYNC
   /* The following are provided only if the video hardware signals
-   * vertical snyc.
+   * vertical sync.
    */
 
   int (*waitforvsync)(FAR struct fb_vtable_s *vtable);
@@ -624,7 +619,8 @@ int up_fbinitialize(int display);
  *
  * Description:
  *   Return a a reference to the framebuffer object for the specified video
- *   plane of the specified plane.  Many OSDs support multiple planes of video.
+ *   plane of the specified plane.  Many OSDs support multiple planes of
+ *   video.
  *
  * Input Parameters:
  *   display - In the case of hardware with multiple displays, this

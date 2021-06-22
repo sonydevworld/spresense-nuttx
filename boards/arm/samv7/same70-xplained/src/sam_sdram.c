@@ -51,7 +51,7 @@
 #include <nuttx/arch.h>
 #include <arch/board/board.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "sam_periphclks.h"
 #include "hardware/sam_memorymap.h"
@@ -221,7 +221,9 @@ void sam_sdram_config(void)
 
   putreg32(SDRAMC_MDR_SDRAM, SAM_SDRAMC_MDR);
 
-  /* 4. A minimum pause of 200 usec is provided to precede any signal toggle. */
+  /* 4. A minimum pause of 200 usec is provided to precede any signal
+   * toggle.
+   */
 
   up_udelay(200);
 

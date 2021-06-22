@@ -1,10 +1,10 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/lpc43xx/lpc43_dac.c
  *
  *   Copyright (C) 2012, 2016 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
- * Ported from from the LPC17 version:
+ * Ported from the LPC17 version:
  *
  *   Copyright (C) 2011 Li Zhuoyi. All rights reserved.
  *   Author: Li Zhuoyi <lzyy.cn@gmail.com>
@@ -41,7 +41,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Included Files
@@ -61,8 +61,8 @@
 #include <nuttx/arch.h>
 #include <nuttx/analog/dac.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "chip.h"
 
@@ -129,7 +129,7 @@ static void dac_reset(FAR struct dac_dev_s *dev)
   regval |= (SYSCON_PCLKSEL_CCLK8 << SYSCON_PCLKSEL0_DAC_SHIFT);
   putreg32(regval, LPC43_SYSCON_PCLKSEL0);
 
-  //putreg32(DAC_CTRL_DBLBUFEN, LPC43_DAC_CTRL); ?
+  /* putreg32(DAC_CTRL_DBLBUFEN, LPC43_DAC_CTRL); ? */
 
   lpc43_configgpio(GPIO_AOUT);
 

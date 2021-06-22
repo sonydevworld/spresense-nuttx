@@ -21,6 +21,12 @@ config ARCH_CHIP_MINERVA
 	---help---
 		LambdaConcept MINERVAL Chip Selected
 
+config ARCH_CHIP_MISOC_CUSTOM
+	bool "Custom MISOC chip"
+	select ARCH_CHIP_CUSTOM
+	---help---
+		Select this option if there is no directory for the chip under arch/misoc/src/.
+
 endchoice # Misoc Chip Selection
 
 config ARCH_CHIP
@@ -30,8 +36,8 @@ config ARCH_CHIP
 
 menu "MISOC Peripheral Support"
 
-# These "hidden" settings determine is a peripheral option is available for the
-# selection MCU
+# These "hidden" settings determine whether a peripheral option is available
+# for the selected MCU
 
 config MISOC_HAVE_UART1
 	bool
@@ -57,14 +63,14 @@ config MISOC_UART
 	bool
 
 config MISOC_UART_RX_BUF_SIZE
-	int "UART RX Bufer size"
+	int "UART RX Buffer size"
 	default 64
 	depends on MISOC_UART
 	---help---
 		Size of RX buffers for MISOC UARTs
 
 config MISOC_UART_TX_BUF_SIZE
-	int "UART TX Bufer size"
+	int "UART TX Buffer size"
 	default 64
 	depends on MISOC_UART
 	---help---

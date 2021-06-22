@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/utils/net_lock.c
  *
- *   Copyright (C) 2011-2012, 2014-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,13 +25,14 @@
 #include <nuttx/config.h>
 
 #include <unistd.h>
-#include <semaphore.h>
+#include <sched.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
+#include <time.h>
 
 #include <nuttx/irq.h>
-#include <nuttx/arch.h>
+#include <nuttx/clock.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/mm/iob.h>
 #include <nuttx/net/net.h>
@@ -64,8 +50,8 @@
  ****************************************************************************/
 
 static sem_t        g_netlock;
-static pid_t        g_holder  = NO_HOLDER;
-static unsigned int g_count   = 0;
+static pid_t        g_holder = NO_HOLDER;
+static unsigned int g_count  = 0;
 
 /****************************************************************************
  * Private Functions
@@ -89,8 +75,8 @@ static int _net_takesem(void)
  * Name: _net_timedwait
  ****************************************************************************/
 
-static int _net_timedwait(sem_t *sem, bool interruptable,
-                          FAR const struct timespec *abstime)
+static int
+_net_timedwait(sem_t *sem, bool interruptible, unsigned int timeout)
 {
   unsigned int count;
   irqstate_t   flags;
@@ -108,24 +94,36 @@ static int _net_timedwait(sem_t *sem, bool interruptable,
 
   /* Now take the semaphore, waiting if so requested. */
 
-  if (abstime != NULL)
+  if (timeout != UINT_MAX)
     {
+      struct timespec abstime;
+
+      DEBUGVERIFY(clock_gettime(CLOCK_REALTIME, &abstime));
+
+      abstime.tv_sec  += timeout / MSEC_PER_SEC;
+      abstime.tv_nsec += timeout % MSEC_PER_SEC * NSEC_PER_MSEC;
+      if (abstime.tv_nsec >= NSEC_PER_SEC)
+        {
+          abstime.tv_sec++;
+          abstime.tv_nsec -= NSEC_PER_SEC;
+        }
+
       /* Wait until we get the lock or until the timeout expires */
 
-      if (interruptable)
+      if (interruptible)
         {
-          ret = nxsem_timedwait(sem, abstime);
+          ret = nxsem_timedwait(sem, &abstime);
         }
       else
         {
-          ret = nxsem_timedwait_uninterruptible(sem, abstime);
+          ret = nxsem_timedwait_uninterruptible(sem, &abstime);
         }
     }
   else
     {
       /* Wait as long as necessary to get the lock */
 
-      if (interruptable)
+      if (interruptible)
         {
           ret = nxsem_wait(sem);
         }
@@ -200,6 +198,57 @@ int net_lock(void)
       /* No.. take the semaphore (perhaps waiting) */
 
       ret = _net_takesem();
+      if (ret >= 0)
+        {
+          /* Now this thread holds the semaphore */
+
+          g_holder = me;
+          g_count  = 1;
+        }
+    }
+
+#ifdef CONFIG_SMP
+  leave_critical_section(flags);
+#endif
+  return ret;
+}
+
+/****************************************************************************
+ * Name: net_trylock
+ *
+ * Description:
+ *   Try to take the network lock only when it is currently not locked.
+ *   Otherwise, it locks the semaphore.  In either
+ *   case, the call returns without blocking.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success; a negated errno value is returned on
+ *   failured (probably -EAGAIN).
+ *
+ ****************************************************************************/
+
+int net_trylock(void)
+{
+#ifdef CONFIG_SMP
+  irqstate_t flags = enter_critical_section();
+#endif
+  pid_t me = getpid();
+  int ret = OK;
+
+  /* Does this thread already hold the semaphore? */
+
+  if (g_holder == me)
+    {
+      /* Yes.. just increment the reference count */
+
+      g_count++;
+    }
+  else
+    {
+      ret = nxsem_trywait(&g_netlock);
       if (ret >= 0)
         {
           /* Now this thread holds the semaphore */
@@ -330,17 +379,17 @@ int net_restorelock(unsigned int count)
  * Name: net_timedwait
  *
  * Description:
- *   Atomically wait for sem (or a timeout( while temporarily releasing
+ *   Atomically wait for sem (or a timeout) while temporarily releasing
  *   the lock on the network.
  *
  *   Caution should be utilized.  Because the network lock is relinquished
- *   during the wait, there could changes in the network state that occur
+ *   during the wait, there could be changes in the network state that occur
  *   before the lock is recovered.  Your design should account for this
  *   possibility.
  *
  * Input Parameters:
  *   sem     - A reference to the semaphore to be taken.
- *   abstime - The absolute time to wait until a timeout is declared.
+ *   timeout - The relative time to wait until a timeout is declared.
  *
  * Returned Value:
  *   Zero (OK) is returned on success; a negated errno value is returned on
@@ -348,9 +397,9 @@ int net_restorelock(unsigned int count)
  *
  ****************************************************************************/
 
-int net_timedwait(sem_t *sem, FAR const struct timespec *abstime)
+int net_timedwait(sem_t *sem, unsigned int timeout)
 {
-  return _net_timedwait(sem, true, abstime);
+  return _net_timedwait(sem, true, timeout);
 }
 
 /****************************************************************************
@@ -360,7 +409,7 @@ int net_timedwait(sem_t *sem, FAR const struct timespec *abstime)
  *   Atomically wait for sem while temporarily releasing the network lock.
  *
  *   Caution should be utilized.  Because the network lock is relinquished
- *   during the wait, there could changes in the network state that occur
+ *   during the wait, there could be changes in the network state that occur
  *   before the lock is recovered.  Your design should account for this
  *   possibility.
  *
@@ -375,7 +424,7 @@ int net_timedwait(sem_t *sem, FAR const struct timespec *abstime)
 
 int net_lockedwait(sem_t *sem)
 {
-  return net_timedwait(sem, NULL);
+  return net_timedwait(sem, UINT_MAX);
 }
 
 /****************************************************************************
@@ -387,7 +436,7 @@ int net_lockedwait(sem_t *sem)
  *
  * Input Parameters:
  *   sem     - A reference to the semaphore to be taken.
- *   abstime - The absolute time to wait until a timeout is declared.
+ *   timeout - The relative time to wait until a timeout is declared.
  *
  * Returned Value:
  *   Zero (OK) is returned on success; a negated errno value is returned on
@@ -395,10 +444,9 @@ int net_lockedwait(sem_t *sem)
  *
  ****************************************************************************/
 
-int net_timedwait_uninterruptible(sem_t *sem,
-                                  FAR const struct timespec *abstime)
+int net_timedwait_uninterruptible(sem_t *sem, unsigned int timeout)
 {
-  return _net_timedwait(sem, false, abstime);
+  return _net_timedwait(sem, false, timeout);
 }
 
 /****************************************************************************
@@ -419,7 +467,7 @@ int net_timedwait_uninterruptible(sem_t *sem,
 
 int net_lockedwait_uninterruptible(sem_t *sem)
 {
-  return net_timedwait_uninterruptible(sem, NULL);
+  return net_timedwait_uninterruptible(sem, UINT_MAX);
 }
 
 /****************************************************************************
@@ -430,7 +478,7 @@ int net_lockedwait_uninterruptible(sem_t *sem)
  *   for the IOB while temporarily releasing the lock on the network.
  *
  *   Caution should be utilized.  Because the network lock is relinquished
- *   during the wait, there could changes in the network state that occur
+ *   during the wait, there could be changes in the network state that occur
  *   before the lock is recovered.  Your design should account for this
  *   possibility.
  *

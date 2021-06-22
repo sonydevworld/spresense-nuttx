@@ -174,7 +174,7 @@ NUCLEO-F767ZI Features:
 For pinout and details Check NUCLEO-F767ZI page on developer.mbed.org:
 https://os.mbed.com/platforms/ST-Nucleo-F767ZI/
 
-Also https://developer.mbed.org/platforms/ST-Nucleo-F746ZG 
+Also https://developer.mbed.org/platforms/ST-Nucleo-F746ZG
 may contain some related useful information.
 
 Development Environment
@@ -217,7 +217,7 @@ Basic configuration & build steps
      $ make oldconfig
    - Select the features you want in the build.
      $ make menuconfig
-   - Builds Nuttx with the features you selected.
+   - Builds NuttX with the features you selected.
      $ make
 
 Hardware

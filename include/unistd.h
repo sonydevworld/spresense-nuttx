@@ -1,36 +1,20 @@
 /****************************************************************************
  * include/unistd.h
  *
- *   Copyright (C) 2007-2009, 2013-2014, 2016-2019 Gregory Nutt. All rights
- *     reserved.
- *   Author:  Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,12 +31,6 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
-/* The number of functions that may be registered to be called
- * at program exit.
- */
-
-#define ATEXIT_MAX 1
 
 /* Values for seeking */
 
@@ -95,8 +73,8 @@
 #  define _POSIX_SPORADIC_SERVER 1
 #  define _POSIX_THREAD_SPORADIC_SERVER 1
 #else
-#  undef  _POSIX_SPORADIC_SERVER
-#  undef  _POSIX_THREAD_SPORADIC_SERVER
+#  define _POSIX_SPORADIC_SERVER -1
+#  define _POSIX_THREAD_SPORADIC_SERVER -1
 #endif
 
 /* Execution time constants (not supported) */
@@ -109,7 +87,31 @@
 #undef  _POSIX_ASYNC_IO
 #undef  _POSIX_PRIO_IO
 
-/* Constants used with POSIX sysconf().  sysconf() will return -2 and set
+/* Constants used with POSIX pathconf().  pathconf() will return -1 and set
+ * errno to ENOSYS for most of these.
+ */
+
+#define _PC_2_SYMLINKS                   0x0001
+#define _PC_ALLOC_SIZE_MIN               0x0002
+#define _PC_ASYNC_IO                     0x0003
+#define _PC_CHOWN_RESTRICTED             0x0004
+#define _PC_FILESIZEBITS                 0x0005
+#define _PC_LINK_MAX                     0x0006
+#define _PC_MAX_CANON                    0x0007
+#define _PC_MAX_INPUT                    0x0008
+#define _PC_NAME_MAX                     0x0009
+#define _PC_NO_TRUNC                     0x000a
+#define _PC_PATH_MAX                     0x000b
+#define _PC_PIPE_BUF                     0x000c
+#define _PC_PRIO_IO                      0x000d
+#define _PC_REC_INCR_XFER_SIZE           0x000e
+#define _PC_REC_MIN_XFER_SIZE            0x000f
+#define _PC_REC_XFER_ALIGN               0x0010
+#define _PC_SYMLINK_MAX                  0x0011
+#define _PC_SYNC_IO                      0x0012
+#define _PC_VDISABLE                     0x0013
+
+/* Constants used with POSIX sysconf().  sysconf() will return -1 and set
  * errno to ENOSYS for most of these.
  */
 
@@ -237,6 +239,12 @@
 #define _SC_XOPEN_UNIX                   0x0079
 #define _SC_XOPEN_VERSION                0x007a
 
+#define _SC_PHYS_PAGES                   0x007b
+#define _SC_AVPHYS_PAGES                 0x007c
+
+#define _SC_NPROCESSORS_CONF             0x007d
+#define _SC_NPROCESSORS_ONLN             0x007e
+
 /* The following symbolic constants must be defined for file streams: */
 
 #define STDERR_FILENO                    2       /* File number of stderr */
@@ -247,8 +255,17 @@
 
 /* Helpers and legacy compatibility definitions */
 
+#define link(p1, p2)                     symlink((p1), (p2))
 #define fdatasync(f)                     fsync(f)
 #define getdtablesize(f)                 ((int)sysconf(_SC_OPEN_MAX))
+#define getpagesize(f)                   ((int)sysconf(_SC_PAGESIZE))
+
+/* Accessor functions associated with getopt(). */
+
+#define optarg  (*(getoptargp()))
+#define opterr  (*(getopterrp()))
+#define optind  (*(getoptindp()))
+#define optopt  (*(getoptoptp()))
 
 /****************************************************************************
  * Public Data
@@ -263,21 +280,6 @@ extern "C"
 #define EXTERN extern
 #endif
 
-/* Used by getopt (obviously NOT thread safe!).  These variables cannot be
- * accessed directly by an external NXFLAT module.  In that case, accessor
- * functions must be used.
- */
-
-#ifndef __NXFLAT__
-EXTERN FAR char *optarg; /* Optional argument following option */
-EXTERN int       optind; /* Index into argv */
-EXTERN int       optopt; /* Unrecognized option character */
-#else
-#  define optarg  (*(getoptargp()))
-#  define optind  (*(getoptindp()))
-#  define optopt  (*(getoptoptp()))
-#endif
-
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
@@ -286,6 +288,10 @@ EXTERN int       optopt; /* Unrecognized option character */
 
 pid_t   vfork(void);
 pid_t   getpid(void);
+pid_t   gettid(void);
+#ifdef CONFIG_SCHED_HAVE_PARENT
+pid_t   getppid(void);
+#endif
 void    _exit(int status) noreturn_function;
 unsigned int sleep(unsigned int seconds);
 int     usleep(useconds_t usec);
@@ -305,9 +311,11 @@ ssize_t pread(int fd, FAR void *buf, size_t nbytes, off_t offset);
 ssize_t pwrite(int fd, FAR const void *buf, size_t nbytes, off_t offset);
 int     ftruncate(int fd, off_t length);
 
+#ifdef CONFIG_SERIAL_TERMIOS
 /* Check if a file descriptor corresponds to a terminal I/O file */
 
 int     isatty(int fd);
+#endif
 
 /* Memory management */
 
@@ -319,6 +327,7 @@ FAR void *sbrk(intptr_t incr);
 /* Special devices */
 
 int     pipe(int fd[2]);
+int     pipe2(int pipefd[2], int flags);
 
 /* Schedule an alarm */
 
@@ -335,17 +344,14 @@ int     access(FAR const char *path, int amode);
 int     rmdir(FAR const char *pathname);
 int     unlink(FAR const char *pathname);
 int     truncate(FAR const char *path, off_t length);
-
-#ifdef CONFIG_PSEUDOFS_SOFTLINKS
-int     link(FAR const char *path1, FAR const char *path2);
+int     symlink(FAR const char *path1, FAR const char *path2);
 ssize_t readlink(FAR const char *path, FAR char *buf, size_t bufsize);
-#endif
 
 /* Execution of programs from files */
 
 #ifdef CONFIG_LIBC_EXECFUNCS
 int     execl(FAR const char *path, ...);
-int     execv(FAR const char *path, FAR char *const argv[]);
+int     execv(FAR const char *path, FAR char * const argv[]);
 #endif
 
 /* Byte operations */
@@ -354,14 +360,12 @@ void    swab(FAR const void *src, FAR void *dest, ssize_t nbytes);
 
 /* getopt and friends */
 
-int     getopt(int argc, FAR char *const argv[], FAR const char *optstring);
+int     getopt(int argc, FAR char * const argv[], FAR const char *optstring);
 
-/* Accessor functions intended for use only by external NXFLAT
- * modules.  The global variables optarg, optind, and optopt cannot
- * be referenced directly from external modules.
- */
+/* Accessor functions associated with getopt(). */
 
 FAR char **getoptargp(void);  /* Optional argument following option */
+FAR int   *getopterrp(void);  /* Print error message */
 FAR int   *getoptindp(void);  /* Index into argv */
 FAR int   *getoptoptp(void);  /* Unrecognized option character */
 
@@ -371,6 +375,8 @@ int     sethostname(FAR const char *name, size_t size);
 /* Get configurable system variables */
 
 long    sysconf(int name);
+long    fpathconf(int fildes, int name);
+long    pathconf(FAR const char *path, int name);
 
 /* User and group identity management */
 

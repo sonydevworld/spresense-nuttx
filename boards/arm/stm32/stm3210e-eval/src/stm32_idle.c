@@ -51,7 +51,7 @@
 #include <nuttx/board.h>
 #include <arch/board/board.h>
 
-#include "up_internal.h"
+#include "arm_internal.h"
 #include "stm32_pm.h"
 #include "stm32_rcc.h"
 #include "stm32_exti.h"
@@ -62,7 +62,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* Does the board support an IDLE LED to indicate that the board is in the
  * IDLE state?
  */
@@ -105,10 +107,10 @@
 #    error "CONFIG_RTC_ALARM should be enabled to use CONFIG_PM_SLEEP_WAKEUP"
 #  endif
 
-   /* If CONFIG_PM_SLEEP_WAKEUP is defined, then CONFIG_PM_SLEEP_WAKEUP_SEC
-    * and CONFIG_PM_SLEEP_WAKEUP_NSEC define the delay until the STM32
-    * awakens from PM_SLEEP mode.
-    */
+/* If CONFIG_PM_SLEEP_WAKEUP is defined, then CONFIG_PM_SLEEP_WAKEUP_SEC
+ * and CONFIG_PM_SLEEP_WAKEUP_NSEC define the delay until the STM32
+ * awakens from PM_SLEEP mode.
+ */
 
 #  ifndef CONFIG_PM_SLEEP_WAKEUP_SEC
 #    define CONFIG_PM_SLEEP_WAKEUP_SEC 10
@@ -257,7 +259,7 @@ static void stm32_idlepm(void)
    * wake-up event, then PM_SLEEP is entered.
    *
    * Logically, this code belongs at the end of the PM_STANDBY case below,
-   * does not work in the position for some unkown reason.
+   * does not work in the position for some unknown reason.
    */
 
   if (oldstate == PM_STANDBY)
@@ -369,6 +371,7 @@ static void stm32_idlepm(void)
                 swarn("WARNING: Cancel alarm failed\n");
               }
 #endif
+
             /* Note:  See the additional PM_STANDBY related logic at the
              * beginning of this function.  That logic is executed after
              * this point.
@@ -385,7 +388,8 @@ static void stm32_idlepm(void)
             /* Configure the RTC alarm to Auto Reset the system */
 
 #ifdef CONFIG_PM_SLEEP_WAKEUP
-            stm32_rtc_alarm(CONFIG_PM_SLEEP_WAKEUP_SEC, CONFIG_PM_SLEEP_WAKEUP_NSEC, false);
+            stm32_rtc_alarm(CONFIG_PM_SLEEP_WAKEUP_SEC,
+                            CONFIG_PM_SLEEP_WAKEUP_NSEC, false);
 #endif
             /* Wait 10ms */
 

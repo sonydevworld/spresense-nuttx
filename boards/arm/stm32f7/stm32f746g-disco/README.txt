@@ -43,8 +43,8 @@ STATUS
 ======
 
   2015-07-19:  The basic NSH configuration is functional using a serial
-    console on USART6 and RS-232 shield.  Very few other drivers are in
-    place yet.
+    console on USART1 (Virtual COM, i.e. ttyACM0). Very few other drivers
+    are in place yet.
 
   2015-07-20:  STM32 F7 Ethernet appears to be functional, but has had
     only light testing.
@@ -55,7 +55,7 @@ Development Environment
   The Development environments for the STM32F746G-DISCO board are identical
   to the environments for other STM32F boards.  For full details on the
   environment options and setup, see the README.txt file in the
-  boards/stm32f746g-disco directory.
+  boards/arm/stm32f7/stm32f746g-disco directory.
 
 LEDs and Buttons
 ================
@@ -98,16 +98,20 @@ LEDs and Buttons
 Serial Console
 ==============
 
-  These configurations assume that you are using a standard Arduio RS-232
-  shield with the serial interface with RX on pin D0 and TX on pin D1:
+  The STM32F469G-DISCO uses USART1 connected to "Virtual COM", so when you
+  plug it on your computer it will be detected as a USB port (i.e. ttyACM0):
 
   -------- ---------------
               STM32F7
-  ARDUIONO FUNCTION  GPIO
-  -- ----- --------- -----
-  DO RX    USART6_RX PC7
-  D1 TX    USART6_TX PC6
-  -- ----- --------- -----
+  V.COM     FUNCTION  GPIO
+  -----    --------- -----
+  RXD      USART1_RX PB7
+  TXD      USART1_TX PA9
+  ------   --------- -----
+
+  All you need to do after flashing NuttX on this board is use a serial
+  console tool (minicom, picocom, screen, hyperterminal, teraterm, putty,
+  etc ) configured to 115200 8n1.
 
 Porting STM32 F4 Drivers
 ========================
@@ -136,7 +140,7 @@ Porting STM32 F4 Drivers
   and, as a result, we need to exercise much more care to maintain cache
   coherency.  There is a Wiki page discussing the issues of porting
   drivers from the stm32/ to the stm32f7/ directories here:
-  http://www.nuttx.org/doku.php?id=wiki:howtos:port-drivers_stm32f7
+  https://cwiki.apache.org/confluence/display/NUTTX/Porting+Drivers+to+the+STM32+F7
 
 FPU
 ===
@@ -466,7 +470,7 @@ Configurations
        b. Execute 'make menuconfig' in nuttx/ in order to start the
           reconfiguration process.
 
-    2. By default, these configurations use the USART6 for the serial
+    2. By default, these configurations use the USART1 for the serial
        console.  Pins are configured to that RX/TX are available at
        pins D0 and D1 of the Arduion connectors.  This should be compatible
        with most RS-232 shields.
@@ -478,7 +482,7 @@ Configurations
          https://developer.arm.com/open-source/gnu-toolchain/gnu-rm
 
        As of this writing (2015-03-11), full support is difficult to find
-       for the Cortex-M7, but is supported by at least this realease of
+       for the Cortex-M7, but is supported by at least this release of
        the ARM GNU tools:
 
          https://launchpadlibrarian.net/209776344/release.txt
@@ -505,7 +509,7 @@ Configuration Directories
   nsh
   ---
     Configures the NuttShell (NSH) located at apps/examples/nsh.  The
-    Configuration enables the serial interfaces on UART6.  Support for
+    Configuration enables the serial interfaces on USART1.  Support for
     built-in applications is enabled, but in the base configuration no
     built-in applications are selected.
 
@@ -526,7 +530,7 @@ Configuration Directories
     This configuration uses USART1 for the serial console.
     USART1 is connected to the ST-link virtual com inside board.h to remove
     the need of a extra serial connection to use this board.
-    From the nsh comand line execute the lvgldemo example:
+    From the nsh command line execute the lvgldemo example:
 
       nsh> lvgldemo
 

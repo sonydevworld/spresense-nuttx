@@ -1,35 +1,20 @@
 /****************************************************************************
  * include/aio.h
  *
- *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,10 +36,12 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* These interfaces are not available to kernel code */
 
-#if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && defined(__KERNEL__)
+#if !defined(CONFIG_BUILD_FLAT) && defined(__KERNEL__)
 #  undef CONFIG_FS_AIO
 #endif
 
@@ -75,6 +62,7 @@
 #endif
 
 /* Standard Definitions *****************************************************/
+
 /* aio_cancel return values
  *
  * AIO_ALLDONE     - Indicates that none of the requested operations could
@@ -125,11 +113,7 @@ struct aiocb
   FAR volatile void *aio_buf;    /* Location of buffer */
   off_t aio_offset;              /* File offset */
   size_t aio_nbytes;             /* Length of transfer */
-#if (CONFIG_NFILE_DESCRIPTORS + CONFIG_NSOCKET_DESCRIPTORS) > 127
   int16_t aio_fildes;            /* File descriptor (should be int) */
-#else
-  int8_t aio_fildes;             /* File descriptor (should be int) */
-#endif
   int8_t aio_reqprio;            /* Request priority offset (not used, should be int) */
   uint8_t aio_lio_opcode;        /* Operation to be performed (should be int) */
 
@@ -163,10 +147,10 @@ int aio_error(FAR const struct aiocb *aiocbp);
 int aio_fsync(int op, FAR struct aiocb *aiocbp);
 int aio_read(FAR struct aiocb *aiocbp);
 ssize_t aio_return(FAR struct aiocb *aiocbp);
-int aio_suspend(FAR const struct aiocb *const list[], int nent,
+int aio_suspend(FAR const struct aiocb * const list[], int nent,
                 FAR const struct timespec *timeout);
 int aio_write(FAR struct aiocb *aiocbp);
-int lio_listio(int mode, FAR struct aiocb *const list[], int nent,
+int lio_listio(int mode, FAR struct aiocb * const list[], int nent,
                FAR struct sigevent *sig);
 
 #undef EXTERN

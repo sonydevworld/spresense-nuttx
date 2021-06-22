@@ -1,36 +1,20 @@
 /****************************************************************************
  * fs/vfs/fs_write.c
  *
- *   Copyright (C) 2007-2009, 2012-2014, 2016-2017 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,12 +31,7 @@
 #include <errno.h>
 #include <assert.h>
 
-#ifdef CONFIG_NET_TCP
-# include <sys/socket.h>
-#endif
-
 #include <nuttx/cancelpt.h>
-#include <nuttx/net/net.h>
 
 #include "inode/inode.h"
 
@@ -67,11 +46,10 @@
  *   Equivalent to the standard write() function except that is accepts a
  *   struct file instance instead of a file descriptor.  It is functionally
  *   equivalent to write() except that in addition to the differences in
- *   input paramters:
+ *   input parameters:
  *
  *  - It does not modify the errno variable,
  *  - It is not a cancellation point, and
- *  - It does not handle socket descriptors.
  *
  * Input Parameters:
  *   filep  - Instance of struct file to use with the write
@@ -86,7 +64,8 @@
  *
  ****************************************************************************/
 
-ssize_t file_write(FAR struct file *filep, FAR const void *buf, size_t nbytes)
+ssize_t file_write(FAR struct file *filep, FAR const void *buf,
+                   size_t nbytes)
 {
   FAR struct inode *inode;
 
@@ -94,7 +73,7 @@ ssize_t file_write(FAR struct file *filep, FAR const void *buf, size_t nbytes)
 
   if ((filep->f_oflags & O_WROK) == 0)
     {
-      return -EBADF;
+      return -EACCES;
     }
 
   /* Is a driver registered? Does it support the write method? */
@@ -123,7 +102,7 @@ ssize_t file_write(FAR struct file *filep, FAR const void *buf, size_t nbytes)
  *  - It is not a cancellation point.
  *
  * Input Parameters:
- *   fd     - file descriptor (or socket descriptor) to write to
+ *   fd     - file descriptor to write to
  *   buf    - Data to write
  *   nbytes - Length of data to write
  *
@@ -145,34 +124,18 @@ ssize_t nx_write(int fd, FAR const void *buf, size_t nbytes)
       return -EINVAL;
     }
 
-  /* Did we get a valid file descriptor? */
+  /* First, get the file structure.
+   * Note that fs_getfilep() will return the errno on failure.
+   */
 
-  if ((unsigned int)fd >= CONFIG_NFILE_DESCRIPTORS)
+  ret = (ssize_t)fs_getfilep(fd, &filep);
+  if (ret >= 0)
     {
-#ifdef CONFIG_NET_TCP
-      /* Write to a socket descriptor is equivalent to send with flags == 0. */
-
-      ret = nx_send(fd, buf, nbytes, 0);
-#else
-      ret = -EBADF;
-#endif
-    }
-  else
-    {
-      /* The descriptor is in the right range to be a file descriptor..
-       * write to the file.  Note that fs_getfilep() will set the errno on
-       * failure.
+      /* Perform the write operation using the file descriptor as an
+       * index.  Note that file_write() will return the errno on failure.
        */
 
-      ret = (ssize_t)fs_getfilep(fd, &filep);
-      if (ret >= 0)
-        {
-          /* Perform the write operation using the file descriptor as an
-           * index.  Note that file_write() will set the errno on failure.
-           */
-
-          ret = file_write(filep, buf, nbytes);
-        }
+      ret = file_write(filep, buf, nbytes);
     }
 
   return ret;
@@ -186,7 +149,7 @@ ssize_t nx_write(int fd, FAR const void *buf, size_t nbytes)
  *  descriptor fd from the buffer starting at buf.
  *
  * Input Parameters:
- *   fd     - file descriptor (or socket descriptor) to write to
+ *   fd     - file descriptor to write to
  *   buf    - Data to write
  *   nbytes - Length of data to write
  *
@@ -204,7 +167,7 @@ ssize_t nx_write(int fd, FAR const void *buf, size_t nbytes)
  *    buf is outside your accessible address space.
  *  EFBIG
  *    An attempt was made to write a file that exceeds the implementation
- *    defined maximum file size or the process' file size limit, or
+ *    defined maximum file size or the process's file size limit, or
  *    to write at a position past the maximum allowed offset.
  *  EINTR
  *    The call was interrupted by a signal before any data was written.

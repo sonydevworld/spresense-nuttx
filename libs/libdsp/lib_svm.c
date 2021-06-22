@@ -1,35 +1,20 @@
 /****************************************************************************
- * control/lib_svm.c
+ * libs/libdsp/lib_svm.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Mateusz Szafoni <raiden00@railab.me>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,10 +25,6 @@
 #include <assert.h>
 
 #include <dsp.h>
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
 
 /****************************************************************************
  * Private Functions
@@ -63,7 +44,7 @@
  *
  ****************************************************************************/
 
-static uint8_t svm3_sector_get(FAR abc_frame_t *ijk)
+static uint8_t svm3_sector_get(FAR abc_frame_f32_t *ijk)
 {
   uint8_t sector = 0;
   float i = ijk->a;
@@ -154,7 +135,8 @@ static uint8_t svm3_sector_get(FAR abc_frame_t *ijk)
  *
  ****************************************************************************/
 
-static void svm3_duty_calc(FAR struct svm3_state_s *s, FAR abc_frame_t *ijk)
+static void svm3_duty_calc(FAR struct svm3_state_f32_s *s,
+                           FAR abc_frame_f32_t *ijk)
 {
   float i = ijk->a;
   float j = ijk->b;
@@ -173,41 +155,47 @@ static void svm3_duty_calc(FAR struct svm3_state_s *s, FAR abc_frame_t *ijk)
           T2 = j;
           break;
         }
+
       case 2:
         {
           T1 = -k;
           T2 = -i;
           break;
         }
+
       case 3:
         {
           T1 = j;
           T2 = k;
           break;
         }
+
       case 4:
         {
           T1 = -i;
           T2 = -j;
           break;
         }
+
       case 5:
         {
           T1 = k;
           T2 = i;
           break;
         }
+
       case 6:
         {
           T1 = -j;
           T2 = -k;
           break;
         }
+
       default:
         {
           /* We should not get here */
 
-          DEBUGASSERT(0);
+          LIBDSP_DEBUGASSERT(0);
           break;
         }
     }
@@ -222,51 +210,57 @@ static void svm3_duty_calc(FAR struct svm3_state_s *s, FAR abc_frame_t *ijk)
     {
       case 1:
         {
-          s->d_u = T1 + T2 + T0*0.5f;
-          s->d_v = T2 + T0*0.5f;
-          s->d_w = T0*0.5f;
+          s->d_u = T1 + T2 + T0 * 0.5f;
+          s->d_v = T2 + T0 * 0.5f;
+          s->d_w = T0 * 0.5f;
           break;
         }
+
       case 2:
         {
-          s->d_u = T1 + T0*0.5f;
-          s->d_v = T1 + T2 + T0*0.5f;
-          s->d_w = T0*0.5f;
+          s->d_u = T1 + T0 * 0.5f;
+          s->d_v = T1 + T2 + T0 * 0.5f;
+          s->d_w = T0 * 0.5f;
           break;
         }
+
       case 3:
         {
-          s->d_u = T0*0.5f;
-          s->d_v = T1 + T2 + T0*0.5f;
-          s->d_w = T2 + T0*0.5f;
+          s->d_u = T0 * 0.5f;
+          s->d_v = T1 + T2 + T0 * 0.5f;
+          s->d_w = T2 + T0 * 0.5f;
           break;
         }
+
       case 4:
         {
-          s->d_u = T0*0.5f;
-          s->d_v = T1 + T0*0.5f;
-          s->d_w = T1 + T2 + T0*0.5f;
+          s->d_u = T0 * 0.5f;
+          s->d_v = T1 + T0 * 0.5f;
+          s->d_w = T1 + T2 + T0 * 0.5f;
           break;
         }
+
       case 5:
         {
-          s->d_u = T2 + T0*0.5f;
-          s->d_v = T0*0.5f;
-          s->d_w = T1 + T2 + T0*0.5f;
+          s->d_u = T2 + T0 * 0.5f;
+          s->d_v = T0 * 0.5f;
+          s->d_w = T1 + T2 + T0 * 0.5f;
           break;
         }
+
       case 6:
         {
-          s->d_u = T1 + T2 + T0*0.5f;
-          s->d_v = T0*0.5f;
-          s->d_w = T1 + T0*0.5f;
+          s->d_u = T1 + T2 + T0 * 0.5f;
+          s->d_v = T0 * 0.5f;
+          s->d_w = T1 + T0 * 0.5f;
           break;
         }
+
       default:
         {
           /* We should not get here */
 
-          DEBUGASSERT(0);
+          LIBDSP_DEBUGASSERT(0);
           break;
         }
     }
@@ -312,26 +306,24 @@ static void svm3_duty_calc(FAR struct svm3_state_s *s, FAR abc_frame_t *ijk)
  *
  * Input Parameters:
  *   s    - (out) pointer to the SVM data
- *   v_ab - (in) pointer to the modulation voltage vector in alpha-beta frame,
- *          normalized to magnitude (0.0 - 1.0)
+ *   v_ab - (in) pointer to the modulation voltage vector in alpha-beta
+ *          frame, normalized to magnitude (0.0 - 1.0)
  *
  * NOTE: v_ab vector magnitude must be in range <0.0, 1.0> to get correct
  *       SVM3 results.
  *
- * REVISIT: not sure how we should handle invalid data from user.
- *          For now we saturate output duty form SVM.
- *
  * REFERENCE:
- *   https://e2e.ti.com/group/motor/m/pdf_presentations/665547/download (32-34)
+ *   https://e2e.ti.com/group/motor/m/pdf_presentations/665547/download
+ *     pages 32-34
  *
  ****************************************************************************/
 
-void svm3(FAR struct svm3_state_s *s, FAR ab_frame_t *v_ab)
+void svm3(FAR struct svm3_state_f32_s *s, FAR ab_frame_f32_t *v_ab)
 {
-  DEBUGASSERT(s != NULL);
-  DEBUGASSERT(v_ab != NULL);
+  LIBDSP_DEBUGASSERT(s != NULL);
+  LIBDSP_DEBUGASSERT(v_ab != NULL);
 
-  abc_frame_t ijk;
+  abc_frame_f32_t ijk;
 
   /* Perform modified inverse Clarke-transformation (alpha,beta) -> (i,j,k)
    * to obtain auxiliary frame which will be used in further calculations.
@@ -349,11 +341,10 @@ void svm3(FAR struct svm3_state_s *s, FAR ab_frame_t *v_ab)
 
   svm3_duty_calc(s, &ijk);
 
-  /* Saturate output from SVM */
-
-  f_saturate(&s->d_u, s->d_min, s->d_max);
-  f_saturate(&s->d_v, s->d_min, s->d_max);
-  f_saturate(&s->d_w, s->d_min, s->d_max);
+  /* NOTE: we return not-saturated output. Duty-cycle saturation is
+   *       board-specific characteristic and we have not access to this
+   *       information here.
+   */
 }
 
 /****************************************************************************
@@ -365,8 +356,8 @@ void svm3(FAR struct svm3_state_s *s, FAR ab_frame_t *v_ab)
  *
  ****************************************************************************/
 
-void svm3_current_correct(FAR struct svm3_state_s *s,
-                              int32_t *c0, int32_t *c1, int32_t *c2)
+void svm3_current_correct(FAR struct svm3_state_f32_s *s,
+                          float *c0, float *c1, float *c2)
 {
   /* Get best ADC samples according to SVM sector.
    *
@@ -431,20 +422,15 @@ void svm3_current_correct(FAR struct svm3_state_s *s,
  *
  * Input Parameters:
  *   s - (in/out) pointer to the SVM state data
- *   sat - (in)
  *
  * Returned Value:
  *   None
  *
  ****************************************************************************/
 
-void svm3_init(FAR struct svm3_state_s *s, float min, float max)
+void svm3_init(FAR struct svm3_state_f32_s *s)
 {
-  DEBUGASSERT(s != NULL);
-  DEBUGASSERT(max > min);
+  LIBDSP_DEBUGASSERT(s != NULL);
 
-  memset(s, 0, sizeof(struct svm3_state_s));
-
-  s->d_max = max;
-  s->d_min = min;
+  memset(s, 0, sizeof(struct svm3_state_f32_s));
 }

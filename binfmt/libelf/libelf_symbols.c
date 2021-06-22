@@ -1,35 +1,20 @@
 /****************************************************************************
  * binfmt/libelf/libelf_symbols.c
  *
- *   Copyright (C) 2012, 2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -39,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -71,14 +57,14 @@
  *   0 (OK) is returned on success and a negated errno is returned on
  *   failure.
  *
- *   EINVAL - There is something inconsistent in the symbol table (should only
- *            happen if the file is corrupted).
+ *   EINVAL - There is something inconsistent in the symbol table (should
+ *            only happen if the file is corrupted).
  *   ESRCH - Symbol has no name
  *
  ****************************************************************************/
 
 static int elf_symname(FAR struct elf_loadinfo_s *loadinfo,
-                       FAR const Elf32_Sym *sym)
+                       FAR const Elf_Sym *sym)
 {
   FAR uint8_t *buffer;
   off_t  offset;
@@ -215,14 +201,14 @@ int elf_findsymtab(FAR struct elf_loadinfo_s *loadinfo)
  ****************************************************************************/
 
 int elf_readsym(FAR struct elf_loadinfo_s *loadinfo, int index,
-                FAR Elf32_Sym *sym)
+                FAR Elf_Sym *sym)
 {
-  FAR Elf32_Shdr *symtab = &loadinfo->shdr[loadinfo->symtabidx];
+  FAR Elf_Shdr *symtab = &loadinfo->shdr[loadinfo->symtabidx];
   off_t offset;
 
   /* Verify that the symbol table index lies within symbol table */
 
-  if (index < 0 || index > (symtab->sh_size / sizeof(Elf32_Sym)))
+  if (index < 0 || index > (symtab->sh_size / sizeof(Elf_Sym)))
     {
       berr("Bad relocation symbol index: %d\n", index);
       return -EINVAL;
@@ -230,11 +216,11 @@ int elf_readsym(FAR struct elf_loadinfo_s *loadinfo, int index,
 
   /* Get the file offset to the symbol table entry */
 
-  offset = symtab->sh_offset + sizeof(Elf32_Sym) * index;
+  offset = symtab->sh_offset + sizeof(Elf_Sym) * index;
 
   /* And, finally, read the symbol table entry into memory */
 
-  return elf_read(loadinfo, (FAR uint8_t *)sym, sizeof(Elf32_Sym), offset);
+  return elf_read(loadinfo, (FAR uint8_t *)sym, sizeof(Elf_Sym), offset);
 }
 
 /****************************************************************************
@@ -252,15 +238,15 @@ int elf_readsym(FAR struct elf_loadinfo_s *loadinfo, int index,
  *   0 (OK) is returned on success and a negated errno is returned on
  *   failure.
  *
- *   EINVAL - There is something inconsistent in the symbol table (should only
- *            happen if the file is corrupted).
+ *   EINVAL - There is something inconsistent in the symbol table (should
+ *            only happen if the file is corrupted).
  *   ENOSYS - Symbol lies in common
  *   ESRCH  - Symbol has no name
  *   ENOENT - Symbol undefined and not provided via a symbol table
  *
  ****************************************************************************/
 
-int elf_symvalue(FAR struct elf_loadinfo_s *loadinfo, FAR Elf32_Sym *sym,
+int elf_symvalue(FAR struct elf_loadinfo_s *loadinfo, FAR Elf_Sym *sym,
                  FAR const struct symtab_s *exports, int nexports)
 {
   FAR const struct symtab_s *symbol;
@@ -304,24 +290,26 @@ int elf_symvalue(FAR struct elf_loadinfo_s *loadinfo, FAR Elf32_Sym *sym,
 
         /* Check if the base code exports a symbol of this name */
 
-#ifdef CONFIG_SYMTAB_ORDEREDBYNAME
-        symbol = symtab_findorderedbyname(exports, (FAR char *)loadinfo->iobuffer, nexports);
-#else
-        symbol = symtab_findbyname(exports, (FAR char *)loadinfo->iobuffer, nexports);
-#endif
+        symbol = symtab_findbyname(exports, (FAR char *)loadinfo->iobuffer,
+                                   nexports);
         if (!symbol)
           {
-            berr("SHN_UNDEF: Exported symbol \"%s\" not found\n", loadinfo->iobuffer);
+            berr("SHN_UNDEF: Exported symbol \"%s\" not found\n",
+                 loadinfo->iobuffer);
             return -ENOENT;
           }
 
-        /* Yes... add the exported symbol value to the ELF symbol table entry */
+        /* Yes... add the exported symbol value to the ELF symbol table
+         * entry
+         */
 
-        binfo("SHN_UNDEF: name=%s %08x+%08x=%08x\n",
-              loadinfo->iobuffer, sym->st_value, symbol->sym_value,
-              sym->st_value + symbol->sym_value);
+        binfo("SHN_UNDEF: name=%s "
+              "%08" PRIxPTR "+%08" PRIxPTR "=%08" PRIxPTR "\n",
+              loadinfo->iobuffer, (uintptr_t)sym->st_value,
+              (uintptr_t)symbol->sym_value,
+              (uintptr_t)(sym->st_value + symbol->sym_value));
 
-        sym->st_value += (Elf32_Word)((uintptr_t)symbol->sym_value);
+        sym->st_value += ((uintptr_t)symbol->sym_value);
       }
       break;
 
@@ -329,8 +317,9 @@ int elf_symvalue(FAR struct elf_loadinfo_s *loadinfo, FAR Elf32_Sym *sym,
       {
         secbase = loadinfo->shdr[sym->st_shndx].sh_addr;
 
-        binfo("Other: %08x+%08x=%08x\n",
-              sym->st_value, secbase, sym->st_value + secbase);
+        binfo("Other: %08" PRIxPTR "+%08" PRIxPTR "=%08" PRIxPTR "\n",
+              (uintptr_t)sym->st_value, secbase,
+              (uintptr_t)(sym->st_value + secbase));
 
         sym->st_value += secbase;
       }

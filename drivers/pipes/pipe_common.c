@@ -1,36 +1,20 @@
 /****************************************************************************
  * drivers/pipes/pipe_common.c
  *
- *   Copyright (C) 2008-2009, 2011, 2015-2016, 2018 Gregory Nutt. All
- *     rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -80,12 +64,6 @@
 #endif
 
 /****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-
-static void pipecommon_semtake(sem_t *sem);
-
-/****************************************************************************
  * Private Functions
  ****************************************************************************/
 
@@ -93,9 +71,9 @@ static void pipecommon_semtake(sem_t *sem);
  * Name: pipecommon_semtake
  ****************************************************************************/
 
-static void pipecommon_semtake(FAR sem_t *sem)
+static int pipecommon_semtake(FAR sem_t *sem)
 {
-  nxsem_wait_uninterruptible(sem);
+  return nxsem_wait_uninterruptible(sem);
 }
 
 /****************************************************************************
@@ -162,12 +140,12 @@ FAR struct pipe_dev_s *pipecommon_allocdev(size_t bufsize)
       nxsem_init(&dev->d_rdsem, 0, 0);
       nxsem_init(&dev->d_wrsem, 0, 0);
 
-     /* The read/write wait semaphores are used for signaling and, hence,
-      * should not have priority inheritance enabled.
-      */
+      /* The read/write wait semaphores are used for signaling and, hence,
+       * should not have priority inheritance enabled.
+       */
 
-     nxsem_setprotocol(&dev->d_rdsem, SEM_PRIO_NONE);
-     nxsem_setprotocol(&dev->d_wrsem, SEM_PRIO_NONE);
+      nxsem_set_protocol(&dev->d_rdsem, SEM_PRIO_NONE);
+      nxsem_set_protocol(&dev->d_wrsem, SEM_PRIO_NONE);
 
       dev->d_bufsize = bufsize;
     }
@@ -201,7 +179,8 @@ int pipecommon_open(FAR struct file *filep)
   DEBUGASSERT(dev != NULL);
 
   /* Make sure that we have exclusive access to the device structure.  The
-   * nxsem_wait() call should fail only if we are awakened by a signal.
+   * nxsem_wait() call should fail if we are awakened by a signal or if the
+   * thread was canceled.
    */
 
   ret = nxsem_wait(&dev->d_bfsem);
@@ -226,27 +205,30 @@ int pipecommon_open(FAR struct file *filep)
         }
     }
 
-
-  /* If opened for writing, increment the count of writers on the pipe instance */
+  /* If opened for writing, increment the count of writers on the pipe
+   * instance.
+   */
 
   if ((filep->f_oflags & O_WROK) != 0)
     {
       dev->d_nwriters++;
 
-      /* If this this is the first writer, then the read semaphore indicates the
+      /* If this is the first writer, then the read semaphore indicates the
        * number of readers waiting for the first writer.  Wake them all up.
        */
 
       if (dev->d_nwriters == 1)
         {
-          while (nxsem_getvalue(&dev->d_rdsem, &sval) == 0 && sval < 0)
+          while (nxsem_get_value(&dev->d_rdsem, &sval) == 0 && sval < 0)
             {
               nxsem_post(&dev->d_rdsem);
             }
         }
     }
 
-  /* If opened for reading, increment the count of reader on on the pipe instance */
+  /* If opened for reading, increment the count of reader on on the pipe
+   * instance.
+   */
 
   if ((filep->f_oflags & O_RDOK) != 0)
     {
@@ -277,8 +259,8 @@ int pipecommon_open(FAR struct file *filep)
       ret = nxsem_wait(&dev->d_rdsem);
       if (ret < 0)
         {
-          /* The nxsem_wait() call should fail only if we are awakened by
-           * a signal.
+          /* The nxsem_wait() call should fail if we are awakened by a
+           * signal or if the task is canceled.
            */
 
           ferr("ERROR: nxsem_wait failed: %d\n", ret);
@@ -302,6 +284,7 @@ int pipecommon_close(FAR struct file *filep)
   FAR struct inode      *inode = filep->f_inode;
   FAR struct pipe_dev_s *dev   = inode->i_private;
   int                    sval;
+  int                    ret;
 
   DEBUGASSERT(dev && filep->f_inode->i_crefs > 0);
 
@@ -310,7 +293,13 @@ int pipecommon_close(FAR struct file *filep)
    * I've never seen anyone check that.
    */
 
-  pipecommon_semtake(&dev->d_bfsem);
+  ret = pipecommon_semtake(&dev->d_bfsem);
+  if (ret < 0)
+    {
+      /* The close will not be performed if the task was canceled */
+
+      return ret;
+    }
 
   /* Decrement the number of references on the pipe.  Check if there are
    * still outstanding references to the pipe.
@@ -326,20 +315,20 @@ int pipecommon_close(FAR struct file *filep)
 
       if ((filep->f_oflags & O_WROK) != 0)
         {
-          /* If there are no longer any writers on the pipe, then notify all of the
-           * waiting readers that they must return end-of-file.
+          /* If there are no longer any writers on the pipe, then notify all
+           * of the waiting readers that they must return end-of-file.
            */
 
           if (--dev->d_nwriters <= 0)
             {
-              while (nxsem_getvalue(&dev->d_rdsem, &sval) == 0 && sval < 0)
-                {
-                  nxsem_post(&dev->d_rdsem);
-                }
-
               /* Inform poll readers that other end closed. */
 
               pipecommon_pollnotify(dev, POLLHUP);
+
+              while (nxsem_get_value(&dev->d_rdsem, &sval) == 0 && sval < 0)
+                {
+                  nxsem_post(&dev->d_rdsem);
+                }
             }
         }
 
@@ -425,6 +414,10 @@ ssize_t pipecommon_read(FAR struct file *filep, FAR char *buffer, size_t len)
   ret = nxsem_wait(&dev->d_bfsem);
   if (ret < 0)
     {
+      /* May fail because a signal was received or if the task was
+       * canceled.
+       */
+
       return ret;
     }
 
@@ -432,20 +425,20 @@ ssize_t pipecommon_read(FAR struct file *filep, FAR char *buffer, size_t len)
 
   while (dev->d_wrndx == dev->d_rdndx)
     {
-      /* If O_NONBLOCK was set, then return EGAIN */
-
-      if (filep->f_oflags & O_NONBLOCK)
-        {
-          nxsem_post(&dev->d_bfsem);
-          return -EAGAIN;
-        }
-
       /* If there are no writers on the pipe, then return end of file */
 
       if (dev->d_nwriters <= 0)
         {
           nxsem_post(&dev->d_bfsem);
           return 0;
+        }
+
+      /* If O_NONBLOCK was set, then return EGAIN */
+
+      if (filep->f_oflags & O_NONBLOCK)
+        {
+          nxsem_post(&dev->d_bfsem);
+          return -EAGAIN;
         }
 
       /* Otherwise, wait for something to be written to the pipe */
@@ -457,11 +450,17 @@ ssize_t pipecommon_read(FAR struct file *filep, FAR char *buffer, size_t len)
 
       if (ret < 0 || (ret = nxsem_wait(&dev->d_bfsem)) < 0)
         {
+          /* May fail because a signal was received or if the task was
+           * canceled.
+           */
+
           return ret;
         }
     }
 
-  /* Then return whatever is available in the pipe (which is at least one byte) */
+  /* Then return whatever is available in the pipe (which is at least one
+   * byte).
+   */
 
   nread = 0;
   while ((size_t)nread < len && dev->d_wrndx != dev->d_rdndx)
@@ -475,16 +474,18 @@ ssize_t pipecommon_read(FAR struct file *filep, FAR char *buffer, size_t len)
       nread++;
     }
 
-  /* Notify all waiting writers that bytes have been removed from the buffer */
-
-  while (nxsem_getvalue(&dev->d_wrsem, &sval) == 0 && sval < 0)
-    {
-      nxsem_post(&dev->d_wrsem);
-    }
-
   /* Notify all poll/select waiters that they can write to the FIFO */
 
   pipecommon_pollnotify(dev, POLLOUT);
+
+  /* Notify all waiting writers that bytes have been removed from the
+   * buffer.
+   */
+
+  while (nxsem_get_value(&dev->d_wrsem, &sval) == 0 && sval < 0)
+    {
+      nxsem_post(&dev->d_wrsem);
+    }
 
   nxsem_post(&dev->d_bfsem);
   pipe_dumpbuffer("From PIPE:", start, nread);
@@ -528,16 +529,16 @@ ssize_t pipecommon_write(FAR struct file *filep, FAR const char *buffer,
     }
 
   /* At present, this method cannot be called from interrupt handlers.  That
-   * is because it calls nxsem_wait (via pipecommon_semtake below) and
-   * nxsem_wait cannot be called from interrupt level.  This actually
-   * happens fairly commonly IF [a-z]err() is called from interrupt handlers
-   * and stdout is being redirected via a pipe.  In that case, the debug
-   * output will try to go out the pipe (interrupt handlers should use the
-   * _err() APIs).
+   * is because it calls nxsem_wait() and nxsem_wait() cannot be called from
+   * interrupt level.  This actually happens fairly commonly IF [a-z]err()
+   * is called from interrupt handlers and stdout is being redirected via a
+   * pipe.  In that case, the debug output will try to go out the pipe
+   * (interrupt handlers should use the _err() APIs).
    *
    * On the other hand, it would be very valuable to be able to feed the pipe
    * from an interrupt handler!  TODO:  Consider disabling interrupts instead
-   * of taking semaphores so that pipes can be written from interrupt handlers
+   * of taking semaphores so that pipes can be written from interrupt
+   * handlers.
    */
 
   DEBUGASSERT(up_interrupt_context() == false);
@@ -547,6 +548,10 @@ ssize_t pipecommon_write(FAR struct file *filep, FAR const char *buffer,
   ret = nxsem_wait(&dev->d_bfsem);
   if (ret < 0)
     {
+      /* May fail because a signal was received or if the task was
+       * canceled.
+       */
+
       return ret;
     }
 
@@ -577,16 +582,20 @@ ssize_t pipecommon_write(FAR struct file *filep, FAR const char *buffer,
           nwritten++;
           if ((size_t)nwritten >= len)
             {
-              /* Yes.. Notify all of the waiting readers that more data is available */
+              /* Notify all poll/select waiters that they can read from the
+               * FIFO.
+               */
 
-              while (nxsem_getvalue(&dev->d_rdsem, &sval) == 0 && sval < 0)
+              pipecommon_pollnotify(dev, POLLIN);
+
+              /* Yes.. Notify all of the waiting readers that more data is
+               * available.
+               */
+
+              while (nxsem_get_value(&dev->d_rdsem, &sval) == 0 && sval < 0)
                 {
                   nxsem_post(&dev->d_rdsem);
                 }
-
-              /* Notify all poll/select waiters that they can read from the FIFO */
-
-              pipecommon_pollnotify(dev, POLLIN);
 
               /* Return the number of bytes written */
 
@@ -596,25 +605,33 @@ ssize_t pipecommon_write(FAR struct file *filep, FAR const char *buffer,
         }
       else
         {
-          /* There is not enough room for the next byte.  Was anything written in this pass? */
+          /* There is not enough room for the next byte.  Was anything
+           * written in this pass?
+           */
 
           if (last < nwritten)
             {
-              /* Yes.. Notify all of the waiting readers that more data is available */
+              /* Notify all poll/select waiters that they can read from the
+               * FIFO.
+               */
 
-              while (nxsem_getvalue(&dev->d_rdsem, &sval) == 0 && sval < 0)
+              pipecommon_pollnotify(dev, POLLIN);
+
+              /* Yes.. Notify all of the waiting readers that more data is
+               * available.
+               */
+
+              while (nxsem_get_value(&dev->d_rdsem, &sval) == 0 && sval < 0)
                 {
                   nxsem_post(&dev->d_rdsem);
                 }
-
-              /* Notify all poll/select waiters that they can read from the FIFO */
-
-              pipecommon_pollnotify(dev, POLLIN);
             }
 
           last = nwritten;
 
-          /* If O_NONBLOCK was set, then return partial bytes written or EGAIN */
+          /* If O_NONBLOCK was set, then return partial bytes written or
+           * EGAIN.
+           */
 
           if (filep->f_oflags & O_NONBLOCK)
             {
@@ -627,13 +644,23 @@ ssize_t pipecommon_write(FAR struct file *filep, FAR const char *buffer,
               return nwritten;
             }
 
-          /* There is more to be written.. wait for data to be removed from the pipe */
+          /* There is more to be written.. wait for data to be removed from
+           * the pipe
+           */
 
           sched_lock();
           nxsem_post(&dev->d_bfsem);
-          pipecommon_semtake(&dev->d_wrsem);
+          ret = nxsem_wait(&dev->d_wrsem);
           sched_unlock();
-          pipecommon_semtake(&dev->d_bfsem);
+
+          if (ret < 0 || (ret = nxsem_wait(&dev->d_bfsem)) < 0)
+            {
+              /* Either call nxsem_wait may fail because a signal was
+               * received or if the task was canceled.
+               */
+
+              return nwritten == 0 ? (ssize_t)ret : nwritten;
+            }
         }
     }
 }
@@ -649,14 +676,19 @@ int pipecommon_poll(FAR struct file *filep, FAR struct pollfd *fds,
   FAR struct pipe_dev_s *dev      = inode->i_private;
   pollevent_t            eventset;
   pipe_ndx_t             nbytes;
-  int                    ret      = OK;
+  int                    ret;
   int                    i;
 
   DEBUGASSERT(dev && fds);
 
   /* Are we setting up the poll?  Or tearing it down? */
 
-  pipecommon_semtake(&dev->d_bfsem);
+  ret = pipecommon_semtake(&dev->d_bfsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   if (setup)
     {
       /* This is a request to set up the poll.  Find an available
@@ -723,7 +755,7 @@ int pipecommon_poll(FAR struct file *filep, FAR struct pollfd *fds,
 
       /* Change POLLOUT to POLLERR, if no readers and policy 0. */
 
-      if ((eventset | POLLOUT) &&
+      if ((eventset & POLLOUT) &&
           PIPE_IS_POLICY_0(dev->d_flags) &&
           dev->d_nreaders <= 0)
         {
@@ -775,11 +807,15 @@ int pipecommon_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   if (dev == NULL)
     {
-       return -EBADF;
+      return -EBADF;
     }
 #endif
 
-  pipecommon_semtake(&dev->d_bfsem);
+  ret = pipecommon_semtake(&dev->d_bfsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   switch (cmd)
     {
@@ -852,6 +888,7 @@ int pipecommon_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         break;
 
       default:
+        ret = -ENOTTY;
         break;
     }
 

@@ -2,7 +2,8 @@
  * libs/libc/netdb/lib_dns.h
  * DNS resolver code header file.
  *
- *   Copyright (C) 2007-2009, 2011-2012, 2014 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2011-2012, 2014 Gregory Nutt.
+ *   All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Inspired by/based on uIP logic by Adam Dunkels:
@@ -56,7 +57,8 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-/* DNS client configuration **************************************************/
+
+/* DNS client configuration *************************************************/
 
 #ifndef CONFIG_NETDB_DNSCLIENT_ENTRIES
 #  define CONFIG_NETDB_DNSCLIENT_ENTRIES 4
@@ -64,10 +66,6 @@
 
 #ifndef CONFIG_NETDB_DNSCLIENT_MAXRESPONSE
 #  define CONFIG_NETDB_DNSCLIENT_MAXRESPONSE 96
-#endif
-
-#ifndef CONFIG_NETDB_DNSCLIENT_MAXIP
-#  define CONFIG_NETDB_DNSCLIENT_MAXIP 1
 #endif
 
 #ifndef CONFIG_NETDB_DNSCLIENT_NAMESIZE
@@ -82,6 +80,10 @@
 #  define CONFIG_NETDB_RESOLVCONF_PATH "/etc/resolv.conf"
 #endif
 
+#ifndef CONFIG_NETDB_DNSSERVER_NAMESERVERS
+#  define CONFIG_NETDB_DNSSERVER_NAMESERVERS 1
+#endif
+
 #define DNS_MAX_ADDRSTR   48
 #define DNS_MAX_LINE      64
 #define NETDB_DNS_KEYWORD "nameserver"
@@ -89,6 +91,7 @@
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
 /* This describes either an IPv4 or IPv6 address.  It is essentially a named
  * alternative to sockaddr_storage.
  */
@@ -118,10 +121,10 @@ extern "C"
 #endif
 
 #ifndef CONFIG_NETDB_RESOLVCONF
-/* The DNS server address */
+/* The DNS server addresses */
 
-EXTERN union dns_addr_u g_dns_server;
-EXTERN bool g_dns_address;     /* true: We have the address of the DNS server */
+EXTERN union dns_addr_u g_dns_servers[];
+EXTERN uint8_t g_dns_nservers;
 #endif
 
 /****************************************************************************
@@ -142,7 +145,7 @@ bool dns_initialize(void);
  * Name: dns_semtake
  *
  * Description:
- *   Take the DNS semaphore, ignoring errors do to the receipt of signals.
+ *   Take the DNS semaphore, ignoring errors due to the receipt of signals.
  *
  ****************************************************************************/
 
@@ -204,7 +207,7 @@ int dns_query(int sd, FAR const char *hostname, FAR union dns_addr_u *addr,
  * Name: dns_save_answer
  *
  * Description:
- *   Same the last resolved hostname in the DNS cache
+ *   Save the last resolved hostname in the DNS cache
  *
  * Input Parameters:
  *   hostname - The hostname string to be cached.
@@ -252,7 +255,8 @@ int dns_find_answer(FAR const char *hostname, FAR union dns_addr_u *addr,
  * Name: dns_notify_nameserver
  ****************************************************************************/
 
-void dns_notify_nameserver(FAR const struct sockaddr *addr, socklen_t addrlen);
+void dns_notify_nameserver(FAR const struct sockaddr *addr,
+                           socklen_t addrlen);
 
 #undef EXTERN
 #if defined(__cplusplus)

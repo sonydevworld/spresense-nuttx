@@ -315,7 +315,7 @@ Shields
       CONFIG_ANALOG=y                  : Should be automatically selected
       CONFIG_ADC=y                     : Should be automatically selected
       CONFIG_INPUT=y                   : Select input device support
-      CONFIG_AJOYSTICK=y               : Select analog joystick support
+      CONFIG_INPUT_AJOYSTICK=y         : Select analog joystick support
 
   There is nothing in the configuration that currently uses the joystick.
   For testing, you can add the following configuration options to enable the
@@ -346,7 +346,7 @@ Configurations
     This is identical to the nsh configuration below except that (1) NuttX
     is built as a PROTECTED mode, monolithic module and the user applications
     are built separately and, as a consequence, (2) some features that are
-    only availabled in the FLAT build are disabled.
+    only available in the FLAT build are disabled.
 
     It is recommends to use a special make command; not just 'make' but make
     with the following two arguments:

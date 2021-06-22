@@ -22,10 +22,23 @@ about this board.
 Configuration sub-directories
 -----------------------------
 
+  elf
+
+    This is a configuration to test apps/examples/elf.
+
+  module
+
+    This is a configuration to test apps/examples/module.
+
+  posix_spawn
+
+    This is a configuration to test apps/examples/posix_spawn.
+
   smp
 
     This is a configuration to run Spresense in SMP mode. To use this
-    configuration, bootloader for Spresense SDK 1.5.0 or later must be intalled.
+    configuration, bootloader for Spresense SDK 1.5.0 or later must be
+    installed.
 
   wifi
 
@@ -46,7 +59,7 @@ Configuration sub-directories
     If the connection succeeded, IP address is statically assigned.
 
       nsh> ifconfig
-      eth0    Link encap:Ethernet HWaddr 3c:95:09:00:69:92 at UP
+      wlan0   Link encap:Ethernet HWaddr 3c:95:09:00:69:92 at UP
       inet    addr:10.0.0.2 DRaddr:10.0.0.1 Mask:255.255.255.0
 
     Then, you can run DHCP client (renew command) to obtain IP address as well
@@ -54,10 +67,10 @@ Configuration sub-directories
     GS2200M is disabled. If you enable the internal DHCP client, you can not
     use DNS client on NuttX)
 
-      nsh> renew eth0 &
+      nsh> renew wlan0 &
       renew [6:100]
       nsh> ifconfig
-      eth0    Link encap:Ethernet HWaddr 3c:95:09:00:69:92 at UP
+      wlan0   Link encap:Ethernet HWaddr 3c:95:09:00:69:92 at UP
       inet    addr:192.168.1.101 DRaddr:192.168.1.1 Mask:255.255.255.0
 
     Now, you can run telnetd and webserver on Spresense.
@@ -79,7 +92,7 @@ Configuration sub-directories
       nsh> date
       Jul 30 06:42:13 2019
 
-    (2) Acess Point (AP) mode
+    (2) Access Point (AP) mode
 
     To run the module in AP mode, you need to specify SSID to advertise and
     WPA2-PSK passphrase or WEP-key. (NOTE: in AP mode, you can also specify
@@ -94,7 +107,7 @@ Configuration sub-directories
     assigned.
 
       nsh> ifconfig
-      eth0    Link encap:Ethernet HWaddr 3c:95:09:00:69:93 at UP
+      wlan0   Link encap:Ethernet HWaddr 3c:95:09:00:69:93 at UP
       inet    addr:192.168.11.1 DRaddr:192.168.11.1 Mask:255.255.255.0
 
     Now you can connect your PC to the AP with the above SSID and WPA2-PSK

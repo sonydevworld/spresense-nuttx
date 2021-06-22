@@ -3,6 +3,17 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
+menuconfig ANALOG
+	bool "Analog Device(ADC/DAC) Support"
+	default n
+	---help---
+		This directory holds implementations of analog device drivers.
+		This includes drivers for Analog to Digital Conversion (ADC) as
+		well as drivers for Digital to Analog Conversion (DAC).
+		See include/nuttx/analog/*.h for registration information.
+
+if ANALOG
+
 config ADC
 	bool "Analog-to-Digital Conversion"
 	default n
@@ -126,6 +137,57 @@ config PGA11X_MULTIPLE
 
 endif # if ADC_PGA11X
 
+config ADC_ADS7828
+	bool "TI ADS7828 support"
+	default n
+	select I2C
+	---help---
+		Enable driver support for the ADS7828 12-Bit I2C powered ADC.
+
+		This driver supports reading single or multiple ADC conversion result
+		as well as onfiguring the ADC, via ioctl calls.
+
+if ADC_ADS7828
+
+config ADS7828_FREQUENCY
+	int "TI ADS7828 I2C frequency"
+	default 100000
+	---help---
+		ADS7828 supports standard, fast, and high-speed I2C modes.
+
+endif # ADC_ADS7828
+
+config ADC_MAX1161X
+	bool "Maxim MAX11612-11617 support"
+	default n
+	select I2C
+	---help---
+		Enable driver support for the MAX1161X 12-Bit I2C powered ADC Family.
+
+		This driver supports reading single or multiple ADC conversion result
+		as well as onfiguring the ADC, via ioctl calls.
+
+if ADC_MAX1161X
+
+config MAX1161X_FREQUENCY
+	int "Maxim MAX1161X I2C frequency"
+	default 100000
+	---help---
+		MAX1161X supports standard, fast, and high-speed I2C modes.
+
+choice
+	prompt "Maxim MAX1161X Chip Type"
+
+	config MAX1161X_4CHAN
+		bool "MAX11612/MAX11613 4 Channels"
+	config MAX1161X_8CHAN
+		bool "MAX11614/MAX11615 8 Channels"
+	config MAX1161X_12CHAN
+		bool "MAX11616/MAX11617 12 Channels"
+endchoice
+
+endif # ADC_MAX1161X
+
 endif # ADC
 
 config COMP
@@ -185,3 +247,5 @@ config LMP92001_I2C_FREQUENCY
 	int "LMP92001 I2C frequency"
 	default 400000
 	depends on LMP92001
+
+endif # ANALOG

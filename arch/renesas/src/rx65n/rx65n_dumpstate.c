@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/renesas/src/rx65n/rx65n_dumpstate.c
  *
- *   Copyright (C) 2008-2019 Gregory Nutt. All rights reserved.
- *   Author: Anjana <anjana@tataelxsi.co.in>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -39,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <debug.h>
 
@@ -49,7 +35,7 @@
 #include "up_internal.h"
 #include "sched/sched.h"
 #include "chip.h"
-#include "rx65n/irq.h"
+#include "arch/rx65n/irq.h"
 
 #ifdef CONFIG_ARCH_STACKDUMP
 
@@ -62,19 +48,6 @@ static uint32_t s_last_regs[XCPTCONTEXT_REGS];
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Name: rx65n_getsp
- ****************************************************************************/
-
-static inline uint16_t rx65n_getsp(void)
-{
-  uint16_t sp;
-
-  __asm__ __volatile__("\tmvfc usp, %0\n\t": "=r" (sp):: "memory"); /* check */
-
-  return sp;
-}
 
 /****************************************************************************
  * Name: rx65n_getusersp
@@ -131,7 +104,7 @@ static inline void rx65n_registerdump(void)
         ptr[REG_PC], ptr[REG_PSW]);
 
   _alert("FPSW: %08x ACC0LO: %08x ACC0HI: %08x ACC0GU: %08x"
-         "ACC1LO: %08x ACC1HI: %08x ACC1GU: %0.8x\n",
+         "ACC1LO: %08x ACC1HI: %08x ACC1GU: %08x\n",
          ptr[REG_FPSW], ptr[REG_ACC0LO], ptr[REG_ACC0HI],
          ptr[REG_ACC0GU], ptr[REG_ACC1LO],
          ptr[REG_ACC1HI], ptr[REG_ACC1GU]);
@@ -156,7 +129,7 @@ static inline void rx65n_registerdump(void)
 void up_dumpstate(void)
 {
   struct tcb_s *rtcb = running_task();
-  uint32_t sp = rx65n_getsp();
+  uint32_t sp = renesas_getsp();
   uint32_t ustackbase;
   uint32_t ustacksize;
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
@@ -170,16 +143,8 @@ void up_dumpstate(void)
 
   /* Get the limits on the user stack memory */
 
-  if (rtcb->pid == 0) /* Check for CPU0 IDLE thread */
-    {
-      ustackbase = g_idle_topstack - 1;
-      ustacksize = CONFIG_IDLETHREAD_STACKSIZE;
-    }
-  else
-    {
-      ustackbase = (uint32_t)rtcb->adj_stack_ptr;
-      ustacksize = (uint16_t)rtcb->adj_stack_size;
-    }
+  ustackbase = (uint32_t)rtcb->adj_stack_ptr;
+  ustacksize = (uint16_t)rtcb->adj_stack_size;
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
   istackbase = ebss; /* check how to declare ebss, as of now declared in chip.h */
@@ -188,10 +153,10 @@ void up_dumpstate(void)
 
   /* Show interrupt stack info */
 
-  _alert("sp:     %04x\n", sp);
+  _alert("sp:     %04" PRIx32 "\n", sp);
   _alert("IRQ stack:\n");
-  _alert("  base: %04x\n", istackbase);
-  _alert("  size: %04x\n", istacksize);
+  _alert("  base: %04" PRIx32 "\n", istackbase);
+  _alert("  size: %04" PRIx32 "\n", istacksize);
 
   /* Does the current stack pointer lie within the interrupt
    * stack?
@@ -206,7 +171,7 @@ void up_dumpstate(void)
       /* Extract the user stack pointer from the register area */
 
       sp = rx65n_getusersp();
-      _alert("sp:     %04x\n", sp);
+      _alert("sp:     %04" PRIx32 "\n", sp);
     }
   else if (g_current_regs)
     {
@@ -217,12 +182,12 @@ void up_dumpstate(void)
   /* Show user stack info */
 
   _alert("User stack:\n");
-  _alert("  base: %04x\n", ustackbase);
-  _alert("  size: %04x\n", ustacksize);
+  _alert("  base: %04" PRIx32 "\n", ustackbase);
+  _alert("  size: %04" PRIx32 "\n", ustacksize);
 #else
-  _alert("sp:         %04x\n", sp);
-  _alert("stack base: %04x\n", ustackbase);
-  _alert("stack size: %04x\n", ustacksize);
+  _alert("sp:         %04" PRIx32 "\n", sp);
+  _alert("stack base: %04" PRIx32 "\n", ustackbase);
+  _alert("stack size: %04" PRIx32 "\n", ustacksize);
 #endif
 
   /* Dump the user stack if the stack pointer lies within the allocated user

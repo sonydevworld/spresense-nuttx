@@ -68,7 +68,7 @@ config ROUTE_MAX_IPv4_CACHEROUTES
 	default 4
 	depends on ROUTE_IPv4_CACHEROUTE
 	---help---
-		This determines the maxium number of routes that can be cached in
+		This determines the maximum number of routes that can be cached in
 		memory.
 
 choice
@@ -112,12 +112,12 @@ config ROUTE_MAX_IPv6_RAMROUTES
 
 config ROUTE_FILEDIR
 	string "Routing table directory"
-	default /tmp
+	default LIBC_TMPDIR
 	depends on ROUTE_IPv4_FILEROUTE || ROUTE_IPv6_FILEROUTE
 	---help---
 		Provides the full path to location in the file system where routing
 		table will be accessed.  This is a string and should not include
-		any traling '/'.
+		any trailing '/'.
 
 config ROUTE_IPv6_CACHEROUTE
 	bool "In-memory IPv6 cache"
@@ -134,7 +134,7 @@ config ROUTE_MAX_IPv6_CACHEROUTES
 	default 4
 	depends on ROUTE_IPv6_CACHEROUTE
 	---help---
-		This determines the maxium number of routes that can be cached in
+		This determines the maximum number of routes that can be cached in
 		memory.
 
 endif # NET_ROUTE

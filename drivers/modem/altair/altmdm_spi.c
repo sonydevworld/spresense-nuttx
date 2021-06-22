@@ -1,35 +1,20 @@
 /****************************************************************************
- * drivers/modem/altmdm/altmdm_spi.c
+ * drivers/modem/altair/altmdm_spi.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -41,8 +26,10 @@
 #include <string.h>
 
 #include <nuttx/kmalloc.h>
+#include <nuttx/signal.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/modem/altmdm.h>
+
 #include "altmdm_sys.h"
 #include "altmdm_pm.h"
 #include "altmdm_pm_state.h"
@@ -292,7 +279,7 @@ static int get_dmasize(FAR struct altmdm_dev_s *priv, int data_size)
  * Name: wait_receiverready
  *
  * Description:
- *   Wait until reciever is ready.
+ *   Wait until receiver is ready.
  *
  ****************************************************************************/
 
@@ -717,8 +704,8 @@ static void show_txheader(FAR struct altmdm_dev_s *priv)
  ****************************************************************************/
 
 static void parse_rxheader(FAR struct altmdm_dev_s *priv,
-                           FAR int *total_size, FAR int *actual_size,
-                           FAR int *is_reset, FAR int *is_bufful)
+                           FAR int32_t *total_size, FAR int32_t *actual_size,
+                           FAR int *is_reset, FAR int32_t *is_bufful)
 {
   FAR struct altmdm_spi_xferhdr_s *rx_header = &priv->spidev.rx_param.header;
 
@@ -827,6 +814,7 @@ static int do_xferheader(FAR struct altmdm_dev_s *priv,
         {
           possibleofrx = false;
         }
+
       set_txheader_possibleofrx(priv, possibleofrx);
     }
 
@@ -1203,7 +1191,8 @@ static int do_receivereset(FAR struct altmdm_dev_s *priv)
 
             default:
               m_err
-                ("ERR:%04d Invalid payload of reset packet. %02x,%02x,%02x,%02x\n",
+                ("ERR:%04d Invalid payload of reset packet. " \
+                 "%02x,%02x,%02x,%02x\n",
                  __LINE__, rxbuff[0], rxbuff[1], rxbuff[2], rxbuff[3]);
               break;
             }
@@ -1294,9 +1283,9 @@ static int do_xfersleep(FAR struct altmdm_dev_s *priv, uint32_t is_rcvrready)
   int ret;
   int resp = 0;
   int is_reset = 0;
-  int total_size;
-  int actual_size;
-  int is_bufful;
+  int32_t total_size;
+  int32_t actual_size;
+  int32_t is_bufful;
 
   /* Transfer header for sleep request */
 
@@ -1346,7 +1335,8 @@ static int do_xfersleep(FAR struct altmdm_dev_s *priv, uint32_t is_rcvrready)
  ****************************************************************************/
 
 static uint32_t decide_xfermode(FAR struct altmdm_dev_s *priv,
-                                uint32_t is_rxreq, uint32_t is_txreq, int ret)
+                                uint32_t is_rxreq, uint32_t is_txreq,
+                                int ret)
 {
   int retval;
   int is_reset;
@@ -1576,7 +1566,7 @@ static void done_xfer(FAR struct altmdm_dev_s *priv, uint32_t xfer_mode,
        * the receiving process.
        */
 
-      usleep(YIELD_TASK_NOBUFF);
+      nxsig_usleep(YIELD_TASK_NOBUFF);
 
       break;
 
@@ -1624,7 +1614,7 @@ static void done_xfer(FAR struct altmdm_dev_s *priv, uint32_t xfer_mode,
        * the receiving process.
        */
 
-      usleep(YIELD_TASK_NOBUFF);
+      nxsig_usleep(YIELD_TASK_NOBUFF);
       break;
 
     case MODE_TRXHEADERFAILRXREQ:
@@ -1665,7 +1655,7 @@ static void xfer_task_init(FAR struct altmdm_dev_s *priv)
   sigset_t mask;
 
   sigfillset(&mask);
-  sigprocmask(SIG_SETMASK, &mask, NULL);
+  nxsig_procmask(SIG_SETMASK, &mask, NULL);
 
   init_svtimer(priv);
 }
@@ -1733,8 +1723,8 @@ static int xfer_task(int argc, char *argv[])
                     }
                   else if (is_timerexp)
                     {
-                      /* Case where modem spontaneously enters sleep state and
-                       * timer is not stopped.
+                      /* Case where modem spontaneously enters sleep state
+                       * and timer is not stopped.
                        */
 
                       modem_state = altmdm_pm_getinternalstate();
@@ -1848,11 +1838,13 @@ static int xfer_task(int argc, char *argv[])
                         __LINE__, xfer_mode);
                   break;
                 }
+
               if (is_txreq)
                 {
                   DEBUGASSERT(priv->lower);
                   priv->lower->master_request(false);
                 }
+
               m_info("m=%d\n", xfer_mode);
               done_xfer(priv, xfer_mode, ret);
               start_svtimer(priv);
@@ -1907,8 +1899,7 @@ int altmdm_spi_init(FAR struct altmdm_dev_s *priv)
 
   g_privdata = priv;
 
-
-  /* Initalize modem power management driver */
+  /* Initialize modem power management driver */
 
   altmdm_pm_init(priv);
 
@@ -1970,7 +1961,7 @@ int altmdm_spi_uninit(FAR struct altmdm_dev_s *priv)
           break;
         }
 
-      usleep(10);
+      nxsig_usleep(10);
     }
 
   altmdm_sys_deletelock(&priv->spidev.tx_param.lock);
@@ -1992,7 +1983,7 @@ int altmdm_spi_uninit(FAR struct altmdm_dev_s *priv)
   DEBUGASSERT(priv->lower);
   priv->lower->sready_irqattach(false, NULL);
 
-  /* Uninitalize modem power management driver */
+  /* Uninitialize modem power management driver */
 
   altmdm_pm_uninit(priv);
 
@@ -2076,6 +2067,7 @@ ssize_t altmdm_spi_read(FAR struct altmdm_dev_s * priv,
           m_info("rx buffer discard because of abort.%d\n", __LINE__);
           free_rxbuffer(priv, rbuff);
         }
+
       rsize = -ECONNABORTED;
     }
   else
@@ -2189,7 +2181,7 @@ again:
           break;
 
         case TRANS_OK_RCVBUFFUL:
-          usleep(100);
+          nxsig_usleep(100);
           goto again;
           break;
 
@@ -2199,6 +2191,7 @@ again:
           wsize = -EIO;
           break;
         }
+
       m_info("%s: tx result: %d.\n", __func__, spidev->tx_param.result);
       m_info("%s: write size: %d.\n", __func__, wsize);
     }
@@ -2340,4 +2333,4 @@ int altmdm_spi_clearreceiverready(FAR struct altmdm_dev_s *priv)
   return 0;
 }
 
-#endif  /* CONFIG_MODEM_ALTMDM */
+#endif /* CONFIG_MODEM_ALTMDM */

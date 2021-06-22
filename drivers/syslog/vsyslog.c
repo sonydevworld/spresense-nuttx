@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/syslog/vsyslog.c
  *
- *   Copyright (C) 2007-2009, 2011-2014, 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -48,6 +33,18 @@
 #include <nuttx/clock.h>
 #include <nuttx/streams.h>
 #include <nuttx/syslog/syslog.h>
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+#if defined(CONFIG_SYSLOG_PRIORITY)
+static FAR const char * g_priority_str[] =
+  {
+    "EMERG", "ALERT", "CRIT", "ERROR",
+    "WARN", "NOTICE", "INFO", "DEBUG"
+  };
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -70,6 +67,14 @@ int nx_vsyslog(int priority, FAR const IPTR char *fmt, FAR va_list *ap)
 {
   struct lib_syslogstream_s stream;
   int ret;
+#if CONFIG_TASK_NAME_SIZE > 0 && defined(CONFIG_SYSLOG_PROCESS_NAME)
+  struct tcb_s *tcb;
+#endif
+#if defined(CONFIG_SYSLOG_TIMESTAMP_FORMATTED)
+  time_t time;
+  struct tm tm;
+  char date_buf[CONFIG_SYSLOG_TIMESTAMP_BUFFER];
+#endif
 
 #ifdef CONFIG_SYSLOG_TIMESTAMP
   struct timespec ts;
@@ -97,7 +102,7 @@ int nx_vsyslog(int priority, FAR const IPTR char *fmt, FAR va_list *ap)
 #else
       /* Otherwise, fall back to the system timer */
 
-      ret = clock_systimespec(&ts);
+      ret = clock_systime_timespec(&ts);
 #endif
     }
 
@@ -129,23 +134,103 @@ int nx_vsyslog(int priority, FAR const IPTR char *fmt, FAR va_list *ap)
     }
 
 #if defined(CONFIG_SYSLOG_TIMESTAMP)
-  /* Pre-pend the message with the current time, if available */
+  /* Prepend the message with the current time, if available */
 
-  ret = lib_sprintf(&stream.public, "[%5d.%06d] ",
-                    ts.tv_sec, ts.tv_nsec/1000);
+#if defined(CONFIG_SYSLOG_TIMESTAMP_FORMATTED)
+  time = ts.tv_sec;
+#if defined(CONFIG_SYSLOG_TIMESTAMP_LOCALTIME)
+  localtime_r(&time, &tm);
+#else
+  gmtime_r(&time, &tm);
+#endif
+
+  ret = strftime(date_buf, CONFIG_SYSLOG_TIMESTAMP_BUFFER,
+                 CONFIG_SYSLOG_TIMESTAMP_FORMAT, &tm);
+
+  if (ret > 0)
+    {
+      ret = lib_sprintf(&stream.public, "[%s] ", date_buf);
+    }
+#else
+  ret = lib_sprintf(&stream.public, "[%5jd.%06ld] ",
+                    (uintmax_t)ts.tv_sec, ts.tv_nsec / 1000);
+#endif
 #else
   ret = 0;
 #endif
 
+#if defined(CONFIG_SYSLOG_PROCESSID)
+  /* Prepend the Process ID */
+
+  ret += lib_sprintf(&stream.public, "[%2d] ", (int)getpid());
+#endif
+
+#if defined(CONFIG_SYSLOG_COLOR_OUTPUT)
+  /* Set the terminal style according to message priority. */
+
+  switch (priority)
+    {
+      case LOG_EMERG:   /* Red, Bold, Blinking */
+        ret += lib_sprintf(&stream.public, "\e[31;1;5m");
+        break;
+
+      case LOG_ALERT:   /* Red, Bold */
+        ret += lib_sprintf(&stream.public, "\e[31;1m");
+        break;
+
+      case LOG_CRIT:    /* Red, Bold */
+        ret += lib_sprintf(&stream.public, "\e[31;1m");
+        break;
+
+      case LOG_ERR:     /* Red */
+        ret += lib_sprintf(&stream.public, "\e[31m");
+        break;
+
+      case LOG_WARNING: /* Yellow */
+        ret += lib_sprintf(&stream.public, "\e[33m");
+        break;
+
+      case LOG_NOTICE:  /* Bold */
+        ret += lib_sprintf(&stream.public, "\e[1m");
+        break;
+
+      case LOG_INFO:    /* Normal */
+        break;
+
+      case LOG_DEBUG:   /* Dim */
+        ret += lib_sprintf(&stream.public, "\e[2m");
+        break;
+    }
+#endif
+
+#if defined(CONFIG_SYSLOG_PRIORITY)
+  /* Prepend the message priority. */
+
+  ret += lib_sprintf(&stream.public, "[%6s] ", g_priority_str[priority]);
+#endif
+
 #if defined(CONFIG_SYSLOG_PREFIX)
-  /* Pre-pend the prefix, if available */
+  /* Prepend the prefix, if available */
 
   ret += lib_sprintf(&stream.public, "%s", CONFIG_SYSLOG_PREFIX_STRING);
+#endif
+
+#if CONFIG_TASK_NAME_SIZE > 0 && defined(CONFIG_SYSLOG_PROCESS_NAME)
+  /* Prepend the process name */
+
+  tcb = nxsched_get_tcb(getpid());
+  ret += lib_sprintf(&stream.public, "%s: ", tcb->name);
 #endif
 
   /* Generate the output */
 
   ret += lib_vsprintf(&stream.public, fmt, *ap);
+
+#if defined(CONFIG_SYSLOG_COLOR_OUTPUT)
+  /* Reset the terminal style back to normal. */
+
+  ret += lib_sprintf(&stream.public, "\e[0m");
+#endif
 
 #ifdef CONFIG_SYSLOG_BUFFER
   /* Flush and destroy the syslog stream buffer */

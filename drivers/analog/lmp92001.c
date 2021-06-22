@@ -1,39 +1,20 @@
 /****************************************************************************
  * drivers/analog/lmp92001.c
  *
- *   Copyright (C) 2018 Abdelatif Guettouche. All rights reserved.
- *   Author: Abdelatif Guettouche <abdelatif.guettouche@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * This file is a part of NuttX:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -68,123 +49,123 @@
 
 #if defined(CONFIG_LMP92001)
 
-#define LMP92001_REG_TEST   0x01U
+#define LMP92001_REG_TEST   0x01u
 
-#define LMP92001_REG_ID     0x0EU
-#define LMP92001_REG_VER    0x0FU
+#define LMP92001_REG_ID     0x0eu
+#define LMP92001_REG_VER    0x0fu
 
-#define LMP92001_REG_SGEN   0x10U
-#define LMP92001_REG_SGPI   0x11U
-#define LMP92001_REG_SHIL   0x12U
-#define LMP92001_REG_SLOL   0x13U
+#define LMP92001_REG_SGEN   0x10u
+#define LMP92001_REG_SGPI   0x11u
+#define LMP92001_REG_SHIL   0x12u
+#define LMP92001_REG_SLOL   0x13u
 
-#define LMP92001_REG_CGEN   0x14U
-#define LMP92001_REG_CDAC   0x15U
-#define LMP92001_REG_CGPO   0x16U
-#define LMP92001_REG_CINH   0x17U
-#define LMP92001_REG_CINL   0x18U
-#define LMP92001_REG_CAD1   0x19U
-#define LMP92001_REG_CAD2   0x1AU
-#define LMP92001_REG_CAD3   0x1BU
-#define LMP92001_REG_CTRIG  0x1CU
+#define LMP92001_REG_CGEN   0x14u
+#define LMP92001_REG_CDAC   0x15u
+#define LMP92001_REG_CGPO   0x16u
+#define LMP92001_REG_CINH   0x17u
+#define LMP92001_REG_CINL   0x18u
+#define LMP92001_REG_CAD1   0x19u
+#define LMP92001_REG_CAD2   0x1au
+#define LMP92001_REG_CAD3   0x1bu
+#define LMP92001_REG_CTRIG  0x1cu
 
-#define LMP92001_REG_ADC1   0x20U
-#define LMP92001_REG_ADC2   0x21U
-#define LMP92001_REG_ADC3   0x22U
-#define LMP92001_REG_ADC4   0x23U
-#define LMP92001_REG_ADC5   0x24U
-#define LMP92001_REG_ADC6   0x25U
-#define LMP92001_REG_ADC7   0x26U
-#define LMP92001_REG_ADC8   0x27U
-#define LMP92001_REG_ADC9   0x28U
-#define LMP92001_REG_ADC10  0x29U
-#define LMP92001_REG_ADC11  0x2AU
-#define LMP92001_REG_ADC12  0x2BU
-#define LMP92001_REG_ADC13  0x2CU
-#define LMP92001_REG_ADC14  0x2DU
-#define LMP92001_REG_ADC15  0x2EU
-#define LMP92001_REG_ADC16  0x2FU
-#define LMP92001_REG_ADC17  0x30U
+#define LMP92001_REG_ADC1   0x20u
+#define LMP92001_REG_ADC2   0x21u
+#define LMP92001_REG_ADC3   0x22u
+#define LMP92001_REG_ADC4   0x23u
+#define LMP92001_REG_ADC5   0x24u
+#define LMP92001_REG_ADC6   0x25u
+#define LMP92001_REG_ADC7   0x26u
+#define LMP92001_REG_ADC8   0x27u
+#define LMP92001_REG_ADC9   0x28u
+#define LMP92001_REG_ADC10  0x29u
+#define LMP92001_REG_ADC11  0x2au
+#define LMP92001_REG_ADC12  0x2bu
+#define LMP92001_REG_ADC13  0x2cu
+#define LMP92001_REG_ADC14  0x2du
+#define LMP92001_REG_ADC15  0x2eu
+#define LMP92001_REG_ADC16  0x2fu
+#define LMP92001_REG_ADC17  0x30u
 
-#define LMP92001_REG_LIH1   0x40U
-#define LMP92001_REG_LIH2   0x41U
-#define LMP92001_REG_LIH3   0x42U
-#define LMP92001_REG_LIH9   0x43U
-#define LMP92001_REG_LIH10  0x44U
-#define LMP92001_REG_LIH11  0x45U
-#define LMP92001_REG_LIL1   0x46U
-#define LMP92001_REG_LIL2   0x47U
-#define LMP92001_REG_LIL3   0x48U
-#define LMP92001_REG_LIL9   0x49U
-#define LMP92001_REG_LIL10  0x4AU
-#define LMP92001_REG_LIL11  0x4BU
+#define LMP92001_REG_LIH1   0x40u
+#define LMP92001_REG_LIH2   0x41u
+#define LMP92001_REG_LIH3   0x42u
+#define LMP92001_REG_LIH9   0x43u
+#define LMP92001_REG_LIH10  0x44u
+#define LMP92001_REG_LIH11  0x45u
+#define LMP92001_REG_LIL1   0x46u
+#define LMP92001_REG_LIL2   0x47u
+#define LMP92001_REG_LIL3   0x48u
+#define LMP92001_REG_LIL9   0x49u
+#define LMP92001_REG_LIL10  0x4au
+#define LMP92001_REG_LIL11  0x4bu
 
-#define LMP92001_REG_CREF   0x66U
+#define LMP92001_REG_CREF   0x66u
 
-#define LMP92001_REG_DAC1   0x80U
-#define LMP92001_REG_DAC2   0x81U
-#define LMP92001_REG_DAC3   0x82U
-#define LMP92001_REG_DAC4   0x83U
-#define LMP92001_REG_DAC5   0x84U
-#define LMP92001_REG_DAC6   0x85U
-#define LMP92001_REG_DAC7   0x86U
-#define LMP92001_REG_DAC8   0x87U
-#define LMP92001_REG_DAC9   0x88U
-#define LMP92001_REG_DAC10  0x89U
-#define LMP92001_REG_DAC11  0x8AU
-#define LMP92001_REG_DAC12  0x8BU
+#define LMP92001_REG_DAC1   0x80u
+#define LMP92001_REG_DAC2   0x81u
+#define LMP92001_REG_DAC3   0x82u
+#define LMP92001_REG_DAC4   0x83u
+#define LMP92001_REG_DAC5   0x84u
+#define LMP92001_REG_DAC6   0x85u
+#define LMP92001_REG_DAC7   0x86u
+#define LMP92001_REG_DAC8   0x87u
+#define LMP92001_REG_DAC9   0x88u
+#define LMP92001_REG_DAC10  0x89u
+#define LMP92001_REG_DAC11  0x8au
+#define LMP92001_REG_DAC12  0x8bu
 
-#define LMP92001_REG_DALL   0x90U
+#define LMP92001_REG_DALL   0x90u
 
-#define LMP92001_REG_BLK0   0xF0U
-#define LMP92001_REG_BLK1   0xF1U
-#define LMP92001_REG_BLK2   0xF2U
-#define LMP92001_REG_BLK3   0xF3U
-#define LMP92001_REG_BLK4   0xF4U
-#define LMP92001_REG_BLK5   0xF5U
+#define LMP92001_REG_BLK0   0xf0u
+#define LMP92001_REG_BLK1   0xf1u
+#define LMP92001_REG_BLK2   0xf2u
+#define LMP92001_REG_BLK3   0xf3u
+#define LMP92001_REG_BLK4   0xf4u
+#define LMP92001_REG_BLK5   0xf5u
 
-#define LMP92001_SGEN_BUSY  (1 << 7U)
-#define LMP92001_SGEN_RDYN  (1 << 6U)
-#define LMP92001_SGEN_HV    (1 << 2U)
-#define LMP92001_SGEN_LV    (1 << 1U)
-#define LMP92001_SGEN_GPI   (1 << 0U)
+#define LMP92001_SGEN_BUSY  (1 << 7u)
+#define LMP92001_SGEN_RDYN  (1 << 6u)
+#define LMP92001_SGEN_HV    (1 << 2u)
+#define LMP92001_SGEN_LV    (1 << 1u)
+#define LMP92001_SGEN_GPI   (1 << 0u)
 
-#define LMP92001_SGPI_GPI7  (1 << 7U)
-#define LMP92001_SGPI_GPI6  (1 << 6U)
-#define LMP92001_SGPI_GPI5  (1 << 5U)
-#define LMP92001_SGPI_GPI4  (1 << 4U)
-#define LMP92001_SGPI_GPI3  (1 << 3U)
-#define LMP92001_SGPI_GPI2  (1 << 2U)
-#define LMP92001_SGPI_GPI1  (1 << 1U)
-#define LMP92001_SGPI_GPI0  (1 << 0U)
+#define LMP92001_SGPI_GPI7  (1 << 7u)
+#define LMP92001_SGPI_GPI6  (1 << 6u)
+#define LMP92001_SGPI_GPI5  (1 << 5u)
+#define LMP92001_SGPI_GPI4  (1 << 4u)
+#define LMP92001_SGPI_GPI3  (1 << 3u)
+#define LMP92001_SGPI_GPI2  (1 << 2u)
+#define LMP92001_SGPI_GPI1  (1 << 1u)
+#define LMP92001_SGPI_GPI0  (1 << 0u)
 
-#define LMP92001_CGEN_RST   (1 << 7U)
-#define LMP92001_CGEN_TOD   (1 << 2U)
-#define LMP92001_CGEN_LCK   (1 << 1U)
-#define LMP92001_CGEN_STRT  (1 << 0U)
+#define LMP92001_CGEN_RST   (1 << 7u)
+#define LMP92001_CGEN_TOD   (1 << 2u)
+#define LMP92001_CGEN_LCK   (1 << 1u)
+#define LMP92001_CGEN_STRT  (1 << 0u)
 
-#define LMP92001_CDAC_GANG  (1 << 2U)
-#define LMP92001_CDAC_OLVL  (1 << 1U)
-#define LMP92001_CDAC_OFF   (1 << 0U)
-#define LMP92001_CDAC_ON    (0U)
+#define LMP92001_CDAC_GANG  (1 << 2u)
+#define LMP92001_CDAC_OLVL  (1 << 1u)
+#define LMP92001_CDAC_OFF   (1 << 0u)
+#define LMP92001_CDAC_ON    (0u)
 
-#define LMP92001_CGPO_GPO7  (1 << 7U)
-#define LMP92001_CGPO_GPO6  (1 << 6U)
-#define LMP92001_CGPO_GPO5  (1 << 5U)
-#define LMP92001_CGPO_GPO4  (1 << 4U)
-#define LMP92001_CGPO_GPO3  (1 << 3U)
-#define LMP92001_CGPO_GPO2  (1 << 2U)
-#define LMP92001_CGPO_GPO1  (1 << 1U)
-#define LMP92001_CGPO_GPO0  (1 << 0U)
+#define LMP92001_CGPO_GPO7  (1 << 7u)
+#define LMP92001_CGPO_GPO6  (1 << 6u)
+#define LMP92001_CGPO_GPO5  (1 << 5u)
+#define LMP92001_CGPO_GPO4  (1 << 4u)
+#define LMP92001_CGPO_GPO3  (1 << 3u)
+#define LMP92001_CGPO_GPO2  (1 << 2u)
+#define LMP92001_CGPO_GPO1  (1 << 1u)
+#define LMP92001_CGPO_GPO0  (1 << 0u)
 
-#define LMP92001_CTRIG_SNGL (1 << 0U)
+#define LMP92001_CTRIG_SNGL (1 << 0u)
 
-#define LMP92001_CREF_AEXT  (1 << 2U)
-#define LMP92001_CREF_DEXT  (1 << 1U)
+#define LMP92001_CREF_AEXT  (1 << 2u)
+#define LMP92001_CREF_DEXT  (1 << 1u)
 
-#define LMP92001_ADC_MAX_CHANNELS 17U
-#define LMP92001_DAC_MAX_CHANNELS 12U
-#define LMP92001_GPIO_MAX_PINS     8U
+#define LMP92001_ADC_MAX_CHANNELS 17u
+#define LMP92001_DAC_MAX_CHANNELS 12u
+#define LMP92001_GPIO_MAX_PINS     8u
 
 /****************************************************************************
  * Private Types
@@ -215,7 +196,7 @@ struct lmp92001_dev_s
 static int lmp92001_i2c_write(FAR struct lmp92001_dev_s *priv,
                               FAR const uint8_t *buffer, int buflen);
 static int lmp92001_i2c_read(FAR struct lmp92001_dev_s *priv,
-                              uint8_t reg, FAR uint8_t *buffer, int buflen);
+                             uint8_t reg, FAR uint8_t *buffer, int buflen);
 
 static int lmp92001_dac_setref(FAR struct lmp92001_dev_s *priv,
                                enum lmp92001_ref_e ref);
@@ -241,9 +222,9 @@ static int  lmp92001_dac_setup(FAR struct dac_dev_s *dev);
 static void lmp92001_dac_shutdown(FAR struct dac_dev_s *dev);
 static void lmp92001_dac_txint(FAR struct dac_dev_s *dev, bool enable);
 static int  lmp92001_dac_send(FAR struct dac_dev_s *dev,
-                               FAR struct dac_msg_s *msg);
+                              FAR struct dac_msg_s *msg);
 static int  lmp92001_dac_ioctl(FAR struct dac_dev_s *dev, int cmd,
-                                unsigned long arg);
+                               unsigned long arg);
 #endif
 
 /* ADC Interface. */
@@ -256,7 +237,7 @@ static int  lmp92001_adc_setup(FAR struct adc_dev_s *dev);
 static void lmp92001_adc_shutdown(FAR struct adc_dev_s *dev);
 static void lmp92001_adc_rxint(FAR struct adc_dev_s *dev, bool enable);
 static int  lmp92001_adc_ioctl(FAR struct adc_dev_s *dev, int cmd,
-                                unsigned long arg);
+                               unsigned long arg);
 #endif
 
 /* I/O Expander Interface. */
@@ -264,8 +245,8 @@ static int  lmp92001_adc_ioctl(FAR struct adc_dev_s *dev, int cmd,
 #ifdef CONFIG_IOEXPANDER
 static int lmp92001_gpio_direction(FAR struct ioexpander_dev_s *dev,
                                    uint8_t pin, int dir);
-static int lmp92001_gpio_option(FAR struct ioexpander_dev_s *dev, uint8_t pin,
-                                int opt, void *regval);
+static int lmp92001_gpio_option(FAR struct ioexpander_dev_s *dev,
+                                uint8_t pin, int opt, void *regval);
 static int lmp92001_gpio_writepin(FAR struct ioexpander_dev_s *dev,
                                   uint8_t pin, bool value);
 static int lmp92001_gpio_readpin(FAR struct ioexpander_dev_s *dev,
@@ -281,7 +262,8 @@ static int lmp92001_gpio_multireadpin(FAR struct ioexpander_dev_s *dev,
 #ifdef CONFIG_IOEXPANDER_INT_ENABLE
 static FAR void *lmp92001_gpio_attach(FAR struct ioexpander_dev_s *dev,
                                       ioe_pinset_t pinset,
-                                      ioe_callback_t callback, FAR void *arg);
+                                      ioe_callback_t callback,
+                                      FAR void *arg);
 static int lmp92001_gpio_detach(FAR struct ioexpander_dev_s *dev,
                                 FAR void *handle);
 #endif
@@ -418,7 +400,7 @@ static int lmp92001_i2c_read(FAR struct lmp92001_dev_s *priv,
   /* Then perform the transfer. */
 
   ret = I2C_TRANSFER(priv->i2c, msg, 2);
-    if (ret < 0)
+  if (ret < 0)
     {
       aerr("LMP92001 I2C transfer failed: %d", ret);
       return ret;
@@ -440,7 +422,7 @@ static int lmp92001_dac_setref(FAR struct lmp92001_dev_s *priv,
 {
   uint8_t value = 0;
 
-  uint8_t const BUFFER_SIZE = 2U;
+  uint8_t const BUFFER_SIZE = 2u;
   uint8_t buffer[BUFFER_SIZE];
 
   int ret = OK;
@@ -484,14 +466,14 @@ static int lmp92001_dac_setref(FAR struct lmp92001_dev_s *priv,
 static int lmp92001_dac_updateall(FAR struct lmp92001_dev_s *priv,
                                   uint16_t value)
 {
-  uint8_t const BUFFER_SIZE = 3U;
+  uint8_t const BUFFER_SIZE = 3u;
   uint8_t buffer[BUFFER_SIZE];
 
   int ret = OK;
 
   buffer[0] = LMP92001_REG_DALL;
-  buffer[1] = (uint8_t)(value >> 8U);
-  buffer[2] = (uint8_t)(value & 0xFFU);
+  buffer[1] = (uint8_t)(value >> 8u);
+  buffer[2] = (uint8_t)(value & 0xffu);
 
   ret = lmp92001_i2c_write(priv, buffer, BUFFER_SIZE);
   if (ret < 0)
@@ -523,16 +505,17 @@ static void lmp92001_dac_reset(FAR struct dac_dev_s *dev)
  * Description:
  *   Configure the DAC. This method is called the first time that the DAC
  *   device is opened.  This will occur when the port is first opened.
- *   This setup includes configuring and attaching DAC interrupts.  Interrupts
+ *   This setup includes configuring and attaching DAC interrupts. Interrupts
  *   are all disabled upon return.
  *
  ****************************************************************************/
 
 static int lmp92001_dac_setup(FAR struct dac_dev_s *dev)
 {
-  FAR struct lmp92001_dev_s *priv = (FAR struct lmp92001_dev_s *)dev->ad_priv;
+  FAR struct lmp92001_dev_s *priv =
+    (FAR struct lmp92001_dev_s *)dev->ad_priv;
 
-  uint8_t const BUFFER_SIZE = 2U;
+  uint8_t const BUFFER_SIZE = 2u;
   uint8_t buffer[BUFFER_SIZE];
 
   int ret = OK;
@@ -587,9 +570,10 @@ static void lmp92001_dac_txint(FAR struct dac_dev_s *dev, bool enable)
 static int lmp92001_dac_send(FAR struct dac_dev_s *dev,
                              FAR struct dac_msg_s *msg)
 {
-  FAR struct lmp92001_dev_s *priv = (FAR struct lmp92001_dev_s *)dev->ad_priv;
+  FAR struct lmp92001_dev_s *priv =
+    (FAR struct lmp92001_dev_s *)dev->ad_priv;
 
-  uint8_t const BUFFER_SIZE = 3U;
+  uint8_t const BUFFER_SIZE = 3u;
   uint8_t buffer[BUFFER_SIZE];
 
   int ret;
@@ -606,15 +590,15 @@ static int lmp92001_dac_send(FAR struct dac_dev_s *dev,
    */
 
   buffer[0] = (msg->am_channel - 1) + LMP92001_REG_DAC1;
-  buffer[1] = (uint8_t)(msg->am_data >> 8U);
-  buffer[2] = (uint8_t)(msg->am_data & 0xFFU);
+  buffer[1] = (uint8_t)(msg->am_data >> 8u);
+  buffer[2] = (uint8_t)(msg->am_data & 0xffu);
 
   ret = lmp92001_i2c_write(priv, buffer, BUFFER_SIZE);
   if (ret < 0)
-  {
-    aerr("LMP92001 DAC send failed: %d", ret);
-    return ret;
-  }
+    {
+      aerr("LMP92001 DAC send failed: %d", ret);
+      return ret;
+    }
 
   dac_txdone(&g_dacdev);
 
@@ -632,7 +616,8 @@ static int lmp92001_dac_send(FAR struct dac_dev_s *dev,
 static int lmp92001_dac_ioctl(FAR struct dac_dev_s *dev, int cmd,
                                unsigned long arg)
 {
-  FAR struct lmp92001_dev_s *priv = (FAR struct lmp92001_dev_s *)dev->ad_priv;
+  FAR struct lmp92001_dev_s *priv =
+    (FAR struct lmp92001_dev_s *)dev->ad_priv;
   int ret = OK;
 
   switch (cmd)
@@ -674,7 +659,7 @@ static int lmp92001_adc_setref(FAR struct lmp92001_dev_s *priv,
 {
   uint8_t value = 0;
 
-  uint8_t const BUFFER_SIZE = 2U;
+  uint8_t const BUFFER_SIZE = 2u;
   uint8_t buffer[BUFFER_SIZE];
 
   int ret = OK;
@@ -723,15 +708,15 @@ static void lmp92001_adc_extractchannel(FAR struct lmp92001_dev_s *priv,
   uint8_t j;
   uint16_t tmp;
 
-  i   = 0U;
+  i   = 0u;
   j   = priv->adc_channels_enabled;
   tmp = channels;
 
   /* Channels to be enabled are the bits set in the argument channels. */
 
-  while (tmp != 0U)
+  while (tmp != 0u)
     {
-      if (tmp & 1U)
+      if (tmp & 1u)
         {
           priv->adc_channels_enabled++;
           priv->adc_channels[j] = i + 1;
@@ -741,7 +726,7 @@ static void lmp92001_adc_extractchannel(FAR struct lmp92001_dev_s *priv,
           j++;
         }
 
-      tmp >>= 1U;
+      tmp >>= 1u;
       i++;
     }
 
@@ -760,16 +745,17 @@ static void lmp92001_adc_extractchannel(FAR struct lmp92001_dev_s *priv,
 static int lmp92001_adc_enablechannel(FAR struct lmp92001_dev_s *priv,
                                       enum lmp92001_adc_enable_e channels)
 {
-  uint8_t cad1 = 0U;
-  uint8_t cad2 = 0U;
-  uint8_t cad3 = 0U;
+  uint8_t cad1 = 0u;
+  uint8_t cad2 = 0u;
+  uint8_t cad3 = 0u;
 
-  uint8_t const BUFFER_SIZE = 2U;
+  uint8_t const BUFFER_SIZE = 2u;
   uint8_t buffer[BUFFER_SIZE];
 
   int ret = OK;
 
-  if (priv->adc_channels_enabled < LMP92001_ADC_MAX_CHANNELS && channels != 0)
+  if (priv->adc_channels_enabled < LMP92001_ADC_MAX_CHANNELS &&
+      channels != 0)
     {
       lmp92001_adc_extractchannel(priv, channels);
 
@@ -794,9 +780,9 @@ static int lmp92001_adc_enablechannel(FAR struct lmp92001_dev_s *priv,
           return ret;
         }
 
-      cad1 |= channels & 0x000FFU;
-      cad2 |= (channels >> 8U) & 0x000FFU;
-      cad3 |= (channels >> 16U) & 0x1U;
+      cad1 |= channels & 0x000ffu;
+      cad2 |= (channels >> 8u) & 0x000ffu;
+      cad3 |= (channels >> 16u) & 0x1u;
 
       if (cad1 > 0)
         {
@@ -851,7 +837,7 @@ static int lmp92001_adc_enablechannel(FAR struct lmp92001_dev_s *priv,
 
 static int lmp92001_adc_singleshot(FAR struct lmp92001_dev_s *priv)
 {
-  uint8_t const BUFFER_SIZE = 2U;
+  uint8_t const BUFFER_SIZE = 2u;
   uint8_t buffer[BUFFER_SIZE];
 
   uint8_t sgen_value = 0;
@@ -915,10 +901,10 @@ static int lmp92001_adc_singleshot(FAR struct lmp92001_dev_s *priv)
 
 static int lmp92001_adc_continuousconv(FAR struct lmp92001_dev_s *priv)
 {
-  uint8_t const BUFFER_SIZE = 2U;
+  uint8_t const BUFFER_SIZE = 2u;
   uint8_t buffer[BUFFER_SIZE];
 
-  uint8_t sgen_value = 0U;
+  uint8_t sgen_value = 0u;
 
   int ret = OK;
 
@@ -989,7 +975,7 @@ static int lmp92001_adc_readchannel(FAR struct lmp92001_dev_s *priv,
       return ret;
     }
 
-  msg->am_data = (buffer[0] << 8U) | buffer[1];
+  msg->am_data = (buffer[0] << 8u) | buffer[1];
 
   return ret;
 }
@@ -1007,7 +993,8 @@ static int lmp92001_adc_readchannel(FAR struct lmp92001_dev_s *priv,
 static int lmp92001_adc_bind(FAR struct adc_dev_s *dev,
                               FAR const struct adc_callback_s *callback)
 {
-  FAR struct lmp92001_dev_s *priv = (FAR struct lmp92001_dev_s *)dev->ad_priv;
+  FAR struct lmp92001_dev_s *priv =
+    (FAR struct lmp92001_dev_s *)dev->ad_priv;
 
   DEBUGASSERT(priv != NULL);
 
@@ -1203,14 +1190,18 @@ static int lmp92001_gpio_direction(FAR struct ioexpander_dev_s *dev,
   FAR struct lmp92001_dev_s *priv = (FAR struct lmp92001_dev_s *)dev;
 
   uint8_t regval;
-  uint8_t const BUFFER_SIZE = 2U;
+  uint8_t const BUFFER_SIZE = 2u;
   uint8_t buffer[BUFFER_SIZE];
 
   int ret;
 
-  DEBUGASSERT(priv != NULL && pin < LMP92001_GPIO_MAX_PINS &&
-              (direction == IOEXPANDER_DIRECTION_IN ||
-               direction == IOEXPANDER_DIRECTION_OUT));
+  if (direction != IOEXPANDER_DIRECTION_IN &&
+      direction != IOEXPANDER_DIRECTION_OUT)
+    {
+      return -EINVAL;
+    }
+
+  DEBUGASSERT(priv != NULL && pin < LMP92001_GPIO_MAX_PINS);
 
   gpioinfo("I2C addr=%02x pin=%u direction=%s\n",
            priv->addr, pin,
@@ -1259,8 +1250,8 @@ static int lmp92001_gpio_direction(FAR struct ioexpander_dev_s *dev,
  *
  ****************************************************************************/
 
-static int lmp92001_gpio_option(FAR struct ioexpander_dev_s *dev, uint8_t pin,
-                                int opt, void *regval)
+static int lmp92001_gpio_option(FAR struct ioexpander_dev_s *dev,
+                                uint8_t pin, int opt, void *regval)
 {
   return OK;
 }
@@ -1288,7 +1279,7 @@ static int lmp92001_gpio_writepin(FAR struct ioexpander_dev_s *dev,
   FAR struct lmp92001_dev_s *priv = (FAR struct lmp92001_dev_s *)dev;
 
   uint8_t regval;
-  uint8_t const BUFFER_SIZE = 2U;
+  uint8_t const BUFFER_SIZE = 2u;
   uint8_t buffer[BUFFER_SIZE];
 
   int ret;
@@ -1359,10 +1350,9 @@ static int lmp92001_gpio_readpin(FAR struct ioexpander_dev_s *dev,
       return ret;
     }
 
-  *value = (bool)(regval >> pin) & 1U;
+  *value = (bool)(regval >> pin) & 1u;
 
   return ret;
-
 }
 
 /****************************************************************************
@@ -1435,7 +1425,8 @@ static int lmp92001_gpio_multireadpin(FAR struct ioexpander_dev_s *dev,
 #ifdef CONFIG_IOEXPANDER_INT_ENABLE
 static FAR void *lmp92001_gpio_attach(FAR struct ioexpander_dev_s *dev,
                                        ioe_pinset_t pinset,
-                                       ioe_callback_t callback, FAR void *arg)
+                                       ioe_callback_t callback,
+                                       FAR void *arg)
 {
 }
 

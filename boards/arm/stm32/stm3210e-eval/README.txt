@@ -51,7 +51,7 @@ DFU and JTAG
   3. Run the DFU SE program to load nuttx.dfu into FLASH.
 
   What if the DFU loader is not in FLASH?  The loader code is available
-  inside of the Demo dirctory of the USBLib ZIP file that can be downloaded
+  inside of the Demo directory of the USBLib ZIP file that can be downloaded
   from the STMicro Website.  You can build it using RIDE (or other toolchains);
   you will need a JTAG emulator to burn it into FLASH the first time.
 
@@ -71,9 +71,10 @@ DFU and JTAG
   configuration options to enable JTAG in various different ways.
 
   These configurations effect the setting of the SWJ_CFG[2:0] bits in the AFIO
-  MAPR register.  These bits are used to configure the SWJ and trace alternate function I/Os. The SWJ (SerialWire JTAG) supports JTAG or SWD access to the
+  MAPR register.  These bits are used to configure the SWJ and trace alternate
+  function I/Os. The SWJ (SerialWire JTAG) supports JTAG or SWD access to the
   Cortex debug port.  The default state in this port is for all JTAG support
-  to be disable.
+  to be disabled.
 
   CONFIG_STM32_JTAG_FULL_ENABLE - sets SWJ_CFG[2:0] to 000 which enables full
     SWJ (JTAG-DP + SW-DP)
@@ -82,7 +83,7 @@ DFU and JTAG
     full SWJ (JTAG-DP + SW-DP) but without JNTRST.
 
   CONFIG_STM32_JTAG_SW_ENABLE - sets SWJ_CFG[2:0] to 010 which would set JTAG-DP
-    disabled and SW-DP enabled
+    disabled and SW-DP enabled.
 
   The default setting (none of the above defined) is SWJ_CFG[2:0] set to 100
   which disable JTAG-DP and SW-DP.
@@ -99,7 +100,7 @@ for more information.  Using the script:
    cd <nuttx-build-directory>
    boards/arm/stm32/stm3210e-eval/tools/oocd.sh $PWD
 
-2) Load Nuttx
+2) Load NuttX
 
    cd <nuttx-built-directory>
    arm-none-eabi-gdb nuttx
@@ -117,7 +118,7 @@ LEDs
 ====
 
 The STM3210E-EVAL board has four LEDs labeled LD1, LD2, LD3 and LD4 on the
-board.. These LEDs are not used by the board port unless CONFIG_ARCH_LEDS is
+board. These LEDs are not used by the board port unless CONFIG_ARCH_LEDS is
 defined.  In that case, the usage by the board port is defined in
 include/board.h and src/up_leds.c. The LEDs are used to encode OS-related
 events as follows:
@@ -204,15 +205,15 @@ RTC
     CONFIG_RTC_HIRES - The typical RTC keeps time to resolution of 1
       second, usually supporting a 32-bit time_t value.  In this case,
       the RTC is used to &quot;seed&quot; the normal NuttX timer and the
-      NuttX timer provides for higher resoution time. If CONFIG_RTC_HIRES
+      NuttX timer provides for higher resolution time. If CONFIG_RTC_HIRES
       is enabled in the NuttX configuration, then the RTC provides higher
       resolution time and completely replaces the system timer for purpose of
       date and time.
-      CONFIG_RTC_FREQUENCY - If CONFIG_RTC_HIRES is defined, then the
+    CONFIG_RTC_FREQUENCY - If CONFIG_RTC_HIRES is defined, then the
       frequency of the high resolution RTC must be provided.  If CONFIG_RTC_HIRES
       is not defined, CONFIG_RTC_FREQUENCY is assumed to be one.
     CONFIG_RTC_ALARM - Enable if the RTC hardware supports setting of an alarm.
-      A callback function will be executed when the alarm goes off
+      A callback function will be executed when the alarm goes off.
 
   In hi-res mode, the STM32 RTC operates only at 16384Hz.  Overflow interrupts
   are handled when the 32-bit RTC counter overflows every 3 days and 43 minutes.
@@ -220,11 +221,11 @@ RTC
   a 48-bit RTC counter.
 
   In the lo-res mode, the RTC operates at 1Hz.  Overflow interrupts are not handled
-  (because the next overflow is not expected until the year 2106.
+  (because the next overflow is not expected until the year 2106).
 
-   WARNING:  Overflow interrupts are lost whenever the STM32 is powered down.  The
-   overflow interrupt may be lost even if the STM32 is powered down only momentarily.
-   Therefore hi-res solution is only useful in systems where the power is always on.
+  WARNING:  Overflow interrupts are lost whenever the STM32 is powered down.  The
+  overflow interrupt may be lost even if the STM32 is powered down only momentarily.
+  Therefore hi-res solution is only useful in systems where the power is always on.
 
 FSMC SRAM
 =========
@@ -382,7 +383,7 @@ STM3210E-EVAL-specific Configuration Options
 
   Alternate pin mappings.  The STM3210E-EVAL board requires only CAN1 remapping
   On the STM3210E-EVAL board pin PB9 is wired as TX and pin PB8 is wired as RX.
-  Which then makes the proper connection through the CAN transiver SN65HVD230
+  Which then makes the proper connection through the CAN transceiver SN65HVD230
   out to the CAN D-type 9-pn male connector where pin 2 is CANL and pin 7 is CANH.
 
     CONFIG_STM32_TIM1_FULL_REMAP
@@ -431,7 +432,7 @@ STM3210E-EVAL-specific Configuration Options
 
     CONFIG_SDIO_DMA - Support DMA data transfers.  Requires CONFIG_STM32_SDIO
       and CONFIG_STM32_DMA2.
-    CONFIG_STM32_SDIO_PRI - Select SDIO interrupt prority.  Default: 128
+    CONFIG_STM32_SDIO_PRI - Select SDIO interrupt priority.  Default: 128
     CONFIG_STM32_SDIO_DMAPRIO - Select SDIO DMA interrupt priority.
       Default:  Medium
     CONFIG_STM32_SDIO_WIDTH_D1_ONLY - Select 1-bit transfer mode.  Default:
@@ -520,7 +521,7 @@ Where <subdir> is one of the following:
     =========== ======================= ================================
     Platform    Windows with Cygwin (2) Windows with Cygwin (2)
     ----------- ----------------------- --------------------------------
-    Toolchain:  NuttX buildroot (1)     Codesourcery for Windows (1)
+    Toolchain:  NuttX buildroot (1)     ARM EABI GCC for Windows (1)
     ----------- ----------------------- --------------------------------
     Loader:     DfuSe                   DfuSe
     ----------- ----------------------- --------------------------------
@@ -557,7 +558,7 @@ Where <subdir> is one of the following:
         you will have to turn local echo on.
     (4) Microsoft holds several patents related to the design of
         long file names in the FAT file system.  Please refer to the
-        details in the top-level COPYING file.  Please do not use FAT
+        details in the top-level NOTICE file.  Please do not use FAT
         long file name unless you are familiar with these patent issues.
     (5) When built as an NSH add-on command (CONFIG_NSH_BUILTIN_APPS=y),
         Caution should be used to assure that the SD drive is not in use when
@@ -605,8 +606,8 @@ Where <subdir> is one of the following:
     focuses on general window controls, movement, mouse and keyboard
     input.
 
-      CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y  : CodeSourcery under Windows
-      CONFIG_LCD_RPORTRAIT=y        : 240x320 reverse portrait
+      CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y : GNU EABI toolchain for Windows
+      CONFIG_LCD_RPORTRAIT=y              : 240x320 reverse portrait
 
     NOTES:
 
@@ -722,8 +723,8 @@ Where <subdir> is one of the following:
           Enable the DJoystick driver:
 
             CONFIG_INPUT=y             # Enable input driver support
-            CONFIG_DJOYSTICK=y         # Enable the joystick drivers
-                                       # (default parmeters should be okay)
+            CONFIG_INPUT_DJOYSTICK=y   # Enable the joystick drivers
+                                       # (default parameters should be okay)
           Enable the DJoystick Example:
 
            CONFIG_EXAMPLES_DJOYSTICK=y  # Enable the DJoystick example
@@ -731,10 +732,7 @@ Where <subdir> is one of the following:
            CONFIG_EXAMPLES_DJOYSTICK_SIGNO=13
 
        When running the configuration, you should see the built-in
-       application 'djoy'.  Just typo 'djoy' at the NSH command prompt.
-       The test will simply should the joystick position and will exect when
-       the joystick select indication is received (when the joystick button
-       is push downward).
+       application 'djoy'.  Just type 'djoy' at the NSH command prompt.
 
   nxterm:
   ----------
@@ -797,12 +795,12 @@ Where <subdir> is one of the following:
        b. Execute 'make menuconfig' in nuttx/ in order to start the
           reconfiguration process.
 
-    2. Default configuration is Cygwin under windows using the CodeSourcery
+    2. Default configuration is Cygwin under windows using the ARM EABI
        toolchain:
 
          CONFIG_HOST_WINDOWS=y                   : Windows
          CONFIG_WINDOWS_CYGWIN=y                 : Cygwin
-         CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery under Windows
+         CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
     3. CONFIG_ARCH_CUSTOM_PMINIT and CONFIG_ARCH_IDLE_CUSTOM are necessary
        parts of the PM configuration:

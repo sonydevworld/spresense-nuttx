@@ -44,6 +44,7 @@
 #include <nuttx/config.h>
 #if defined(CONFIG_NET) && defined(CONFIG_NET_TCP)
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <assert.h>
 #include <debug.h>
@@ -85,10 +86,67 @@ void tcp_appsend(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 {
   uint8_t hdrlen;
 
-  /* Handle the result based on the application response */
+  ninfo("result: %04x d_sndlen: %d conn->tx_unacked: %" PRId32 "\n",
+        result, dev->d_sndlen, (uint32_t)conn->tx_unacked);
 
-  ninfo("result: %04x d_sndlen: %d conn->unacked: %d\n",
-        result, dev->d_sndlen, conn->unacked);
+#ifdef CONFIG_NET_TCP_DELAYED_ACK
+  /* Did the caller request that an ACK be sent? */
+
+  if ((result & TCP_SNDACK) != 0)
+    {
+      /* Yes.. Handle delayed acknowledgments */
+
+      /* Reset the ACK timer in any event. */
+
+      conn->rx_acktimer = 0;
+
+      /* Per RFC 1122:  "...in a stream of full-sized segments there
+       * SHOULD be an ACK for at least every second segment."
+       *
+       * NOTES:
+       * 1. If there is a data payload or other flags to be sent with the
+       *    outgoing packet, then we may as well include the ACK too.
+       * 2. The RFC refers to full-size segments.  It is not clear what
+       *    "full-size" means.  Does that mean that the payload is the size
+       *    of the MSS?  Payload size is not considered other there being
+       *    a payload or or not.  Should there be some special action for
+       *    small payloads of size < MSS?
+       * 3. Experimentation shows that Windows and Linux behave somewhat
+       *    differently; they delay the ACKs for many more segments (6 or
+       *    more).  Delaying for more segments would provide less network
+       *    traffic and better performance but seems non-compliant.
+       */
+
+      if (conn->rx_unackseg > 0 || dev->d_sndlen > 0 ||
+          result != TCP_SNDACK)
+        {
+          /* Reset the delayed ACK state and send the ACK with this packet. */
+
+          conn->rx_unackseg = 0;
+        }
+      else
+        {
+          /* This is only an ACK and there is no pending delayed ACK and
+           * no TX data is being sent.  Indicate that there is one un-ACKed
+           * segment and don't send anything now.
+           */
+
+          conn->rx_unackseg = 1;
+          return;
+        }
+    }
+
+  /* If there are data to be sent in the same direction as the ACK before
+   * the second data packet is received and the delay timer expires, the ACK
+   * is piggybacked with the data segment and sent immediately.
+   */
+
+  else if (dev->d_sndlen > 0 && conn->rx_unackseg > 0)
+    {
+      result |= TCP_SNDACK;
+      conn->rx_unackseg = 0;
+    }
+#endif
 
   /* Get the IP header length associated with the IP domain configured for
    * this TCP connection.
@@ -143,7 +201,7 @@ void tcp_appsend(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
   else if ((result & TCP_CLOSE) != 0)
     {
       conn->tcpstateflags = TCP_FIN_WAIT_1;
-      conn->unacked       = 1;
+      conn->tx_unacked    = 1;
       conn->nrtx          = 0;
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
       conn->sndseq_max    = tcp_getsequence(conn->sndseq) + 1;
@@ -166,16 +224,16 @@ void tcp_appsend(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
       if (dev->d_sndlen > 0)
         {
           /* Remember how much data we send out now so that we know
-           * when everything has been acknowledged.  Just increment the amount
-           * of data sent.  This will be needed in sequence number calculations
-           * and we know that this is not a re-transmission.  Retransmissions
-           * do not go through this path.
+           * when everything has been acknowledged.  Just increment the
+           * amount of data sent.  This will be needed in sequence number
+           * calculations and we know that this is not a re-transmission.
+           * Retransmissions do not go through this path.
            */
 
-          conn->unacked += dev->d_sndlen;
+          conn->tx_unacked += dev->d_sndlen;
 
           /* The application cannot send more than what is allowed by the
-           * MSS (the minumum of the MSS and the available window).
+           * MSS (the minimum of the MSS and the available window).
            */
 
           DEBUGASSERT(dev->d_sndlen <= conn->mss);
@@ -183,6 +241,7 @@ void tcp_appsend(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 
       conn->nrtx = 0;
 #endif
+
       /* Then handle the rest of the operation just as for the rexmit case */
 
       tcp_rexmit(dev, conn, result);
@@ -213,8 +272,8 @@ void tcp_rexmit(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 {
   uint8_t hdrlen;
 
-  ninfo("result: %04x d_sndlen: %d conn->unacked: %d\n",
-        result, dev->d_sndlen, conn->unacked);
+  ninfo("result: %04x d_sndlen: %d conn->tx_unacked: %" PRId32 "\n",
+        result, dev->d_sndlen, (uint32_t)conn->tx_unacked);
 
   /* Get the IP header length associated with the IP domain configured for
    * this TCP connection.
@@ -247,7 +306,7 @@ void tcp_rexmit(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
   if (dev->d_sndlen > 0)
 #else
-  if (dev->d_sndlen > 0 && conn->unacked > 0)
+  if (dev->d_sndlen > 0 && conn->tx_unacked > 0)
 #endif
     {
       /* We always set the ACK flag in response packets adding the length of
@@ -257,7 +316,9 @@ void tcp_rexmit(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
       tcp_send(dev, conn, TCP_ACK | TCP_PSH, dev->d_sndlen + hdrlen);
     }
 
-  /* If there is no data to send, just send out a pure ACK if one is requested`. */
+  /* If there is no data to send, just send out a pure ACK if one is
+   * requested.
+   */
 
   else if ((result & TCP_SNDACK) != 0)
     {

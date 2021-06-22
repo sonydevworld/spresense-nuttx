@@ -78,7 +78,7 @@ Serial Connection
 
 USART1 is the default USART1 used in the configuration files to
 provide a serial console (of course, that can be easily changed
-by editting the configuration file).  The AVR32DEV1 board has no
+by editing the configuration file).  The AVR32DEV1 board has no
 RS-232 drivers or connectors on board.  I use an off-board MAX232
 module that I got on eBay (search for MAX232 if you want to find
 one).  I connect the MAX232 board as follows:
@@ -112,7 +112,7 @@ PA17 and PA23 are available from the AVR32DEV1:
 Development Environment
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-  Linux, Mac OS X or Cygwin on Windows can be used for the development environment.
+  Linux, macOS or Cygwin on Windows can be used for the development environment.
   The source has been built only using the GNU toolchain (see below).  Other
   toolchains will likely cause problems. Testing was performed using the Cygwin
   environment.
@@ -142,7 +142,7 @@ WinAVR:
 
 AVR32 Toolchain Builder:
 
-  A third option is to build the toolchain yourself. For OS X and Linux systems,
+  A third option is to build the toolchain yourself. For macOS and Linux systems,
   this Makefile will build a complete gcc-4.4.3 toolchain:
 
     https://github.com/jsnyder/avr32-toolchain
@@ -172,7 +172,7 @@ IDEs
   2) Start the NuttX build at least one time from the Cygwin command line
      before trying to create your project.  This is necessary to create
      certain auto-generated files and directories that will be needed.
-  3) Set up include pathes:  You will need include/, arch/avr/src/at32uc3,
+  3) Set up include paths:  You will need include/, arch/avr/src/at32uc3,
      arch/avr/src/common, arch/arm/src/avr, and sched/.
   4) All assembly files need to have the definition option -D __ASSEMBLY__
      on the command line.

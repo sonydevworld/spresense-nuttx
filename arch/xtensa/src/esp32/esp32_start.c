@@ -1,25 +1,20 @@
 /****************************************************************************
- * arch/xtensa/src/common/esp32_start.c
+ * arch/xtensa/src/esp32/esp32_start.c
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *
- * Basic initialize sequence derives from logic originally provided by
- * Espressif Systems:
- *
- *   Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,6 +38,7 @@
 #include "esp32_clockconfig.h"
 #include "esp32_region.h"
 #include "esp32_start.h"
+#include "esp32_spiram.h"
 
 /****************************************************************************
  * Public Data
@@ -51,7 +47,7 @@
 /* Address of the CPU0 IDLE thread */
 
 uint32_t g_idlestack[IDLETHREAD_STACKWORDS]
-  __attribute__((aligned(16) section(".noinit")));
+  __attribute__((aligned(16), section(".noinit")));
 
 /****************************************************************************
  * Public Functions
@@ -87,16 +83,16 @@ void IRAM_ATTR __start(void)
 
   /* Make sure that normal interrupts are disabled.  This is really only an
    * issue when we are started in un-usual ways (such as from IRAM).  In this
-   * case, we can at least defer some unexpected interrupts left over from the
-   * last program execution.
+   * case, we can at least defer some unexpected interrupts left over from
+   * the last program execution.
    */
 
   up_irq_disable();
 
 #ifdef CONFIG_STACK_COLORATION
-  {
-    register uint32_t *ptr;
-    register int i;
+    {
+      register uint32_t *ptr;
+      register int i;
 
       /* If stack debug is enabled, then fill the stack with a recognizable
        * value that we can use later to test for high water marks.
@@ -106,13 +102,13 @@ void IRAM_ATTR __start(void)
         {
           *ptr++ = STACK_COLOR;
         }
-  }
+    }
 #endif
 
-  /* Move the stack to a known location.  Although we were give a stack
-   * pointer at start-up, we don't know where that stack pointer is positioned
-   * respect to our memory map.  The only safe option is to switch to a well-
-   * known IDLE thread stack.
+  /* Move the stack to a known location.  Although we were given a stack
+   * pointer at start-up, we don't know where that stack pointer is
+   * positioned with respect to our memory map.  The only safe option is to
+   * switch to a well-known IDLE thread stack.
    */
 
   sp = (uint32_t)g_idlestack + IDLETHREAD_STACKSIZE;
@@ -124,7 +120,7 @@ void IRAM_ATTR __start(void)
 
   /* Move CPU0 exception vectors to IRAM */
 
-  asm volatile ("wsr %0, vecbase\n"::"r" (&_init_start));
+  __asm__ __volatile__ ("wsr %0, vecbase\n"::"r" (&_init_start));
 
   /* Set .bss to zero */
 
@@ -141,9 +137,29 @@ void IRAM_ATTR __start(void)
   esp32_clockconfig();
 
 #ifdef USE_EARLYSERIALINIT
- /* Perform early serial initialization */
+  /* Perform early serial initialization */
 
   xtensa_early_serial_initialize();
+#endif
+
+#if defined(CONFIG_ESP32_SPIRAM_BOOT_INIT)
+  esp_spiram_init_cache();
+  if (esp_spiram_init() != OK)
+    {
+#  if defined(ESP32_SPIRAM_IGNORE_NOTFOUND)
+      mwarn("SPIRAM Initialization failed!\n");
+#  else
+      PANIC();
+#  endif
+    }
+
+  /* Set external memory bss section to zero */
+
+#  ifdef CONFIG_XTENSA_EXTMEM_BSS
+     memset(&_sbss_extmem, 0,
+            (&_ebss_extmem - &_sbss_extmem) * sizeof(_sbss_extmem));
+#  endif
+
 #endif
 
   /* Initialize onboard resources */

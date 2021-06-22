@@ -1,42 +1,27 @@
 /****************************************************************************
  * drivers/net/dm90x0.c
  *
- *   Copyright (C) 2007-2010, 2014-2016, 2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References: Davicom data sheets (DM9000-DS-F03-041906.pdf,
- *   DM9010-DS-F01-103006.pdf) and looking at lots of other DM90x0
- *   drivers.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
+
+/* References: Davicom data sheets (DM9000-DS-F03-041906.pdf,
+ *   DM9010-DS-F01-103006.pdf) and looking at lots of other DM90x0
+ *   drivers.
+ */
 
 /****************************************************************************
  * Included Files
@@ -77,6 +62,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* If processing is not done at the interrupt level, then work queue support
  * is required.
  */
@@ -218,7 +204,7 @@
 #define DM9X_IMRRXDISABLE  (DM9X_INT_PT | DM9X_INT_LNKCHG | DM9X_IMR_PAR)
 #define DM9X_IMRDISABLE    (DM9X_IMR_PAR)
 
-/* EEPROM/PHY control regiser bits */
+/* EEPROM/PHY control register bits */
 
 #define DM9X_EEPHYC_ERRE   (1 << 0) /* EEPROM (vs PHY) access status */
 #define DM9X_EEPHYC_ERPRW  (1 << 1) /* EEPROM/PHY write access */
@@ -258,7 +244,7 @@
 
 #define DM9X_CRXTHRES 10
 
-/* All access is via an index register and a data regist.  Select accecss
+/* All access is via an index register and a data register.  Select accecss
  * according to user supplied base address and bus width.
  */
 
@@ -283,7 +269,9 @@
 #   define CONFIG_DM9X_MODE_AUTO 1
 #endif
 
-/* TX poll deley = 1 seconds. CLK_TCK is the number of clock ticks per second */
+/* TX poll deley = 1 seconds.
+ * CLK_TCK is the number of clock ticks per second
+ */
 
 #define DM9X_WDDELAY   (1*CLK_TCK)
 
@@ -291,7 +279,7 @@
 
 #define DM6X_TXTIMEOUT (60*CLK_TCK)
 
-/* This is a helper pointer for accessing the contents of the Ethernet header */
+/* This is a helper pointer for accessing the contents of Ethernet header */
 
 #define BUF ((struct eth_hdr_s *)priv->dm_dev.d_buf)
 
@@ -317,11 +305,11 @@ union rx_desc_u
 struct dm9x_driver_s
 {
   bool dm_bifup;               /* true:ifup false:ifdown */
-  bool dm_b100M;               /* true:speed == 100M; false:speed == 10M */
+  bool dm_b100m;               /* true:speed == 100M; false:speed == 10M */
   uint8_t dm_ntxpending;       /* Count of packets pending transmission */
   uint8_t ncrxpackets;         /* Number of continuous rx packets  */
-  WDOG_ID dm_txpoll;           /* TX poll timer */
-  WDOG_ID dm_txtimeout;        /* TX timeout timer */
+  struct wdog_s dm_txpoll;     /* TX poll timer */
+  struct wdog_s dm_txtimeout;  /* TX timeout timer */
   struct work_s dm_irqwork;    /* For deferring interrupt work to the work queue */
   struct work_s dm_pollwork;   /* For deferring poll work to the work queue */
 
@@ -395,10 +383,10 @@ static int  dm9x_interrupt(int irq, FAR void *context, FAR void *arg);
 /* Watchdog timer expirations */
 
 static void dm9x_txtimeout_work(FAR void *arg);
-static void dm9x_txtimeout_expiry(int argc, uint32_t arg, ...);
+static void dm9x_txtimeout_expiry(wdparm_t arg);
 
 static void dm9x_poll_work(FAR void *arg);
-static void dm9x_poll_expiry(int argc, uint32_t arg, ...);
+static void dm9x_poll_expiry(wdparm_t arg);
 
 /* NuttX callback functions */
 
@@ -728,7 +716,7 @@ static int dm9x_transmit(FAR struct dm9x_driver_s *priv)
    * mode, that can be 2 packets, otherwise it is a single packet.
    */
 
-  if (priv->dm_ntxpending < 1 || (priv->dm_b100M && priv->dm_ntxpending < 2))
+  if (priv->dm_ntxpending < 1 || (priv->dm_b100m && priv->dm_ntxpending < 2))
     {
       /* Increment count of packets transmitted */
 
@@ -765,8 +753,8 @@ static int dm9x_transmit(FAR struct dm9x_driver_s *priv)
 
       /* Setup the TX timeout watchdog (perhaps restarting the timer) */
 
-      wd_start(priv->dm_txtimeout, DM6X_TXTIMEOUT,
-               dm9x_txtimeout_expiry, 1, (wdparm_t)priv);
+      wd_start(&priv->dm_txtimeout, DM6X_TXTIMEOUT,
+               dm9x_txtimeout_expiry, (wdparm_t)priv);
       return OK;
     }
 
@@ -797,7 +785,8 @@ static int dm9x_transmit(FAR struct dm9x_driver_s *priv)
 
 static int dm9x_txpoll(FAR struct net_driver_s *dev)
 {
-  FAR struct dm9x_driver_s *priv = (FAR struct dm9x_driver_s *)dev->d_private;
+  FAR struct dm9x_driver_s *priv =
+    (FAR struct dm9x_driver_s *)dev->d_private;
 
   /* If the polling resulted in data that should be sent out on the network,
    * the field d_len is set to a value > 0.
@@ -838,17 +827,17 @@ static int dm9x_txpoll(FAR struct net_driver_s *dev)
            * packet.
            */
 
-          if (priv->dm_ntxpending > 1 || !priv->dm_b100M)
+          if (priv->dm_ntxpending > 1 || !priv->dm_b100m)
             {
-              /* Returning a non-zero value will terminate the poll operation */
+              /* Returning a non-zero value terminate the poll operation */
 
               return 1;
             }
         }
     }
 
-  /* If zero is returned, the polling will continue until all connections have
-   * been examined.
+  /* If zero is returned, the polling will continue until all connections
+   * have been examined.
    */
 
   return 0;
@@ -919,7 +908,7 @@ static void dm9x_receive(FAR struct dm9x_driver_s *priv)
           priv->dm_discard(rx.desc.rx_len);
         }
 
-      /* Also check if the packet is a valid size for the network configuration */
+      /* Also check if the packet is a valid size for the configuration */
 
       else if (rx.desc.rx_len < ETH_HDRLEN ||
                rx.desc.rx_len > (CONFIG_NET_ETH_PKTSIZE + 2))
@@ -933,18 +922,20 @@ static void dm9x_receive(FAR struct dm9x_driver_s *priv)
         }
       else
         {
-          /* Good packet... Copy the packet data out of SRAM and pass it one to the network */
+          /* Good packet...
+           * Copy the packet data out of SRAM and pass it one to the network
+           */
 
           priv->dm_dev.d_len = rx.desc.rx_len;
           priv->dm_read(priv->dm_dev.d_buf, rx.desc.rx_len);
 
 #ifdef CONFIG_NET_PKT
-          /* When packet sockets are enabled, feed the frame into the packet tap */
+          /* When packet sockets are enabled, feed the frame into the tap */
 
           pkt_input(&priv->dm_dev);
 #endif
 
-          /* We only accept IP packets of the configured type and ARP packets */
+          /* We accept IP packets of the configured type and ARP packets */
 
 #ifdef CONFIG_NET_IPv4
           if (BUF->type == HTONS(ETHTYPE_IP))
@@ -959,14 +950,14 @@ static void dm9x_receive(FAR struct dm9x_driver_s *priv)
               arp_ipin(&priv->dm_dev);
               ipv4_input(&priv->dm_dev);
 
-              /* If the above function invocation resulted in data that should
-               * be sent out on the network, the field  d_len will set to a
-               * value > 0.
+              /* If the above function invocation resulted in data that
+               * should be sent out on the network, the field  d_len will
+               * set to a value > 0.
                */
 
               if (priv->dm_dev.d_len > 0)
                 {
-                  /* Update the Ethernet header with the correct MAC address */
+                  /* Update Ethernet header with the correct MAC address */
 
 #ifdef CONFIG_NET_IPv6
                   if (IFF_IS_IPv4(priv->dm_dev.d_flags))
@@ -991,21 +982,21 @@ static void dm9x_receive(FAR struct dm9x_driver_s *priv)
 #ifdef CONFIG_NET_IPv6
           if (BUF->type == HTONS(ETHTYPE_IP6))
             {
-              ninfo("Iv6 frame\n");
+              ninfo("IPv6 frame\n");
               NETDEV_RXIPV6(&priv->dm_dev);
 
               /* Give the IPv6 packet to the network layer */
 
               ipv6_input(&priv->dm_dev);
 
-              /* If the above function invocation resulted in data that should
-               * be sent out on the network, the field  d_len will set to a
-               * value > 0.
+              /* If the above function invocation resulted in data that
+               * should be sent out on the network, the field  d_len will
+               * set to a value > 0.
                */
 
               if (priv->dm_dev.d_len > 0)
-               {
-                  /* Update the Ethernet header with the correct MAC address */
+                {
+                  /* Update Ethernet header with the correct MAC address */
 
 #ifdef CONFIG_NET_IPv4
                   if (IFF_IS_IPv4(priv->dm_dev.d_flags))
@@ -1033,9 +1024,9 @@ static void dm9x_receive(FAR struct dm9x_driver_s *priv)
               arp_arpin(&priv->dm_dev);
               NETDEV_RXARP(&priv->dm_dev);
 
-              /* If the above function invocation resulted in data that should
-               * be sent out on the network, the field  d_len will set to a
-               * value > 0.
+              /* If the above function invocation resulted in data that
+               * should be sent out on the network, the field  d_len will set
+               * to a value > 0.
                */
 
               if (priv->dm_dev.d_len > 0)
@@ -1053,7 +1044,8 @@ static void dm9x_receive(FAR struct dm9x_driver_s *priv)
       NETDEV_RXPACKETS(&priv->dm_dev);
       priv->ncrxpackets++;
     }
-  while ((rxbyte & 0x01) == DM9X_PKTRDY && priv->ncrxpackets < DM9X_CRXTHRES);
+  while ((rxbyte & 0x01) == DM9X_PKTRDY &&
+         priv->ncrxpackets < DM9X_CRXTHRES);
   ninfo("All RX packets processed\n");
 }
 
@@ -1112,7 +1104,7 @@ static void dm9x_txdone(FAR struct dm9x_driver_s *priv)
 
   if (priv->dm_ntxpending == 0)
     {
-      wd_cancel(priv->dm_txtimeout);
+      wd_cancel(&priv->dm_txtimeout);
     }
 
   /* Then poll the network for new XMIT data */
@@ -1184,19 +1176,20 @@ static void dm9x_interrupt_work(FAR void *arg)
 
               if (dm9x_phyread(priv, 0) & 0x2000)
                 {
-                  priv->dm_b100M = true;
+                  priv->dm_b100m = true;
                 }
               else
                 {
-                  priv->dm_b100M = false;
+                  priv->dm_b100m = false;
                 }
               break;
             }
+
           up_mdelay(1);
         }
 
       nerr("ERROR: delay: %dmS speed: %s\n",
-           i, priv->dm_b100M ? "100M" : "10M");
+           i, priv->dm_b100m ? "100M" : "10M");
     }
 
   /* Check if we received an incoming packet */
@@ -1219,7 +1212,7 @@ static void dm9x_interrupt_work(FAR void *arg)
 
   if (priv->ncrxpackets >= DM9X_CRXTHRES)
     {
-      /* Eanble all DM90x0 interrupts EXCEPT for RX */
+      /* Enable all DM90x0 interrupts EXCEPT for RX */
 
       putreg(DM9X_IMR, DM9X_IMRRXDISABLE);
     }
@@ -1283,7 +1276,7 @@ static int dm9x_interrupt(int irq, FAR void *context, FAR void *arg)
        * expiration and the deferred interrupt processing.
        */
 
-       wd_cancel(priv->dm_txtimeout);
+       wd_cancel(&priv->dm_txtimeout);
     }
 
   /* Schedule to perform the interrupt processing on the worker thread. */
@@ -1344,8 +1337,7 @@ static void dm9x_txtimeout_work(FAR void *arg)
  *   The last TX never completed.  Reset the hardware and start again.
  *
  * Input Parameters:
- *   argc - The number of available arguments
- *   arg  - The first argument
+ *   arg  - The argument
  *
  * Returned Value:
  *   None
@@ -1355,7 +1347,7 @@ static void dm9x_txtimeout_work(FAR void *arg)
  *
  ****************************************************************************/
 
-static void dm9x_txtimeout_expiry(int argc, wdparm_t arg, ...)
+static void dm9x_txtimeout_expiry(wdparm_t arg)
 {
   FAR struct dm9x_driver_s *priv = (FAR struct dm9x_driver_s *)arg;
 
@@ -1410,17 +1402,17 @@ static void dm9x_poll_work(FAR void *arg)
    * mode, that can be 2 packets, otherwise it is a single packet.
    */
 
-  if (priv->dm_ntxpending < 1 || (priv->dm_b100M && priv->dm_ntxpending < 2))
+  if (priv->dm_ntxpending < 1 || (priv->dm_b100m && priv->dm_ntxpending < 2))
     {
-      /* If so, update TCP timing states and poll the network for new XMIT data */
+      /* Update TCP timing states and poll the network for new XMIT data */
 
       devif_timer(&priv->dm_dev, DM9X_WDDELAY, dm9x_txpoll);
     }
 
   /* Setup the watchdog poll timer again */
 
-  wd_start(priv->dm_txpoll, DM9X_WDDELAY, dm9x_poll_expiry, 1,
-           (wdparm_t)priv);
+  wd_start(&priv->dm_txpoll, DM9X_WDDELAY,
+           dm9x_poll_expiry, (wdparm_t)priv);
   net_unlock();
 }
 
@@ -1431,8 +1423,7 @@ static void dm9x_poll_work(FAR void *arg)
  *   Periodic timer handler.  Called from the timer interrupt handler.
  *
  * Input Parameters:
- *   argc - The number of available arguments
- *   arg  - The first argument
+ *   arg  - The argument
  *
  * Returned Value:
  *   None
@@ -1442,7 +1433,7 @@ static void dm9x_poll_work(FAR void *arg)
  *
  ****************************************************************************/
 
-static void dm9x_poll_expiry(int argc, wdparm_t arg, ...)
+static void dm9x_poll_expiry(wdparm_t arg)
 {
   FAR struct dm9x_driver_s *priv = (FAR struct dm9x_driver_s *)arg;
 
@@ -1514,21 +1505,24 @@ static inline void dm9x_phymode(FAR struct dm9x_driver_s *priv)
 
 static int dm9x_ifup(FAR struct net_driver_s *dev)
 {
-  FAR struct dm9x_driver_s *priv = (FAR struct dm9x_driver_s *)dev->d_private;
+  FAR struct dm9x_driver_s *priv =
+    (FAR struct dm9x_driver_s *)dev->d_private;
   uint8_t netstatus;
   int i;
 
   ninfo("Bringing up: %d.%d.%d.%d\n",
-        dev->d_ipaddr & 0xff, (dev->d_ipaddr >> 8) & 0xff,
-        (dev->d_ipaddr >> 16) & 0xff, dev->d_ipaddr >> 24);
+        (int)(dev->d_ipaddr & 0xff),
+        (int)((dev->d_ipaddr >> 8) & 0xff),
+        (int)((dev->d_ipaddr >> 16) & 0xff),
+        (int)(dev->d_ipaddr >> 24));
 
-  /* Initilize DM90x0 chip */
+  /* Initialize DM90x0 chip */
 
   dm9x_bringup(priv);
 
   /* Check link state and media speed (waiting up to 3s for link OK) */
 
-  priv->dm_b100M = false;
+  priv->dm_b100m = false;
   for (i = 0; i < 3000; i++)
     {
       netstatus = getreg(DM9X_NETS);
@@ -1540,20 +1534,22 @@ static int dm9x_ifup(FAR struct net_driver_s *dev)
           netstatus = getreg(DM9X_NETS);
           if ((netstatus & DM9X_NETS_SPEED) == 0)
             {
-              priv->dm_b100M = true;
+              priv->dm_b100m = true;
             }
+
           break;
         }
+
       i++;
       up_mdelay(1);
     }
 
-  ninfo("delay: %dmS speed: %s\n", i, priv->dm_b100M ? "100M" : "10M");
+  ninfo("delay: %dmS speed: %s\n", i, priv->dm_b100m ? "100M" : "10M");
 
   /* Set and activate a timer process */
 
-  wd_start(priv->dm_txpoll, DM9X_WDDELAY, dm9x_poll_expiry, 1,
-           (wdparm_t)priv);
+  wd_start(&priv->dm_txpoll, DM9X_WDDELAY,
+           dm9x_poll_expiry, (wdparm_t)priv);
 
   /* Enable the DM9X interrupt */
 
@@ -1580,7 +1576,8 @@ static int dm9x_ifup(FAR struct net_driver_s *dev)
 
 static int dm9x_ifdown(FAR struct net_driver_s *dev)
 {
-  FAR struct dm9x_driver_s *priv = (FAR struct dm9x_driver_s *)dev->d_private;
+  FAR struct dm9x_driver_s *priv =
+    (FAR struct dm9x_driver_s *)dev->d_private;
   irqstate_t flags;
 
   ninfo("Stopping\n");
@@ -1592,8 +1589,8 @@ static int dm9x_ifdown(FAR struct net_driver_s *dev)
 
   /* Cancel the TX poll timer and TX timeout timers */
 
-  wd_cancel(priv->dm_txpoll);
-  wd_cancel(priv->dm_txtimeout);
+  wd_cancel(&priv->dm_txpoll);
+  wd_cancel(&priv->dm_txtimeout);
 
   /* Reset the device */
 
@@ -1627,7 +1624,8 @@ static int dm9x_ifdown(FAR struct net_driver_s *dev)
 
 static void dm9x_txavail_work(FAR void *arg)
 {
-  FAR struct dm9x_driver_s *priv = (FAR struct dm9x_driver_s *)arg;
+  FAR struct dm9x_driver_s *priv =
+    (FAR struct dm9x_driver_s *)arg;
 
   ninfo("Polling\n");
 
@@ -1636,17 +1634,16 @@ static void dm9x_txavail_work(FAR void *arg)
   net_lock();
   if (priv->dm_bifup)
     {
-
-      /* Check if there is room in the DM90x0 to hold another packet.  In 100M
+      /* Check if there is room in the DM90x0 to hold another packet. In 100M
        * mode, that can be 2 packets, otherwise it is a single packet.
        */
 
       if (priv->dm_ntxpending < 1 ||
-          (priv->dm_b100M && priv->dm_ntxpending < 2))
+          (priv->dm_b100m && priv->dm_ntxpending < 2))
         {
           /* If so, then poll the network for new XMIT data */
 
-          devif_poll(&priv->dm_dev, dm9x_txpoll);
+          devif_timer(&priv->dm_dev, 0, dm9x_txpoll);
         }
     }
 
@@ -1674,7 +1671,8 @@ static void dm9x_txavail_work(FAR void *arg)
 
 static int dm9x_txavail(FAR struct net_driver_s *dev)
 {
-  FAR struct dm9x_driver_s *priv = (FAR struct dm9x_driver_s *)dev->d_private;
+  FAR struct dm9x_driver_s *priv =
+    (FAR struct dm9x_driver_s *)dev->d_private;
 
   /* Is our single work structure available?  It may not be if there are
    * pending interrupt actions and we will have to ignore the Tx
@@ -1712,7 +1710,8 @@ static int dm9x_txavail(FAR struct net_driver_s *dev)
 #ifdef CONFIG_NET_MCASTGROUP
 static int dm9x_addmac(FAR struct net_driver_s *dev, FAR const uint8_t *mac)
 {
-  FAR struct dm9x_driver_s *priv = (FAR struct dm9x_driver_s *)dev->d_private;
+  FAR struct dm9x_driver_s *priv =
+    (FAR struct dm9x_driver_s *)dev->d_private;
 
   /* Add the MAC address to the hardware multicast routing table */
 
@@ -1742,7 +1741,8 @@ static int dm9x_addmac(FAR struct net_driver_s *dev, FAR const uint8_t *mac)
 #ifdef CONFIG_NET_MCASTGROUP
 static int dm9x_rmmac(FAR struct net_driver_s *dev, FAR const uint8_t *mac)
 {
-  FAR struct dm9x_driver_s *priv = (FAR struct dm9x_driver_s *)dev->d_private;
+  FAR struct dm9x_driver_s *priv =
+    (FAR struct dm9x_driver_s *)dev->d_private;
 
   /* Add the MAC address to the hardware multicast routing table */
 
@@ -1823,7 +1823,8 @@ static void dm9x_bringup(FAR struct dm9x_driver_s *priv)
   putreg(DM9X_TXC, 0x00);         /* Clear TX Polling */
   putreg(DM9X_BPTHRES, 0x3f);     /* Less 3kb, 600us */
   putreg(DM9X_SMODEC, 0x00);      /* Special mode */
-  putreg(DM9X_NETS, (DM9X_NETS_WAKEST | DM9X_NETS_TX1END | DM9X_NETS_TX2END)); /* Clear TX status */
+                                  /* Clear TX status */
+  putreg(DM9X_NETS, DM9X_NETS_WAKEST | DM9X_NETS_TX1END | DM9X_NETS_TX2END);
   putreg(DM9X_ISR, DM9X_INT_ALL); /* Clear interrupt status */
 
 #if defined(CONFIG_DM9X_CHECKSUM)
@@ -1871,8 +1872,8 @@ static void dm9x_reset(FAR struct dm9x_driver_s *priv)
 
   /* Cancel the TX poll timer and TX timeout timers */
 
-  wd_cancel(priv->dm_txpoll);
-  wd_cancel(priv->dm_txtimeout);
+  wd_cancel(&priv->dm_txpoll);
+  wd_cancel(&priv->dm_txtimeout);
 
   /* Save previous register address */
 
@@ -1881,17 +1882,19 @@ static void dm9x_reset(FAR struct dm9x_driver_s *priv)
 
   /* Wait up to 1 second for the link to be OK */
 
-  priv->dm_b100M = false;
+  priv->dm_b100m = false;
   for (i = 0; i < 1000; i++)
     {
       if (dm9x_phyread(priv, 0x1) & 0x4)
         {
-          if (dm9x_phyread(priv, 0) &0x2000)
+          if (dm9x_phyread(priv, 0) & 0x2000)
             {
-              priv->dm_b100M = true;
+              priv->dm_b100m = true;
             }
+
           break;
         }
+
       up_mdelay(1);
     }
 
@@ -1942,7 +1945,7 @@ int dm9x_initialize(void)
   if (vid != DM9X_DAVICOMVID ||
       (pid != DM9X_DM9000PID && pid != DM9X_DM9010PID))
     {
-      nerr("ERROR: DM90x0 vendor/product ID not found at this base address\n");
+      nerr("ERROR: vendor/product ID not found at this base address\n");
       return -ENODEV;
     }
 
@@ -1967,12 +1970,7 @@ int dm9x_initialize(void)
   g_dm9x[0].dm_dev.d_addmac  = dm9x_addmac;   /* Add multicast MAC address */
   g_dm9x[0].dm_dev.d_rmmac   = dm9x_rmmac;    /* Remove multicast MAC address */
 #endif
-  g_dm9x[0].dm_dev.d_private = (FAR void *)g_dm9x; /* Used to recover private state from dev */
-
-  /* Create a watchdog for timing polling for and timing of transmissions */
-
-  g_dm9x[0].dm_txpoll       = wd_create();    /* Create periodic poll timer */
-  g_dm9x[0].dm_txtimeout    = wd_create();    /* Create TX timeout timer */
+  g_dm9x[0].dm_dev.d_private = g_dm9x;        /* Used to recover private state from dev */
 
   /* Read the MAC address */
 
@@ -1992,4 +1990,3 @@ int dm9x_initialize(void)
 }
 
 #endif /* CONFIG_NET && CONFIG_NET_DM90x0 */
-

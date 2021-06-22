@@ -1,35 +1,20 @@
 /****************************************************************************
- * net/local/loal.h
+ * net/local/local.h
  *
- *   Copyright (C) 2015, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -61,7 +46,7 @@
  ****************************************************************************/
 
 #define HAVE_LOCAL_POLL 1
-#define LOCAL_ACCEPT_NPOLLWAITERS 2
+#define LOCAL_NPOLLWAITERS 2
 
 /* Packet format in FIFO:
  *
@@ -72,7 +57,7 @@
  */
 
 #define LOCAL_SYNC_BYTE   0x42     /* Byte in sync sequence */
-#define LOCAL_END_BYTE    0xbd     /* End of sync seqence */
+#define LOCAL_END_BYTE    0xbd     /* End of sync sequence */
 
 /****************************************************************************
  * Public Type Definitions
@@ -168,10 +153,11 @@ struct local_conn_s
 
 #ifdef HAVE_LOCAL_POLL
   /* The following is a list if poll structures of threads waiting for
-   * socket accept events.
+   * socket events.
    */
 
-  struct pollfd *lc_accept_fds[LOCAL_ACCEPT_NPOLLWAITERS];
+  struct pollfd *lc_accept_fds[LOCAL_NPOLLWAITERS];
+  struct pollfd lc_inout_fds[2*LOCAL_NPOLLWAITERS];
 #endif
 
   /* Union of fields unique to SOCK_STREAM client, server, and connected
@@ -338,7 +324,7 @@ int local_release(FAR struct local_conn_s *conn);
  *
  * Returned Value:
  *   On success, zero is returned. On error, a negated errno value is
- *   returned.  See list() for the set of appropriate error values.
+ *   returned.  See listen() for the set of appropriate error values.
  *
  ****************************************************************************/
 
@@ -356,7 +342,8 @@ int local_listen(FAR struct socket *psock, int backlog);
  * Input Parameters:
  *   psock    The listening Unix domain socket structure
  *   addr     Receives the address of the connecting client
- *   addrlen  Input: allocated size of 'addr', Return: returned size of 'addr'
+ *   addrlen  Input: allocated size of 'addr'
+ *            Return: returned size of 'addr'
  *   newconn  The new, accepted  Unix domain connection structure
  *
  * Returned Value:
@@ -375,59 +362,25 @@ int local_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
 #endif
 
 /****************************************************************************
- * Name: psock_local_send
+ * Name: local_sendmsg
  *
  * Description:
- *   Send a local packet as a stream.
- *
- * Input Parameters:
- *   psock    An instance of the internal socket structure.
- *   buf      Data to send
- *   len      Length of data to send
- *   flags    Send flags (ignored for now)
- *
- * Returned Value:
- *   On success, returns the number of characters sent.  On  error,
- *   -1 is returned, and errno is set appropriately (see send() for the
- *   list of errno numbers).
- *
- ****************************************************************************/
-
-#ifdef CONFIG_NET_LOCAL_STREAM
-ssize_t psock_local_send(FAR struct socket *psock, FAR const void *buf,
-                         size_t len, int flags);
-#endif
-
-/****************************************************************************
- * Name: psock_local_sendto
- *
- * Description:
- *   This function implements the Unix domain-specific logic of the
- *   standard sendto() socket operation.
+ *   Implements the sendmsg() operation for the case of the local Unix socket
  *
  * Input Parameters:
  *   psock    A pointer to a NuttX-specific, internal socket structure
- *   buf      Data to send
- *   len      Length of data to send
+ *   msg      msg to send
  *   flags    Send flags
- *   to       Address of recipient
- *   tolen    The length of the address structure
- *
- *   NOTE: All input parameters were verified by sendto() before this
- *   function was called.
  *
  * Returned Value:
- *   On success, returns the number of characters sent.  On  error,
- *   a negated errno value is returned.  See the description in
- *   net/socket/sendto.c for the list of appropriate return value.
+ *   On success, returns the number of characters sent.  On  error, a negated
+ *   errno value is returned (see sendmsg() for the list of appropriate error
+ *   values.
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_LOCAL_DGRAM
-ssize_t psock_local_sendto(FAR struct socket *psock, FAR const void *buf,
-                           size_t len, int flags, FAR const struct sockaddr *to,
-                           socklen_t tolen);
-#endif
+ssize_t local_sendmsg(FAR struct socket *psock, FAR struct msghdr *msg,
+                      int flags);
 
 /****************************************************************************
  * Name: local_send_packet
@@ -446,14 +399,14 @@ ssize_t psock_local_sendto(FAR struct socket *psock, FAR const void *buf,
  *
  ****************************************************************************/
 
-int local_send_packet(FAR struct file *filep, FAR const uint8_t *buf,
+int local_send_packet(FAR struct file *filep, FAR const struct iovec *buf,
                       size_t len);
 
 /****************************************************************************
- * Name: local_recvfrom
+ * Name: local_recvmsg
  *
  * Description:
- *   recvfrom() receives messages from a local socket, and may be used to
+ *   recvmsg() receives messages from a local socket and may be used to
  *   receive data on a socket whether or not it is connection-oriented.
  *
  *   If from is not NULL, and the underlying protocol provides the source
@@ -463,23 +416,19 @@ int local_send_packet(FAR struct file *filep, FAR const uint8_t *buf,
  *
  * Input Parameters:
  *   psock    A pointer to a NuttX-specific, internal socket structure
- *   buf      Buffer to receive data
- *   len      Length of buffer
+ *   msg      Buffer to receive the message
  *   flags    Receive flags (ignored for now)
- *   from     Address of source (may be NULL)
- *   fromlen  The length of the address structure
  *
  * Returned Value:
- *   On success, returns the number of characters sent.  If no data is
+ *   On success, returns the number of characters received. If no data is
  *   available to be received and the peer has performed an orderly shutdown,
- *   recv() will return 0.  Otherwise, on errors, -1 is returned, and errno
- *   is set appropriately (see receivefrom for the complete list).
+ *   recvmsg() will return 0.  Otherwise, on errors, a negated errno value is
+ *   returned (see recvmsg() for the list of appropriate error values).
  *
  ****************************************************************************/
 
-ssize_t local_recvfrom(FAR struct socket *psock, FAR void *buf,
-                       size_t len, int flags, FAR struct sockaddr *from,
-                       FAR socklen_t *fromlen);
+ssize_t local_recvmsg(FAR struct socket *psock, FAR struct msghdr *msg,
+                      int flags);
 
 /****************************************************************************
  * Name: local_fifo_read
@@ -512,7 +461,7 @@ int local_fifo_read(FAR struct file *filep, FAR uint8_t *buf, size_t *len);
  * Input Parameters:
  *   conn - The connection
  *   addr - The location to return the address
- *   addrlen - The size of the memory allocat by the caller to receive the
+ *   addrlen - The size of the memory allocate by the caller to receive the
  *             address.
  *
  * Returned Value:

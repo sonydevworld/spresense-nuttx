@@ -72,6 +72,8 @@
 #endif
 
 #define SGP30_I2C_RETRIES 3
+#define SGP30_INIT_RETRIES 5
+#define SGP30_INIT_LIMIT_MS 10
 
 /****************************************************************************
  * Private
@@ -106,15 +108,18 @@ struct sgp30_cmd_s
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
 /* IO Helpers */
 
 static int sgp30_do_transfer(FAR struct i2c_master_s *i2c,
                              FAR struct i2c_msg_s *msgv,
                              size_t nmsg);
-static int sgp30_write_cmd(FAR struct sgp30_dev_s *priv, struct sgp30_cmd_s cmd,
+static int sgp30_write_cmd(FAR struct sgp30_dev_s *priv,
+                           struct sgp30_cmd_s cmd,
                            FAR struct sgp30_word_s *params,
                            unsigned int num_params);
-static int sgp30_read_cmd(FAR struct sgp30_dev_s *priv, struct sgp30_cmd_s cmd,
+static int sgp30_read_cmd(FAR struct sgp30_dev_s *priv,
+                          struct sgp30_cmd_s cmd,
                           FAR struct sgp30_word_s *words,
                           unsigned int num_words);
 
@@ -125,7 +130,8 @@ static void sgp30_set_command_param(FAR struct sgp30_word_s *param,
                                     uint16_t value);
 static int sgp30_check_data_crc(FAR const struct sgp30_word_s *words,
                                 unsigned int num_words);
-static uint16_t sgp30_data_word_to_uint16(FAR const struct sgp30_word_s *word);
+static uint16_t sgp30_data_word_to_uint16(
+                                FAR const struct sgp30_word_s *word);
 
 /* Driver features */
 
@@ -245,6 +251,7 @@ static int sgp30_do_transfer(FAR struct i2c_master_s *i2c,
       else
         {
           /* Some error. Try to reset I2C bus and keep trying. */
+
 #ifdef CONFIG_I2C_RESET
           if (retries == SGP30_I2C_RETRIES - 1)
             {
@@ -269,7 +276,8 @@ static int sgp30_do_transfer(FAR struct i2c_master_s *i2c,
  * Name: sgp30_write_cmd
  ****************************************************************************/
 
-static int sgp30_write_cmd(FAR struct sgp30_dev_s *priv, struct sgp30_cmd_s cmd,
+static int sgp30_write_cmd(FAR struct sgp30_dev_s *priv,
+                           struct sgp30_cmd_s cmd,
                            FAR struct sgp30_word_s *params,
                            unsigned int num_params)
 {
@@ -306,7 +314,8 @@ static int sgp30_write_cmd(FAR struct sgp30_dev_s *priv, struct sgp30_cmd_s cmd,
  * Name: sgp30_read_cmd
  ****************************************************************************/
 
-static int sgp30_read_cmd(FAR struct sgp30_dev_s *priv, struct sgp30_cmd_s cmd,
+static int sgp30_read_cmd(FAR struct sgp30_dev_s *priv,
+                          struct sgp30_cmd_s cmd,
                           FAR struct sgp30_word_s *words,
                           unsigned int num_words)
 {
@@ -359,7 +368,8 @@ static uint8_t sgp30_crc_word(uint16_t word)
     0x00, 0x31, 0x62, 0x53, 0xc4, 0xf5, 0xa6, 0x97,
     0xb9, 0x88, 0xdb, 0xea, 0x7d, 0x4c, 0x1f, 0x2e
   };
-  uint8_t crc = 0xFF;
+
+  uint8_t crc = 0xff;
 
   crc ^= word >> 8;
   crc = (crc << 4) ^ crc_table[crc >> 4];
@@ -369,6 +379,29 @@ static uint8_t sgp30_crc_word(uint16_t word)
   crc = (crc << 4) ^ crc_table[crc >> 4];
 
   return crc;
+}
+
+/****************************************************************************
+ * Name: sgp30_soft_reset
+ ****************************************************************************/
+
+static int sgp30_soft_reset(FAR struct sgp30_dev_s *priv)
+{
+  struct i2c_msg_s msg[1];
+  uint8_t buf[1];
+  int ret = 0;
+
+  buf[0] = CONFIG_SGP30_RESET_SECOND_BYTE;
+
+  msg[0].frequency = CONFIG_SGP30_I2C_FREQUENCY;
+  msg[0].addr = CONFIG_SGP30_RESET_ADDR;
+  msg[0].flags = 0;
+  msg[0].buffer = buf;
+  msg[0].length = 1;
+
+  ret = sgp30_do_transfer(priv->i2c, msg, 1);
+
+  return (ret >= 0) ? OK : ret;
 }
 
 /****************************************************************************
@@ -387,7 +420,8 @@ static void sgp30_set_command_param(FAR struct sgp30_word_s *param,
  * Name: sgp30_data_word_to_uint16
  ****************************************************************************/
 
-static uint16_t sgp30_data_word_to_uint16(FAR const struct sgp30_word_s *word)
+static uint16_t sgp30_data_word_to_uint16(
+    FAR const struct sgp30_word_s *word)
 {
   return (word[0].data[0] << 8) | (word[0].data[1]);
 }
@@ -421,16 +455,39 @@ static int sgp30_check_data_crc(FAR const struct sgp30_word_s *words,
  *
  ****************************************************************************/
 
-static bool has_time_passed(struct timespec curr,
-                            struct timespec start,
+static bool has_time_passed(FAR struct timespec *curr,
+                            FAR struct timespec *start,
                             unsigned int secs_since_start)
 {
-  if ((long)((start.tv_sec + secs_since_start) - curr.tv_sec) == 0)
+  if ((long)((start->tv_sec + secs_since_start) - curr->tv_sec) == 0)
     {
-      return start.tv_nsec <= curr.tv_nsec;
+      return start->tv_nsec <= curr->tv_nsec;
     }
 
-  return (long)((start.tv_sec + secs_since_start) - curr.tv_sec) <= 0;
+  return (long)((start->tv_sec + secs_since_start) - curr->tv_sec) <= 0;
+}
+
+/****************************************************************************
+ * Name: time_has_passed_ms
+ *
+ * Description:
+ *   Return true if curr >= start + msecs_since_start
+ *
+ ****************************************************************************/
+
+static bool time_has_passed_ms(FAR struct timespec *curr,
+                               FAR struct timespec *start,
+                               unsigned int msecs_since_start)
+{
+  uint32_t start_msec = start->tv_nsec / (1000 * 1000);
+  uint32_t curr_msec = curr->tv_nsec / (1000 * 1000);
+
+  if (start->tv_sec < curr->tv_sec)
+    {
+      curr_msec += 1000 * ((long)(curr->tv_sec - start->tv_sec));
+    }
+
+  return (start_msec + msecs_since_start) <= curr_msec;
 }
 
 /****************************************************************************
@@ -516,7 +573,11 @@ static int sgp30_open(FAR struct file *filep)
 
   /* Get exclusive access */
 
-  nxsem_wait_uninterruptible(&priv->devsem);
+  ret = nxsem_wait_uninterruptible(&priv->devsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Increment the count of open references on the driver */
 
@@ -530,9 +591,12 @@ static int sgp30_open(FAR struct file *filep)
 
       if (sgp30_read_cmd(priv, SGP30_CMD_GET_SERIAL_ID, serial, 3) >= 0
           && sgp30_check_data_crc(serial, 3) >= 0 &&
-          sgp30_read_cmd(priv, SGP30_CMD_GET_FEATURE_SET_VERSION, buf, 1) >= 0
+          sgp30_read_cmd(priv,
+                         SGP30_CMD_GET_FEATURE_SET_VERSION, buf, 1) >= 0
           && sgp30_check_data_crc(buf, 1) >= 0)
         {
+          struct timespec start;
+          struct timespec curr;
           sgp30_dbg("serial id: %04x-%04x-%04x\n",
                     sgp30_data_word_to_uint16(serial + 0),
                     sgp30_data_word_to_uint16(serial + 1),
@@ -543,10 +607,51 @@ static int sgp30_open(FAR struct file *filep)
           add_sensor_randomness((buf[0].crc << 24) ^ (serial[0].crc << 16) ^
                                 (serial[1].crc << 8) ^ (serial[2].crc << 0));
 
+          clock_gettime(CLOCK_REALTIME, &start);
           ret = sgp30_write_cmd(priv, SGP30_CMD_INIT_AIR_QUALITY, NULL, 0);
           if (ret < 0)
             {
-              sgp30_dbg("sgp30_write_cmd(SGP30_CMD_INIT_AIR_QUALITY) failed, %d\n", ret);
+              sgp30_dbg("sgp30_write_cmd(SGP30_CMD_INIT_AIR_QUALITY)"
+                         " failed, %d\n", ret);
+            }
+          else
+            {
+              uint32_t repeat = SGP30_INIT_RETRIES;
+              clock_gettime(CLOCK_REALTIME, &curr);
+              sgp30_dbg("sgp30_write_cmd(SGP30_CMD_INIT_AIR_QUALITY)\n");
+              while (repeat-- &&
+                     time_has_passed_ms(&curr, &start, SGP30_INIT_LIMIT_MS))
+                {
+                  /* Infrequently the SGP30_CMD_INIT_AIR_QUALITY message
+                   * delivery takes suspiciously long time
+                   * (SGP30_INIT_LIMIT_MS or more) and in these cases the
+                   * TVOC values will never reach the correct level (not
+                   * even after 24 hours).
+                   * If this delay is detected, the sensor is given a
+                   * "General Call" soft reset as described in the SGP30
+                   * datasheet and initialization is tried again after
+                   * CONFIG_SGP30_RESET_DELAY_US.
+                   */
+
+                  ret = sgp30_soft_reset(priv);
+                  if (ret < 0)
+                    {
+                      sgp30_dbg("sgp30_soft_reset failed, %d\n", ret);
+                      return ret;
+                    }
+
+                  nxsig_usleep(CONFIG_SGP30_RESET_DELAY_US);
+
+                  clock_gettime(CLOCK_REALTIME, &start);
+                  ret = sgp30_write_cmd(priv, SGP30_CMD_INIT_AIR_QUALITY,
+                                        NULL, 0);
+                  clock_gettime(CLOCK_REALTIME, &curr);
+                  if (ret < 0)
+                    {
+                      sgp30_dbg("sgp30_write_cmd(SGP30_CMD_INIT_AIR_QUALITY)"
+                                 " failed, %d\n", ret);
+                    }
+                }
             }
         }
       else
@@ -579,10 +684,15 @@ static int sgp30_close(FAR struct file *filep)
 {
   FAR struct inode       *inode = filep->f_inode;
   FAR struct sgp30_dev_s *priv  = inode->i_private;
+  int ret;
 
   /* Get exclusive access */
 
-  nxsem_wait_uninterruptible(&priv->devsem);
+  ret = nxsem_wait_uninterruptible(&priv->devsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Decrement the count of open references on the driver */
 
@@ -615,13 +725,18 @@ static ssize_t sgp30_read(FAR struct file *filep, FAR char *buffer,
   FAR struct inode *inode = filep->f_inode;
   FAR struct sgp30_dev_s *priv = inode->i_private;
   ssize_t length = 0;
-  struct timespec ts, ts_sleep;
+  struct timespec ts;
+  struct timespec ts_sleep;
   struct sgp30_conv_data_s data;
   int ret;
 
   /* Get exclusive access */
 
-  nxsem_wait_uninterruptible(&priv->devsem);
+  ret = nxsem_wait_uninterruptible(&priv->devsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   if (priv->unlinked)
@@ -641,7 +756,7 @@ static ssize_t sgp30_read(FAR struct file *filep, FAR char *buffer,
 
   clock_gettime(CLOCK_REALTIME, &ts);
 
-  while (!has_time_passed(ts, priv->last_update, 1))
+  while (!has_time_passed(&ts, &priv->last_update, 1))
     {
       if (filep->f_oflags & O_NONBLOCK)
         {
@@ -716,7 +831,11 @@ static int sgp30_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   /* Get exclusive access */
 
-  nxsem_wait_uninterruptible(&priv->devsem);
+  ret = nxsem_wait_uninterruptible(&priv->devsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   if (priv->unlinked)
@@ -852,7 +971,7 @@ static int sgp30_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
                   sgp30_dbg("crc error\n");
                   ret = -EIO;
                 }
-              else if (sgp30_data_word_to_uint16(buf) != 0xD400)
+              else if (sgp30_data_word_to_uint16(buf) != 0xd400)
                 {
                   sgp30_dbg("self-test failed, 0x%04x\n",
                             sgp30_data_word_to_uint16(buf));
@@ -880,13 +999,18 @@ static int sgp30_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 static int sgp30_unlink(FAR struct inode *inode)
 {
   FAR struct sgp30_dev_s *priv;
+  int ret;
 
   DEBUGASSERT(inode != NULL && inode->i_private != NULL);
   priv = (FAR struct sgp30_dev_s *)inode->i_private;
 
   /* Get exclusive access */
 
-  nxsem_wait_uninterruptible(&priv->devsem);
+  ret = nxsem_wait_uninterruptible(&priv->devsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Are there open references to the driver data structure? */
 
@@ -937,7 +1061,7 @@ int sgp30_register(FAR const char *devpath, FAR struct i2c_master_s *i2c,
 
   DEBUGASSERT(i2c != NULL);
   DEBUGASSERT(addr == CONFIG_SGP30_ADDR);
-  DEBUGASSERT(sgp30_crc_word(0xBEEF) == 0x92);
+  DEBUGASSERT(sgp30_crc_word(0xbeef) == 0x92);
 
   /* Initialize the device structure */
 

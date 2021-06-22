@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/stm32h7/stm32_allocateheap.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -38,8 +23,10 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/compiler.h>
 
 #include <sys/types.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
@@ -54,39 +41,63 @@
 #include <arch/board/board.h>
 
 #include "mpu.h"
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "hardware/stm32_memorymap.h"
 #include "stm32_mpuinit.h"
 #include "stm32_dtcm.h"
+#include "stm32_fmc.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Internal SRAM is available in all members of the STM32 family. The
- * following definitions must be provided to specify the size and
- * location of internal(system) SRAM:
+/* At startup the kernel will invoke arm_addregion() so that platform code
+ * may register available memories for use as part of system heap.
+ * The global configuration option CONFIG_MM_REGIONS defines the maximal
+ * number of non-contiguous memory ranges that may be registered with the
+ * system heap. You must make sure it is large enough to hold all memory
+ * regions you intend to use.
  *
- * In addition to internal SRAM, external RAM may also be available through
- * the FMC.  In order to use FMC RAM, the following additional things need
- * to be present in the NuttX configuration file:
+ * The following memory types can be used for heap on STM32H7 platform:
  *
- * CONFIG_STM32H7_FMC=y         : Enables the FMC
- * CONFIG_STM32H7_FMC_S[D]RAM=y : SRAM and/or SDRAM is available via the FMC.
- *                                Either of these autoselects
- *                                CONFIG_ARCH_HAVE_HEAP2 which is what we
- *                                are interested in here.
- * CONFIG_HEAP2_BASE            : The base address of the external RAM in
- *                                the FMC address space
- * CONFIG_HEAP2_SIZE            : The size of the external RAM in the FMC
- *                                address space
- * CONFIG_MM_REGIONS            : Must be set to a large enough value to
- *                                include the FMC external RAM (as determined
- *                                by the rules provided below)
+ * - AXI SRAM is a 512kb memory area. This will be automatically registered
+ *      with the system heap in up_allocate_heap, all the other memory
+ *      regions will be registered in arm_addregion().
+ *      So, CONFIG_MM_REGIONS must be at least 1 to use AXI SRAM.
  *
- *  CONFIG_STM32H7_DTCMEXCLUDE  : Set to exclude the DTCM from heap
+ * - Internal SRAM is available in all members of the STM32 family.
+ *      This is always registered with system heap.
+ *      There are two contiguous regions of internal SRAM:
+ *      SRAM1+SRAM2+SRAM3 and SRAM4 at a separate address.
+ *      So, add 2 more to CONFIG_MM_REGIONS.
+ *
+ * - Tightly Coupled Memory (TCM RAM), we can use Data TCM (DTCM) for system
+ *      heap. Note that DTCM has a number of limitations, for example DMA
+ *      transfers to/from DTCM are limited.
+ *      Define CONFIG_STM32H7_DTCMEXCLUDE to exclude the DTCM from heap.
+ *      +1 to CONFIG_MM_REGIONS if you want to use DTCM.
+ *
+ * - External SDRAM can be connected to the FMC peripherial. Initialization
+ *      of FMC is done as arm_addregion() will invoke stm32_fmc_init().
+ *      Please read the comment in stm32_fmc.c how to initialize FMC
+ *      correctly.
+ *
+ *      Then, up to two regions of SDRAM may be registered with the heap:
+ *
+ *      - BOARD_SDRAM1_SIZE, if defined, declares the size of SDRAM
+ *              at address STM32_FMC_BANK5. +1 to CONFIG_MM_REGIONS.
+ *      - BOARD_SDRAM2_SIZE, if defined, declares the size of SDRAM
+ *              at address STM32_FMC_BANK6. +1 to CONFIG_MM_REGIONS.
+ *
+ * - Additionaly, you may use the following options to add one more region
+ *      of memory to system heap:
+ *
+ *      - CONFIG_ARCH_HAVE_HEAP2=y
+ *      - CONFIG_HEAP2_BASE=base address of memory area.
+ *      - CONFIG_HEAP2_SIZE=size of memory area.
+ *      - +1 to CONFIG_MM_REGIONS
  */
 
 /* Set the start and end of the SRAMs */
@@ -97,8 +108,15 @@
 #define SRAM123_START STM32_SRAM123_BASE
 #define SRAM123_END   (SRAM123_START + STM32H7_SRAM123_SIZE)
 
-#define SRAM4_START  STM32_SRAM4_BASE
-#define SRAM4_END    (SRAM4_START + STM32H7_SRAM4_SIZE)
+#undef HAVE_SRAM4
+#if !defined(CONFIG_STM32H7_SRAM4EXCLUDE)
+#  define HAVE_SRAM4 1
+
+#  define SRAM4_START ((uint32_t)(STM32_SRAM4_BASE))
+#  define SRAM4_END   ((uint32_t)(SRAM4_START + STM32H7_SRAM4_SIZE))
+
+#  define SRAM4_HEAP_START ((uint32_t)(&_sram4_heap_start))
+#endif
 
 /* The STM32 H7 has DTCM memory */
 
@@ -114,27 +132,13 @@
 #  undef HAVE_DTCM
 #endif
 
-/* There are <x> possible heap configurations:
- *
- * Configuration 1. System SRAM (only)
- *                  CONFIG_MM_REGIONS == 1
- * Configuration 2. System SRAM and SRAM123
- *                  CONFIG_MM_REGIONS == 2
- * Configuration 3. System SRAM and SRAM123 and DTCM
- *                  CONFIG_MM_REGIONS == 3
- *                  HAVE_DTCM defined
- * Configuration 4. System SRAM and SRAM123 and DTCM and SRAM4
- *                  CONFIG_MM_REGIONS == 4
- *                  HAVE_DTCM defined
- * Configuration 5. System SRAM and SRAM123 and DTCM and SRAM4 and FMC RAM
- *                  CONFIG_MM_REGIONS == 5
- *                  HAVE_DTCM defined
- *
- * TODO ....
- *
- * Let's make sure that all definitions are consistent before doing
- * anything else
- */
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+#ifdef HAVE_SRAM4
+extern const uint32_t _sram4_heap_start;
+#endif
 
 /****************************************************************************
  * Private Functions
@@ -204,11 +208,12 @@ void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
    * of CONFIG_MM_KERNEL_HEAPSIZE (subject to alignment).
    */
 
-  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_MM_KERNEL_HEAPSIZE;
-  size_t    usize = SRAM123_END - ubase;
+  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend +
+    CONFIG_MM_KERNEL_HEAPSIZE;
+  size_t    usize = SRAM_END - ubase;
   int       log2;
 
-  DEBUGASSERT(ubase < (uintptr_t)SRAM123_END);
+  DEBUGASSERT(ubase < (uintptr_t)SRAM_END);
 
   /* Adjust that size to account for MPU alignment requirements.
    * NOTE that there is an implicit assumption that the SRAM123_END
@@ -216,7 +221,7 @@ void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
    */
 
   log2  = (int)mpu_log2regionfloor(usize);
-  DEBUGASSERT((SRAM123_END & ((1 << log2) - 1)) == 0);
+  DEBUGASSERT((SRAM_END & ((1 << log2) - 1)) == 0);
 
   usize = (1 << log2);
   ubase = SRAM123_END - usize;
@@ -246,6 +251,10 @@ void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
 
   up_heap_color(*heap_start, *heap_size);
 #endif
+
+  /* Display memory ranges to help debugging */
+
+  minfo("%uKb of SRAM at %p\n", *heap_size / 1024, *heap_start);
 }
 
 /****************************************************************************
@@ -266,11 +275,12 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
    * of CONFIG_MM_KERNEL_HEAPSIZE (subject to alignment).
    */
 
-  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_MM_KERNEL_HEAPSIZE;
-  size_t    usize = SRAM123_END - ubase;
+  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend +
+    CONFIG_MM_KERNEL_HEAPSIZE;
+  size_t    usize = SRAM_END - ubase;
   int       log2;
 
-  DEBUGASSERT(ubase < (uintptr_t)SRAM123_END);
+  DEBUGASSERT(ubase < (uintptr_t)SRAM_END);
 
   /* Adjust that size to account for MPU alignment requirements.
    * NOTE that there is an implicit assumption that the SRAM123_END
@@ -278,10 +288,10 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
    */
 
   log2  = (int)mpu_log2regionfloor(usize);
-  DEBUGASSERT((SRAM123_END & ((1 << log2) - 1)) == 0);
+  DEBUGASSERT((SRAM_END & ((1 << log2) - 1)) == 0);
 
   usize = (1 << log2);
-  ubase = SRAM123_END - usize;
+  ubase = SRAM_END - usize;
 
   /* Return the kernel heap settings (i.e., the part of the heap region
    * that was not dedicated to the user heap).
@@ -292,8 +302,41 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
 }
 #endif
 
+#if (CONFIG_MM_REGIONS > 1)
 /****************************************************************************
- * Name: up_addregion
+ * Name: addregion
+ *
+ * Description:
+ *   Make a range of memory available for allocation from system heap.
+ *   If debug is disabled, compiler should optimize out the "desc" strings.
+ *
+ ****************************************************************************/
+
+static void addregion (uintptr_t start, uint32_t size, const char *desc)
+{
+  /* Display memory ranges to help debugging */
+
+  minfo("%" PRIu32 "Kb of %s at %p\n", size / 1024, desc, (FAR void *)start);
+
+#if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
+
+  /* Allow user-mode access to the SRAM123 heap */
+
+  stm32_mpu_uheap(start, size);
+
+#endif
+
+  /* Colorize the heap for debug */
+
+  up_heap_color((FAR void *)start, size);
+
+  /* Add the SRAM123 user heap region. */
+
+  kumm_addregion((FAR void *)start, size);
+}
+
+/****************************************************************************
+ * Name: arm_addregion
  *
  * Description:
  *   Memory may be added in non-contiguous chunks.  Additional chunks are
@@ -301,81 +344,60 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
  *
  ****************************************************************************/
 
-#if CONFIG_MM_REGIONS > 1
-void up_addregion(void)
+void arm_addregion(void)
 {
-#  if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
+  /* At this point there is already one region allocated for "kernel" heap */
 
-  /* Allow user-mode access to the SRAM123 heap */
+  unsigned mm_regions = 1;
 
-  stm32_mpu_uheap((uintptr_t)SRAM123_START, SRAM123_END - SRAM123_START);
+  if (mm_regions < CONFIG_MM_REGIONS)
+    {
+      addregion (SRAM123_START, SRAM123_END - SRAM123_START, "SRAM1,2,3");
+      mm_regions++;
+    }
 
-#  endif
+#ifdef HAVE_SRAM4
+  if (mm_regions < CONFIG_MM_REGIONS)
+    {
+      addregion (SRAM4_HEAP_START, SRAM4_END - SRAM4_HEAP_START, "SRAM4");
+      mm_regions++;
+    }
+#endif
 
-  /* Colorize the heap for debug */
+#ifdef HAVE_DTCM
+  if (mm_regions < CONFIG_MM_REGIONS)
+    {
+      addregion (DTCM_START, DTCM_END - DTCM_START, "DTCM");
+      mm_regions++;
+    }
+#endif
 
-  up_heap_color((FAR void *)SRAM123_START, SRAM123_END - SRAM123_START);
+#ifdef CONFIG_STM32H7_FMC
+  stm32_fmc_init();
+#endif
 
-  /* Add the SRAM123 user heap region. */
+#ifdef BOARD_SDRAM1_SIZE
+  if (mm_regions < CONFIG_MM_REGIONS)
+    {
+      addregion (STM32_FMC_BANK5, BOARD_SDRAM1_SIZE, "SDRAM1");
+      mm_regions++;
+    }
+#endif
 
-  kumm_addregion((FAR void *)SRAM123_START, SRAM123_END - SRAM123_START);
+#ifdef BOARD_SDRAM2_SIZE
+  if (mm_regions < CONFIG_MM_REGIONS)
+    {
+      addregion (STM32_FMC_BANK6, BOARD_SDRAM2_SIZE, "SDRAM2");
+      mm_regions++;
+    }
+#endif
 
-#  if CONFIG_MM_REGIONS > 2
-#    if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
-
-  /* Allow user-mode access to the SRAM4 user heap memory */
-
-  stm32_mpu_uheap((uintptr_t)SRAM4_START, SRAM4_END - SRAM4_START);
-
-#    endif
-
-  /* Colorize the heap for debug */
-
-  up_heap_color((FAR void *)SRAM4_START, SRAM4_END - SRAM4_START);
-
-  /* Add the external SRAM4 user heap region. */
-
-  kumm_addregion((FAR void *)SRAM4_START, SRAM4_END - SRAM4_START);
-#  endif
-
-#  if CONFIG_MM_REGIONS > 3
-#    ifdef HAVE_DTCM
-#      if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
-
-  /* Allow user-mode access to the DTCM heap */
-
-  stm32_mpu_uheap((uintptr_t)DTCM_START, DTCM_END - DTCM_START);
-
-#      endif
-
-  /* Colorize the heap for debug */
-
-  up_heap_color((FAR void *)DTCM_START, DTCM_END - DTCM_START);
-
-  /* Add the DTCM user heap region. */
-
-  kumm_addregion((FAR void *)DTCM_START, DTCM_END - DTCM_START);
-#    endif
-#  endif
-
-#  if CONFIG_MM_REGIONS > 4
-#    ifdef CONFIG_ARCH_HAVE_HEAP2
-#      if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
-
-  /* Allow user-mode access to the FMC RAM user heap memory */
-
-  stm32_mpu_uheap((uintptr_t)CONFIG_HEAP2_BASE, CONFIG_HEAP2_SIZE);
-
-#      endif
-
-  /* Colorize the heap for debug */
-
-  up_heap_color((FAR void *)CONFIG_HEAP2_BASE, CONFIG_HEAP2_SIZE);
-
-  /* Add the external FMC RAM user heap region. */
-
-  kumm_addregion((FAR void *)CONFIG_HEAP2_BASE, CONFIG_HEAP2_SIZE);
-#    endif
-#  endif
+#ifdef CONFIG_ARCH_HAVE_HEAP2
+  if (mm_regions < CONFIG_MM_REGIONS)
+    {
+      addregion (CONFIG_HEAP2_BASE, CONFIG_HEAP2_SIZE, "HEAP2");
+      mm_regions++;
+    }
+#endif
 }
 #endif

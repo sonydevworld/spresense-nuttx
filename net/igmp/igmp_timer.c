@@ -19,21 +19,21 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of CITEL Technologies Ltd nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 3. Neither the name of CITEL Technologies Ltd nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY CITEL TECHNOLOGIES AND CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL CITEL TECHNOLOGIES OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * ARE DISCLAIMED.  IN NO EVENT SHALL CITEL TECHNOLOGIES OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
 
@@ -73,22 +73,12 @@
 #  undef IGMP_GTMRDEBUG
 #endif
 
-#ifdef CONFIG_CPP_HAVE_VARARGS
-#  ifdef IGMP_GTMRDEBUG
-#    define gtmrerr(format, ...)    nerr(format, ##__VA_ARGS__)
-#    define gtmrinfo(format, ...)   ninfo(format, ##__VA_ARGS__)
-#  else
-#    define gtmrerr(x...)
-#    define gtmrinfo(x...)
-#  endif
+#ifdef IGMP_GTMRDEBUG
+#  define gtmrerr    nerr
+#  define gtmrinfo   ninfo
 #else
-#  ifdef IGMP_GTMRDEBUG
-#    define gtmrerr    nerr
-#    define gtmrinfo   ninfo
-#  else
-#    define gtmrerr    (void)
-#    define gtmrinfo   (void)
-#  endif
+#  define gtmrerr    _none
+#  define gtmrinfo   _none
 #endif
 
 /****************************************************************************
@@ -117,9 +107,9 @@ static void igmp_timeout_work(FAR void *arg)
   DEBUGASSERT(group != NULL);
 
   /* If the group exists and is no an IDLE MEMBER, then it must be a DELAYING
-   * member.  Race conditions are avoided because (1) the timer is not started
+   * member. Race conditions are avoided because (1) the timer is not started
    * until after the first IGMPv2_MEMBERSHIP_REPORT during the join, and (2)
-   * the timer is cancelled before sending the IGMP_LEAVE_GROUP during a leave.
+   * the timer is cancelled before sending the IGMP_LEAVE_GROUP during leave.
    */
 
   net_lock();
@@ -137,7 +127,7 @@ static void igmp_timeout_work(FAR void *arg)
           nerr("ERROR: Failed to schedule message: %d\n", ret);
         }
 
-      /* Also note:  The Membership Report is sent at most two times becasue
+      /* Also note:  The Membership Report is sent at most two times because
        * the timer is not reset here.  Hmm.. does this mean that the group
        * is stranded if both reports were lost?  This is consistent with the
        * RFC that states: "To cover the possibility of the initial Membership
@@ -161,7 +151,7 @@ static void igmp_timeout_work(FAR void *arg)
  *
  ****************************************************************************/
 
-static void igmp_timeout(int argc, uint32_t arg, ...)
+static void igmp_timeout(wdparm_t arg)
 {
   FAR struct igmp_group_s *group;
   int ret;
@@ -171,7 +161,7 @@ static void igmp_timeout(int argc, uint32_t arg, ...)
   /* Recover the reference to the group */
 
   group = (FAR struct igmp_group_s *)arg;
-  DEBUGASSERT(argc == 1 && group != NULL);
+  DEBUGASSERT(group != NULL);
 
   /* Perform the timeout-related operations on (preferably) the low priority
    * work queue.
@@ -207,7 +197,7 @@ void igmp_startticks(FAR struct igmp_group_s *group, unsigned int ticks)
 
   gtmrinfo("ticks: %d\n", ticks);
 
-  ret = wd_start(group->wdog, ticks, igmp_timeout, 1, (uint32_t)group);
+  ret = wd_start(&group->wdog, ticks, igmp_timeout, (wdparm_t)group);
 
   DEBUGASSERT(ret == OK);
   UNUSED(ret);
@@ -252,7 +242,7 @@ bool igmp_cmptimer(FAR struct igmp_group_s *group, int maxticks)
    * the watchdog was never started.
    */
 
-  remaining = wd_gettime(group->wdog);
+  remaining = wd_gettime(&group->wdog);
 
   /* A remaining time of zero means that the watchdog was never started
    * or has already expired.  That case should be covered in the following
@@ -264,7 +254,7 @@ bool igmp_cmptimer(FAR struct igmp_group_s *group, int maxticks)
     {
       /* Cancel the watchdog timer and return true */
 
-      wd_cancel(group->wdog);
+      wd_cancel(&group->wdog);
       leave_critical_section(flags);
       return true;
     }

@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/armv7-r/arm_head.S
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,14 +28,11 @@
 #include "cp15.h"
 #include "sctlr.h"
 
-#include "up_internal.h"
-#include "up_arch.h"
+	.file	"arm_head.S"
 
-#include <arch/board/board.h>
-
-/**********************************************************************************
+/****************************************************************************
  * Configuration
- **********************************************************************************/
+ ****************************************************************************/
 
 /* Hard-coded options */
 
@@ -79,14 +61,14 @@
  *    the boot logic must:
  *
  *    - Configure SDRAM (if present),
- *    - Copy ourself to RAM, and
+ *    - Copy ourself to DRAM, and
  *    - Clear .bss section (data should be fully initialized)
  *
  *   In this case, we assume that the logic within this file executes from FLASH.
  *
- * 3. There is bootloader that copies us to SDRAM (CONFIG_BOOT_RUNFROMFLASH=n &&
- *    CONFIG_BOOT_COPYTORAM=n). In this case SDRAM was initialized by the boot
- *    loader, and this boot logic must:
+ * 3. There is bootloader that copies us to SDRAM (but probably not to the beginning)
+ *    (CONFIG_BOOT_RUNFROMFLASH=n && CONFIG_BOOT_COPYTORAM=n). In this case SDRAM
+ *    was initialized by the boot loader, and this boot logic must:
  *
  *    - Clear .bss section (data should be fully initialized)
  */
@@ -138,22 +120,8 @@
 	.global	arm_data_initialize	/* Perform C data initialization */
 	.global	g_idle_topstack		/* Top of the initial/IDLE stack */
 
-#ifdef CONFIG_ARCH_FPU
-	.cpu	cortex-r4f
-#else
-	.cpu	cortex-r4
-#endif
-	.syntax	unified
-	.file	"arm_head.S"
-
-/***************************************************************************
- * .text
- ***************************************************************************/
-
-	.text
-
 /****************************************************************************
- * OS Entry Point
+ * Name: __start
  ****************************************************************************/
 
 /* We assume the bootloader has already initialized most of the h/w for
@@ -161,9 +129,11 @@
  * below.
  */
 
+	.text
+	.global	__start
 	.type	__start, #function
-__start:
 
+__start:
 	/* Make sure that we are in SVC mode with IRQs and FIQs disabled */
 
 	mov		r0, #(PSR_MODE_SVC | PSR_I_BIT | PSR_F_BIT)
@@ -343,7 +313,7 @@ __start:
 	/* Then write the configured control register */
 
 	mcr		CP15_SCTLR(r0)			/* Write control reg */
-	.rept	12						/* Some CPUs want want lots of NOPs here */
+	.rept		12				/* Some CPUs want want lots of NOPs here */
 	nop
 	.endr
 
@@ -413,17 +383,17 @@ arm_data_initialize:
 	/* Zero BSS */
 
 	adr		r0, .Linitparms
-	ldmia	r0, {r0, r1}
+	ldmia		r0, {r0, r1}
 
-	mov     r2, #0
+	mov		r2, #0
 1:
 	cmp		r0, r1				/* Clear up to _bss_end_ */
-	strcc	r2, [r0], #4
+	strcc		r2, [r0], #4
 	bcc		1b
 
 #ifdef CONFIG_BOOT_RUNFROMFLASH
 	/* If the .data section is in a separate, uninitialized address space,
-	 * then we will also need to copy the initial values of of the .data
+	 * then we will also need to copy the initial values of the .data
 	 * section from the .text region into that .data region.  This would
 	 * be the case if we are executing from FLASH and the .data section
 	 * lies in a different physical address region OR if we are support
@@ -432,7 +402,7 @@ arm_data_initialize:
 	 */
 
 	adr		r3, .Ldatainit
-	ldmia	r3, {r0, r1, r2}
+	ldmia		r3, {r0, r1, r2}
 
 2:
 	ldr		r3, [r0], #4
@@ -449,7 +419,7 @@ arm_data_initialize:
 	 */
 
 	adr		r3, .Lfuncinit
-	ldmia	r3, {r0, r1, r2}
+	ldmia		r3, {r0, r1, r2}
 
 3:
 	ldr		r3, [r0], #4
@@ -466,8 +436,8 @@ arm_data_initialize:
 	 */
 
 	adr		r3, ..Lramfunc
-	ldmia	r3, {r0, r1}
-	ldr     r3, =up_clean_dcache
+	ldmia		r3, {r0, r1}
+	ldr		r3, =up_clean_dcache
 	b		r3
 #else
 	/* Otherwise return to the caller */
@@ -480,15 +450,19 @@ arm_data_initialize:
 	bx		lr
 #endif
 
-	/* .text Data:
+/***************************************************************************
+ * Text-section constants
+ ***************************************************************************/
+
+	/* Text-section constants:
 	 *
 	 *   _sbss is the start of the BSS region (see linker script)
-	 *   _ebss is the end of the BSS regsion (see linker script)
+	 *   _ebss is the end of the BSS region (see linker script)
 	 *
 	 * Typical Configuration:
-	 *   The idle task stack starts at the end of BSS and is of size
-	 *   CONFIG_IDLETHREAD_STACKSIZE.  The heap continues from there
-	 * until the end of memory.  See g_idle_topstack below.
+	 * The idle task stack usually starts at the end of BSS and is of size
+	 * CONFIG_IDLETHREAD_STACKSIZE.  The heap continues from there until the
+	 * end of memory.  See g_idle_topstack below.
 	 */
 
 	.type	.Linitparms, %object
@@ -515,7 +489,7 @@ arm_data_initialize:
 	.size	arm_data_initialize, . - arm_data_initialize
 
 /***************************************************************************
- * .rodata
+ * Data section variables
  ***************************************************************************/
 
 	/* This global variable is unsigned long g_idle_topstack and is
@@ -524,10 +498,12 @@ arm_data_initialize:
 	 */
 
 	.section	.rodata, "a"
-	.align		4
-	.type		g_idle_topstack, object
-g_idle_topstack:
-	.long		IDLE_STACK_TOP
-	.size		g_idle_topstack, .-g_idle_topstack
+	.align	4
+	.globl	g_idle_topstack
+	.type	g_idle_topstack, object
 
+g_idle_topstack:
+
+	.long	IDLE_STACK_TOP
+	.size	g_idle_topstack, .-g_idle_topstack
 	.end

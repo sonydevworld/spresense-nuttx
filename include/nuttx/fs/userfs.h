@@ -1,35 +1,20 @@
 /****************************************************************************
  * include/nuttx/fs/userfs.h
  *
- *   Copyright (C) 2017-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -60,7 +45,7 @@
  *    value that was provided when file system was created.
  * 3. The UserFs will receive system file system requests and forward them
  *    on the the MqUfsReqN to the user-space file system server
- *    (userfs_run()).  These requests may be accompanied by additional data in
+ *    (userfs_run()). These requests may be accompanied by additional data in
  *    an provided request buffer that was provided when the UserFS was
  *    created.  This buffer would hold, for example, the data to be
  *    written that would accompany a write request.
@@ -95,7 +80,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* UserFS IOCTLs are defined in included/nuttx/fs/ioctl.h.  There is only one:
+/* UserFS IOCTLs are defined in included/nuttx/fs/ioctl.h. There is only one:
  *
  * FIONUSERFS.  The is the IOCTL that is used with the dev/userfs factory to
  *   create a UserFS instance.
@@ -103,7 +88,7 @@
  *   Input:  This function receives an pointer to a read-only instance of
  *           struct userfs_config_s that contains information needed to
  *           configure the UserFS instance.
- *   Output: On success the UserFS nn instance is created.  nn is non-negative
+ *   Output: On success the UserFS nn instance is created. nn is non-negative
  *           and will be provided as the IOCTL return value on success.  On
  *           failure, ioctl() will return -1 with the errno variable set to
  *           indicate the cause of the failure.
@@ -524,7 +509,7 @@ struct userfs_destroy_request_s
 
 struct userfs_destroy_response_s
 {
-  uint8_t resp;              /* Must be USERFS_RESP_DESTROY */
+  uint8_t resp;             /* Must be USERFS_RESP_DESTROY */
   int ret;                  /* Result of the operation */
 };
 
@@ -553,7 +538,7 @@ extern "C"
  *   None
  *
  *  Returned Value:
- *    Zero (OK) is returned if the dev/userfs driver was intitialized and
+ *    Zero (OK) is returned if the dev/userfs driver was initialized and
  *    registered properly.  Otherwise, a negated errno value is returned
  *    to indicate the nature of the failure.
  *
@@ -569,7 +554,7 @@ int userfs_register(void);
  *   the UserFS file system and will not return until that file system has
  *   been unmounted.
  *
- *   userfs_run() implements the UserFS server.  It performs there operations:
+ *   userfs_run() implements the UserFS server. It performs there operations:
  *
  *   1. It configures and creates the UserFS file system and
  *   2. Mounts the user file system at the provide mount point path.

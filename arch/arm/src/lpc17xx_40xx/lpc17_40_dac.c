@@ -1,4 +1,4 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/lpc17xx_40xx/lpc17_40_dac.c
  *
  *   Copyright (C) 2011 Li Zhuoyi. All rights reserved.
@@ -36,7 +36,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Included Files
@@ -56,8 +56,8 @@
 #include <nuttx/arch.h>
 #include <nuttx/analog/dac.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "chip.h"
 
@@ -124,7 +124,7 @@ static void dac_reset(FAR struct dac_dev_s *dev)
   regval |= (SYSCON_PCLKSEL_CCLK8 << SYSCON_PCLKSEL0_DAC_SHIFT);
   putreg32(regval, LPC17_40_SYSCON_PCLKSEL0);
 
-  //putreg32(DAC_CTRL_DBLBUFEN, LPC17_40_DAC_CTRL); ?
+  /* putreg32(DAC_CTRL_DBLBUFEN, LPC17_40_DAC_CTRL); ? */
 
   lpc17_40_configgpio(GPIO_AOUT);
 
@@ -196,4 +196,3 @@ FAR struct dac_dev_s *lpc17_40_dacinitialize(void)
 }
 
 #endif /* CONFIG_LPC17_40_DAC */
-

@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/sim/src/sim/up_ajoystick.c
  *
- *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -50,8 +35,6 @@
 
 #include "up_internal.h"
 
-#ifdef CONFIG_AJOYSTICK
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -63,10 +46,12 @@
  * Private Function Prototypes
  ****************************************************************************/
 
-static ajoy_buttonset_t ajoy_supported(FAR const struct ajoy_lowerhalf_s *lower);
+static ajoy_buttonset_t ajoy_supported(
+  FAR const struct ajoy_lowerhalf_s *lower);
 static int ajoy_sample(FAR const struct ajoy_lowerhalf_s *lower,
                        FAR struct ajoy_sample_s *sample);
-static ajoy_buttonset_t ajoy_buttons(FAR const struct ajoy_lowerhalf_s *lower);
+static ajoy_buttonset_t ajoy_buttons(
+  FAR const struct ajoy_lowerhalf_s *lower);
 static void ajoy_enable(FAR const struct ajoy_lowerhalf_s *lower,
                          ajoy_buttonset_t press, ajoy_buttonset_t release,
                          ajoy_handler_t handler, FAR void *arg);
@@ -87,6 +72,7 @@ static const struct ajoy_lowerhalf_s g_ajoylower =
 
 /* Driver state data */
 
+static int g_eventloop;
 static bool g_ajoy_valid;                  /* True: Sample data is valid */
 static struct ajoy_sample_s g_ajoy_sample; /* Last sample data */
 static ajoy_buttonset_t g_ajoy_buttons;    /* Last buttons set */
@@ -108,7 +94,8 @@ static ajoy_buttonset_t g_ajoy_rset;       /* Set of releases waited for */
  *
  ****************************************************************************/
 
-static ajoy_buttonset_t ajoy_supported(FAR const struct ajoy_lowerhalf_s *lower)
+static ajoy_buttonset_t ajoy_supported(
+  FAR const struct ajoy_lowerhalf_s *lower)
 {
   return (ajoy_buttonset_t)AJOY_SUPPORTED;
 }
@@ -138,7 +125,8 @@ static int ajoy_sample(FAR const struct ajoy_lowerhalf_s *lower,
  *
  ****************************************************************************/
 
-static ajoy_buttonset_t ajoy_buttons(FAR const struct ajoy_lowerhalf_s *lower)
+static ajoy_buttonset_t ajoy_buttons(
+  FAR const struct ajoy_lowerhalf_s *lower)
 {
   g_ajoy_valid   = false;
   g_ajoy_buttons = g_ajoy_sample.as_buttons;
@@ -198,11 +186,16 @@ int sim_ajoy_initialize(void)
  * Name: up_buttonevent
  ****************************************************************************/
 
-int up_buttonevent(int x, int y, int buttons)
+void up_buttonevent(int x, int y, int buttons)
 {
   ajoy_buttonset_t changed;
   ajoy_buttonset_t pressed;
   ajoy_buttonset_t released;
+
+  if (g_eventloop == 0)
+    {
+      return;
+    }
 
   /* Same the positional data */
 
@@ -237,21 +230,17 @@ int up_buttonevent(int x, int y, int buttons)
     {
       /* Check button presses */
 
-       changed  = g_ajoy_buttons ^ g_ajoy_sample.as_buttons;
-       if (changed != 0)
-         {
-           pressed  = changed & (AJOY_SUPPORTED & g_ajoy_pset);
-           released = changed & (AJOY_SUPPORTED & ~g_ajoy_rset);
-           if ((pressed & g_ajoy_pset) != 0 || (released & g_ajoy_rset) != 0)
-             {
-               /* Call the interrupt handler */
+      changed  = g_ajoy_buttons ^ g_ajoy_sample.as_buttons;
+      if (changed != 0)
+        {
+          pressed  = changed & (AJOY_SUPPORTED & g_ajoy_pset);
+          released = changed & (AJOY_SUPPORTED & ~g_ajoy_rset);
+          if ((pressed & g_ajoy_pset) != 0 || (released & g_ajoy_rset) != 0)
+            {
+              /* Call the interrupt handler */
 
-               g_ajoy_handler(&g_ajoylower, g_ajoy_arg);
-             }
-         }
+              g_ajoy_handler(&g_ajoylower, g_ajoy_arg);
+            }
+        }
     }
-
-  return OK;
 }
-
-#endif /* CONFIG_AJOYSTICK */

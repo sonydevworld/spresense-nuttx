@@ -69,6 +69,23 @@ extern "C"
 #define EXTERN extern
 #endif
 
+/****************************************************************************
+ * Name: sam_adcinitialize
+ *
+ * Description:
+ *   Initialize the ADC. See sam_adc.c for more details.
+ *
+ * Input Parameters:
+ *   genclk      - Number of the Clock Generator to use.
+ *
+ * Returned Value:
+ *   Valid ADC device structure reference on success; a NULL on failure
+ *
+ ****************************************************************************/
+
+struct adc_dev_s;
+struct adc_dev_s *sam_adcinitialize(int genclk);
+
 #undef EXTERN
 #if defined(__cplusplus)
 }

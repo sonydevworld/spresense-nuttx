@@ -1,37 +1,22 @@
 /****************************************************************************
  * arch/renesas/include/rx65n/irq.h
  *
- *   Copyright (C) 2008-2019 Gregory Nutt. All rights reserved.
- *   Author: Anjana <anjana@tataelxsi.co.in>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_RENESAS_INCLUDE_RX65N_IRQ_H
 #define __ARCH_RENESAS_INCLUDE_RX65N_IRQ_H
@@ -131,7 +116,9 @@
 #ifdef CONFIG_RX65N_RSPI0
 #  define RX65N_SPRI0_IRQ      (RX65N_RSPI0_IRQBASE)
 #  define RX65N_SPTI0_IRQ      (RX65N_RSPI0_IRQBASE + 1)
-#  define RX65N_RSPI1_IRQBASE  (RX65N_RSPI0_IRQBASE + 2)
+#  define RX65N_SPEI0_IRQ      (RX65N_RSPI0_IRQBASE + 2)
+#  define RX65N_SPII0_IRQ      (RX65N_RSPI0_IRQBASE + 3)
+#  define RX65N_RSPI1_IRQBASE  (RX65N_RSPI0_IRQBASE + 4)
 #else
 #  define RX65N_RSPI1_IRQBASE  (RX65N_RSPI0_IRQBASE)
 #endif
@@ -139,7 +126,9 @@
 #ifdef CONFIG_RX65N_RSPI1
 #  define RX65N_SPRI1_IRQ       (RX65N_RSPI1_IRQBASE)
 #  define RX65N_SPTI1_IRQ       (RX65N_RSPI1_IRQBASE + 1)
-#  define RX65N_QSPI_IRQBASE    (RX65N_RSPI1_IRQBASE + 2)
+#  define RX65N_SPEI1_IRQ       (RX65N_RSPI1_IRQBASE + 2)
+#  define RX65N_SPII1_IRQ       (RX65N_RSPI1_IRQBASE + 3)
+#  define RX65N_QSPI_IRQBASE    (RX65N_RSPI1_IRQBASE + 4)
 #else
 #  define RX65N_QSPI_IRQBASE    (RX65N_RSPI1_IRQBASE)
 #endif
@@ -167,25 +156,31 @@
 #endif
 
 #ifdef CONFIG_RX65N_RIIC1
-#  define RX65N_RIIC1_RXI1_IRQ  (RX65N_RIIC1_IRQBASE + RX_RXI_IRQ_OFFSET)
-#  define RX65N_RIIC1_TXI1_IRQ  (RX65N_RIIC1_IRQBASE + RX_TXI_IRQ_OFFSET)
-#  define RX65N_RIIC0_IRQBASE   (RX65N_RIIC1_IRQBASE + RX_SCI_NIRQS)
+#  define RX65N_RIIC1_RXI1_IRQ  (RX65N_RIIC1_IRQBASE)
+#  define RX65N_RIIC1_TXI1_IRQ  (RX65N_RIIC1_IRQBASE + 1)
+#  define RX65N_RIIC1_TEI1_IRQ  (RX65N_RIIC1_IRQBASE + 2)
+#  define RX65N_RIIC1_EEI1_IRQ  (RX65N_RIIC1_IRQBASE + 3)
+#  define RX65N_RIIC0_IRQBASE   (RX65N_RIIC1_IRQBASE + 4)
 #else
 #  define RX65N_RIIC0_IRQBASE   (RX65N_RIIC1_IRQBASE)
 #endif
 
 #ifdef CONFIG_RX65N_RIIC0
-#  define RX65N_RIIC0_RXI0_IRQ  (RX65N_RIIC0_IRQBASE + RX_RXI_IRQ_OFFSET)
-#  define RX65N_RIIC0_TXI0_IRQ  (RX65N_RIIC0_IRQBASE + RX_TXI_IRQ_OFFSET)
-#  define RX65N_RIIC2_IRQBASE   (RX65N_RIIC0_IRQBASE + RX_SCI_NIRQS)
+#  define RX65N_RIIC0_RXI0_IRQ  (RX65N_RIIC0_IRQBASE)
+#  define RX65N_RIIC0_TXI0_IRQ  (RX65N_RIIC0_IRQBASE + 1)
+#  define RX65N_RIIC0_TEI0_IRQ  (RX65N_RIIC0_IRQBASE + 2)
+#  define RX65N_RIIC0_EEI0_IRQ  (RX65N_RIIC0_IRQBASE + 3)
+#  define RX65N_RIIC2_IRQBASE   (RX65N_RIIC0_IRQBASE + 4)
 #else
 #  define RX65N_RIIC2_IRQBASE   (RX65N_RIIC0_IRQBASE)
 #endif
 
 #ifdef CONFIG_RX65N_RIIC2
-#  define RX65N_RIIC2_RXI2_IRQ  (RX65N_RIIC2_IRQBASE + RX_RXI_IRQ_OFFSET)
-#  define RX65N_RIIC2_TXI2_IRQ  (RX65N_RIIC2_IRQBASE + RX_TXI_IRQ_OFFSET)
-#  define RX65N_SCI0_IRQBASE    (RX65N_RIIC2_IRQBASE + RX_SCI_NIRQS)
+#  define RX65N_RIIC2_RXI2_IRQ  (RX65N_RIIC2_IRQBASE)
+#  define RX65N_RIIC2_TXI2_IRQ  (RX65N_RIIC2_IRQBASE + 1)
+#  define RX65N_RIIC2_TEI2_IRQ  (RX65N_RIIC2_IRQBASE + 2)
+#  define RX65N_RIIC2_EEI2_IRQ  (RX65N_RIIC2_IRQBASE + 3)
+#  define RX65N_SCI0_IRQBASE    (RX65N_RIIC2_IRQBASE + 4)
 #else
 #  define RX65N_SCI0_IRQBASE    (RX65N_RIIC2_IRQBASE)
 #endif
@@ -220,7 +215,7 @@
 #  define RX65N_ICU_IRQ_IRQBASE (RX65N_SCI2_IRQBASE)
 #endif
 
-#if defined(CONFIG_ICU) || defined(CONFIG_RX65N_ICU)
+#if defined(CONFIG_RX65N_ICU)
 #  define RX65N_IRQ0_IRQ      (RX65N_ICU_IRQ_IRQBASE)
 #  define RX65N_IRQ1_IRQ      (RX65N_ICU_IRQ_IRQBASE+1)
 #  define RX65N_IRQ2_IRQ      (RX65N_ICU_IRQ_IRQBASE+2)
@@ -383,7 +378,9 @@
 #ifdef CONFIG_RX65N_RSPI2
 #  define RX65N_SPRI2_IRQ               (RX65N_RSPI2_IRQBASE)
 #  define RX65N_SPTI2_IRQ               (RX65N_RSPI2_IRQBASE + 1)
-#  define RX65N_IRQ_GROUPBL_IRQBASE     (RX65N_RSPI2_IRQBASE + 2)
+#  define RX65N_SPEI2_IRQ               (RX65N_RSPI2_IRQBASE + 2)
+#  define RX65N_SPII2_IRQ               (RX65N_RSPI2_IRQBASE + 3)
+#  define RX65N_IRQ_GROUPBL_IRQBASE     (RX65N_RSPI2_IRQBASE + 4)
 #else
 #  define RX65N_IRQ_GROUPBL_IRQBASE     (RX65N_RSPI2_IRQBASE)
 #endif
@@ -603,7 +600,7 @@
 
 /* Saved to the stacked by up_vector */
 
-/* Vector table offets **************************************************************/
+/* Vector table offsets */
 
 /* Trap instruction */
 
@@ -1071,6 +1068,6 @@ static inline void up_irq_restore(irqstate_t flags)
   }
 }
 
-#endif  /* __ASSEMBLY__ */
+#endif /* __ASSEMBLY__ */
 
-#endif  /* __ARCH_RENESAS_INCLUDE_RX65N_IRQ_H */
+#endif /* __ARCH_RENESAS_INCLUDE_RX65N_IRQ_H */

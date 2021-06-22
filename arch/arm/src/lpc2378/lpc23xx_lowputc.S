@@ -43,8 +43,6 @@
  **************************************************************************/
 
 #include <nuttx/config.h>
-#include "up_internal.h"
-#include "up_arch.h"
 #include "lpc23xx_pinsel.h"
 #include "lpc23xx_scb.h"
 #include "lpc23xx_uart.h"
@@ -52,6 +50,7 @@
 /**************************************************************************
  * Pre-processor Definitions
  **************************************************************************/
+
 @    //-- Pins
 @    PINSEL0 |= (0x01<<4) |  //-- P0.2  TXD0
 @                (0x01<<6);  //-- P0.3  RXD0
@@ -59,7 +58,7 @@
 
 #if defined(CONFIG_UART0_SERIAL_CONSOLE)
 #  define UARTxBASE    UART0_BASE_ADDR
-#  define PINSELECT	   LPC23XX_PINSEL0		
+#  define PINSELECT	   LPC23XX_PINSEL0
 #  define UARTxPCLKSEL 0xE01FC1A8
 #  define PCLKSEL_MASK U0_PCLKSEL_MASK
 #  define UARTxPINSEL  UART0_PINSEL
@@ -91,7 +90,7 @@
 #  define UARTxPARITY  CONFIG_UART2_PARITY
 #  define UARTx2STOP   CONFIG_UART2_2STOP
 #elif defined(CONFIG_UART3_SERIAL_CONSOLE)
-#  define PINSELECT	   LPC23XX_PINSEL0	
+#  define PINSELECT	   LPC23XX_PINSEL0
 #  define UARTxBASE    UART3_BASE_ADDR
 #  define UARTxPCLKSEL 0xE01FC1AC
 #  define PCLKSEL_MASK U2_PCLKSEL_MASK
@@ -142,6 +141,7 @@
                            FCR_RX_FIFO_RESET | FCR_FIFO_ENABLE)
 @#define MULVAL (12 << 4)
 @#define DIVADDVAL 3
+
 /**************************************************************************
  * Private Types
  **************************************************************************/
@@ -167,7 +167,7 @@
  **************************************************************************/
 
 /**************************************************************************
- * Name: up_lowputc
+ * Name: arm_lowputc
  **************************************************************************/
 
 /* This assembly language version has the advantage that it does not
@@ -176,9 +176,9 @@
  */
 
 	.text
-	.global	up_lowputc
-	.type	up_lowputc, function
-up_lowputc:
+	.global	arm_lowputc
+	.type	arm_lowputc, function
+arm_lowputc:
 	/* On entry, r0 holds the character to be printed */
 
 	ldr	r1, =UARTxBASE
@@ -192,8 +192,8 @@ up_lowputc:
 
 	/* And return */
 
-	mov     pc, lr
-	.size	up_lowputc, . - up_lowputc
+	mov	pc, lr
+	.size	arm_lowputc, . - arm_lowputc
 
 /* This performs basic initialization of the UART.  This can be called very
  * early in initialization because it does not depend on having a stack.  It
@@ -210,21 +210,22 @@ up_lowsetup:
 	ldr	r1, [r0]
 	ldr	r2, =(~UARTxPINMASK)
 	and	r1, r2
-	
+
 	ldr	r2, =(UARTxPINSEL)
 	orr	r1, r2
 	str	r1, [r0]
-	
+
 	/* Power Up Uart0 */
-	ldr r0, =UARTxPCLKSEL /* PCLKSEL0 address */
-	ldr r1, [r0]
-	ldr r2, =(~PCLKSEL_MASK)
-	and r1, r2
-	
-	ldr r2, =(U0_PCLKSEL)
-	orr r1, r2
-	str r1, [r0]	
-	
+
+	ldr	r0, =UARTxPCLKSEL /* PCLKSEL0 address */
+	ldr	r1, [r0]
+	ldr	r2, =(~PCLKSEL_MASK)
+	and	r1, r2
+
+	ldr	r2, =(U0_PCLKSEL)
+	orr	r1, r2
+	str	r1, [r0]
+
 /* Configure parity, data bits, stop bits and set DLAB=1 */
 
 	ldr	r0, =UARTxBASE
@@ -233,25 +234,25 @@ up_lowsetup:
 
 /* Set the BAUD divisor */
 
-	mov r1, #((MULVAL << 4) | DIVADDVAL)
-	strb r1, [r0, #UART_FDR_OFFSET]
-	
-	mov	 r1, #DLMVAL
-	strb r1, [r0, #UART_DLM_OFFSET]
+	mov	r1, #((MULVAL << 4) | DIVADDVAL)
+	strb	r1, [r0, #UART_FDR_OFFSET]
 
-	mov  r1, #DLLVAL
-	strb r1, [r0, #UART_DLL_OFFSET]
-	
+	mov	r1, #DLMVAL
+	strb	r1, [r0, #UART_DLM_OFFSET]
+
+	mov	r1, #DLLVAL
+	strb	r1, [r0, #UART_DLL_OFFSET]
+
 /* Clear DLAB and Set format 8N1 */
 
-	mov r1, #LCR_VALUE
-	strb r1, [r0, #UART_LCR_OFFSET]
-	
+	mov	r1, #LCR_VALUE
+	strb	r1, [r0, #UART_LCR_OFFSET]
+
 /* Configure the FIFOs */
 
 	mov	r1, #FCR_VALUE
 	strb	r1, [r0, #UART_FCR_OFFSET]
-	
+
 	mov	r1, #LCR_VALUE
 	strb	r1, [r0, #UART_LCR_OFFSET]
 

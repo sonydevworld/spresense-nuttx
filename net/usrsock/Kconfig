@@ -12,6 +12,17 @@ config NET_USRSOCK
 	---help---
 		Enable or disable user-space networking stack support.
 
+		User-space networking stack API allows user-space daemon to
+		provide TCP/IP stack implementation for NuttX network.
+
+		Main use for this is to allow use and integration of
+		HW-provided TCP/IP stacks for NuttX.
+
+		For example, user-space daemon can translate /dev/usrsock API
+		requests to HW TCP/IP API requests while rest of the user-space
+		can access standard socket API, with socket descriptors that
+		can be used with NuttX system calls.
+
 if NET_USRSOCK
 
 config NET_USRSOCK_CONNS
@@ -22,6 +33,10 @@ config NET_USRSOCK_CONNS
 
 		Note: Usrsock daemon can impose additional restrictions for
 		maximum number of concurrent connections supported.
+
+config NET_USRSOCK_NPOLLWAITERS
+	int "Number of usrsock poll waiters"
+	default 1
 
 config NET_USRSOCK_NO_INET
 	bool "Disable PF_INET for usrsock"

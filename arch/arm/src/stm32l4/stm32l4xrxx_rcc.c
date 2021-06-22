@@ -1,37 +1,20 @@
 /****************************************************************************
  * arch/arm/src/stm32l4/stm32l4xrxx_rcc.c
  *
- *   Copyright (C) 2011-2012, 2014-2015 Gregory Nutt. All rights reserved.
- *   Copyright (C) 2016 Sebastien Lorquet. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *           Sebastien Lorquet <sebastien@lorquet.fr>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -453,7 +436,7 @@ static inline void rcc_enableapb1(void)
 
   putreg32(regval, STM32L4_RCC_APB1ENR1);   /* Enable peripherals */
 
- /* Second APB1 register */
+  /* Second APB1 register */
 
   regval = getreg32(STM32L4_RCC_APB1ENR2);
 
@@ -497,8 +480,8 @@ static inline void rcc_enableapb2(void)
   regval = getreg32(STM32L4_RCC_APB2ENR);
 
 #if defined(CONFIG_STM32L4_SYSCFG) || defined(CONFIG_STM32L4_COMP)
-  /* System configuration controller, comparators, and voltage reference buffer
-   * clock enable
+  /* System configuration controller, comparators, and voltage reference
+   * buffer clock enable
    */
 
   regval |= RCC_APB2ENR_SYSCFGEN;
@@ -700,7 +683,9 @@ static void stm32l4_stdclockconfig(void)
 
   for (timeout = MSIRDY_TIMEOUT; timeout > 0; timeout--)
     {
-      if ((regval = getreg32(STM32L4_RCC_CR)), (regval & RCC_CR_MSIRDY) || ~(regval & RCC_CR_MSION))
+      regval = getreg32(STM32L4_RCC_CR);
+
+      if ((regval & RCC_CR_MSIRDY) || ~(regval & RCC_CR_MSION))
         {
           /* If so, then break-out with timeout > 0 */
 
@@ -770,7 +755,7 @@ static void stm32l4_stdclockconfig(void)
 
       /* Switch to Range 1 boost mode to support system frequencies up to
        * 120 MHz.
-       * If any PLL has output frequency higher than 80 Mhz, Range 1 boost
+       * If any PLL has output frequency higher than 80 MHz, Range 1 boost
        * mode needs to be used (RM0432, "6.2.9 Clock source frequency versus
        * voltage scaling").
        * Range 2 is not supported.
@@ -821,8 +806,9 @@ static void stm32l4_stdclockconfig(void)
 
       /* Set the PLL dividers and multipliers to configure the main PLL */
 
-      regval = (STM32L4_PLLCFG_PLLM | STM32L4_PLLCFG_PLLN | STM32L4_PLLCFG_PLLP
-                 | STM32L4_PLLCFG_PLLQ | STM32L4_PLLCFG_PLLR);
+      regval = (STM32L4_PLLCFG_PLLM | STM32L4_PLLCFG_PLLN |
+                STM32L4_PLLCFG_PLLP | STM32L4_PLLCFG_PLLQ |
+                STM32L4_PLLCFG_PLLR);
 
 #ifdef STM32L4_PLLCFG_PLLP_ENABLED
       regval |= RCC_PLLCFG_PLLPEN;
@@ -890,7 +876,7 @@ static void stm32l4_stdclockconfig(void)
       regval |= RCC_CR_PLLSAI1ON;
       putreg32(regval, STM32L4_RCC_CR);
 
-       /* Wait until the PLL is ready */
+      /* Wait until the PLL is ready */
 
       while ((getreg32(STM32L4_RCC_CR) & RCC_CR_PLLSAI1RDY) == 0)
         {
@@ -955,7 +941,8 @@ static void stm32l4_stdclockconfig(void)
 
       /* Wait until the PLL source is used as the system clock source */
 
-      while ((getreg32(STM32L4_RCC_CFGR) & RCC_CFGR_SWS_MASK) != RCC_CFGR_SWS_PLL)
+      while ((getreg32(STM32L4_RCC_CFGR) & RCC_CFGR_SWS_MASK) !=
+                       RCC_CFGR_SWS_PLL)
         {
         }
 

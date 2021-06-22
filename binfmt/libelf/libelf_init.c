@@ -1,35 +1,20 @@
 /****************************************************************************
  * binfmt/libelf/libelf_init.c
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -56,8 +41,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* CONFIG_DEBUG_FEATURES, CONFIG_DEBUG_INFO, and CONFIG_DEBUG_BINFMT have to be
- * defined or CONFIG_ELF_DUMPBUFFER does nothing.
+/* CONFIG_DEBUG_FEATURES, CONFIG_DEBUG_INFO, and CONFIG_DEBUG_BINFMT have to
+ * be defined or CONFIG_ELF_DUMPBUFFER does nothing.
  */
 
 #if !defined(CONFIG_DEBUG_INFO) || !defined (CONFIG_DEBUG_BINFMT)
@@ -98,12 +83,11 @@ static inline int elf_filelen(FAR struct elf_loadinfo_s *loadinfo,
 
   /* Get the file stats */
 
-  ret = stat(filename, &buf);
+  ret = nx_stat(filename, &buf, 1);
   if (ret < 0)
     {
-      int errval = get_errno();
-      berr("Failed to stat file: %d\n", errval);
-      return -errval;
+      berr("Failed to stat file: %d\n", ret);
+      return ret;
     }
 
   /* Verify that it is a regular file */
@@ -173,34 +157,33 @@ int elf_init(FAR const char *filename, FAR struct elf_loadinfo_s *loadinfo)
   /* Read the ELF ehdr from offset 0 */
 
   ret = elf_read(loadinfo, (FAR uint8_t *)&loadinfo->ehdr,
-                 sizeof(Elf32_Ehdr), 0);
+                 sizeof(Elf_Ehdr), 0);
   if (ret < 0)
     {
       berr("Failed to read ELF header: %d\n", ret);
-      close(loadinfo->filfd);
+      nx_close(loadinfo->filfd);
       return ret;
     }
 
   elf_dumpbuffer("ELF header", (FAR const uint8_t *)&loadinfo->ehdr,
-                 sizeof(Elf32_Ehdr));
+                 sizeof(Elf_Ehdr));
 
   /* Verify the ELF header */
 
   ret = elf_verifyheader(&loadinfo->ehdr);
   if (ret < 0)
     {
-      /* This may not be an error because we will be called to attempt loading
-       * EVERY binary.  If elf_verifyheader() does not recognize the ELF header,
-       * it will -ENOEXEC whcih simply informs the system that the file is not an
-       * ELF file.  elf_verifyheader() will return other errors if the ELF header
-       * is not correctly formed.
+      /* This may not be an error because we will be called to attempt
+       * loading EVERY binary.  If elf_verifyheader() does not recognize
+       * the ELF header, it will -ENOEXEC which simply informs the system
+       * that the file is not an ELF file.  elf_verifyheader() will return
+       * other errors if the ELF header is not correctly formed.
        */
 
       berr("Bad ELF header: %d\n", ret);
-      close(loadinfo->filfd);
+      nx_close(loadinfo->filfd);
       return ret;
     }
 
   return OK;
 }
-

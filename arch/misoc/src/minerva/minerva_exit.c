@@ -75,29 +75,34 @@
 static void _up_dumponexit(FAR struct tcb_s *tcb, FAR void *arg)
 {
   FAR struct filelist *filelist;
-#if CONFIG_NFILE_STREAMS > 0
-  FAR struct streamlist *streamlist;
+#ifdef CONFIG_FILE_STREAM
+  FAR struct file_struct *filep;
 #endif
   int i;
+  int j;
 
   sinfo("  TCB=%p name=%s pid=%d\n", tcb, tcb->argv[0], tcb->pid);
   sinfo("    priority=%d state=%d\n", tcb->sched_priority, tcb->task_state);
 
   filelist = tcb->group->tg_filelist;
-  for (i = 0; i < CONFIG_NFILE_DESCRIPTORS; i++)
+  for (i = 0; i < filelist->fl_rows; i++)
     {
-      struct inode *inode = filelist->fl_files[i].f_inode;
-      if (inode)
+      for (j = 0; j < CONFIG_NFILE_DESCRIPTORS_PER_BLOCK; j++)
         {
-          sinfo("      fd=%d refcount=%d\n", i, inode->i_crefssinfo);
+          struct inode *inode = filelist->fl_files[i][j].f_inode;
+          if (inode)
+            {
+              sinfo("      fd=%d refcount=%d\n",
+                    i * CONFIG_NFILE_DESCRIPTORS_PER_BLOCK + j,
+                    inode->i_crefs);
+            }
         }
     }
 
-#if CONFIG_NFILE_STREAMS > 0
-  streamlist = tcb->group->tg_streamlist;
-  for (i = 0; i < CONFIG_NFILE_STREAMS; i++)
+#ifdef CONFIG_FILE_STREAM
+  filep = tcb->group->tg_streamlist->sl_head;
+  for (; filep != NULL; filep = filep->fs_next)
     {
-      struct file_struct *filep = &streamlist->sl_streams[i];
       if (filep->fs_fd >= 0)
         {
 #ifndef CONFIG_STDIO_DISABLE_BUFFERING
@@ -122,7 +127,7 @@ static void _up_dumponexit(FAR struct tcb_s *tcb, FAR void *arg)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: _exit
+ * Name: up_exit
  *
  * Description:
  *   This function causes the currently executing task to cease
@@ -132,7 +137,7 @@ static void _up_dumponexit(FAR struct tcb_s *tcb, FAR void *arg)
  *
  ****************************************************************************/
 
-void _exit(int status)
+void up_exit(int status)
 {
   struct tcb_s *tcb = this_task();
 
@@ -146,12 +151,8 @@ void _exit(int status)
 
 #ifdef CONFIG_DUMP_ON_EXIT
   sinfo("Other tasks:\n");
-  sched_foreach(_up_dumponexit, NULL);
+  nxsched_foreach(_up_dumponexit, NULL);
 #endif
-
-  /* Update scheduler parameters */
-
-  sched_suspend_scheduler(tcb);
 
   /* Destroy the task at the head of the ready to run list. */
 
@@ -163,19 +164,19 @@ void _exit(int status)
 
   tcb = this_task();
 
+  /* Adjusts time slice for SCHED_RR & SCHED_SPORADIC cases */
+
+  nxsched_resume_scheduler(tcb);
+
 #ifdef CONFIG_ARCH_ADDRENV
-  /* Make sure that the address environment for the previously running task is
-   * closed down gracefully (data caches dump, MMU flushed) and set up the
+  /* Make sure that the address environment for the previously running task
+   * is closed down gracefully (data caches dump, MMU flushed) and set up the
    * address environment for the new thread at the head of the ready-to-run
    * list.
    */
 
   group_addrenv(tcb);
 #endif
-
-  /* Reset scheduler parameters */
-
-  sched_resume_scheduler(tcb);
 
   /* Then switch contexts */
 

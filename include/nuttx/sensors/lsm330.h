@@ -1,42 +1,27 @@
-/*****************************************************************************
+/****************************************************************************
  * include/nuttx/sensors/lsm330.h
  *
- *   Copyright (C) 2017-2018 RAF Research LLC. All rights reserved.
- *   Author: Bob Feretich <bob.feretich@rafresearch.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 #ifndef __INCLUDE_NUTTX_SENSORS_LSM330_H
 #define __INCLUDE_NUTTX_SENSORS_LSM330_H
 
-/*****************************************************************************
+/****************************************************************************
  * Driver usage notes:
  *
  * This driver is a "kernel sensor leaf driver" that may be used directly
@@ -45,7 +30,7 @@
  *
  * To use this driver via the file_operations interface, the board
  * initialization function should call this driver's registration function.
- * The driver will register itself with Nuttx under the /dev path that is
+ * The driver will register itself with NuttX under the /dev path that is
  * provided by the config structure.  Then user applications may access the
  * driver via the "file descriptor handle" returned by the file_operations
  * open() function.
@@ -285,14 +270,14 @@ struct lsm330_config_s
 
   /* Initial control register configuration values. */
 
-   uint16_t initial_cr_values_size;     /* size of the below array.
-                                         * 0 = use default values. */
+  uint16_t initial_cr_values_size;     /* size of the below array.
+                                        * 0 = use default values. */
 
   /* The initial value store operations will occur in the order they appear
    * in the array.
    */
 
-   struct lsm330_reg_pair_s *initial_cr_values;
+  struct lsm330_reg_pair_s *initial_cr_values;
 
   /* The below fields are intended for the sensor cluster driver interface
    * and may be ignored when the sensor cluster driver is not being used.
@@ -320,15 +305,15 @@ extern "C"
 #define EXTERN extern
 #endif
 
-/*******************************************************************************
+/****************************************************************************
  * Name: lsm330_register
  *
  * Description:
  *   Register the LSM330 character device as 'devpath'
  *
  * Input Parameters:
- *   devpath_acl  - The full path to the driver to register. E.g., "/dev/acl0"
- *   devpath_gyro - The full path to the driver to register. E.g., "/dev/gyr0"
+ *   devpath_acl  - The full path to the driver to register. E.g. "/dev/acl0"
+ *   devpath_gyro - The full path to the driver to register. E.g. "/dev/gyr0"
  *   spi - An instance of the SPI interface to use to communicate with LSM330
  *   config_acl   - configuration for the LSM330 accelerometer driver.
  *                  For details see description above.
@@ -338,8 +323,7 @@ extern "C"
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
  *
- *******************************************************************************
- */
+ ****************************************************************************/
 
 int lsm330_register(FAR const char *devpath_acl,
                     FAR const char *devpath_gyro,

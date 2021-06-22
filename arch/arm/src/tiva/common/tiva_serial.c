@@ -1,36 +1,20 @@
 /****************************************************************************
  * arch/arm/src/tiva/common/tiva_serial.c
  *
- *   Copyright (C) 2009-2010, 2012-2014, 2017-2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -56,8 +40,8 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "tiva_lowputc.h"
 
@@ -324,7 +308,7 @@ static int  up_attach(struct uart_dev_s *dev);
 static void up_detach(struct uart_dev_s *dev);
 static int  up_interrupt(int irq, void *context, void *arg);
 static int  up_ioctl(struct file *filep, int cmd, unsigned long arg);
-static int  up_receive(struct uart_dev_s *dev, uint32_t *status);
+static int  up_receive(struct uart_dev_s *dev, unsigned int *status);
 static void up_rxint(struct uart_dev_s *dev, bool enable);
 static bool up_rxavailable(struct uart_dev_s *dev);
 static void up_send(struct uart_dev_s *dev, int ch);
@@ -435,18 +419,18 @@ static struct up_dev_s g_uart1priv =
 
 static uart_dev_t g_uart1port =
 {
-  .recv     =
-  {
-    .size   = CONFIG_UART1_RXBUFSIZE,
-    .buffer = g_uart1rxbuffer,
-  },
-  .xmit     =
-  {
-    .size   = CONFIG_UART1_TXBUFSIZE,
-    .buffer = g_uart1txbuffer,
-   },
-  .ops      = &g_uart_ops,
-  .priv     = &g_uart1priv,
+  .recv       =
+    {
+      .size   = CONFIG_UART1_RXBUFSIZE,
+      .buffer = g_uart1rxbuffer,
+    },
+  .xmit       =
+    {
+      .size   = CONFIG_UART1_TXBUFSIZE,
+      .buffer = g_uart1txbuffer,
+    },
+  .ops        = &g_uart_ops,
+  .priv       = &g_uart1priv,
 };
 #endif
 
@@ -465,18 +449,18 @@ static struct up_dev_s g_uart2priv =
 
 static uart_dev_t g_uart2port =
 {
-  .recv     =
-  {
-    .size   = CONFIG_UART2_RXBUFSIZE,
-    .buffer = g_uart2rxbuffer,
-  },
-  .xmit     =
-  {
-    .size   = CONFIG_UART2_TXBUFSIZE,
-    .buffer = g_uart2txbuffer,
-   },
-  .ops      = &g_uart_ops,
-  .priv     = &g_uart2priv,
+  .recv       =
+    {
+      .size   = CONFIG_UART2_RXBUFSIZE,
+      .buffer = g_uart2rxbuffer,
+    },
+  .xmit       =
+    {
+      .size   = CONFIG_UART2_TXBUFSIZE,
+      .buffer = g_uart2txbuffer,
+    },
+  .ops        = &g_uart_ops,
+  .priv       = &g_uart2priv,
 };
 #endif
 
@@ -495,18 +479,18 @@ static struct up_dev_s g_uart3priv =
 
 static uart_dev_t g_uart3port =
 {
-  .recv     =
-  {
-    .size   = CONFIG_UART3_RXBUFSIZE,
-    .buffer = g_uart3rxbuffer,
-  },
-  .xmit     =
-  {
-    .size   = CONFIG_UART3_TXBUFSIZE,
-    .buffer = g_uart3txbuffer,
-  },
-  .ops      = &g_uart_ops,
-  .priv     = &g_uart3priv,
+  .recv       =
+    {
+      .size   = CONFIG_UART3_RXBUFSIZE,
+      .buffer = g_uart3rxbuffer,
+    },
+  .xmit       =
+    {
+      .size   = CONFIG_UART3_TXBUFSIZE,
+      .buffer = g_uart3txbuffer,
+    },
+  .ops        = &g_uart_ops,
+  .priv       = &g_uart3priv,
 };
 #endif
 
@@ -555,18 +539,18 @@ static struct up_dev_s g_uart5priv =
 
 static uart_dev_t g_uart5port =
 {
-  .recv     =
-  {
-    .size   = CONFIG_UART5_RXBUFSIZE,
-    .buffer = g_uart5rxbuffer,
-  },
-  .xmit     =
-  {
-    .size   = CONFIG_UART5_TXBUFSIZE,
-    .buffer = g_uart5txbuffer,
-  },
-  .ops      = &g_uart_ops,
-  .priv     = &g_uart5priv,
+  .recv       =
+    {
+      .size   = CONFIG_UART5_RXBUFSIZE,
+      .buffer = g_uart5rxbuffer,
+    },
+  .xmit       =
+    {
+      .size   = CONFIG_UART5_TXBUFSIZE,
+      .buffer = g_uart5txbuffer,
+    },
+  .ops        = &g_uart_ops,
+  .priv       = &g_uart5priv,
 };
 #endif
 
@@ -585,18 +569,18 @@ static struct up_dev_s g_uart6priv =
 
 static uart_dev_t g_uart6port =
 {
-  .recv     =
-  {
-    .size   = CONFIG_UART6_RXBUFSIZE,
-    .buffer = g_uart6rxbuffer,
-  },
-  .xmit     =
-  {
-    .size   = CONFIG_UART6_TXBUFSIZE,
-    .buffer = g_uart6txbuffer,
-  },
-  .ops      = &g_uart_ops,
-  .priv     = &g_uart6priv,
+  .recv       =
+    {
+      .size   = CONFIG_UART6_RXBUFSIZE,
+      .buffer = g_uart6rxbuffer,
+    },
+  .xmit       =
+    {
+      .size   = CONFIG_UART6_TXBUFSIZE,
+      .buffer = g_uart6txbuffer,
+    },
+  .ops        = &g_uart_ops,
+  .priv       = &g_uart6priv,
 };
 #endif
 
@@ -615,18 +599,18 @@ static struct up_dev_s g_uart7priv =
 
 static uart_dev_t g_uart7port =
 {
-  .recv     =
-  {
-    .size   = CONFIG_UART7_RXBUFSIZE,
-    .buffer = g_uart7rxbuffer,
-  },
-  .xmit     =
-  {
-    .size   = CONFIG_UART7_TXBUFSIZE,
-    .buffer = g_uart7txbuffer,
-  },
-  .ops      = &g_uart_ops,
-  .priv     = &g_uart7priv,
+  .recv       =
+    {
+      .size   = CONFIG_UART7_RXBUFSIZE,
+      .buffer = g_uart7rxbuffer,
+    },
+  .xmit       =
+    {
+      .size   = CONFIG_UART7_TXBUFSIZE,
+      .buffer = g_uart7txbuffer,
+    },
+  .ops        = &g_uart_ops,
+  .priv       = &g_uart7priv,
 };
 #endif
 
@@ -647,7 +631,8 @@ static inline uint32_t up_serialin(struct up_dev_s *priv, int offset)
  * Name: up_serialout
  ****************************************************************************/
 
-static inline void up_serialout(struct up_dev_s *priv, int offset, uint32_t value)
+static inline void up_serialout(struct up_dev_s *priv, int offset,
+                                uint32_t value)
 {
   putreg32(value, priv->uartbase + offset);
 }
@@ -749,36 +734,37 @@ static void up_set_format(struct uart_dev_s *dev)
    * "The baud-rate divisor is a 22-bit number consisting of a 16-bit integer
    *  and a 6-bit fractional part. The number formed by these two values is
    *  used by the baud-rate generator to determine the bit period. Having a
-   *  fractional baud-rate divider allows the UART to generate all the standard
-   *  baud rates.
+   *  fractional baud-rate divider allows the UART to generate all the
+   *  standard baud rates.
    *
    * "The 16-bit integer is loaded through the UART Integer Baud-Rate Divisor
-   *  (UARTIBRD) register ... and the 6-bit fractional part is loaded with the
-   *  UART Fractional Baud-Rate Divisor (UARTFBRD) register... The baud-rate
-   *  divisor (BRD) has the following relationship to the system clock (where
-   *  BRDI is the integer part of the BRD and BRDF is the fractional part,
-   *  separated by a decimal place.):
+   *  (UARTIBRD) register ... and the 6-bit fractional part is loaded with
+   *  the UART Fractional Baud-Rate Divisor (UARTFBRD) register... The
+   *  baud-rate divisor (BRD) has the following relationship to the system
+   *  clock (where BRDI is the integer part of the BRD and BRDF is the
+   *  fractional part, separated by a decimal place.):
    *
    *    "BRD = BRDI + BRDF = UARTSysClk / (16 * Baud Rate)
    *
    * "where UARTSysClk is the system clock connected to the UART. The 6-bit
-   *  fractional number (that is to be loaded into the DIVFRAC bit field in the
-   *  UARTFBRD register) can be calculated by taking the fractional part of the
-   *  baud-rate divisor, multiplying it by 64, and adding 0.5 to account for
-   *  rounding errors:
+   *  fractional number (that is to be loaded into the DIVFRAC bit field in
+   *  the UARTFBRD register) can be calculated by taking the fractional part
+   *  of the baud-rate divisor, multiplying it by 64, and adding 0.5 to
+   *  account for rounding errors:
    *
    *    "UARTFBRD[DIVFRAC] = integer(BRDF * 64 + 0.5)
    *
-   * "The UART generates an internal baud-rate reference clock at 16x the baud-
-   *  rate (referred to as Baud16). This reference clock is divided by 16 to
-   *  generate the transmit clock, and is used for error detection during receive
-   *  operations.
+   * "The UART generates an internal baud-rate reference clock at 16x the
+   *  baud-rate (referred to as Baud16). This reference clock is divided by
+   *  16 to generate the transmit clock, and is used for error detection
+   *  during receive operations.
    *
-   * "Along with the UART Line Control, High Byte (UARTLCRH) register ..., the
-   *  UARTIBRD and UARTFBRD registers form an internal 30-bit register. This
-   *  internal register is only updated when a write operation to UARTLCRH is
-   *  performed, so any changes to the baud-rate divisor must be followed by a
-   *  write to the UARTLCRH register for the changes to take effect. ..."
+   * "Along with the UART Line Control, High Byte (UARTLCRH) register ...,
+   *  the UARTIBRD and UARTFBRD registers form an internal 30-bit register.
+   *  This internal register is only updated when a write operation to
+   *  UARTLCRH is performed, so any changes to the baud-rate divisor must be
+   *  followed by a write to the UARTLCRH register for the changes to take
+   *  effect. ..."
    */
 
   den       = priv->baud << 4;
@@ -865,14 +851,15 @@ static int up_setup(struct uart_dev_s *dev)
    */
 
   up_serialout(priv, TIVA_UART_IFLS_OFFSET,
-               UART_IFLS_TXIFLSEL_18th | UART_IFLS_RXIFLSEL_18th);
+               UART_IFLS_TXIFLSEL_18TH | UART_IFLS_RXIFLSEL_18TH);
 
   /* Flush the Rx and Tx FIFOs -- How do you do that? */
 
-  /* Enable Rx interrupts from the UART except for Tx interrupts.  We don't want
-   * Tx interrupts until we have something to send.  We will check for serial
-   * errors as part of Rx interrupt processing (no interrupts will be received
-   * yet because the interrupt is still disabled at the interrupt controller.
+  /* Enable Rx interrupts from the UART except for Tx interrupts.  We don't
+   * want TX interrupts until we have something to send.  We will check for
+   * serial errors as part of Rx interrupt processing (no interrupts will be
+   * received yet because the interrupt is still disabled at the interrupt
+   * controller.
    */
 
   up_serialout(priv, TIVA_UART_IM_OFFSET, UART_IM_RXIM | UART_IM_RTIM);
@@ -919,9 +906,10 @@ static void up_shutdown(struct uart_dev_s *dev)
  *   the setup() method is called, however, the serial console may operate in
  *   a non-interrupt driven mode during the boot phase.
  *
- *   RX and TX interrupts are not enabled when by the attach method (unless the
- *   hardware supports multiple levels of interrupt enabling).  The RX and TX
- *   interrupts are not enabled until the txint() and rxint() methods are called.
+ *   RX and TX interrupts are not enabled when by the attach method (unless
+ *   the hardware supports multiple levels of interrupt enabling).  The RX
+ *   and TX interrupts are not enabled until the txint() and rxint() methods
+ *   are called.
  *
  ****************************************************************************/
 
@@ -950,8 +938,8 @@ static int up_attach(struct uart_dev_s *dev)
  *
  * Description:
  *   Detach UART interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception is
- *   the serial console which is never shutdown.
+ *   closed normally just before the shutdown method is called.  The
+ *   exception is the serial console which is never shutdown.
  *
  ****************************************************************************/
 
@@ -970,7 +958,7 @@ static void up_detach(struct uart_dev_s *dev)
  *   when an interrupt received on the 'irq'  It should call
  *   uart_transmitchars or uart_receivechar to perform the
  *   appropriate data transfers.  The interrupt handling logic
- *   must be able to map the 'irq' number into the approprite
+ *   must be able to map the 'irq' number into the appropriate
  *   uart_dev_s structure in order to call these functions.
  *
  ****************************************************************************/
@@ -1073,8 +1061,6 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
             break;
           }
 
-        cfsetispeed(termiosp, priv->baud);
-
         if (priv->bits >= 5 && priv->bits <= 8)
           {
             ccflag |= (CS5 + (priv->bits - 5));
@@ -1099,6 +1085,8 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
          */
 
         termiosp->c_cflag = ccflag;
+
+        cfsetispeed(termiosp, priv->baud);
       }
       break;
 
@@ -1164,7 +1152,7 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
  *
  ****************************************************************************/
 
-static int up_receive(struct uart_dev_s *dev, uint32_t *status)
+static int up_receive(struct uart_dev_s *dev, unsigned int *status)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   uint32_t rxd;
@@ -1204,6 +1192,7 @@ static void up_rxint(struct uart_dev_s *dev, bool enable)
     {
       priv->im &= ~(UART_IM_RXIM | UART_IM_RTIM);
     }
+
   up_serialout(priv, TIVA_UART_IM_OFFSET, priv->im);
 }
 
@@ -1277,6 +1266,7 @@ static void up_txint(struct uart_dev_s *dev, bool enable)
       priv->im &= ~UART_IM_TXIM;
       up_serialout(priv, TIVA_UART_IM_OFFSET, priv->im);
     }
+
   leave_critical_section(flags);
 }
 
@@ -1313,17 +1303,17 @@ static bool up_txempty(struct uart_dev_s *dev)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_earlyserialinit
+ * Name: arm_earlyserialinit
  *
  * Description:
  *   Performs the low level UART initialization early in
  *   debug so that the serial console will be available
- *   during bootup.  This must be called before up_serialinit.
+ *   during bootup.  This must be called before arm_serialinit.
  *
  ****************************************************************************/
 
-#ifndef CONFIG_NO_SERIAL_CONSOLE
-void up_earlyserialinit(void)
+#ifdef USE_EARLYSERIALINIT
+void arm_earlyserialinit(void)
 {
   /* NOTE:  All GPIO configuration for the UARTs was performed in
    * tiva_lowsetup
@@ -1361,18 +1351,18 @@ void up_earlyserialinit(void)
   up_setup(&CONSOLE_DEV);
 #endif
 }
-#endif /* !CONFIG_NO_SERIAL_CONSOLE */
+#endif /* !USE_EARLYSERIALINIT */
 
 /****************************************************************************
- * Name: up_serialinit
+ * Name: arm_serialinit
  *
  * Description:
  *   Register serial console and serial ports.  This assumes
- *   that up_earlyserialinit was called previously.
+ *   that arm_earlyserialinit was called previously.
  *
  ****************************************************************************/
 
-void up_serialinit(void)
+void arm_serialinit(void)
 {
   /* Register the console */
 
@@ -1460,10 +1450,10 @@ int up_putc(int ch)
     {
       /* Add CR */
 
-      up_lowputc('\r');
+      arm_lowputc('\r');
     }
 
-  up_lowputc(ch);
+  arm_lowputc(ch);
 #endif
   return ch;
 }

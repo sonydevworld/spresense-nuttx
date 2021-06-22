@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/vfs/fs_fdopen.c
  *
- *   Copyright (C) 2007-2014, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,7 +32,9 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/fs/fs.h>
-#include <nuttx/net/net.h>
+#include <nuttx/lib/lib.h>
+
+#include "inode/inode.h"
 
 /****************************************************************************
  * Private Functions
@@ -122,19 +109,18 @@ static inline int fs_checkfd(FAR struct tcb_s *tcb, int fd, int oflags)
  *
  ****************************************************************************/
 
-FAR struct file_struct *fs_fdopen(int fd, int oflags, FAR struct tcb_s *tcb)
+int fs_fdopen(int fd, int oflags, FAR struct tcb_s *tcb,
+              FAR struct file_struct **filep)
 {
   FAR struct streamlist *slist;
   FAR FILE              *stream;
-  int                    errcode = OK;
-  int                    ret;
-  int                    i;
+  int                    ret = OK;
 
   /* Check input parameters */
 
   if (fd < 0)
     {
-      errcode = EBADF;
+      ret = -EBADF;
       goto errout;
     }
 
@@ -145,39 +131,12 @@ FAR struct file_struct *fs_fdopen(int fd, int oflags, FAR struct tcb_s *tcb)
 
   if (!tcb)
     {
-      tcb = sched_self();
+      tcb = nxsched_self();
     }
 
   DEBUGASSERT(tcb && tcb->group);
 
-  /* Verify that this is a valid file/socket descriptor and that the
-   * requested access can be support.
-   *
-   * Is this fd in the range of valid file descriptors?  Socket descriptors
-   * lie in a different range.
-   */
-
-  if ((unsigned int)fd >= CONFIG_NFILE_DESCRIPTORS)
-    {
-      /* No.. If networking is enabled then this might be a socket
-       * descriptor.
-       */
-
-#ifdef CONFIG_NET
-      ret = net_checksd(fd, oflags);
-#else
-      /* No networking... it is just a bad descriptor */
-
-      errcode = EBADF;
-      goto errout;
-#endif
-    }
-
-  /* The descriptor is in a valid range to file descriptor... perform some
-   * more checks.
-   */
-
-  else
+  if (fd >= 3)
     {
       ret = fs_checkfd(tcb, fd, oflags);
     }
@@ -188,93 +147,97 @@ FAR struct file_struct *fs_fdopen(int fd, int oflags, FAR struct tcb_s *tcb)
     {
       /* No... return the reported error */
 
-      errcode = -ret;
       goto errout;
     }
 
   /* Get the stream list from the TCB */
 
-#if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && \
-     defined(CONFIG_MM_KERNEL_HEAP)
+#ifdef CONFIG_MM_KERNEL_HEAP
   slist = tcb->group->tg_streamlist;
 #else
   slist = &tcb->group->tg_streamlist;
 #endif
 
-  /* Find an unallocated FILE structure in the stream list */
+  /* Allocate FILE structure */
 
-  ret = nxsem_wait(&slist->sl_sem);
-  if (ret < 0)
+  if (fd >= 3)
     {
-      errcode = -ret;
-      goto errout;
+      stream = group_zalloc(tcb->group, sizeof(FILE));
+      if (stream == NULL)
+        {
+          ret = -ENOMEM;
+          goto errout;
+        }
+
+      /* Add FILE structure to the stream list */
+
+      ret = nxsem_wait(&slist->sl_sem);
+      if (ret < 0)
+        {
+          group_free(tcb->group, stream);
+          goto errout;
+        }
+
+      if (slist->sl_tail)
+        {
+          slist->sl_tail->fs_next = stream;
+          slist->sl_tail = stream;
+        }
+      else
+        {
+          slist->sl_head = stream;
+          slist->sl_tail = stream;
+        }
+
+      nxsem_post(&slist->sl_sem);
+
+      /* Initialize the semaphore the manages access to the buffer */
+
+      lib_sem_initialize(stream);
+    }
+  else
+    {
+      stream = &slist->sl_std[fd];
     }
 
-  for (i = 0 ; i < CONFIG_NFILE_STREAMS; i++)
-    {
-      stream = &slist->sl_streams[i];
-      if (stream->fs_fd < 0)
-        {
-          /* Zero the structure */
-
-          memset(stream, 0, sizeof(FILE));
-
 #ifndef CONFIG_STDIO_DISABLE_BUFFERING
-          /* Initialize the semaphore the manages access to the buffer */
-
-          nxsem_init(&stream->fs_sem, 0, 1);
-
 #if CONFIG_STDIO_BUFFER_SIZE > 0
-          /* Allocate the IO buffer at the appropriate privilege level for
-           * the group.
-           */
+  /* Set up pointers */
 
-          stream->fs_bufstart =
-            group_malloc(tcb->group, CONFIG_STDIO_BUFFER_SIZE);
-
-          if (!stream->fs_bufstart)
-            {
-              errcode = ENOMEM;
-              goto errout_with_sem;
-            }
-
-          /* Set up pointers */
-
-          stream->fs_bufend  = &stream->fs_bufstart[CONFIG_STDIO_BUFFER_SIZE];
-          stream->fs_bufpos  = stream->fs_bufstart;
-          stream->fs_bufread = stream->fs_bufstart;
+  stream->fs_bufstart = stream->fs_buffer;
+  stream->fs_bufend   = &stream->fs_bufstart[CONFIG_STDIO_BUFFER_SIZE];
+  stream->fs_bufpos   = stream->fs_bufstart;
+  stream->fs_bufread  = stream->fs_bufstart;
+  stream->fs_flags    = __FS_FLAG_UBF; /* Fake setvbuf and fclose */
 
 #ifdef CONFIG_STDIO_LINEBUFFER
-          /* Setup buffer flags */
+  /* Setup buffer flags */
 
-          stream->fs_flags  |= __FS_FLAG_LBF; /* Line buffering */
+  stream->fs_flags   |= __FS_FLAG_LBF; /* Line buffering */
 
 #endif /* CONFIG_STDIO_LINEBUFFER */
 #endif /* CONFIG_STDIO_BUFFER_SIZE > 0 */
-#endif /* !CONFIG_STDIO_DISABLE_BUFFERING */
+#endif /* CONFIG_STDIO_DISABLE_BUFFERING */
 
-          /* Save the file description and open flags.  Setting the
-           * file descriptor locks this stream.
-           */
+  /* Save the file description and open flags.  Setting the
+   * file descriptor locks this stream.
+   */
 
-          stream->fs_fd      = fd;
-          stream->fs_oflags  = (uint16_t)oflags;
+  stream->fs_fd       = fd;
+  stream->fs_oflags   = oflags;
 
-          nxsem_post(&slist->sl_sem);
-          return stream;
-        }
+  if (filep != NULL)
+    {
+      *filep = stream;
     }
 
-  /* No free stream available.. report ENFILE */
-
-  errcode = ENFILE;
-
-#if !defined(CONFIG_STDIO_DISABLE_BUFFERING) && CONFIG_STDIO_BUFFER_SIZE > 0
-errout_with_sem:
-#endif
-  nxsem_post(&slist->sl_sem);
+  return OK;
 
 errout:
-  set_errno(errcode);
-  return NULL;
+  if (filep != NULL)
+    {
+      *filep = NULL;
+    }
+
+  return ret;
 }

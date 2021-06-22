@@ -41,7 +41,7 @@
 
 #include <stdbool.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "nvic.h"
 #include "stm32_rcc.h"
 #include "stm32_pwr.h"
@@ -69,7 +69,7 @@ void stm32_pmstandby(void)
 {
   uint32_t regval;
 
-  /* Clear the wake-up flags before reseting. */
+  /* Clear the wake-up flags before resetting. */
 
   modifyreg32(STM32_PWR_CR1, 0, PWR_CR1_CSBF);
   modifyreg32(STM32_PWR_CR2, 0, PWR_CR2_CWUPF1 | PWR_CR2_CWUPF2 |
@@ -80,7 +80,9 @@ void stm32_pmstandby(void)
 
   modifyreg32(STM32_RCC_CSR, 0, RCC_CSR_RMVF);
 
-  /* Set the Power Down Deep Sleep (PDDS) bit in the power control register. */
+  /* Set the Power Down Deep Sleep (PDDS) bit in the power control
+   * register.
+   */
 
   modifyreg32(STM32_PWR_CR1, 0, PWR_CR1_PDDS);
 

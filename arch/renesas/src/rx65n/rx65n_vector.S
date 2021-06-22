@@ -1,36 +1,20 @@
 /****************************************************************************
  * arch/renesas/src/rx65n/rx65n_vector.S
  *
- *   Copyright (C) 2008-2019 Gregory Nutt. All rights reserved.
- *   Author: Anjana <anjana@tataelxsi.co.in> 
- *           Surya <surya.prakash@tataelxsi.co.in>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,9 +24,9 @@
 
 #include <nuttx/config.h>        /* NuttX configuration settings */
 #include <arch/board/board.h>   /* Board-specific settings */
-#include <arch/irq.h>           /* IRQ definitons */
+#include <arch/irq.h>           /* IRQ definitions */
 #include "up_internal.h"
-#include "rx65n/iodefine.h"
+#include "arch/rx65n/iodefine.h"
 #include "rx65n_definitions.h"
 
 /****************************************************************************
@@ -131,7 +115,7 @@ _up_num_irq:
  *     registers : USP, ACC0LO, ACC0,HI, ACC0GU, ACC1LO, ACC1,HI, ACC1GU,
  *                 FPSW, R1, R2, ..., R15
  ***************************************************************************/
- 
+
  .macro  POPREGS
   POPC    USP
   POP     R15
@@ -196,13 +180,13 @@ _up_num_irq:
 _up_vector:
   SETPSW I               /* Re-enable interrupts. */
   PUSHREGS
-#ifdef  RX65N_INTERRUPT_IPL
+#ifdef RX65N_INTERRUPT_IPL
 
   /* Ensure the interrupt mask is set to the syscall priority while the kernel
    * structures are being accessed.
    */
 
-  SETPSW  I          /* Enable Inerrupt */
+  SETPSW  I          /* Enable Interrupt */
   MVTIPL  RX65N_INTERRUPT_IPL  /* configMAX_SYSCALL_INTERRUPT_PRIORITY */
 #endif
   MOV.L   #_up_num_irq, R2
@@ -220,11 +204,11 @@ _up_vector:
   SMOVF      /* while(R3 > 0) {*R1++ = *R2++; R3--; } */
   NOP
 .lint_contextswitch:
-#ifdef  RX65N_INTERRUPT_IPL
+#ifdef RX65N_INTERRUPT_IPL
 
   /* Reset the interrupt mask as no more data structure access is required. */
 
-  CLRPSW  I     /* Disable Inerrupt */
+  CLRPSW  I     /* Disable Interrupt */
   MVTIPL  #15   /* configKERNEL_INTERRUPT_PRIORITY */
 #endif
   POPREGS
@@ -345,7 +329,7 @@ _uprx65_swint2_handler:
 
 _uprx65n_start_handler:
   trampoline NR_IRQS, _uprx65_invalid_handler
-  
+
 #ifdef CONFIG_BSC
   trampoline RX65N_BUSERR_IRQ, _uprx65_buserr_handler
 #endif
@@ -414,7 +398,7 @@ _uprx65n_start_handler:
   trampoline  RX65N_RXI2_IRQ, _uprx65_rxi2_handler
   trampoline  RX65N_TXI2_IRQ, _uprx65_txi2_handler
 #endif
-#if defined(CONFIG_ICU) || defined(CONFIG_RX65N_ICU)
+#if defined(CONFIG_RX65N_ICU)
   trampoline RX65N_IRQ0_IRQ,  _uprx65_irq0_handler
   trampoline RX65N_IRQ1_IRQ,  _uprx65_irq1_handler
   trampoline RX65N_IRQ2_IRQ,  _uprx65_irq2_handler
@@ -492,7 +476,7 @@ _uprx65_groupbe0_handler:
 /* TODO: Please write the others with
  * definition RX65N_XXX_IRQ in irq.h as IRQ number
  */
- 
+
   RTE
   NOP
 _uprx65_groupbl2_handler:
@@ -500,7 +484,7 @@ _uprx65_groupbl2_handler:
 /* TODO: Please write the others with
  * definition RX65N_XXX_IRQ in irq.h as IRQ number
  */
- 
+
   RTE
   NOP
 #endif
@@ -550,7 +534,7 @@ _uprx65_groupbl0_handler:
 /* TODO: Please write the others with
  * definition RX65N_XXX_IRQ in irq.h as IRQ number
  */
- 
+
   RTE
   NOP
 _uprx65_groupbl1_handler:
@@ -564,10 +548,25 @@ _uprx65_groupbl1_handler:
   multi_switching RX65N_GRPBL1_ADDR, RX65N_GENBL1_ADDR, 27, RX65N_ERI9_IRQ
 #endif /* CONFIG_RX65N_SCI9 */
 
+#ifdef CONFIG_RX65N_RIIC0
+  multi_switching RX65N_GRPBL1_ADDR, RX65N_GENBL1_ADDR, 13, RX65N_RIIC0_TEI0_IRQ
+  multi_switching RX65N_GRPBL1_ADDR, RX65N_GENBL1_ADDR, 14, RX65N_RIIC0_EEI0_IRQ
+#endif /* CONFIG_RX65N_RIIC0 */
+
+#ifdef CONFIG_RX65N_RIIC2
+  multi_switching RX65N_GRPBL1_ADDR, RX65N_GENBL1_ADDR, 15, RX65N_RIIC2_TEI2_IRQ
+  multi_switching RX65N_GRPBL1_ADDR, RX65N_GENBL1_ADDR, 16, RX65N_RIIC2_EEI2_IRQ
+#endif /* CONFIG_RX65N_RIIC2 */
+
+#ifdef CONFIG_RX65N_RIIC1
+  multi_switching RX65N_GRPBL1_ADDR, RX65N_GENBL1_ADDR, 28, RX65N_RIIC1_TEI1_IRQ
+  multi_switching RX65N_GRPBL1_ADDR, RX65N_GENBL1_ADDR, 29, RX65N_RIIC1_EEI1_IRQ
+#endif /* CONFIG_RX65N_RIIC1 */
+
 /* TODO: Please write the others with
  * definition RX65N_XXX_IRQ in irq.h as IRQ number
  */
- 
+
   RTE
   NOP
 _uprx65_groupal0_handler:
@@ -581,10 +580,25 @@ _uprx65_groupal0_handler:
   multi_switching RX65N_GRPAL0_ADDR, RX65N_GENAL0_ADDR, 13, RX65N_ERI11_IRQ
 #endif /* CONFIG_RX65N_SCI11 */
 
+#ifdef CONFIG_RX65N_RSPI0
+  multi_switching RX65N_GRPAL0_ADDR, RX65N_GENAL0_ADDR, 16, RX65N_SPII0_IRQ
+  multi_switching RX65N_GRPAL0_ADDR, RX65N_GENAL0_ADDR, 17, RX65N_SPEI0_IRQ
+#endif /* CONFIG_RX65N_RSPI0 */
+
+#ifdef CONFIG_RX65N_RSPI1
+  multi_switching RX65N_GRPAL0_ADDR, RX65N_GENAL0_ADDR, 18, RX65N_SPII1_IRQ
+  multi_switching RX65N_GRPAL0_ADDR, RX65N_GENAL0_ADDR, 19, RX65N_SPEI1_IRQ
+#endif /* CONFIG_RX65N_RSPI1 */
+
+#ifdef CONFIG_RX65N_RSPI2
+  multi_switching RX65N_GRPAL0_ADDR, RX65N_GENAL0_ADDR, 20, RX65N_SPII2_IRQ
+  multi_switching RX65N_GRPAL0_ADDR, RX65N_GENAL0_ADDR, 21, RX65N_SPEI2_IRQ
+#endif /* CONFIG_RX65N_RSPI2 */
+
 /* TODO: Please write the others with
  * definition RX65N_XXX_IRQ in irq.h as IRQ number
  */
- 
+
   RTE
   NOP
 _uprx65_groupal1_handler:
@@ -592,12 +606,12 @@ _uprx65_groupal1_handler:
   multi_switching RX65N_GRPAL1_ADDR, RX65N_GENAL1_ADDR, 4, RX65N_ETH_IRQ
 #endif /* CONFIG_RX65N_EMAC0 */
 
-/* TODO: Please write the others with definition RX65N_XXX_IRQ in 
+/* TODO: Please write the others with definition RX65N_XXX_IRQ in
  * irq.h as IRQ number */
 
     RTE
     NOP
-#endif  /* CONFIG_RX65N_IRQ_GROUP */
+#endif /* CONFIG_RX65N_IRQ_GROUP */
 
 #ifdef CONFIG_RX65N_SCI11
   trampoline RX65N_RXI11_IRQ, _uprx65_rxi11_handler
@@ -952,7 +966,7 @@ __int_vector_table:
   .long   _uprx65_invalid_handler
   .long   _uprx65_invalid_handler
 #endif
-#if defined(CONFIG_ICU) || defined(CONFIG_RX65N_ICU)
+#if defined(CONFIG_RX65N_ICU)
   .long   _uprx65_irq0_handler
   .long   _uprx65_irq1_handler
   .long   _uprx65_irq2_handler
@@ -1148,7 +1162,7 @@ __int_vector_table:
   .long   _uprx65_invalid_handler
 #endif
 
-#ifdef CONFIG_RX65N_PERIB 
+#ifdef CONFIG_RX65N_PERIB
   .long   _uprx65_intb128_handler
   .long   _uprx65_intb129_handler
   .long   _uprx65_intb130_handler

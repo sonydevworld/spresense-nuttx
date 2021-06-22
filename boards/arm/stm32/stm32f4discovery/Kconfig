@@ -32,7 +32,7 @@ config STM32_ROMFS_MOUNTPOINT
 config STM32_ROMFS_IMAGEFILE
 	string "ROMFS image file to include into build"
 	depends on STM32_ROMFS
-	default "../../../rom.img"
+	default "../../../../../rom.img"
 
 config STM32F4DISCO_USBHOST_STACKSIZE
 	int "USB host waiter stack size"
@@ -55,6 +55,7 @@ config STM32F4DISCO_LIS3DSH
 	depends on SPI
 	depends on LIS3DSH
 	default n
+	select SENSORS_LIS3DSH
 	---help---
 		Select to create a LIS3DSH driver instance for the builtin accelerometer of
 		STM32F4Discovery. Provides /dev/acc0 device file.

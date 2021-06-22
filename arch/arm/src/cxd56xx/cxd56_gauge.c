@@ -1,40 +1,24 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_gauge.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
-/* CXD5247GF is Li-Ion Battery Charger with Power-Path Management.
- */
+/* CXD5247GF is Li-Ion Battery Charger with Power-Path Management. */
 
 /****************************************************************************
  * Included Files
@@ -108,13 +92,13 @@ static const struct file_operations g_gaugeops =
   gauge_close,  /* close */
   gauge_read,   /* read */
   gauge_write,  /* write */
-  0,              /* seek */
+  0,            /* seek */
   gauge_ioctl   /* ioctl */
 #ifndef CONFIG_DISABLE_POLL
-  , NULL          /* poll */
+  , NULL        /* poll */
 #endif
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL          /* unlink */
+  , NULL        /* unlink */
 #endif
 };
 
@@ -123,6 +107,7 @@ static struct bat_gauge_dev_s g_gaugedev;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
 /****************************************************************************
  * Name: gauge_get_status
  ****************************************************************************/
@@ -231,6 +216,7 @@ static int gauge_get_capacity(FAR b16_t *capacity)
     {
       return -EIO;
     }
+
   ret = cxd56_pmic_getlowervol(&lower);
   if (ret < 0)
     {

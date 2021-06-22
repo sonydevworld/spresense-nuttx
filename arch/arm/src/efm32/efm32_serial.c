@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/efm32/efm32_serial.c
  *
- *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -57,8 +42,8 @@
 
 #include <arch/board/board.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "hardware/efm32_usart.h"
 #include "efm32_config.h"
@@ -68,7 +53,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-/* Some sanity checks *******************************************************/
+
+/* Some sanity checks */
+
 /* Is there at least one UART enabled and configured as a RS-232 device? */
 
 #ifndef HAVE_UART_DEVICE
@@ -81,8 +68,9 @@
 
 #ifdef USE_SERIALDRIVER
 
-/* Which UART with be ttyS0/console and which tty1-4?  The console will always
- * be ttyS0.  If there is no console then will use the lowest numbered UART.
+/* Which UART with be ttyS0/console and which tty1-4?  The console will
+ * always be ttyS0.  If there is no console then will use the lowest
+ * numbered UART.
  */
 
 /* First pick the console and ttys0.  This could be any of USART0-2 or
@@ -240,7 +228,8 @@ struct efm32_usart_s
  * Private Function Prototypes
  ****************************************************************************/
 
-static inline uint32_t efm32_serialin(struct efm32_usart_s *priv, int offset);
+static inline uint32_t efm32_serialin(struct efm32_usart_s *priv,
+                                      int offset);
 static inline void efm32_serialout(struct efm32_usart_s *priv, int offset,
                                    uint32_t value);
 static inline void efm32_setuartint(struct efm32_usart_s *priv);
@@ -331,18 +320,18 @@ static struct efm32_usart_s g_usart0priv =
 
 static struct uart_dev_s g_usart0port =
 {
-  .recv      =
-  {
-    .size    = CONFIG_USART0_RXBUFSIZE,
-    .buffer  = g_usart0rxbuffer,
-  },
-  .xmit      =
-  {
-    .size    = CONFIG_USART0_TXBUFSIZE,
-    .buffer  = g_usart0txbuffer,
-   },
-  .ops       = &g_uart_ops,
-  .priv      = &g_usart0priv,
+  .recv        =
+    {
+      .size    = CONFIG_USART0_RXBUFSIZE,
+      .buffer  = g_usart0rxbuffer,
+    },
+  .xmit        =
+    {
+      .size    = CONFIG_USART0_TXBUFSIZE,
+      .buffer  = g_usart0txbuffer,
+    },
+  .ops         = &g_uart_ops,
+  .priv        = &g_usart0priv,
 };
 #endif
 
@@ -367,18 +356,18 @@ static struct efm32_usart_s g_usart1priv =
 
 static struct uart_dev_s g_usart1port =
 {
-  .recv      =
-  {
-    .size    = CONFIG_USART1_RXBUFSIZE,
-    .buffer  = g_usart1rxbuffer,
-  },
-  .xmit      =
-  {
-    .size    = CONFIG_USART1_TXBUFSIZE,
-    .buffer  = g_usart1txbuffer,
-   },
-  .ops       = &g_uart_ops,
-  .priv      = &g_usart1priv,
+  .recv        =
+    {
+      .size    = CONFIG_USART1_RXBUFSIZE,
+      .buffer  = g_usart1rxbuffer,
+    },
+  .xmit        =
+    {
+      .size    = CONFIG_USART1_TXBUFSIZE,
+      .buffer  = g_usart1txbuffer,
+    },
+  .ops         = &g_uart_ops,
+  .priv        = &g_usart1priv,
 };
 #endif
 
@@ -403,18 +392,18 @@ static struct efm32_usart_s g_usart2priv =
 
 static struct uart_dev_s g_usart2port =
 {
-  .recv     =
-  {
-    .size   = CONFIG_USART2_RXBUFSIZE,
-    .buffer = g_usart2rxbuffer,
-  },
-  .xmit     =
-  {
-    .size   = CONFIG_USART2_TXBUFSIZE,
-    .buffer = g_usart2txbuffer,
-   },
-  .ops      = &g_uart_ops,
-  .priv     = &g_usart2priv,
+  .recv       =
+    {
+      .size   = CONFIG_USART2_RXBUFSIZE,
+      .buffer = g_usart2rxbuffer,
+    },
+  .xmit       =
+    {
+      .size   = CONFIG_USART2_TXBUFSIZE,
+      .buffer = g_usart2txbuffer,
+    },
+  .ops        = &g_uart_ops,
+  .priv       = &g_usart2priv,
 };
 #endif
 
@@ -439,18 +428,18 @@ static struct efm32_usart_s g_uart0priv =
 
 static struct uart_dev_s g_uart0port =
 {
-  .recv      =
-  {
-    .size    = CONFIG_UART0_RXBUFSIZE,
-    .buffer  = g_uart0rxbuffer,
-  },
-  .xmit      =
-  {
-    .size    = CONFIG_UART0_TXBUFSIZE,
-    .buffer  = g_uart0txbuffer,
-   },
-  .ops       = &g_uart_ops,
-  .priv      = &g_uart0priv,
+  .recv        =
+    {
+      .size    = CONFIG_UART0_RXBUFSIZE,
+      .buffer  = g_uart0rxbuffer,
+    },
+  .xmit        =
+    {
+      .size    = CONFIG_UART0_TXBUFSIZE,
+      .buffer  = g_uart0txbuffer,
+    },
+  .ops         = &g_uart_ops,
+  .priv        = &g_uart0priv,
 };
 #endif
 
@@ -475,18 +464,18 @@ static struct efm32_usart_s g_uart1priv =
 
 static struct uart_dev_s g_uart1port =
 {
-  .recv     =
-  {
-    .size   = CONFIG_UART1_RXBUFSIZE,
-    .buffer = g_uart1rxbuffer,
-  },
-  .xmit     =
-  {
-    .size   = CONFIG_UART1_TXBUFSIZE,
-    .buffer = g_uart1txbuffer,
-   },
-  .ops      = &g_uart_ops,
-  .priv     = &g_uart1priv,
+  .recv       =
+    {
+      .size   = CONFIG_UART1_RXBUFSIZE,
+      .buffer = g_uart1rxbuffer,
+    },
+  .xmit       =
+    {
+      .size   = CONFIG_UART1_TXBUFSIZE,
+      .buffer = g_uart1txbuffer,
+    },
+  .ops        = &g_uart_ops,
+  .priv       = &g_uart1priv,
 };
 #endif
 
@@ -530,7 +519,9 @@ static void efm32_restoreuartint(struct efm32_usart_s *priv, uint32_t ien)
 {
   irqstate_t flags;
 
-  /* Re-enable/re-disable interrupts corresponding to the state of bits in ien */
+  /* Re-enable/re-disable interrupts corresponding to the state of bits in
+   * ien
+   */
 
   flags     = enter_critical_section();
   priv->ien = ien;
@@ -624,14 +615,15 @@ static void efm32_shutdown(struct uart_dev_s *dev)
  * Name: efm32_attach
  *
  * Description:
- *   Configure the UART to operation in interrupt driven mode.  This method is
- *   called when the serial port is opened.  Normally, this is just after the
+ *   Configure the UART to operation in interrupt driven mode.  This method
+ *   is called when the serial port is opened.  Normally, this is just after
  *   the setup() method is called, however, the serial console may operate in
  *   a non-interrupt driven mode during the boot phase.
  *
- *   RX and TX interrupts are not enabled when by the attach method (unless the
- *   hardware supports multiple levels of interrupt enabling).  The RX and TX
- *   interrupts are not enabled until the txint() and rxint() methods are called.
+ *   RX and TX interrupts are not enabled when by the attach method (unless
+ *   the hardware supports multiple levels of interrupt enabling).  The RX
+ *   and TX interrupts are not enabled until the txint() and rxint() methods
+ *   are called.
  *
  ****************************************************************************/
 
@@ -668,8 +660,8 @@ static int efm32_attach(struct uart_dev_s *dev)
  *
  * Description:
  *   Detach UART interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception
- *   is the serial console which is never shutdown.
+ *   closed normally just before the shutdown method is called.  The
+ *   exception is the serial console which is never shutdown.
  *
  ****************************************************************************/
 
@@ -839,8 +831,6 @@ static int efm32_ioctl(struct file *filep, int cmd, unsigned long arg)
             break;
           }
 
-        cfsetispeed(termiosp, priv->config->baud);
-
         /* Note that since we only support 8/9 bit modes and
          * there is no way to report 9-bit mode, we always claim 8.
          */
@@ -848,6 +838,8 @@ static int efm32_ioctl(struct file *filep, int cmd, unsigned long arg)
         termiosp->c_cflag = CS8;
 
         /* TODO: PARENB, PARODD, CSTOPB, CCTS_IFLOW, CCTS_OFLOW */
+
+        cfsetispeed(termiosp, priv->config->baud);
       }
       break;
 
@@ -979,8 +971,8 @@ static void efm32_rxint(struct uart_dev_s *dev, bool enable)
   flags = enter_critical_section();
   if (enable)
     {
-      /* Receive an interrupt when their is anything in the Rx data register (or an Rx
-       * timeout occurs).
+      /* Receive an interrupt when their is anything in the Rx data register
+       * (or an RX timeout occurs).
        */
 
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
@@ -1011,7 +1003,8 @@ static bool efm32_rxavailable(struct uart_dev_s *dev)
 
   /* Return true if the receive data is available (RXDATAV). */
 
-  return (efm32_serialin(priv, EFM32_USART_STATUS_OFFSET) & USART_STATUS_RXDATAV) != 0;
+  return (efm32_serialin(priv, EFM32_USART_STATUS_OFFSET) & \
+          USART_STATUS_RXDATAV) != 0;
 }
 
 /****************************************************************************
@@ -1085,7 +1078,8 @@ static bool efm32_txready(struct uart_dev_s *dev)
    * buffer is half-full or empty.
    */
 
-  return (efm32_serialin(priv, EFM32_USART_STATUS_OFFSET) & USART_STATUS_TXBL) != 0;
+  return (efm32_serialin(priv, EFM32_USART_STATUS_OFFSET) & \
+          USART_STATUS_TXBL) != 0;
 }
 
 /****************************************************************************
@@ -1104,7 +1098,8 @@ static bool efm32_txempty(struct uart_dev_s *dev)
    * data is available in the transmit buffer.
    */
 
-  return (efm32_serialin(priv, EFM32_USART_STATUS_OFFSET) & USART_STATUS_TXC) != 0;
+  return (efm32_serialin(priv, EFM32_USART_STATUS_OFFSET) & \
+          USART_STATUS_TXC) != 0;
 }
 
 /****************************************************************************
@@ -1112,23 +1107,21 @@ static bool efm32_txempty(struct uart_dev_s *dev)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_earlyserialinit
+ * Name: arm_earlyserialinit
  *
  * Description:
  *   Performs the low level UART initialization early in debug so that the
  *   serial console will be available during bootup.  This must be called
- *   before up_serialinit.  NOTE:  This function depends on GPIO pin
- *   configuration performed in efm32_consoleinit() and main clock iniialization
- *   performed in efm32_clkinitialize().
+ *   before arm_serialinit.  NOTE:  This function depends on GPIO pin
+ *   configuration performed in efm32_consoleinit() and main clock
+ *   initialization performed in efm32_clkinitialize().
  *
  ****************************************************************************/
 
 #ifdef USE_EARLYSERIALINIT
-void up_earlyserialinit(void)
+void arm_earlyserialinit(void)
 {
-  /* Disable interrupts from all UARTS.  The console is enabled in
-   * pic32mx_consoleinit()
-   */
+  /* Disable interrupts from all UARTS. */
 
   efm32_restoreuartint(TTYS0_DEV.priv, 0);
 #ifdef TTYS1_DEV
@@ -1144,7 +1137,7 @@ void up_earlyserialinit(void)
   efm32_restoreuartint(TTYS4_DEV.priv, 0);
 #endif
 
-  /* Configuration whichever one is the console */
+  /* Configuration whichever one is the console. */
 
 #ifdef CONSOLE_DEV
   CONSOLE_DEV.isconsole = true;
@@ -1154,15 +1147,15 @@ void up_earlyserialinit(void)
 #endif
 
 /****************************************************************************
- * Name: up_serialinit
+ * Name: arm_serialinit
  *
  * Description:
  *   Register serial console and serial ports.  This assumes that
- *   up_earlyserialinit was called previously.
+ *   arm_earlyserialinit was called previously.
  *
  ****************************************************************************/
 
-void up_serialinit(void)
+void arm_serialinit(void)
 {
   /* Register the console */
 

@@ -3,10 +3,27 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
+choice
+	prompt "Build heap manager"
+	default MM_DEFAULT_MANAGER
+
+config MM_DEFAULT_MANAGER
+	bool "Default heap manager"
+	---help---
+		NuttX original memory manager strategy.
+
+config MM_CUSTOMIZE_MANAGER
+	bool "Customized heap manager"
+	---help---
+		Customized memory manger policy. The build will fail
+		if the MM heap module not defined by customer.
+
+endchoice
+
 config MM_KERNEL_HEAP
 	bool "Support a protected, kernel heap"
 	default y
-	depends on BUILD_PROTECTED || BUILD_KERNEL
+	depends on !BUILD_FLAT
 	---help---
 		Partition heap memory into two parts:  (1) a protected, kernel-mode
 		heap accessible only by the NuttX kernel, and (2) an unprotected
@@ -22,7 +39,7 @@ config MM_KERNEL_HEAP
 		has a more appropriate heap allocation strategy.
 
 config MM_KERNEL_HEAPSIZE
-	int "Kernal heap size"
+	int "Kernel heap size"
 	default 8192
 	depends on MM_KERNEL_HEAP
 	---help---
@@ -154,5 +171,11 @@ config MM_FILL_ALLOCATIONS
 	---help---
 		Fill all malloc() allocations with 0xAA. This helps
 		detecting uninitialized variable errors.
+
+config MM_CIRCBUF
+	bool "Circular buffer support"
+	default n
+	---help---
+		Build in support for the circular buffer management.
 
 source "mm/iob/Kconfig"

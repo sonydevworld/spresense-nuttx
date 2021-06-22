@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/stm32/stm32_hciuart.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,6 +25,7 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -53,8 +39,8 @@
 #include <nuttx/wireless/bluetooth/bt_uart.h>
 #include <nuttx/power/pm.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "chip.h"
 #include "stm32_uart.h"
@@ -69,6 +55,7 @@
  ****************************************************************************/
 
 /* Some sanity checks *******************************************************/
+
 /* DMA configuration */
 
 /* If DMA is enabled on any USART, then very that other pre-requisites
@@ -147,6 +134,7 @@
  * When streaming data, the generic serial layer will be called
  * every time the FIFO receives half this number of bytes.
  */
+
 #  if !defined(CONFIG_STM32_HCIUART_RXDMA_BUFSIZE)
 #    define CONFIG_STM32_HCIUART_RXDMA_BUFSIZE 32
 #  endif
@@ -157,13 +145,13 @@
 
 /* DMA priority */
 
-#  ifndef CONFIG_STM32_HCIUART_DMAPRIO
+#  ifndef CONFIG_STM32_HCIUART_RXDMAPRIO
 #    if defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F10XX) || \
         defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F33XX) || \
         defined(CONFIG_STM32_STM32F37XX)
-#      define CONFIG_STM32_HCIUART_DMAPRIO  DMA_CCR_PRIMED
+#      define CONFIG_STM32_HCIUART_RXDMAPRIO  DMA_CCR_PRIMED
 #    elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F4XXX)
-#      define CONFIG_STM32_HCIUART_DMAPRIO  DMA_SCR_PRIMED
+#      define CONFIG_STM32_HCIUART_RXDMAPRIO  DMA_SCR_PRIMED
 #    else
 #      error "Unknown STM32 DMA"
 #    endif
@@ -171,12 +159,12 @@
 #    if defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F10XX) || \
         defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F33XX) || \
         defined(CONFIG_STM32_STM32F37XX)
-#    if (CONFIG_STM32_HCIUART_DMAPRIO & ~DMA_CCR_PL_MASK) != 0
-#      error "Illegal value for CONFIG_STM32_HCIUART_DMAPRIO"
+#    if (CONFIG_STM32_HCIUART_RXDMAPRIO & ~DMA_CCR_PL_MASK) != 0
+#      error "Illegal value for CONFIG_STM32_HCIUART_RXDMAPRIO"
 #    endif
 #  elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F4XXX)
-#    if (CONFIG_STM32_HCIUART_DMAPRIO & ~DMA_SCR_PL_MASK) != 0
-#      error "Illegal value for CONFIG_STM32_HCIUART_DMAPRIO"
+#    if (CONFIG_STM32_HCIUART_RXDMAPRIO & ~DMA_SCR_PL_MASK) != 0
+#      error "Illegal value for CONFIG_STM32_HCIUART_RXDMAPRIO"
 #    endif
 #  else
 #    error "Unknown STM32 DMA"
@@ -191,7 +179,7 @@
                  DMA_SCR_MINC          | \
                  DMA_SCR_PSIZE_8BITS   | \
                  DMA_SCR_MSIZE_8BITS   | \
-                 CONFIG_STM32_HCIUART_DMAPRIO  | \
+                 CONFIG_STM32_HCIUART_RXDMAPRIO  | \
                  DMA_SCR_PBURST_SINGLE | \
                  DMA_SCR_MBURST_SINGLE)
 #  else
@@ -200,7 +188,7 @@
                  DMA_CCR_MINC          | \
                  DMA_CCR_PSIZE_8BITS   | \
                  DMA_CCR_MSIZE_8BITS   | \
-                 CONFIG_STM32_HCIUART_DMAPRIO)
+                 CONFIG_STM32_HCIUART_RXDMAPRIO)
 # endif
 #endif
 
@@ -303,8 +291,8 @@ struct hciuart_config_s
  * Private Function Prototypes
  ****************************************************************************/
 
-static inline uint32_t hciuart_getreg32(const struct hciuart_config_s *config,
-              unsigned int offset);
+static inline uint32_t hciuart_getreg32(
+              const struct hciuart_config_s *config, unsigned int offset);
 static inline void hciuart_putreg32(const struct hciuart_config_s *config,
               unsigned int offset, uint32_t value);
 static void hciuart_enableints(const struct hciuart_config_s *config,
@@ -322,8 +310,9 @@ static uint16_t hciuart_rxinuse(const struct hciuart_config_s *config);
 static void hciuart_rxflow_enable(const struct hciuart_config_s *config);
 static void hciuart_rxflow_disable(const struct hciuart_config_s *config);
 static ssize_t hciuart_copytorxbuffer(const struct hciuart_config_s *config);
-static ssize_t hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
-              uint8_t *dest, size_t destlen);
+static ssize_t hciuart_copyfromrxbuffer(
+              const struct hciuart_config_s *config, uint8_t *dest,
+              size_t destlen);
 static ssize_t hciuart_copytotxfifo(const struct hciuart_config_s *config);
 static void hciuart_line_configure(const struct hciuart_config_s *config);
 static void hciuart_apbclock_enable(const struct hciuart_config_s *config);
@@ -742,8 +731,9 @@ static  struct pm_callback_s g_serialcb =
  * Name: hciuart_getreg32
  ****************************************************************************/
 
-static inline uint32_t hciuart_getreg32(const struct hciuart_config_s *config,
-                                        unsigned int offset)
+static inline uint32_t
+  hciuart_getreg32(const struct hciuart_config_s *config,
+                   unsigned int offset)
 {
   return getreg32(config->usartbase + offset);
 }
@@ -787,7 +777,7 @@ static void hciuart_enableints(const struct hciuart_config_s *config,
   cr2 |= (intset & USART_CR3_EIE);
   hciuart_putreg32(config, STM32_USART_CR3_OFFSET, cr2);
 
-  wlinfo("CR1 %08x CR2 %08x\n", cr1, cr2);
+  wlinfo("CR1 %08" PRIx32 " CR2 %08" PRIx32 "\n", cr1, cr2);
 }
 
 /****************************************************************************
@@ -819,7 +809,7 @@ static void hciuart_disableints(const struct hciuart_config_s *config,
   cr2 &= ~(intset & USART_CR3_EIE);
   hciuart_putreg32(config, STM32_USART_CR3_OFFSET, cr2);
 
-  wlinfo("CR1 %08x CR2 %08x\n", cr1, cr2);
+  wlinfo("CR1 %08" PRIx32 " CR2 %08" PRIx32 "\n", cr1, cr2);
 }
 
 /****************************************************************************
@@ -967,7 +957,7 @@ static uint16_t hciuart_rxinuse(const struct hciuart_config_s *config)
 
 static void hciuart_rxflow_enable(const struct hciuart_config_s *config)
 {
-#ifdef  CONFIG_STM32_HCIUART_SW_RXFLOW
+#ifdef CONFIG_STM32_HCIUART_SW_RXFLOW
   struct hciuart_state_s *state;
 
   DEBUGASSERT(config != NULL && config->state != NULL);
@@ -1004,7 +994,7 @@ static void hciuart_rxflow_enable(const struct hciuart_config_s *config)
 
 static void hciuart_rxflow_disable(const struct hciuart_config_s *config)
 {
-#ifdef  CONFIG_STM32_HCIUART_SW_RXFLOW
+#ifdef CONFIG_STM32_HCIUART_SW_RXFLOW
   struct hciuart_state_s *state;
 
   DEBUGASSERT(config != NULL && config->state != NULL);
@@ -1069,7 +1059,7 @@ static ssize_t hciuart_copytorxbuffer(const struct hciuart_config_s *config)
            * incremented tail index would make the Rx buffer appear empty,
            * then we must stop the copy.  If there is data pending in the Rx
            * DMA buffer, this could be very bad because a data overrun
-           condition is likely to occur.
+           * condition is likely to occur.
            */
 
           rxnext = rxtail + 1;
@@ -1110,7 +1100,8 @@ static ssize_t hciuart_copytorxbuffer(const struct hciuart_config_s *config)
     {
       /* Is there data available in the Rx FIFO? */
 
-      while ((hciuart_getreg32(config, STM32_USART_SR_OFFSET) & USART_SR_RXNE) != 0)
+      while ((hciuart_getreg32(config, STM32_USART_SR_OFFSET) &
+              USART_SR_RXNE) != 0)
         {
           /* Compare the Rx buffer head and tail indices.  If the
            * incremented tail index would make the Rx buffer appear empty,
@@ -1175,8 +1166,9 @@ static ssize_t hciuart_copytorxbuffer(const struct hciuart_config_s *config)
  *
  ****************************************************************************/
 
-static ssize_t hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
-                                        uint8_t *dest, size_t destlen)
+static ssize_t
+  hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
+                           uint8_t *dest, size_t destlen)
 {
   struct hciuart_state_s *state;
   ssize_t nbytes;
@@ -1259,11 +1251,12 @@ static ssize_t hciuart_copytotxfifo(const struct hciuart_config_s *config)
       /* Is the transmit data register empty?
        *
        * TXE: Transmit data register empty
-       *   This bit is set by hardware when the content of the TDR register has
-       *   been transferred into the shift register.
+       *   This bit is set by hardware when the content of the TDR register
+       *   has been transferred into the shift register.
        */
 
-      if ((hciuart_getreg32(config, STM32_USART_SR_OFFSET) & USART_SR_TXE) == 0)
+      if ((hciuart_getreg32(config, STM32_USART_SR_OFFSET) &
+          USART_SR_TXE) == 0)
         {
           break;
         }
@@ -1295,7 +1288,7 @@ static ssize_t hciuart_copytotxfifo(const struct hciuart_config_s *config)
  *
  *   Per "Specification of the Bluetooth System, Wireless connections made
  *   easy, Host Controller Interface [Transport Layer]", Volume 4, Revision
- *   1.2 or later, 1 January 2006, HCI UART tranport uses these settings:
+ *   1.2 or later, 1 January 2006, HCI UART transport uses these settings:
  *
  *     8 data bits, no parity, 1 stop, RTS/CTS flow control
  *
@@ -1341,7 +1334,7 @@ static void hciuart_line_configure(const struct hciuart_config_s *config)
    *   usartdiv8 = 2 * fCK / baud
    */
 
-   usartdiv8 = ((config->apbclock << 1) + (baud >> 1)) / baud;
+  usartdiv8 = ((config->apbclock << 1) + (baud >> 1)) / baud;
 
   /* Baud rate for standard USART (SPI mode included):
    *
@@ -1387,11 +1380,11 @@ static void hciuart_line_configure(const struct hciuart_config_s *config)
    *   baud     = fCK / (16 * usartdiv)
    *   usartdiv = fCK / (16 * baud)
    *
-   * Where fCK is the input clock to the peripheral (PCLK1 for USART2, 3, 4, 5
-   * or PCLK2 for USART1)
+   * Where fCK is the input clock to the peripheral (PCLK1 for USART2, 3,
+   * 4, 5 or PCLK2 for USART1)
    *
-   * First calculate (NOTE: all stand baud values are even so dividing by two
-   * does not lose precision):
+   * First calculate (NOTE: all stand baud values are even so dividing by
+   * two does not lose precision):
    *
    *   usartdiv32 = 32 * usartdiv = fCK / (baud/2)
    */
@@ -1559,7 +1552,7 @@ static void hciuart_apbclock_enable(const struct hciuart_config_s *config)
  *
  *   Per "Specification of the Bluetooth System, Wireless connections made
  *   easy, Host Controller Interface [Transport Layer]", Volume 4, Revision
- *   1.2 or later, 1 January 2006, HCI UART tranport uses these settings:
+ *   1.2 or later, 1 January 2006, HCI UART transport uses these settings:
  *
  *     8 data bits, no parity, 1 stop, RTS/CTS flow control
  *
@@ -1607,7 +1600,9 @@ static int hciuart_configure(const struct hciuart_config_s *config)
   stm32_configgpio(pinset);
 
   /* Configure CR2 */
+
   /* Clear STOP, CLKEN, CPOL, CPHA, LBCL, and interrupt enable bits */
+
   /* HCI UART spec:  1 stop bit */
 
   regval  = hciuart_getreg32(config, STM32_USART_CR2_OFFSET);
@@ -1616,6 +1611,7 @@ static int hciuart_configure(const struct hciuart_config_s *config)
   hciuart_putreg32(config, STM32_USART_CR2_OFFSET, regval);
 
   /* Configure CR1 */
+
   /* Clear TE, REm and all interrupt enable bits */
 
   regval  = hciuart_getreg32(config, STM32_USART_CR1_OFFSET);
@@ -1624,10 +1620,12 @@ static int hciuart_configure(const struct hciuart_config_s *config)
   hciuart_putreg32(config, STM32_USART_CR1_OFFSET, regval);
 
   /* Configure CR3 */
+
   /* Clear CTSE, RTSE, and all interrupt enable bits */
 
   regval  = hciuart_getreg32(config, STM32_USART_CR3_OFFSET);
-  regval &= ~(USART_CR3_CTSIE | USART_CR3_CTSE | USART_CR3_RTSE | USART_CR3_EIE);
+  regval &= ~(USART_CR3_CTSIE | USART_CR3_CTSE | USART_CR3_RTSE |
+              USART_CR3_EIE);
 
   hciuart_putreg32(config, STM32_USART_CR3_OFFSET, regval);
 
@@ -1693,7 +1691,8 @@ static int hciuart_configure(const struct hciuart_config_s *config)
  *   interrupt received on the 'irq'  It should call uart_transmitchars or
  *   uart_receivechar to perform the appropriate data transfers.  The
  *   interrupt handling logic must be able to map the 'irq' number into the
- *   appropriate btuart_lowerhalf_s structure in order to call these functions.
+ *   appropriate btuart_lowerhalf_s structure in order to call these
+ *   functions.
  *
  ****************************************************************************/
 
@@ -1727,28 +1726,31 @@ static int hciuart_interrupt(int irq, void *context, void *arg)
       /* Get the masked USART status word. */
 
       status = hciuart_getreg32(config, STM32_USART_SR_OFFSET);
-      wlinfo("status %08x\n", status);
+      wlinfo("status %08" PRIx32 "\n", status);
 
       /* USART interrupts:
        *
-       * Enable             Status          Meaning                         Usage
-       * ------------------ --------------- ------------------------------- ----------
-       * USART_CR1_IDLEIE   USART_SR_IDLE   Idle Line Detected              (not used)
-       * USART_CR1_RXNEIE   USART_SR_RXNE   Received Data Ready to be Read
-       * "              "   USART_SR_ORE    Overrun Error Detected
-       * USART_CR1_TCIE     USART_SR_TC     Transmission Complete           (used only for RS-485)
-       * USART_CR1_TXEIE    USART_SR_TXE    Transmit Data Register Empty
-       * USART_CR1_PEIE     USART_SR_PE     Parity Error                    (No parity)
+       * Enable           Status        Meaning                 Usage
+       * ---------------- ------------- ----------------------- ----------
+       * USART_CR1_IDLEIE USART_SR_IDLE Idle Line Detected      (not used)
+       * USART_CR1_RXNEIE USART_SR_RXNE Received Data Ready to
+       *                                be Read
+       * "              " USART_SR_ORE  Overrun Error Detected
+       * USART_CR1_TCIE   USART_SR_TC   Transmission Complete   (only for
+       *                                                         RS-485)
+       * USART_CR1_TXEIE  USART_SR_TXE  Transmit Data Register
+       *                                Empty
+       * USART_CR1_PEIE   USART_SR_PE   Parity Error            (No parity)
        *
-       * USART_CR2_LBDIE    USART_SR_LBD    Break Flag                      (not used)
-       * USART_CR3_EIE      USART_SR_FE     Framing Error
-       * "           "      USART_SR_NE     Noise Error
-       * "           "      USART_SR_ORE    Overrun Error Detected
-       * USART_CR3_CTSIE    USART_SR_CTS    CTS flag                        (not used)
+       * USART_CR2_LBDIE  USART_SR_LBD  Break Flag              (not used)
+       * USART_CR3_EIE    USART_SR_FE   Framing Error
+       * "           "    USART_SR_NE   Noise Error
+       * "           "    USART_SR_ORE  Overrun Error Detected
+       * USART_CR3_CTSIE  USART_SR_CTS  CTS flag                (not used)
        *
-       * NOTE: Some of these status bits must be cleared by explicitly writing zero
-       * to the SR register: USART_SR_CTS, USART_SR_LBD. Note of those are currently
-       * being used.
+       * NOTE: Some of these status bits must be cleared by explicitly
+       * writing zero to the SR register: USART_SR_CTS, USART_SR_LBD. Note
+       * of those are currently being used.
        */
 
       /* Handle incoming, receive bytes (non-DMA only) */
@@ -1805,8 +1807,8 @@ static int hciuart_interrupt(int irq, void *context, void *arg)
       /* Handle outgoing, transmit bytes
        *
        * TXE: Transmit data register empty
-       *   This bit is set by hardware when the content of the TDR register has
-       *   been transferred into the shift register.
+       *   This bit is set by hardware when the content of the TDR register
+       *   has been transferred into the shift register.
        */
 
       if ((status & USART_SR_TXE) != 0 &&
@@ -1822,13 +1824,14 @@ static int hciuart_interrupt(int irq, void *context, void *arg)
           nbytes = hciuart_copytotxfifo(config);
           UNUSED(nbytes);
 
-          /* If the Tx buffer is now empty, then disable further Tx interrupts.
-           * Tx interrupts will only be enabled in the following circumstances:
+          /* If the Tx buffer is now empty, then disable further Tx
+           * interrupts.  Tx interrupts will only be enabled in the
+           * following circumstances:
            *
            * 1. The user is waiting in hciuart_write() for space to become
            *    available in the Tx FIFO.
-           * 2. The full, outgoing message has been placed into the Tx buffer
-           *    by hciuart_write().
+           * 2. The full, outgoing message has been placed into the Tx
+           *    buffer by hciuart_write().
            *
            * In either case, no more Tx interrupts will be needed until more
            * data is added to the Tx buffer.
@@ -1892,7 +1895,7 @@ static void hciuart_rxattach(const struct btuart_lowerhalf_s *lower,
 
   /* If the callback is NULL, then we are detaching */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   if (callback == NULL)
     {
       uint32_t intset;
@@ -1915,7 +1918,7 @@ static void hciuart_rxattach(const struct btuart_lowerhalf_s *lower,
       state->callback = callback;
     }
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -1948,10 +1951,10 @@ static void hciuart_rxenable(const struct btuart_lowerhalf_s *lower,
 
       /* En/disable DMA reception.
        *
-       * Note that it is not safe to check for available bytes and immediately
-       * pass them to uart_recvchars as that could potentially recurse back to
-       * us again.  Instead, bytes must wait until the next up_dma_poll or DMA
-       * event.
+       * Note that it is not safe to check for available bytes and
+       * immediately pass them to uart_recvchars as that could potentially
+       * recurse back to us again.  Instead, bytes must wait until the next
+       * up_dma_poll or DMA event.
        */
 
       state->rxenable = enable;
@@ -1966,24 +1969,25 @@ static void hciuart_rxenable(const struct btuart_lowerhalf_s *lower,
 
       /* USART receive interrupts:
        *
-       * Enable             Status          Meaning                         Usage
-       * ------------------ --------------- ------------------------------- ----------
-       * USART_CR1_IDLEIE   USART_SR_IDLE   Idle Line Detected              (not used)
-       * USART_CR1_RXNEIE   USART_SR_RXNE   Received Data Ready to be Read
-       * "              "   USART_SR_ORE    Overrun Error Detected
-       * USART_CR1_PEIE     USART_SR_PE     Parity Error                    (No parity)
+       * Enable           Status        Meaning                 Usage
+       * ---------------- ------------- ----------------------- ----------
+       * USART_CR1_IDLEIE USART_SR_IDLE Idle Line Detected      (not used)
+       * USART_CR1_RXNEIE USART_SR_RXNE Received Data Ready to
+       *                                be Read
+       * "              " USART_SR_ORE  Overrun Error Detected
+       * USART_CR1_PEIE   USART_SR_PE   Parity Error            (No parity)
        *
-       * USART_CR2_LBDIE    USART_SR_LBD    Break Flag                      (not used)
-       * USART_CR3_EIE      USART_SR_FE     Framing Error
-       * "           "      USART_SR_NE     Noise Error
-       * "           "      USART_SR_ORE    Overrun Error Detected
+       * USART_CR2_LBDIE  USART_SR_LBD  Break Flag              (not used)
+       * USART_CR3_EIE    USART_SR_FE   Framing Error
+       * "           "    USART_SR_NE   Noise Error
+       * "           "    USART_SR_ORE  Overrun Error Detected
        */
 
-      flags = spin_lock_irqsave();
+      flags = spin_lock_irqsave(NULL);
       if (enable)
         {
-          /* Receive an interrupt when their is anything in the Rx data register (or an Rx
-           * timeout occurs).
+          /* Receive an interrupt when their is anything in the Rx data
+           * register (or an Rx timeout occurs).
            */
 
           intset = USART_CR1_RXNEIE | USART_CR3_EIE;
@@ -1995,7 +1999,7 @@ static void hciuart_rxenable(const struct btuart_lowerhalf_s *lower,
           hciuart_disableints(config, intset);
         }
 
-      spin_unlock_irqrestore(flags);
+      spin_unlock_irqrestore(NULL, flags);
     }
 #endif
 }
@@ -2047,9 +2051,10 @@ static ssize_t hciuart_read(const struct btuart_lowerhalf_s *lower,
   struct hciuart_state_s *state;
   uint8_t *dest;
   size_t remaining;
-  size_t ntotal;
+  ssize_t ntotal;
   ssize_t nbytes;
   bool rxenable;
+  int ret;
 
   wlinfo("config %p buffer %p buflen %lu\n",
          config, buffer, (unsigned long)buflen);
@@ -2094,7 +2099,12 @@ static ssize_t hciuart_read(const struct btuart_lowerhalf_s *lower,
               state->rxwaiting = true;
               do
                 {
-                  nxsem_wait_uninterruptible(&state->rxwait);
+                  ret = nxsem_wait_uninterruptible(&state->rxwait);
+                  if (ret < 0)
+                    {
+                      ntotal = (ssize_t)ret;
+                      break;
+                    }
                 }
               while (state->rxwaiting);
             }
@@ -2163,8 +2173,9 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
   uint16_t txhead;
   uint16_t txtail;
   uint16_t txnext;
-  size_t remaining;
+  ssize_t ntotal;
   irqstate_t flags;
+  int ret;
 
   wlinfo("config %p buffer %p buflen %lu\n",
          config, buffer, (unsigned long)buflen);
@@ -2179,25 +2190,27 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
   /* Make sure that the Tx Interrupts are disabled.
    * USART transmit interrupts:
    *
-   * Enable             Status          Meaning                      Usage
-   * ------------------ --------------- ---------------------------- ----------
-   * USART_CR1_TCIE     USART_SR_TC     Transmission Complete        (used only for RS-485)
-   * USART_CR1_TXEIE    USART_SR_TXE    Transmit Data Register Empty
-   * USART_CR3_CTSIE    USART_SR_CTS    CTS flag                     (not used)
+   * Enable           Status        Meaning                      Usage
+   * ---------------- ------------- ---------------------- ----------
+   * USART_CR1_TCIE   USART_SR_TC   Transmission Complete  (only for RS-485)
+   * USART_CR1_TXEIE  USART_SR_TXE  Transmit Data Register
+   *                                Empty
+   * USART_CR3_CTSIE  USART_SR_CTS  CTS flag               (not used)
    */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   hciuart_disableints(config, USART_CR1_TXEIE);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 
   /* Loop until all of the user data have been moved to the Tx buffer */
 
-  src       = buffer;
-  remaining = buflen;
+  src    = buffer;
+  ntotal = 0;
 
-  while (remaining > 0)
+  while (ntotal < (ssize_t)buflen)
     {
       /* Copy bytes to the tail of the Tx buffer */
+
       /* Get a copy of the rxhead and rxtail indices of the Tx buffer */
 
       txhead = state->txhead;
@@ -2213,7 +2226,7 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
        * copy?
        */
 
-      while (txhead != txnext && remaining > 0)
+      while (txhead != txnext && ntotal < (ssize_t)buflen)
         {
           /* Yes.. copy one byte to the Tx buffer */
 
@@ -2225,7 +2238,7 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
               txnext = 0;
             }
 
-          remaining--;
+          ntotal++;
         }
 
       /* Save the updated Tx buffer tail index */
@@ -2241,7 +2254,7 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
        * space in the Tx* buffer then try again.
        */
 
-      if (nbytes <= 0 && remaining > 0)
+      if (nbytes <= 0 && ntotal < (ssize_t)buflen)
         {
           DEBUGASSERT(nbytes == 0);
 
@@ -2256,7 +2269,16 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
           state->txwaiting = true;
           do
             {
-              nxsem_wait_uninterruptible(&state->txwait);
+              ret = nxsem_wait_uninterruptible(&state->txwait);
+              if (ret < 0)
+                {
+                  if (ntotal == 0)
+                    {
+                      ntotal = (ssize_t)ret;
+                    }
+
+                  break;
+                }
             }
           while (state->txwaiting);
 
@@ -2267,16 +2289,16 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
         }
     }
 
-  /* If the Tx buffer is not empty, then exit with the Tx interrupts enabled. */
+  /* If Tx buffer is not empty, then exit with Tx interrupts enabled. */
 
   if (state->txhead != state->txtail)
     {
-      flags = spin_lock_irqsave();
+      flags = spin_lock_irqsave(NULL);
       hciuart_enableints(config, USART_CR1_TXEIE);
-      spin_unlock_irqrestore(flags);
+      spin_unlock_irqrestore(NULL, flags);
     }
 
-  return buflen;
+  return ntotal;
 }
 
 /****************************************************************************
@@ -2296,7 +2318,7 @@ static ssize_t hciuart_rxdrain(const struct btuart_lowerhalf_s *lower)
   ssize_t nbytes;
   bool rxenable;
 
-  wlinfo("config %p\n");
+  wlinfo("config %p\n", config);
 
   DEBUGASSERT(config != NULL && config->state != NULL);
   state = config->state;
@@ -2409,32 +2431,29 @@ static void hciuart_pm_notify(struct pm_callback_s *cb, int domain,
       case(PM_NORMAL):
         {
           /* Logic for PM_NORMAL goes here */
-
         }
         break;
 
       case(PM_IDLE):
         {
           /* Logic for PM_IDLE goes here */
-
         }
         break;
 
       case(PM_STANDBY):
         {
           /* Logic for PM_STANDBY goes here */
-
         }
         break;
 
       case(PM_SLEEP):
         {
           /* Logic for PM_SLEEP goes here */
-
         }
         break;
 
       default:
+
         /* Should not get here */
 
         break;
@@ -2506,7 +2525,8 @@ static int hciuart_pm_prepare(struct pm_callback_s *cb, int domain,
  *
  ****************************************************************************/
 
-const struct btuart_lowerhalf_s *hciuart_instantiate(enum hciuart_devno_e uart)
+const struct btuart_lowerhalf_s *
+  hciuart_instantiate(enum hciuart_devno_e uart)
 {
   const struct hciuart_config_s *config;
 #ifdef CONFIG_PM
@@ -2546,12 +2566,6 @@ const struct btuart_lowerhalf_s *hciuart_instantiate(enum hciuart_devno_e uart)
  *   Performs the low-level, one-time USART initialization.  This must be
  *   called before hciuart_instantiate.
  *
- * Input Paramters:
- *   None
- *
- * Returned Value:
- *   None
- *
  ****************************************************************************/
 
 void hciuart_initialize(void)
@@ -2579,18 +2593,18 @@ void hciuart_initialize(void)
           /* Initialize signalling semaphores */
 
           nxsem_init(&state->rxwait, 0, 0);
-          nxsem_setprotocol(&state->rxwait, SEM_PRIO_NONE);
+          nxsem_set_protocol(&state->rxwait, SEM_PRIO_NONE);
 
           nxsem_init(&state->txwait, 0, 0);
-          nxsem_setprotocol(&state->txwait, SEM_PRIO_NONE);
+          nxsem_set_protocol(&state->txwait, SEM_PRIO_NONE);
 
           /* Attach and enable the HCI UART IRQ */
 
           ret = irq_attach(config->irq, hciuart_interrupt, (void *)config);
           if (ret == OK)
             {
-              /* Enable the interrupt (RX and TX interrupts are still disabled
-               * in the USART)
+              /* Enable the interrupt (RX and TX interrupts are still
+               * disabled in the USART)
                */
 
               up_enable_irq(config->irq);
@@ -2608,12 +2622,6 @@ void hciuart_initialize(void)
  *
  *   This function should be called from a timer or other periodic context.
  *
- * Input Paramters:
- *   None
- *
- * Returned Value:
- *   None
- *
  ****************************************************************************/
 
 #ifdef CONFIG_STM32_HCIUART_RXDMA
@@ -2621,7 +2629,7 @@ void stm32_serial_dma_poll(void)
 {
   irqstate_t flags;
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
 
 #ifdef CONFIG_STM32_HCIUART1_RXDMA
   if (g_hciusart1_config.state->rxdmastream != NULL)
@@ -2658,7 +2666,9 @@ void stm32_serial_dma_poll(void)
 #ifdef CONFIG_STM32_HCIUART7_RXDMA
   if (g_hciuart7_config.state->rxdmastream != NULL)
     {
-      hciuart_dma_rxcallback(g_hciuart7_config.state->rxdmastream, 0, &g_hciuart7_config);
+      hciuart_dma_rxcallback(g_hciuart7_config.state->rxdmastream,
+                             0,
+                             &g_hciuart7_config);
     }
 #endif
 
@@ -2670,6 +2680,6 @@ void stm32_serial_dma_poll(void)
     }
 #endif
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 #endif

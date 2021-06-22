@@ -1,57 +1,42 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/include/max326xx/chip.h
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_INCLUDE_MAX326XX_CHIP_H
 #define __ARCH_ARM_INCLUDE_MAX326XX_CHIP_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
-/************************************************************************************
- * Pre-processor Definitions
- ************************************************************************************/
+/****************************************************************************
+ * Pre-processor Prototypes
+ ****************************************************************************/
 
-/* Get customizations for each supported MAX326xx family.  Only sizes and numbers of
- * things are provided here.  See arch/arm/src/max326xx/Kconfig for other, boolean
- * configuration settings.
+/* Get customizations for each supported MAX326xx family.  Only sizes and
+ * numbers of things are provided here.  See arch/arm/src/max326xx/Kconfig
+ * for other, boolean configuration settings.
  *
- * MAX326xx Families are determined by sharing a common User Guide for the chip
- * specification:
+ * MAX326xx Families are determined by sharing a common User Guide for the
+ * chip specification:
  *
  *   MAX32620/32621 Family:  MAX32620 Rev C, User Guide, AN6242, Rev 2, 2/17
  *   MAX32630/32632 Family:  MAX32630 Rev B, User Guide, AN6349, Rev 0, 10/16
@@ -76,9 +61,9 @@
 
 /* Peripherals */
 
-#  define MAX326_NWDOG       0    /* No Watchog Timers */
-#  define MAX326_NWWDOG      2    /* Two Windowed Watchog Timers */
-#  define MAX326_NRWDOG      1    /* One Recovery Watchog Timer */
+#  define MAX326_NWDOG       0    /* No Watchdog Timers */
+#  define MAX326_NWWDOG      2    /* Two Windowed Watchdog Timers */
+#  define MAX326_NRWDOG      1    /* One Recovery Watchdog Timer */
 #  define MAX326_NWAKEUP     1    /* One Wakeup Timer */
 #  define MAX326_NRTC        1    /* One RTC */
 #  define MAX326_NCRC        1    /* One CRC16/32 */
@@ -115,9 +100,9 @@
 
 /* Peripherals */
 
-#  define MAX326_NWDOG       0    /* No Watchog Timers */
-#  define MAX326_NWWDOG      2    /* Two Windowed Watchog Timers */
-#  define MAX326_NRWDOG      0    /* No Recovery Watchog Timer */
+#  define MAX326_NWDOG       0    /* No Watchdog Timers */
+#  define MAX326_NWWDOG      2    /* Two Windowed Watchdog Timers */
+#  define MAX326_NRWDOG      0    /* No Recovery Watchdog Timer */
 #  define MAX326_NWAKEUP     1    /* One Wakeup Timer */
 #  define MAX326_NRTC        1    /* One RTC */
 #  define MAX326_NCRC        1    /* One CRC16/32 */
@@ -164,9 +149,9 @@
 
 /* Peripherals */
 
-#  define MAX326_NWDOG       1    /* One Watchog Timer */
-#  define MAX326_NWWDOG      0    /* No Windowed Watchog Timers */
-#  define MAX326_NRWDOG      0    /* No Recovery Watchog Timer */
+#  define MAX326_NWDOG       1    /* One Watchdog Timer */
+#  define MAX326_NWWDOG      0    /* No Windowed Watchdog Timers */
+#  define MAX326_NRWDOG      0    /* No Recovery Watchdog Timer */
 #  define MAX326_NWAKEUP     0    /* No Wakeup Timer */
 #  define MAX326_NRTC        1    /* One RTC */
 #  define MAX326_NCRC        0    /* No CRC16/32 */
@@ -189,10 +174,12 @@
 #  error Unrecognized MAX326XX chip
 #endif
 
-/* NVIC priority levels *************************************************************/
-/* Each priority field holds a priority value, 0x00-0xe0. The lower the value, the
- * greater the priority of the corresponding interrupt. The processor implements only
- * bits[7:4] of each field, bits[6:0] read as zero and ignore writes.
+/* NVIC priority levels *****************************************************/
+
+/* Each priority field holds a priority value, 0x00-0xe0. The lower the
+ * value, the greater the priority of the corresponding interrupt. The
+ * processor implements only bits[7:4] of each field, bits[6:0] read as zero
+ * and ignore writes.
  */
 
 #define NVIC_SYSH_PRIORITY_MIN      0xe0 /* All bits[7:5] set is minimum priority */
@@ -200,16 +187,16 @@
 #define NVIC_SYSH_PRIORITY_MAX      0x00 /* Zero is maximum priority */
 #define NVIC_SYSH_PRIORITY_STEP     0x20 /* Eight priority levels in steps 0x20 */
 
-/************************************************************************************
+/****************************************************************************
  * Public Types
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Public Data
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
- * Public Functions
- ************************************************************************************/
+/****************************************************************************
+ * Public Functions Prototypes
+ ****************************************************************************/
 
 #endif /* __ARCH_ARM_INCLUDE_MAX326XX_CHIP_H */

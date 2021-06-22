@@ -1,40 +1,25 @@
 /****************************************************************************
  * boards/arm/stm32/olimex-stm32-p407/include/board.h
  *
- *   Copyright (C) 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
 #ifndef __BOARDS_ARM_STM32_OLIMEX_STM32_P407_INCLUDE_BOARD_H
-#define __BOARDS_ARM_STM32_OLIMEX_STM32_P407_INCLUDE_BOARD_H 1
+#define __BOARDS_ARM_STM32_OLIMEX_STM32_P407_INCLUDE_BOARD_H
 
 /****************************************************************************
  * Included Files
@@ -50,7 +35,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Clocking *************************************************************************/
+/* Clocking *****************************************************************/
 
 /* HSI - 16 MHz RC factory-trimmed
  * LSI - 32 KHz RC (30-60KHz, uncalibrated)
@@ -89,7 +74,6 @@
 
 #define STM32_RCC_CFGR_HPRE     RCC_CFGR_HPRE_SYSCLK  /* HCLK  = SYSCLK / 1 */
 #define STM32_HCLK_FREQUENCY    STM32_SYSCLK_FREQUENCY
-#define STM32_BOARD_HCLK        STM32_HCLK_FREQUENCY  /* same as above, to satisfy compiler */
 
 /* APB1 clock (PCLK1) is HCLK/4 (42MHz) */
 
@@ -165,9 +149,10 @@
 #  define SDIO_SDXFR_CLKDIV     (2 << SDIO_CLKCR_CLKDIV_SHIFT)
 #endif
 
-/* LED definitions ******************************************************************/
-/* If CONFIG_ARCH_LEDS is not defined, then the user can control the LEDs in any
- * way.  The following definitions are used to access individual LEDs.
+/* LED definitions **********************************************************/
+
+/* If CONFIG_ARCH_LEDS is not defined, then the user can control the LEDs
+ * in any way. The following definitions are used to access individual LEDs.
  */
 
 /* LED index values for use with board_userled() */
@@ -190,8 +175,9 @@
 #define BOARD_LED3_BIT    (1 << BOARD_LED3)
 #define BOARD_LED4_BIT    (1 << BOARD_LED4)
 
-/* If CONFIG_ARCH_LEDs is defined, then NuttX will control the 4 LEDs on board the
- * Olimex STM32-P407.  The following definitions describe how NuttX controls the LEDs:
+/* If CONFIG_ARCH_LEDs is defined, then NuttX will control the 4 LEDs on
+ * board the Olimex STM32-P407.  The following definitions describe how
+ * NuttX controls the LEDs:
  */
 
 #define LED_STARTED       0  /* LED1 */
@@ -203,28 +189,37 @@
 #define LED_ASSERTION     6  /* LED1 + LED2 + LED3 */
 #define LED_PANIC         7  /* N/C  + N/C  + N/C + LED4 */
 
-/* Button definitions ***************************************************************/
+/* Button definitions *******************************************************/
+
 /* The Olimex STM32-P407 supports seven buttons: */
 
-#define BUTTON_TAMPER     0
-#define BUTTON_WKUP       1
-#define BUTTON_RIGHT      2
-#define BUTTON_UP         3
-#define BUTTON_LEFT       4
-#define BUTTON_DOWN       5
-#define BUTTON_CENTER     6
+#define BUTTON_TAMPER         0
+#define BUTTON_WKUP           1
 
-#define NUM_BUTTONS       7
+#ifdef CONFIG_INPUT_DJOYSTICK
+#  define NUM_BUTTONS         2
+#else
+#  define JOYSTICK_RIGHT      2
+#  define JOYSTICK_UP         3
+#  define JOYSTICK_LEFT       4
+#  define JOYSTICK_DOWN       5
+#  define JOYSTICK_CENTER     6
 
-#define BUTTON_TAMPER_BIT (1 << BUTTON_TAMPER)
-#define BUTTON_WKUP_BIT   (1 << BUTTON_WKUP)
-#define BUTTON_RIGHT_BIT  (1 << BUTTON_RIGHT)
-#define BUTTON_UP_BIT     (1 << BUTTON_UP)
-#define BUTTON_LEFT_BIT   (1 << BUTTON_LEFT)
-#define BUTTON_DOWN_BIT   (1 << BUTTON_DOWN)
-#define BUTTON_CENTER_BIT (1 << BUTTON_CENTER)
+#  define NUM_BUTTONS         7
+#endif
 
-/* Alternate function pin selections ************************************************/
+#define BUTTON_TAMPER_BIT     (1 << BUTTON_TAMPER)
+#define BUTTON_WKUP_BIT       (1 << BUTTON_WKUP)
+
+#ifndef CONFIG_INPUT_DJOYSTICK
+#  define JOYSTICK_RIGHT_BIT  (1 << JOYSTICK_RIGHT)
+#  define JOYSTICK_UP_BIT     (1 << JOYSTICK_UP)
+#  define JOYSTICK_LEFT_BIT   (1 << JOYSTICK_LEFT)
+#  define JOYSTICK_DOWN_BIT   (1 << JOYSTICK_DOWN)
+#  define JOYSTICK_CENTER_BIT (1 << JOYSTICK_CENTER)
+#endif
+
+/* Alternate function pin selections ****************************************/
 
 /* USART3: */
 
@@ -232,6 +227,18 @@
 #define GPIO_USART3_TX    GPIO_USART3_TX_3  /* PD8  */
 #define GPIO_USART3_CTS   GPIO_USART3_CTS_2 /* PD11 */
 #define GPIO_USART3_RTS   GPIO_USART3_RTS_2 /* PD12 */
+
+/* UEXT USART3: This will redefine the above macros if enabled. */
+
+#ifdef CONFIG_STM32_OLIMEXP407_UEXT_USART3
+#  undef  GPIO_USART3_RX    GPIO_USART3_RX_3
+#  undef  GPIO_USART3_TX    GPIO_USART3_TX_3
+#  undef  GPIO_USART3_CTS   GPIO_USART3_CTS_2
+#  undef  GPIO_USART3_RTS   GPIO_USART3_RTS_2
+
+#  define GPIO_USART3_RX    GPIO_USART3_RX_2 /* PC11 */
+#  define GPIO_USART3_TX    GPIO_USART3_TX_2 /* PC10 */
+#endif
 
 /* USART6: */
 
@@ -305,9 +312,10 @@
 #define GPIO_ETH_RMII_TXD0  GPIO_ETH_RMII_TXD0_2
 #define GPIO_ETH_RMII_TXD1  GPIO_ETH_RMII_TXD1_2
 
-/* DMA Channel/Stream Selections ****************************************************/
-/* Stream selections are arbitrary for now but might become important in the future
- * if we set aside more DMA channels/streams.
+/* DMA Channel/Stream Selections ********************************************/
+
+/* Stream selections are arbitrary for now but might become important in
+ * the future if we set aside more DMA channels/streams.
  *
  * SDIO DMA
  *   DMAMAP_SDIO_1      = Channel 4, Stream 3
@@ -326,5 +334,33 @@
 
 #define DMAMAP_USART6_RX  DMAMAP_USART6_RX_1
 #define DMAMAP_USART6_TX  DMAMAP_USART6_TX_1
+
+/* DHTxx pin configuration */
+
+#define GPIO_DHTXX_PIN          (GPIO_PORTG|GPIO_PIN9)
+#define GPIO_DHTXX_PIN_OUTPUT   (GPIO_OUTPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|GPIO_DHTXX_PIN)
+#define GPIO_DHTXX_PIN_INPUT    (GPIO_INPUT|GPIO_FLOAT|GPIO_DHTXX_PIN)
+
+#define BOARD_DHTXX_GPIO_INPUT   GPIO_DHTXX_PIN_INPUT
+#define BOARD_DHTXX_GPIO_OUTPUT  GPIO_DHTXX_PIN_OUTPUT
+#define BOARD_DHTXX_FRTIMER      1  /* Free-run timer 1 */
+
+/* SPI3 - As present in the UEXT header */
+
+#define GPIO_SPI3_MISO    GPIO_SPI3_MISO_2
+#define GPIO_SPI3_MOSI    GPIO_SPI3_MOSI_2
+#define GPIO_SPI3_SCK     GPIO_SPI3_SCK_2
+
+#define DMACHAN_SPI3_RX   DMAMAP_SPI3_RX_1
+#define DMACHAN_SPI3_TX   DMAMAP_SPI3_TX_1
+
+/* I2S3 - CS4344 configuration uses I2S3 */
+
+#define GPIO_I2S3_SD      GPIO_I2S3_SD_1
+#define GPIO_I2S3_CK      GPIO_I2S3_CK_1
+#define GPIO_I2S3_WS      GPIO_I2S3_WS_2
+
+#define DMACHAN_I2S3_RX   DMAMAP_SPI3_RX_2
+#define DMACHAN_I2S3_TX   DMAMAP_SPI3_TX_2
 
 #endif /* __BOARDS_ARM_STM32_OLIMEX_STM32_P407_INCLUDE_BOARD_H */

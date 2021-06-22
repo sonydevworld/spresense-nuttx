@@ -201,14 +201,14 @@ static uint16_t sixlowpan_protosize(FAR const struct ipv6_hdr_s *ipv6hdr,
  *   meta    - Location to return the final metadata.
  *
  * Returned Value:
- *   OK is returned on success; Othewise a negated errno value is returned.
+ *   OK is returned on success; Otherwise a negated errno value is returned.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_WIRELESS_IEEE802154
 static int sixlowpan_ieee802154_metadata(FAR struct radio_driver_s *radio,
-                                         FAR const struct netdev_varaddr_s *destmac,
-                                         FAR union sixlowpan_metadata_u *meta)
+                                 FAR const struct netdev_varaddr_s *destmac,
+                                 FAR union sixlowpan_metadata_u *meta)
 {
   struct ieee802_txmetadata_s pktmeta;
   int ret;
@@ -300,14 +300,14 @@ static int sixlowpan_ieee802154_metadata(FAR struct radio_driver_s *radio,
  *   meta    - Location to return the final metadata.
  *
  * Returned Value:
- *   OK is returned on success; Othewise a negated errno value is returned.
+ *   OK is returned on success; Otherwise a negated errno value is returned.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_WIRELESS_PKTRADIO
 static int sixlowpan_pktradio_metadata(FAR struct radio_driver_s *radio,
-                                       FAR const struct netdev_varaddr_s *destmac,
-                                       FAR union sixlowpan_metadata_u *meta)
+                               FAR const struct netdev_varaddr_s *destmac,
+                               FAR union sixlowpan_metadata_u *meta)
 {
   FAR struct pktradio_metadata_s *pktmeta = &meta->pktradio;
 
@@ -359,7 +359,7 @@ static int sixlowpan_pktradio_metadata(FAR struct radio_driver_s *radio,
  *   destmac - The IEEE802.15.4 MAC address of the destination
  *
  * Returned Value:
- *   Ok is returned on success; Othewise a negated errno value is returned.
+ *   Ok is returned on success; Otherwise a negated errno value is returned.
  *   This function is expected to fail if the driver is not an IEEE802.15.4
  *   MAC network driver.  In that case, the UDP/TCP will fall back to normal
  *   IPv4/IPv6 formatting.
@@ -421,7 +421,7 @@ int sixlowpan_queue_frames(FAR struct radio_driver_s *radio,
   iob->io_pktlen = 0;
   fptr           = iob->io_data;
 
-  ninfo("Sending packet length %d\n", buflen);
+  ninfo("Sending packet length %zd\n", buflen);
 
   /* Get the metadata that describes the MAC header on the packet */
 
@@ -548,7 +548,7 @@ int sixlowpan_queue_frames(FAR struct radio_driver_s *radio,
        * The following fragments contain only the fragn dispatch.
        */
 
-      ninfo("Sending fragmented packet length %d\n", buflen);
+      ninfo("Sending fragmented packet length %zd\n", buflen);
 
       /* Create 1st Fragment */
 
@@ -568,8 +568,8 @@ int sixlowpan_queue_frames(FAR struct radio_driver_s *radio,
        *   1. Datagram size describes the total (un-fragmented) payload.
        *   2. Datagram tag identifies the set of fragments and is used to
        *      match fragments of the same payload.
-       *   3. Datagram offset identifies the fragment’s offset within the un-
-       *      fragmented payload.
+       *   3. Datagram offset identifies the fragment’s offset within the
+       *      unfragmented payload.
        *
        * The fragment header length is 4 bytes for the first header and 5
        * bytes for all subsequent headers.

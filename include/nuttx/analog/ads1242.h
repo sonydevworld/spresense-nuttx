@@ -1,35 +1,20 @@
 /****************************************************************************
  * include/nuttx/analog/ads1242.h
  *
- *   Copyright (C) 2016, DS-Automotion GmbH. All rights reserved.
- *   Author: Alexander Entinger <a.entinger@ds-automotion.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,6 +36,7 @@
  ****************************************************************************/
 
 /* IOCTL Commands ***********************************************************/
+
 /* Cmd: ANIOC_ADS2142_READ                    Arg: uint32_t *value
  * Cmd: ANIOC_ADS2142_SET_GAIN                Arg: uint8_t value
  * Cmd: ANIOC_ADS2142_SET_POSITIVE_INPUT      Arg: uint8_t value
@@ -93,7 +79,7 @@
 #define ADS1242_REG_MUX_BIT_NSEL1       (1 << 1)
 #define ADS1242_REG_MUX_BIT_NSEL0       (1 << 0)
 /* ACR */
-#define ADS1242_REG_ACR_BIT_nDRDY       (1 << 7)
+#define ADS1242_REG_ACR_BIT_NDRDY       (1 << 7)
 #define ADS1242_REG_ACR_BIT_UnB         (1 << 6)
 #define ADS1242_REG_ACR_BIT_SPEED       (1 << 5)
 #define ADS1242_REG_ACR_BIT_BUFEN       (1 << 4)
@@ -130,14 +116,14 @@
 
 typedef enum
 {
-  ADS1242_x1     = 0,
-  ADS1242_x2     = ADS1242_REG_SETUP_BIT_PGA0,
-  ADS1242_x4     = ADS1242_REG_SETUP_BIT_PGA1,
-  ADS1242_x8     = ADS1242_REG_SETUP_BIT_PGA1 | ADS1242_REG_SETUP_BIT_PGA0,
-  ADS1242_x16    = ADS1242_REG_SETUP_BIT_PGA2,
-  ADS1242_x32    = ADS1242_REG_SETUP_BIT_PGA2 | ADS1242_REG_SETUP_BIT_PGA0,
-  ADS1242_x64    = ADS1242_REG_SETUP_BIT_PGA2 | ADS1242_REG_SETUP_BIT_PGA1,
-  ADS1242_x128   = ADS1242_REG_SETUP_BIT_PGA2 | ADS1242_REG_SETUP_BIT_PGA1 |
+  ADS1242_X1     = 0,
+  ADS1242_X2     = ADS1242_REG_SETUP_BIT_PGA0,
+  ADS1242_X4     = ADS1242_REG_SETUP_BIT_PGA1,
+  ADS1242_X8     = ADS1242_REG_SETUP_BIT_PGA1 | ADS1242_REG_SETUP_BIT_PGA0,
+  ADS1242_X16    = ADS1242_REG_SETUP_BIT_PGA2,
+  ADS1242_X32    = ADS1242_REG_SETUP_BIT_PGA2 | ADS1242_REG_SETUP_BIT_PGA0,
+  ADS1242_X64    = ADS1242_REG_SETUP_BIT_PGA2 | ADS1242_REG_SETUP_BIT_PGA1,
+  ADS1242_X128   = ADS1242_REG_SETUP_BIT_PGA2 | ADS1242_REG_SETUP_BIT_PGA1 |
                    ADS1242_REG_SETUP_BIT_PGA0
 } ADS1242_GAIN_SELECTION;
 
@@ -187,10 +173,11 @@ extern "C"
  *
  * Input Parameters:
  *   devpath - The full path to the driver to register. E.g., "/dev/ads1242"
- *   spi - An instance of the SPI interface to use to communicate with ADS1242
- *   osc_freq_hz - The frequency of the ADS1242 oscillator in Hz. Required for
- *   calculating the minimum delay periods when accessing the device via SPI.
- *
+ *   spi - An instance of the SPI interface to use to communicate with
+ *         ADS1242
+ *   osc_freq_hz - The frequency of the ADS1242 oscillator in Hz. Required
+ *                 for calculating the minimum delay periods when accessing
+ *                 the device via SPI.
  *
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.

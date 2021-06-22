@@ -1,7 +1,8 @@
 /****************************************************************************
  * arch/arm/src/stm32/stm32_exti_pwr.c
  *
- *   Copyright (C) 2009, 2011-2012, 2015, 2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2009, 2011-2012, 2015, 2017 Gregory Nutt.
+ *   All rights reserved.
  *   Copyright (C) 2015 Haltian Ltd. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *            Dmitry Nikolaev <dmitry.nikolaev@haltian.com>
@@ -49,7 +50,7 @@
 
 #include <arch/irq.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "chip.h"
 #include "stm32_gpio.h"
 #include "stm32_exti.h"

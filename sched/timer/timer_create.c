@@ -1,36 +1,20 @@
 /****************************************************************************
  * sched/timer/timer_create.c
  *
- *   Copyright (C) 2007-2009, 2011, 2014-2017 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -76,7 +60,8 @@ static FAR struct posix_timer_s *timer_allocate(void)
 
 #if CONFIG_PREALLOC_TIMERS > 0
   flags = enter_critical_section();
-  ret   = (FAR struct posix_timer_s *)sq_remfirst((FAR sq_queue_t *)&g_freetimers);
+  ret   = (FAR struct posix_timer_s *)
+    sq_remfirst((FAR sq_queue_t *)&g_freetimers);
   leave_critical_section(flags);
 
   /* Did we get one? */
@@ -90,7 +75,8 @@ static FAR struct posix_timer_s *timer_allocate(void)
     {
       /* Allocate a new timer from the heap */
 
-      ret      = (FAR struct posix_timer_s *)kmm_malloc(sizeof(struct posix_timer_s));
+      ret = (FAR struct posix_timer_s *)
+        kmm_malloc(sizeof(struct posix_timer_s));
       pt_flags = 0;
     }
 
@@ -138,8 +124,7 @@ static FAR struct posix_timer_s *timer_allocate(void)
  *   value of the timer ID.
  *
  *   Each implementation defines a set of clocks that can be used as timing
- *   bases for per-thread timers. All implementations shall support a
- *   clock_id of CLOCK_REALTIME.
+ *   bases for per-thread timers.
  *
  * Input Parameters:
  *   clockid - Specifies the clock to use as the timing base.
@@ -170,22 +155,17 @@ int timer_create(clockid_t clockid, FAR struct sigevent *evp,
                  FAR timer_t *timerid)
 {
   FAR struct posix_timer_s *ret;
-  WDOG_ID wdog;
 
-  /* Sanity checks.  Also, we support only CLOCK_REALTIME */
+  /* Sanity checks. */
 
-  if (timerid == NULL || clockid != CLOCK_REALTIME)
+  if (timerid == NULL || (clockid != CLOCK_REALTIME
+#ifdef CONFIG_CLOCK_MONOTONIC
+      && clockid != CLOCK_MONOTONIC
+      && clockid != CLOCK_BOOTTIME
+#endif /* CONFIG_CLOCK_MONOTONIC */
+      ))
     {
       set_errno(EINVAL);
-      return ERROR;
-    }
-
-  /* Allocate a watchdog to provide the underling CLOCK_REALTIME timer */
-
-  wdog = wd_create();
-  if (!wdog)
-    {
-      set_errno(EAGAIN);
       return ERROR;
     }
 
@@ -194,17 +174,16 @@ int timer_create(clockid_t clockid, FAR struct sigevent *evp,
   ret = timer_allocate();
   if (!ret)
     {
-      wd_delete(wdog);
       set_errno(EAGAIN);
       return ERROR;
     }
 
   /* Initialize the timer instance */
 
+  ret->pt_clock = clockid;
   ret->pt_crefs = 1;
   ret->pt_owner = getpid();
   ret->pt_delay = 0;
-  ret->pt_wdog  = wdog;
 
   /* Was a struct sigevent provided? */
 

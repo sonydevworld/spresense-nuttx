@@ -50,7 +50,7 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "kinetis_pwm.h"
 
 #ifdef CONFIG_PWM
@@ -77,6 +77,7 @@ int k64_pwm_setup(void)
 
   if (!initialized)
     {
+#ifdef CONFIG_KINETIS_FTM0_PWM
       /* Call k64_pwminitialize() to get an instance of the PWM interface */
 
       pwm = kinetis_pwminitialize(0);
@@ -86,6 +87,7 @@ int k64_pwm_setup(void)
           return -ENODEV;
         }
 
+#endif
       /* Register the PWM driver at "/dev/pwm0" */
 
       ret = pwm_register("/dev/pwm0", pwm);

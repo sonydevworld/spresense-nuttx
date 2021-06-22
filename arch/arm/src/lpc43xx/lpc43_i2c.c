@@ -4,7 +4,7 @@
  *   Copyright (C) 2012, 2014-2016 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
- * Ported from from the LPC17 version:
+ * Ported from the LPC17 version:
  *
  *   Copyright (C) 2011 Li Zhuoyi. All rights reserved.
  *   Author: Li Zhuoyi <lzyy.cn@gmail.com>
@@ -69,8 +69,8 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "lpc43_i2c.h"
 #include "lpc43_scu.h"
@@ -102,12 +102,12 @@ struct lpc43_i2cdev_s
   struct i2c_master_s dev;     /* Generic I2C device */
   unsigned int     base;       /* Base address of registers */
   uint16_t         irqid;      /* IRQ for this device */
-  uint32_t         baseFreq;   /* branch frequency */
+  uint32_t         base_freq;  /* branch frequency */
 
   sem_t            mutex;      /* Only one thread can access at a time */
   sem_t            wait;       /* Place to wait for state machine completion */
   volatile uint8_t state;      /* State of state machine */
-  WDOG_ID          timeout;    /* watchdog to timeout when bus hung */
+  struct wdog_s    timeout;    /* watchdog to timeout when bus hung */
   uint32_t         frequency;  /* Current I2C frequency */
 
   struct i2c_msg_s *msgs;      /* remaining transfers - first one is in progress */
@@ -131,7 +131,7 @@ static struct lpc43_i2cdev_s g_i2c1dev;
 static int  lpc43_i2c_start(struct lpc43_i2cdev_s *priv);
 static void lpc43_i2c_stop(struct lpc43_i2cdev_s *priv);
 static int  lpc43_i2c_interrupt(int irq, FAR void *context, FAR void *arg);
-static void lpc43_i2c_timeout(int argc, uint32_t arg, ...);
+static void lpc43_i2c_timeout(wdparm_t arg);
 static void lpc43_i2c_setfrequency(struct lpc43_i2cdev_s *priv,
               uint32_t frequency);
 static int  lpc43_i2c_transfer(FAR struct i2c_master_s *dev,
@@ -167,20 +167,20 @@ static void lpc43_i2c_setfrequency(struct lpc43_i2cdev_s *priv,
     {
       if (frequency > 100000)
         {
-          /* asymetric per 400Khz I2C spec */
+          /* asymmetric per 400Khz I2C spec */
 
-          putreg32(priv->baseFreq / (83 + 47) * 47 / frequency,
+          putreg32(priv->base_freq / (83 + 47) * 47 / frequency,
                    priv->base + LPC43_I2C_SCLH_OFFSET);
-          putreg32(priv->baseFreq / (83 + 47) * 83 / frequency,
+          putreg32(priv->base_freq / (83 + 47) * 83 / frequency,
                    priv->base + LPC43_I2C_SCLL_OFFSET);
         }
       else
         {
           /* 50/50 mark space ratio */
 
-          putreg32(priv->baseFreq / 100 * 50 / frequency,
+          putreg32(priv->base_freq / 100 * 50 / frequency,
                    priv->base + LPC43_I2C_SCLH_OFFSET);
-          putreg32(priv->baseFreq / 100 * 50 / frequency,
+          putreg32(priv->base_freq / 100 * 50 / frequency,
                    priv->base + LPC43_I2C_SCLL_OFFSET);
         }
 
@@ -202,11 +202,11 @@ static int lpc43_i2c_start(struct lpc43_i2cdev_s *priv)
            priv->base + LPC43_I2C_CONCLR_OFFSET);
   putreg32(I2C_CONSET_STA, priv->base + LPC43_I2C_CONSET_OFFSET);
 
-  wd_start(priv->timeout, I2C_TIMEOUT, lpc43_i2c_timeout, 1,
-           (uint32_t)priv);
+  wd_start(&priv->timeout, I2C_TIMEOUT,
+           lpc43_i2c_timeout, (wdparm_t)priv);
   nxsem_wait(&priv->wait);
 
-  wd_cancel(priv->timeout);
+  wd_cancel(&priv->timeout);
   return priv->nmsg;
 }
 
@@ -237,7 +237,7 @@ static void lpc43_i2c_stop(struct lpc43_i2cdev_s *priv)
  *
  ****************************************************************************/
 
-static void lpc43_i2c_timeout(int argc, uint32_t arg, ...)
+static void lpc43_i2c_timeout(wdparm_t arg)
 {
   struct lpc43_i2cdev_s *priv = (struct lpc43_i2cdev_s *)arg;
 
@@ -295,9 +295,9 @@ static int lpc43_i2c_interrupt(int irq, FAR void *context, FAR void *arg)
   state &= 0xf8;  /* state mask, only 0xX8 is possible */
   switch (state)
     {
+    case 0x08:    /* A START condition has been transmitted. */
+    case 0x10:    /* A Repeated START condition has been transmitted. */
 
-    case 0x08:     /* A START condition has been transmitted. */
-    case 0x10:     /* A Repeated START condition has been transmitted. */
       /* Set address */
 
       putreg32(((I2C_M_READ & msg->flags) == I2C_M_READ) ?
@@ -345,7 +345,8 @@ static int lpc43_i2c_interrupt(int irq, FAR void *context, FAR void *arg)
 
     case 0x50:  /* Data byte has been received; ACK has been returned. */
       priv->rdcnt++;
-      msg->buffer[priv->rdcnt - 1] = getreg32(priv->base + LPC43_I2C_BUFR_OFFSET);
+      msg->buffer[priv->rdcnt - 1] =
+        getreg32(priv->base + LPC43_I2C_BUFR_OFFSET);
 
       if (priv->rdcnt >= (msg->length - 1))
         {
@@ -354,7 +355,8 @@ static int lpc43_i2c_interrupt(int irq, FAR void *context, FAR void *arg)
       break;
 
     case 0x58:  /* Data byte has been received; NACK has been returned. */
-      msg->buffer[priv->rdcnt] = getreg32(priv->base + LPC43_I2C_BUFR_OFFSET);
+      msg->buffer[priv->rdcnt] =
+        getreg32(priv->base + LPC43_I2C_BUFR_OFFSET);
       lpc32_i2c_nextmsg(priv);
       break;
 
@@ -411,7 +413,7 @@ static int lpc43_i2c_transfer(FAR struct i2c_master_s *dev,
   return ret;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: lpc43_i2c_reset
  *
  * Description:
@@ -423,7 +425,7 @@ static int lpc43_i2c_transfer(FAR struct i2c_master_s *dev,
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_I2C_RESET
 static int lpc43_i2c_reset(FAR struct i2c_master_s * dev)
@@ -450,7 +452,7 @@ struct i2c_master_s *lpc43_i2cbus_initialize(int port)
 
   if (port > 1)
     {
-      i2cerr("ERROR: lpc I2C Only suppors ports 0 and 1\n");
+      i2cerr("ERROR: lpc I2C only supports ports 0 and 1\n");
       return NULL;
     }
 
@@ -465,7 +467,7 @@ struct i2c_master_s *lpc43_i2cbus_initialize(int port)
       priv           = &g_i2c0dev;
       priv->base     = LPC43_I2C0_BASE;
       priv->irqid    = LPC43M4_IRQ_I2C0;
-      priv->baseFreq = BOARD_ABP1_FREQUENCY;
+      priv->base_freq = BOARD_ABP1_FREQUENCY;
 
       /* Enable, set mode */
 
@@ -498,7 +500,7 @@ struct i2c_master_s *lpc43_i2cbus_initialize(int port)
       priv        = &g_i2c1dev;
       priv->base  = LPC43_I2C1_BASE;
       priv->irqid = LPC43M4_IRQ_I2C1;
-      priv->baseFreq = BOARD_ABP3_FREQUENCY;
+      priv->base_freq = BOARD_ABP3_FREQUENCY;
 
       /* No need to enable */
 
@@ -534,12 +536,7 @@ struct i2c_master_s *lpc43_i2cbus_initialize(int port)
    * priority inheritance enabled.
    */
 
-  nxsem_setprotocol(&priv->wait, SEM_PRIO_NONE);
-
-  /* Allocate a watchdog timer */
-
-  priv->timeout = wd_create();
-  DEBUGASSERT(priv->timeout != 0);
+  nxsem_set_protocol(&priv->wait, SEM_PRIO_NONE);
 
   /* Attach Interrupt Handler */
 

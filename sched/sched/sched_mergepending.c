@@ -1,35 +1,20 @@
 /****************************************************************************
  * sched/sched/sched_mergepending.c
  *
- *   Copyright (C) 2007, 2009, 2012, 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -62,7 +47,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: sched_mergepending
+ * Name: nxsched_merge_pending
  *
  * Description:
  *   This function merges the prioritized g_pendingtasks list into the
@@ -76,16 +61,15 @@
  *     a context switch is needed.
  *
  * Assumptions:
- * - The caller has established a critical section before
- *   calling this function (calling sched_lock() first is NOT
- *   a good idea -- use enter_critical_section()).
- * - The caller handles the condition that occurs if the
- *   the head of the sched_mergTSTATE_TASK_PENDINGs is changed.
+ * - The caller has established a critical section before calling this
+ *   function.
+ * - The caller handles the condition that occurs if the head of the
+ *   ready-to-run task list is changed.
  *
  ****************************************************************************/
 
 #ifndef CONFIG_SMP
-bool sched_mergepending(void)
+bool nxsched_merge_pending(void)
 {
   FAR struct tcb_s *ptcb;
   FAR struct tcb_s *pnext;
@@ -106,7 +90,7 @@ bool sched_mergepending(void)
       pnext = ptcb->flink;
 
       /* REVISIT:  Why don't we just remove the ptcb from pending task list
-       * and call sched_addreadytorun?
+       * and call nxsched_add_readytorun?
        */
 
       /* Search the ready-to-run list to find the location to insert the
@@ -116,7 +100,9 @@ bool sched_mergepending(void)
 
       for (;
            (rtcb && ptcb->sched_priority <= rtcb->sched_priority);
-           rtcb = rtcb->flink);
+           rtcb = rtcb->flink)
+        {
+        }
 
       /* Add the ptcb to the spot found in the list.  Check if the
        * ptcb goes at the ends of the ready-to-run list. This would be
@@ -167,7 +153,7 @@ bool sched_mergepending(void)
 #endif /* !CONFIG_SMP */
 
 /****************************************************************************
- * Name: sched_mergepending
+ * Name: nxsched_merge_pending
  *
  * Description:
  *   This function merges the prioritized g_pendingtasks list into the
@@ -181,16 +167,15 @@ bool sched_mergepending(void)
  *     a context switch is needed.
  *
  * Assumptions:
- * - The caller has established a critical section before
- *   calling this function (calling sched_lock() first is NOT
- *   a good idea -- use enter_critical_section()).
- * - The caller handles the condition that occurs if the
- *   the head of the sched_mergTSTATE_TASK_PENDINGs is changed.
+ * - The caller has established a critical section before calling this
+ *   function.
+ * - The caller handles the condition that occurs if the head of the
+ *   ready-to-run task list is changed.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_SMP
-bool sched_mergepending(void)
+bool nxsched_merge_pending(void)
 {
   FAR struct tcb_s *rtcb;
   FAR struct tcb_s *ptcb;
@@ -199,10 +184,6 @@ bool sched_mergepending(void)
   int cpu;
   int me;
 
-  /* Lock the tasklist before accessing */
-
-  irqstate_t lock = sched_tasklist_lock();
-
   /* Remove and process every TCB in the g_pendingtasks list.
    *
    * Do nothing if (1) pre-emption is still disabled (by any CPU), or (2) if
@@ -210,7 +191,7 @@ bool sched_mergepending(void)
    */
 
   me = this_cpu();
-  if (!sched_islocked_global() && !irq_cpu_locked(me))
+  if (!nxsched_islocked_global() && !irq_cpu_locked(me))
     {
       /* Find the CPU that is executing the lowest priority task */
 
@@ -219,10 +200,10 @@ bool sched_mergepending(void)
         {
           /* The pending task list is empty */
 
-          goto errout_with_lock;
+          goto errout;
         }
 
-      cpu  = sched_cpu_select(ALL_CPUS /* ptcb->affinity */);
+      cpu  = nxsched_select_cpu(ALL_CPUS); /* REVISIT:  Maybe ptcb->affinity */
       rtcb = current_task(cpu);
 
       /* Loop while there is a higher priority task in the pending task list
@@ -238,47 +219,47 @@ bool sched_mergepending(void)
         {
           /* Remove the task from the pending task list */
 
-          tcb = (FAR struct tcb_s *)dq_remfirst((FAR dq_queue_t *)&g_pendingtasks);
+          tcb = (FAR struct tcb_s *)
+            dq_remfirst((FAR dq_queue_t *)&g_pendingtasks);
 
           /* Add the pending task to the correct ready-to-run list. */
 
-          sched_tasklist_unlock(lock);
-          ret |= sched_addreadytorun(tcb);
-          lock = sched_tasklist_lock();
+          ret |= nxsched_add_readytorun(tcb);
 
           /* This operation could cause the scheduler to become locked.
            * Check if that happened.
            */
 
-          if (sched_islocked_global() || irq_cpu_locked(me))
+          if (nxsched_islocked_global() || irq_cpu_locked(me))
             {
               /* Yes.. then we may have incorrectly placed some TCBs in the
                * g_readytorun list (unlikely, but possible).  We will have to
                * move them back to the pending task list.
                */
 
-              sched_mergeprioritized((FAR dq_queue_t *)&g_readytorun,
-                                     (FAR dq_queue_t *)&g_pendingtasks,
-                                     TSTATE_TASK_PENDING);
+              nxsched_merge_prioritized((FAR dq_queue_t *)&g_readytorun,
+                                        (FAR dq_queue_t *)&g_pendingtasks,
+                                        TSTATE_TASK_PENDING);
 
-              /* And return with the schedule locked and tasks in the
+              /* And return with the scheduler locked and tasks in the
                * pending task list.
                */
 
-              goto errout_with_lock;
+              goto errout;
             }
 
           /* Set up for the next time through the loop */
 
-          ptcb = (FAR struct tcb_s *)dq_peek((FAR dq_queue_t *)&g_pendingtasks);
+          ptcb = (FAR struct tcb_s *)
+            dq_peek((FAR dq_queue_t *)&g_pendingtasks);
           if (ptcb == NULL)
             {
               /* The pending task list is empty */
 
-              goto errout_with_lock;
+              goto errout;
             }
 
-          cpu  = sched_cpu_select(ALL_CPUS /* ptcb->affinity */);
+          cpu  = nxsched_select_cpu(ALL_CPUS); /* REVISIT:  Maybe ptcb->affinity */
           rtcb = current_task(cpu);
         }
 
@@ -286,16 +267,13 @@ bool sched_mergepending(void)
        * tasks in the pending task list to the ready-to-run task list.
        */
 
-      sched_mergeprioritized((FAR dq_queue_t *)&g_pendingtasks,
-                             (FAR dq_queue_t *)&g_readytorun,
-                             TSTATE_TASK_READYTORUN);
+      nxsched_merge_prioritized((FAR dq_queue_t *)&g_pendingtasks,
+                                (FAR dq_queue_t *)&g_readytorun,
+                                TSTATE_TASK_READYTORUN);
     }
 
-errout_with_lock:
+errout:
 
-  /* Unlock the tasklist */
-
-  sched_tasklist_unlock(lock);
   return ret;
 }
 #endif /* CONFIG_SMP */

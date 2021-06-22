@@ -46,7 +46,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <mqueue.h>
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
@@ -68,6 +67,7 @@
  ****************************************************************************/
 
 /* Debug ********************************************************************/
+
 /* Non-standard debug that may be enabled just for testing Audio */
 
 #ifndef AUDIO_MAX_DEVICE_PATH
@@ -86,11 +86,11 @@
 
 struct audio_upperhalf_s
 {
-  uint8_t           crefs;    /* The number of times the device has been opened */
-  volatile bool     started;  /* True: playback is active */
-  sem_t             exclsem;  /* Supports mutual exclusion */
+  uint8_t           crefs;            /* The number of times the device has been opened */
+  volatile bool     started;          /* True: playback is active */
+  sem_t             exclsem;          /* Supports mutual exclusion */
   FAR struct audio_lowerhalf_s *dev;  /* lower-half state */
-  mqd_t             usermq;   /* User mode app's message queue */
+  struct file      *usermq;           /* User mode app's message queue */
 };
 
 /****************************************************************************
@@ -99,17 +99,29 @@ struct audio_upperhalf_s
 
 static int      audio_open(FAR struct file *filep);
 static int      audio_close(FAR struct file *filep);
-static ssize_t  audio_read(FAR struct file *filep, FAR char *buffer, size_t buflen);
-static ssize_t  audio_write(FAR struct file *filep, FAR const char *buffer, size_t buflen);
-static int      audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
+static ssize_t  audio_read(FAR struct file *filep,
+                           FAR char *buffer,
+                           size_t buflen);
+static ssize_t  audio_write(FAR struct file *filep,
+                            FAR const char *buffer,
+                            size_t buflen);
+static int      audio_ioctl(FAR struct file *filep,
+                            int cmd,
+                            unsigned long arg);
 #ifdef CONFIG_AUDIO_MULTI_SESSION
-static int      audio_start(FAR struct audio_upperhalf_s *upper, FAR void *session);
-static void     audio_callback(FAR void *priv, uint16_t reason,
-                    FAR struct ap_buffer_s *apb, uint16_t status, FAR void *session);
+static int      audio_start(FAR struct audio_upperhalf_s *upper,
+                            FAR void *session);
+static void     audio_callback(FAR void *priv,
+                               uint16_t reason,
+                               FAR struct ap_buffer_s *apb,
+                               uint16_t status,
+                               FAR void *session);
 #else
 static int      audio_start(FAR struct audio_upperhalf_s *upper);
-static void     audio_callback(FAR void *priv, uint16_t reason,
-                    FAR struct ap_buffer_s *apb, uint16_t status);
+static void     audio_callback(FAR void *priv,
+                               uint16_t reason,
+                               FAR struct ap_buffer_s *apb,
+                               uint16_t status);
 #endif /* CONFIG_AUDIO_MULTI_SESSION */
 
 /****************************************************************************
@@ -131,13 +143,13 @@ static const struct file_operations g_audioops =
  * Private Functions
  ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: audio_open
  *
  * Description:
  *   This function is called whenever the Audio device is opened.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static int audio_open(FAR struct file *filep)
 {
@@ -174,7 +186,6 @@ static int audio_open(FAR struct file *filep)
   /* Save the new open count on success */
 
   upper->crefs = tmp;
-  upper->usermq = NULL;
   ret = OK;
 
 errout_with_sem:
@@ -184,13 +195,13 @@ errout:
   return ret;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: audio_close
  *
  * Description:
  *   This function is called when the Audio device is closed.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static int audio_close(FAR struct file *filep)
 {
@@ -228,9 +239,10 @@ static int audio_close(FAR struct file *filep)
       /* Disable the Audio device */
 
       DEBUGASSERT(lower->ops->shutdown != NULL);
-      audinfo("calling shutdown: %d\n");
+      audinfo("calling shutdown\n");
 
       lower->ops->shutdown(lower);
+      upper->usermq = NULL;
     }
 
   ret = OK;
@@ -241,15 +253,17 @@ errout:
   return ret;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: audio_read
  *
  * Description:
  *   A dummy read method.  This is provided only to satsify the VFS layer.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-static ssize_t audio_read(FAR struct file *filep, FAR char *buffer, size_t buflen)
+static ssize_t audio_read(FAR struct file *filep,
+                          FAR char *buffer,
+                          size_t buflen)
 {
   FAR struct inode *inode = filep->f_inode;
   FAR struct audio_upperhalf_s *upper = inode->i_private;
@@ -267,15 +281,17 @@ static ssize_t audio_read(FAR struct file *filep, FAR char *buffer, size_t bufle
   return 0;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: audio_write
  *
  * Description:
  *   A dummy write method.  This is provided only to satsify the VFS layer.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-static ssize_t audio_write(FAR struct file *filep, FAR const char *buffer, size_t buflen)
+static ssize_t audio_write(FAR struct file *filep,
+                           FAR const char *buffer,
+                           size_t buflen)
 {
   FAR struct inode *inode = filep->f_inode;
   FAR struct audio_upperhalf_s *upper = inode->i_private;
@@ -293,16 +309,17 @@ static ssize_t audio_write(FAR struct file *filep, FAR const char *buffer, size_
   return 0;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: audio_start
  *
  * Description:
  *   Handle the AUDIOIOC_START ioctl command
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_AUDIO_MULTI_SESSION
-static int audio_start(FAR struct audio_upperhalf_s *upper, FAR void *session)
+static int audio_start(FAR struct audio_upperhalf_s *upper,
+                       FAR void *session)
 #else
 static int audio_start(FAR struct audio_upperhalf_s *upper)
 #endif
@@ -339,13 +356,13 @@ static int audio_start(FAR struct audio_upperhalf_s *upper)
   return ret;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: audio_ioctl
  *
  * Description:
  *   The standard ioctl method.  This is where ALL of the Audio work is done.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
@@ -379,7 +396,8 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case AUDIOIOC_GETCAPS:
         {
-          FAR struct audio_caps_s *caps = (FAR struct audio_caps_s *)((uintptr_t)arg);
+          FAR struct audio_caps_s *caps =
+                     (FAR struct audio_caps_s *)((uintptr_t)arg);
           DEBUGASSERT(lower->ops->getcaps != NULL);
 
           audinfo("AUDIOIOC_GETCAPS: Device=%d\n", caps->ac_type);
@@ -420,7 +438,8 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
         break;
 
-      /* AUDIOIOC_START - Start the audio stream.  The AUDIOIOC_SETCHARACTERISTICS
+      /* AUDIOIOC_START - Start the audio stream.
+       *   The AUDIOIOC_SETCHARACTERISTICS
        *   command must have previously been sent.
        *
        *   ioctl argument:  Audio session
@@ -465,7 +484,7 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
             }
         }
         break;
-#endif  /* CONFIG_AUDIO_EXCLUDE_STOP */
+#endif /* CONFIG_AUDIO_EXCLUDE_STOP */
 
       /* AUDIOIOC_PAUSE - Pause the audio stream.
        *
@@ -513,7 +532,7 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
         break;
 
-#endif  /* CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME */
+#endif /* CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME */
 
       /* AUDIOIOC_ALLOCBUFFER - Allocate an audio buffer
        *
@@ -556,8 +575,8 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
             {
               /* Perform a simple apb_free operation */
 
-              DEBUGASSERT(bufdesc->u.pBuffer != NULL);
-              apb_free(bufdesc->u.pBuffer);
+              DEBUGASSERT(bufdesc->u.buffer != NULL);
+              apb_free(bufdesc->u.buffer);
               ret = sizeof(struct audio_buf_desc_s);
             }
         }
@@ -575,7 +594,7 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           DEBUGASSERT(lower->ops->enqueuebuffer != NULL);
 
           bufdesc = (FAR struct audio_buf_desc_s *) arg;
-          ret = lower->ops->enqueuebuffer(lower, bufdesc->u.pBuffer);
+          ret = lower->ops->enqueuebuffer(lower, bufdesc->u.buffer);
         }
         break;
 
@@ -588,8 +607,7 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         {
           audinfo("AUDIOIOC_REGISTERMQ\n");
 
-          upper->usermq = (mqd_t) arg;
-          ret = OK;
+          ret = fs_getfilep((mqd_t)arg, &upper->usermq);
         }
         break;
 
@@ -647,7 +665,9 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
         break;
 
-      /* Any unrecognized IOCTL commands might be platform-specific ioctl commands */
+      /* Any unrecognized IOCTL commands might be
+       * platform-specific ioctl commands
+       */
 
       default:
         {
@@ -711,14 +731,14 @@ static inline void audio_dequeuebuffer(FAR struct audio_upperhalf_s *upper,
 
   if (upper->usermq != NULL)
     {
-      msg.msgId = AUDIO_MSG_DEQUEUE;
-      msg.u.pPtr = apb;
+      msg.msg_id = AUDIO_MSG_DEQUEUE;
+      msg.u.ptr = apb;
 #ifdef CONFIG_AUDIO_MULTI_SESSION
       msg.session = session;
 #endif
       apb->flags |= AUDIO_APB_DEQUEUED;
-      nxmq_send(upper->usermq, (FAR const char *)&msg, sizeof(msg),
-                CONFIG_AUDIO_BUFFER_DEQUEUE_PRIO);
+      file_mq_send(upper->usermq, (FAR const char *)&msg, sizeof(msg),
+                   CONFIG_AUDIO_BUFFER_DEQUEUE_PRIO);
     }
 }
 
@@ -750,13 +770,13 @@ static inline void audio_complete(FAR struct audio_upperhalf_s *upper,
   upper->started = false;
   if (upper->usermq != NULL)
     {
-      msg.msgId = AUDIO_MSG_COMPLETE;
-      msg.u.pPtr = NULL;
+      msg.msg_id = AUDIO_MSG_COMPLETE;
+      msg.u.ptr = NULL;
 #ifdef CONFIG_AUDIO_MULTI_SESSION
       msg.session = session;
 #endif
-      nxmq_send(upper->usermq, (FAR const char *)&msg, sizeof(msg),
-                CONFIG_AUDIO_BUFFER_DEQUEUE_PRIO);
+      file_mq_send(upper->usermq, (FAR const char *)&msg, sizeof(msg),
+                   CONFIG_AUDIO_BUFFER_DEQUEUE_PRIO);
     }
 }
 
@@ -786,10 +806,10 @@ static inline void audio_message(FAR struct audio_upperhalf_s *upper,
   if (upper->usermq != NULL)
     {
 #ifdef CONFIG_AUDIO_MULTI_SESSION
-      msg.session = session;
+      msg->session = session;
 #endif
-      nxmq_send(upper->usermq, (FAR const char *)msg, sizeof(*msg),
-                CONFIG_AUDIO_BUFFER_DEQUEUE_PRIO);
+      file_mq_send(upper->usermq, (FAR const char *)msg, sizeof(*msg),
+                   CONFIG_AUDIO_BUFFER_DEQUEUE_PRIO);
     }
 }
 
@@ -823,7 +843,8 @@ static void audio_callback(FAR void *handle, uint16_t reason,
         FAR struct ap_buffer_s *apb, uint16_t status)
 #endif
 {
-  FAR struct audio_upperhalf_s *upper = (FAR struct audio_upperhalf_s *)handle;
+  FAR struct audio_upperhalf_s *upper =
+            (FAR struct audio_upperhalf_s *)handle;
 
   audinfo("Entry\n");
 
@@ -854,7 +875,9 @@ static void audio_callback(FAR void *handle, uint16_t reason,
 
       case AUDIO_CALLBACK_COMPLETE:
         {
-          /* Send a complete message to the user if a message queue is registered */
+          /* Send a complete message to the user if a message queue
+           * is registered
+           */
 
 #ifdef CONFIG_AUDIO_MULTI_SESSION
           audio_complete(upper, apb, status, session);
@@ -902,9 +925,9 @@ static void audio_callback(FAR void *handle, uint16_t reason,
  *     filesystem.  The recommended convention is to name Audio drivers
  *     based on the function they provide, such as "/dev/pcm0", "/dev/mp31",
  *     etc.
- *   dev - A pointer to an instance of lower half audio driver.  This instance
- *     is bound to the Audio driver and must persists as long as the driver
- *     persists.
+ *   dev - A pointer to an instance of lower half audio driver.
+ *     This instance is bound to the Audio driver and must persists as long
+ *     as the driver persists.
  *
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
@@ -926,14 +949,17 @@ int audio_register(FAR const char *name, FAR struct audio_lowerhalf_s *dev)
 
   /* Allocate the upper-half data structure */
 
-  upper = (FAR struct audio_upperhalf_s *)kmm_zalloc(sizeof(struct audio_upperhalf_s));
+  upper = (FAR struct audio_upperhalf_s *)kmm_zalloc(
+                                           sizeof(struct audio_upperhalf_s));
   if (!upper)
     {
       auderr("ERROR: Allocation failed\n");
       return -ENOMEM;
     }
 
-  /* Initialize the Audio device structure (it was already zeroed by kmm_zalloc()) */
+  /* Initialize the Audio device structure
+   * (it was already zeroed by kmm_zalloc())
+   */
 
   nxsem_init(&upper->exclsem, 0, 1);
   upper->dev = dev;
@@ -979,6 +1005,7 @@ int audio_register(FAR const char *name, FAR struct audio_lowerhalf_s *dev)
             {
               *pathptr++ = *ptr++;
             }
+
           *pathptr = '\0';
 
           /* Make this level of directory */

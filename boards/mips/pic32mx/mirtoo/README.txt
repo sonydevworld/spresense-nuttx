@@ -387,7 +387,7 @@ Toolchains
 
   Another option is the mips-elf toolchain used with the Pinguino project.  This
   is a relatively current mips-elf GCC and should provide free C++ support as
-  well. This toolchain can be downloded from the Pinguino website:
+  well. This toolchain can be downloaded from the Pinguino website:
   http://wiki.pinguino.cc/index.php/Main_Page#Download .
 
   Support for the Pinguino mips-elf toolchain has been included in the Mirtoo
@@ -395,7 +395,7 @@ Toolchains
   mips-elf toolchain:
 
     CONFIG_MIPS32_TOOLCHAIN_PINGUINOW - Pinguino mips-elf toolchain for Windows
-    CONFIG_MIPS32_TOOLCHAIN_GNU_ELF   - mips-elf toolchain for Linux or OS X
+    CONFIG_MIPS32_TOOLCHAIN_GNU_ELF   - mips-elf toolchain for Linux or macOS
 
   And set the path appropriately in the PATH environment variable.  These tool
   configurations are untested -- expect some additional integration issues.
@@ -439,7 +439,7 @@ Toolchains
      but you might easily find some new path problems.  If so, check out 'cygpath -w'
 
   2. Windows toolchains cannot follow Cygwin symbolic links.  Many symbolic links
-     are used in Nuttx (e.g., include/arch).  The make system works around these
+     are used in NuttX (e.g., include/arch).  The make system works around these
      problems for the Windows tools by copying directories instead of linking them.
      But this can also cause some confusion for you:  For example, you may edit
      a file in a "linked" directory and find that your changes had no effect.
@@ -469,29 +469,31 @@ Loading NuttX with ICD3
     file to contain physical addresses.  But the nuttx.hex file generated from the
     top-level make will have address in the KSEG0 and KSEG1 regions.
 
-  tools/pic32mx/mkpichex:
+  tools/pic32/mkpichex:
   ----------------------
 
-    There is a simple tool in the NuttX tools/pic32mx directory that can be
+    There is a simple tool in the NuttX tools/pic32 directory that can be
     used to solve both issues with the nuttx.hex file.  But, first, you must
     build the tool:
 
-      cd tools/pic32mx
-      make
+      cd tools/pic32
+      make -f Makefile.host
 
-    Now you will have an excecutable file call mkpichex (or mkpichex.exe on
+    Now you will have an executable file call mkpichex (or mkpichex.exe on
     Cygwin).  This program will take the nutt.hex file as an input, it will
     convert all of the KSEG0 and KSEG1 addresses to physical address, and
     it will write the modified file, replacing the original nuttx.hex.
 
     To use this file, you need to do the following things:
 
-      export PATH=???  # Add the NuttX tools/pic32mx directory to your
+      export PATH=???  # Add the NuttX tools/pic32 directory to your
                        # PATH variable
       make             # Build nuttx and nuttx.hex
       mkpichex $PWD    # Convert addresses in nuttx.hex.  $PWD is the path
                        # to the top-level build directory.  It is the only
                        # required input to mkpichex.
+
+      This procedure is automatically performed at the end of a build.
 
 LED Usage
 =========
@@ -625,7 +627,7 @@ Analog Input
   and ADC driver that can be used with standard open, close, read, and write
   interfaces.  To complete this driver, the following is needed:
 
-  (1) arch/mips/src/pic32mx/pic32mx-adc.c.  The ADC driver that implements
+  (1) arch/mips/src/pic32mx/pic32mx_adc.c.  The ADC driver that implements
       the ADC interfaces defined in include/nuttx/analog/adc.h and must
       be built when CONFIG_PIC32MX_ADC is defined.
 
@@ -837,7 +839,7 @@ Where <subdir> is one of the following:
 
   nsh
 
-    This configuration directory holds configuration files tht can
+    This configuration directory holds configuration files that can
     be used to support the NuttShell (NSH).  This configuration use
     UART1 which is available on FUNC 4 and 5 on connector X3:
 
@@ -936,7 +938,7 @@ Where <subdir> is one of the following:
        CONFIG_NSH_DISABLE_MKFIFO=y
        CONFIG_NSH_DISABLE_MKRD=y
        CONFIG_NSH_DISABLE_PUT=y
-       CONFIG_NSH_DISABLE_SH=y
+       CONFIG_NSH_DISABLE_SOURCE=y
        CONFIG_NSH_DISABLE_TEST=y
        CONFIG_NSH_DISABLE_WGET=y
 

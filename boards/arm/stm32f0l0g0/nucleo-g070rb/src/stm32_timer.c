@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/stm32f0l0g0/nucleo-g070rb/src/stm32_buttons.c
+ * boards/arm/stm32f0l0g0/nucleo-g070rb/src/stm32_timer.c
  *
  *   Copyright (C) 2019 Fundação CERTI. All rights reserved.
  *   Author: Daniel Pereira Volpato <dpo@certi.org.br>
@@ -62,7 +62,8 @@
  *   Configure the timer driver.
  *
  * Input Parameters:
- *   devpath - The full path to the timer device.  This should be of the form /dev/timer0
+ *   devpath - The full path to the timer device.  This should be of the form
+ *             /dev/timer0
  *   timer   - The timer's number.
  *
  * Returned Value:

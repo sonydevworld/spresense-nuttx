@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/arp/arp_send.c
  *
- *   Copyright (C) 2014-2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -41,14 +26,11 @@
 
 #include <unistd.h>
 #include <string.h>
-#include <semaphore.h>
-#include <time.h>
 #include <debug.h>
 
 #include <netinet/in.h>
 #include <net/if.h>
 
-#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/ip.h>
@@ -60,15 +42,6 @@
 #include "arp/arp.h"
 
 #ifdef CONFIG_NET_ARP_SEND
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#define CONFIG_ARP_SEND_DELAYSEC  \
-  (CONFIG_ARP_SEND_DELAYMSEC / 1000)
-#define CONFIG_ARP_SEND_DELAYNSEC \
-  ((CONFIG_ARP_SEND_DELAYMSEC - 1000*CONFIG_ARP_SEND_DELAYSEC) * 1000000)
 
 /****************************************************************************
  * Private Functions
@@ -202,7 +175,6 @@ int arp_send(in_addr_t ipaddr)
 {
   FAR struct net_driver_s *dev;
   struct arp_notify_s notify;
-  struct timespec delay;
   struct arp_send_s state;
   int ret;
 
@@ -218,8 +190,8 @@ int arp_send(in_addr_t ipaddr)
 #ifdef CONFIG_NET_IGMP
   /* Check if the destination address is a multicast address
    *
-   * - IPv4: multicast addresses lie in the class D group -- The address range
-   *   224.0.0.0 to 239.255.255.255 (224.0.0.0/4)
+   * - IPv4: multicast addresses lie in the class D group -- The address
+   *   range 224.0.0.0 to 239.255.255.255 (224.0.0.0/4)
    *
    * - IPv6 multicast addresses are have the high-order octet of the
    *   addresses=0xff (ff00::/8.)
@@ -248,7 +220,8 @@ int arp_send(in_addr_t ipaddr)
    * Ethernet link layer protocol.
    */
 
-  if (dev->d_lltype != NET_LL_ETHERNET)
+  if (dev->d_lltype != NET_LL_ETHERNET &&
+      dev->d_lltype != NET_LL_IEEE80211)
     {
       return OK;
     }
@@ -309,7 +282,7 @@ int arp_send(in_addr_t ipaddr)
    */
 
   nxsem_init(&state.snd_sem, 0, 0); /* Doesn't really fail */
-  nxsem_setprotocol(&state.snd_sem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&state.snd_sem, SEM_PRIO_NONE);
 
   state.snd_retries   = 0;              /* No retries yet */
   state.snd_ipaddr    = ipaddr;         /* IP address to query */
@@ -322,11 +295,6 @@ int arp_send(in_addr_t ipaddr)
   /* Now loop, testing if the address mapping is in the ARP table and re-
    * sending the ARP request if it is not.
    */
-
-  /* The optimal delay would be the worst case round trip time. */
-
-  delay.tv_sec  = CONFIG_ARP_SEND_DELAYSEC;
-  delay.tv_nsec = CONFIG_ARP_SEND_DELAYNSEC;
 
   ret = -ETIMEDOUT; /* Assume a timeout failure */
 
@@ -369,7 +337,13 @@ int arp_send(in_addr_t ipaddr)
 
       do
         {
-          net_lockedwait(&state.snd_sem);
+          ret = net_timedwait_uninterruptible(&state.snd_sem,
+                                              CONFIG_ARP_SEND_DELAYMSEC);
+          if (ret == -ETIMEDOUT)
+            {
+              arp_wait_cancel(&notify);
+              goto timeout;
+            }
         }
       while (!state.snd_sent);
 
@@ -381,12 +355,13 @@ int arp_send(in_addr_t ipaddr)
           /* Break out on a send failure */
 
           nerr("ERROR: Send failed: %d\n", ret);
+          arp_wait_cancel(&notify);
           break;
         }
 
       /* Now wait for response to the ARP response to be received. */
 
-      ret = arp_wait(&notify, &delay);
+      ret = arp_wait(&notify, CONFIG_ARP_SEND_DELAYMSEC);
 
       /* arp_wait will return OK if and only if the matching ARP response
        * is received.  Otherwise, it will return -ETIMEDOUT.
@@ -399,10 +374,11 @@ int arp_send(in_addr_t ipaddr)
           break;
         }
 
-      /* Increment the retry count and double the delay time */
+timeout:
+
+      /* Increment the retry count */
 
       state.snd_retries++;
-      clock_timespec_add(&delay, &delay, &delay);
       nerr("ERROR: arp_wait failed: %d\n", ret);
     }
 

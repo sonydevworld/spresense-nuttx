@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/timers/watchdog.c
  *
- *   Copyright (C) 2012, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -63,10 +48,21 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#ifdef CONFIG_WATCHDOG_AUTOMONITOR
+
 #define WATCHDOG_AUTOMONITOR_TIMEOUT_MSEC \
   (1000 * CONFIG_WATCHDOG_AUTOMONITOR_TIMEOUT)
-#define WATCHDOG_AUTOMONITOR_TIMEOUT_TICK \
-  SEC2TICK(CONFIG_WATCHDOG_AUTOMONITOR_TIMEOUT)
+
+#if (CONFIG_WATCHDOG_AUTOMONITOR_TIMEOUT == \
+    CONFIG_WATCHDOG_AUTOMONITOR_PING_INTERVAL)
+#define WATCHDOG_AUTOMONITOR_PING_INTERVAL \
+  SEC2TICK(CONFIG_WATCHDOG_AUTOMONITOR_TIMEOUT / 2)
+#else
+#define WATCHDOG_AUTOMONITOR_PING_INTERVAL \
+  SEC2TICK(CONFIG_WATCHDOG_AUTOMONITOR_PING_INTERVAL)
+#endif
+
+#endif
 
 /****************************************************************************
  * Private Type Definitions
@@ -78,7 +74,7 @@ struct watchdog_upperhalf_s
 {
 #ifdef CONFIG_WATCHDOG_AUTOMONITOR
 #if defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_TIMER)
-  WDOG_ID              wdog;
+  struct wdog_s        wdog;
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_WORKER)
   struct work_s        work;
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_IDLE)
@@ -143,16 +139,16 @@ static int watchdog_automonitor_capture(int irq, FAR void *context,
   return 0;
 }
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_TIMER)
-static void watchdog_automonitor_timer(int argc, wdparm_t arg1, ...)
+static void watchdog_automonitor_timer(wdparm_t arg)
 {
-  FAR struct watchdog_upperhalf_s *upper = (FAR void *)arg1;
+  FAR struct watchdog_upperhalf_s *upper = (FAR void *)arg;
   FAR struct watchdog_lowerhalf_s *lower = upper->lower;
 
   if (upper->monitor)
     {
       lower->ops->keepalive(lower);
-      wd_start(upper->wdog, WATCHDOG_AUTOMONITOR_TIMEOUT_TICK / 2,
-               watchdog_automonitor_timer, 1, upper);
+      wd_start(&upper->wdog, WATCHDOG_AUTOMONITOR_PING_INTERVAL,
+               watchdog_automonitor_timer, (wdparm_t)upper);
     }
 }
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_WORKER)
@@ -165,7 +161,7 @@ static void watchdog_automonitor_worker(FAR void *arg)
     {
       lower->ops->keepalive(lower);
       work_queue(LPWORK, &upper->work, watchdog_automonitor_worker,
-                 upper, WATCHDOG_AUTOMONITOR_TIMEOUT_TICK / 2);
+                 upper, WATCHDOG_AUTOMONITOR_PING_INTERVAL);
     }
 }
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_IDLE)
@@ -183,7 +179,8 @@ static void watchdog_automonitor_idle(FAR struct pm_callback_s *cb,
 #endif
 
 #ifdef CONFIG_WATCHDOG_AUTOMONITOR
-static void watchdog_automonitor_start(FAR struct watchdog_upperhalf_s *upper)
+static void watchdog_automonitor_start(FAR struct watchdog_upperhalf_s
+                                       *upper)
 {
   FAR struct watchdog_lowerhalf_s *lower = upper->lower;
 
@@ -193,12 +190,11 @@ static void watchdog_automonitor_start(FAR struct watchdog_upperhalf_s *upper)
 #if defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_CAPTURE)
       lower->ops->capture(lower, watchdog_automonitor_capture);
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_TIMER)
-      upper->wdog = wd_create();
-      wd_start(upper->wdog, WATCHDOG_AUTOMONITOR_TIMEOUT_TICK / 2,
-               watchdog_automonitor_timer, 1, upper);
+      wd_start(&upper->wdog, WATCHDOG_AUTOMONITOR_PING_INTERVAL,
+               watchdog_automonitor_timer, (wdparm_t)upper);
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_WORKER)
       work_queue(LPWORK, &upper->work, watchdog_automonitor_worker,
-                 upper, WATCHDOG_AUTOMONITOR_TIMEOUT_TICK / 2);
+                 upper, WATCHDOG_AUTOMONITOR_PING_INTERVAL);
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_IDLE)
       upper->idle.notify = watchdog_automonitor_idle;
       pm_register(&upper->idle);
@@ -223,7 +219,7 @@ static void watchdog_automonitor_stop(FAR struct watchdog_upperhalf_s *upper)
 #if defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_CAPTURE)
       lower->ops->capture(lower, NULL);
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_TIMER)
-      wd_delete(upper->wdog);
+      wd_cancel(&upper->wdog);
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_WORKER)
       work_cancel(LPWORK, &upper->work);
 #elif defined(CONFIG_WATCHDOG_AUTOMONITOR_BY_IDLE)
@@ -549,7 +545,7 @@ static int wdog_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           }
         else
           {
-            ret = -ENOSYS;
+            ret = -ENOTTY;
           }
       }
       break;

@@ -1,35 +1,20 @@
 /****************************************************************************
  * sched/irq/irq_dispatch.c
  *
- *   Copyright (C) 2007, 2008, 2017-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,6 +28,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 #include <nuttx/random.h>
+#include <nuttx/sched_note.h>
 
 #include "irq/irq.h"
 #include "clock/clock.h"
@@ -75,8 +61,8 @@
      while (0)
 #endif
 
-/* CALL_VECTOR - Call the interrupt service routine attached to this interrupt
- * request
+/* CALL_VECTOR - Call the interrupt service routine attached to this
+ * interrupt request
  */
 
 #ifndef CONFIG_SCHED_IRQMONITOR
@@ -106,9 +92,9 @@
          struct timespec start; \
          struct timespec end; \
          struct timespec delta; \
-         clock_systimespec(&start); \
+         clock_systime_timespec(&start); \
          vector(irq, context, arg); \
-         clock_systimespec(&end); \
+         clock_systime_timespec(&end); \
          clock_timespec_subtract(&end, &start, &delta); \
          if (delta.tv_nsec > g_irqvector[ndx].time) \
            { \
@@ -171,10 +157,22 @@ void irq_dispatch(int irq, FAR void *context)
   add_irq_randomness(irq);
 #endif
 
+#ifdef CONFIG_SCHED_INSTRUMENTATION_IRQHANDLER
+  /* Notify that we are entering into the interrupt handler */
+
+  sched_note_irqhandler(irq, vector, true);
+#endif
+
   /* Then dispatch to the interrupt handler */
 
   CALL_VECTOR(ndx, vector, irq, context, arg);
   UNUSED(ndx);
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_IRQHANDLER
+  /* Notify that we are leaving from the interrupt handler */
+
+  sched_note_irqhandler(irq, vector, false);
+#endif
 
   /* Record the new "running" task.  g_running_tasks[] is only used by
    * assertion logic for reporting crashes.

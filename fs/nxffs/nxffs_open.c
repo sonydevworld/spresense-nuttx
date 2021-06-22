@@ -1,37 +1,20 @@
 /****************************************************************************
  * fs/nxffs/nxffs_open.c
  *
- *   Copyright (C) 2011, 2013, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References: Linux/Documentation/filesystems/romfs.txt
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -41,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <stdint.h>
 #include <string.h>
 #include <fcntl.h>
 #include <time.h>
@@ -99,7 +83,8 @@ static struct nxffs_wrfile_s g_wrfile;
  *
  *   On successful return the following are also valid:
  *
- *     wrfile->ofile.entry.hoffset - FLASH offset to candidate header position
+ *     wrfile->ofile.entry.hoffset - FLASH offset to candidate header
+ *       position
  *     volume->ioblock - Read/write block number of the block containing the
  *       header position
  *     volume->iooffset - The offset in the block to the candidate header
@@ -217,7 +202,8 @@ static inline int nxffs_nampos(FAR struct nxffs_volume_s *volume,
  *
  *   On successful return the following are also valid:
  *
- *     wrfile->ofile.entry.hoffset - FLASH offset to candidate header position
+ *     wrfile->ofile.entry.hoffset - FLASH offset to candidate header
+ *       position
  *     volume->ioblock - Read/write block number of the block containing the
  *       header position
  *     volume->iooffset - The offset in the block to the candidate header
@@ -346,8 +332,8 @@ static inline int nxffs_wrname(FAR struct nxffs_volume_s *volume,
   ret = nxffs_rdcache(volume, volume->ioblock);
   if (ret < 0)
     {
-      ferr("ERROR: Failed to read inode name block %d: %d\n",
-           volume->ioblock, -ret);
+      ferr("ERROR: Failed to read inode name block %jd: %d\n",
+           (intmax_t)volume->ioblock, -ret);
       return ret;
     }
 
@@ -357,8 +343,8 @@ static inline int nxffs_wrname(FAR struct nxffs_volume_s *volume,
   ret = nxffs_wrcache(volume);
   if (ret < 0)
     {
-      ferr("ERROR: Failed to write inode header block %d: %d\n",
-           volume->ioblock, -ret);
+      ferr("ERROR: Failed to write inode header block %jd: %d\n",
+           (intmax_t)volume->ioblock, -ret);
     }
 
   return ret;
@@ -451,9 +437,10 @@ static inline int nxffs_wropen(FAR struct nxffs_volume_s *volume,
 
       else if ((oflags & (O_CREAT | O_TRUNC)) == (O_CREAT | O_TRUNC))
         {
-          /* Just schedule the removal the file and fall through to re-create it.
-           * Note that the old file of the same name will not actually be removed
-           * until the new file is successfully written.
+          /* Just schedule the removal the file and fall through to re-create
+           * it.
+           * Note that the old file of the same name will not actually be
+           * removed until the new file is successfully written.
            */
 
           truncate = true;
@@ -465,7 +452,8 @@ static inline int nxffs_wropen(FAR struct nxffs_volume_s *volume,
 
       else
         {
-          ferr("ERROR: File %s exists and we were not asked to truncate it\n");
+          ferr("ERROR: File %s exists and we were not asked to "
+               "truncate it\n", name);
           ret = -ENOSYS;
           goto errout_with_exclsem;
         }
@@ -501,7 +489,8 @@ static inline int nxffs_wropen(FAR struct nxffs_volume_s *volume,
   wrfile = &g_wrfile;
   memset(wrfile, 0, sizeof(struct nxffs_wrfile_s));
 #else
-  wrfile = (FAR struct nxffs_wrfile_s *)kmm_zalloc(sizeof(struct nxffs_wrfile_s));
+  wrfile = (FAR struct nxffs_wrfile_s *)
+           kmm_zalloc(sizeof(struct nxffs_wrfile_s));
   if (!wrfile)
     {
       ret = -ENOMEM;
@@ -736,7 +725,8 @@ static inline int nxffs_rdopen(FAR struct nxffs_volume_s *volume,
     {
       /* Not already open.. create a new open structure */
 
-      ofile = (FAR struct nxffs_ofile_s *)kmm_zalloc(sizeof(struct nxffs_ofile_s));
+      ofile = (FAR struct nxffs_ofile_s *)
+              kmm_zalloc(sizeof(struct nxffs_ofile_s));
       if (!ofile)
         {
           ferr("ERROR: ofile allocation failed\n");
@@ -876,7 +866,8 @@ static inline int nxffs_wrclose(FAR struct nxffs_volume_s *volume,
       ret = nxffs_wrblkhdr(volume, wrfile);
       if (ret < 0)
         {
-          ferr("ERROR: Failed to write the final block of the file: %d\n", -ret);
+          ferr("ERROR: Failed to write the final block of the file: %d\n",
+               -ret);
           goto errout;
         }
     }
@@ -970,7 +961,8 @@ FAR struct nxffs_ofile_s *nxffs_findofile(FAR struct nxffs_volume_s *volume,
  *
  ****************************************************************************/
 
-FAR struct nxffs_wrfile_s *nxffs_findwriter(FAR struct nxffs_volume_s *volume)
+FAR struct nxffs_wrfile_s *nxffs_findwriter(
+                           FAR struct nxffs_volume_s *volume)
 {
   /* We can tell if the write is in-use because it will have an allocated
    * name attached.
@@ -1170,7 +1162,7 @@ int nxffs_close(FAR struct file *filep)
           ret = nxffs_wrclose(volume, (FAR struct nxffs_wrfile_s *)ofile);
         }
 
-      /* Release all resouces held by the open file */
+      /* Release all resources held by the open file */
 
       nxffs_freeofile(volume, ofile);
     }
@@ -1205,8 +1197,8 @@ errout:
  *   entry  - Describes the inode header to write
  *
  * Returned Value:
- *   Zero is returned on success; Otherwise, a negated errno value is returned
- *   indicating the nature of the failure.
+ *   Zero is returned on success; Otherwise, a negated errno value is
+ *   returned indicating the nature of the failure.
  *
  ****************************************************************************/
 
@@ -1226,8 +1218,8 @@ int nxffs_wrinode(FAR struct nxffs_volume_s *volume,
   ret = nxffs_rdcache(volume, volume->ioblock);
   if (ret < 0)
     {
-      ferr("ERROR: Failed to read inode header block %d: %d\n",
-           volume->ioblock, -ret);
+      ferr("ERROR: Failed to read inode header block %jd: %d\n",
+           (intmax_t)volume->ioblock, -ret);
       goto errout;
     }
 
@@ -1265,8 +1257,8 @@ int nxffs_wrinode(FAR struct nxffs_volume_s *volume,
   ret = nxffs_wrcache(volume);
   if (ret < 0)
     {
-      ferr("ERROR: Failed to write inode header block %d: %d\n",
-           volume->ioblock, -ret);
+      ferr("ERROR: Failed to write inode header block %jd: %d\n",
+           (intmax_t)volume->ioblock, -ret);
     }
 
   /* The volume is now available for other writers */
@@ -1288,8 +1280,8 @@ errout:
  *   entry  - Describes the new inode entry
  *
  * Returned Value:
- *   Zero is returned on success; Otherwise, a negated errno value is returned
- *   indicating the nature of the failure.
+ *   Zero is returned on success; Otherwise, a negated errno value is
+ *   returned indicating the nature of the failure.
  *
  ****************************************************************************/
 

@@ -1,39 +1,20 @@
 /****************************************************************************
  * sched/init/nx_bringup.c
  *
- *   Copyright (C) 2011-2012, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * With extensions by:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Author: Uros Platise <uros.platise@isotel.eu>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,10 +28,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <debug.h>
-#include <sys/mount.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
+#include <nuttx/fs/fs.h>
 #include <nuttx/init.h>
 #include <nuttx/symtab.h>
 #include <nuttx/wqueue.h>
@@ -197,16 +178,16 @@ static inline void nx_workqueues(void)
    * halves.
    */
 
-  work_hpstart();
+  work_start_highpri();
 
 #endif /* CONFIG_SCHED_HPWORK */
 
 #ifdef CONFIG_SCHED_LPWORK
-  /* Start the low-priority worker thread for other, non-critical continuation
-   * tasks
+  /* Start the low-priority worker thread for other, non-critical
+   * continuation tasks
    */
 
-  work_lpstart();
+  work_start_lowpri();
 
 #endif /* CONFIG_SCHED_LPWORK */
 
@@ -240,10 +221,18 @@ static inline void nx_workqueues(void)
  *
  ****************************************************************************/
 
-#if defined(CONFIG_INIT_ENTRYPOINT)
 static inline void nx_start_application(void)
 {
-  int pid;
+#ifdef CONFIG_INIT_ARGS
+  FAR char *const argv[] =
+  {
+    CONFIG_INIT_ARGS,
+    NULL,
+  };
+#else
+  FAR char *const *argv = NULL;
+#endif
+  int ret;
 
 #ifdef CONFIG_BOARD_LATE_INITIALIZE
   /* Perform any last-minute, board-specific initialization, if so
@@ -252,6 +241,8 @@ static inline void nx_start_application(void)
 
   board_late_initialize();
 #endif
+
+#if defined(CONFIG_INIT_ENTRYPOINT)
 
   /* Start the application initialization task.  In a flat build, this is
    * entrypoint is given by the definitions, CONFIG_USER_ENTRYPOINT.  In
@@ -263,40 +254,25 @@ static inline void nx_start_application(void)
 
 #ifdef CONFIG_BUILD_PROTECTED
   DEBUGASSERT(USERSPACE->us_entrypoint != NULL);
-  pid = nxtask_create("init", CONFIG_USERMAIN_PRIORITY,
-                      CONFIG_USERMAIN_STACKSIZE, USERSPACE->us_entrypoint,
-                      (FAR char * const *)NULL);
-#else
-  pid = nxtask_create("init", CONFIG_USERMAIN_PRIORITY,
+  ret = nxtask_create("init", CONFIG_USERMAIN_PRIORITY,
                       CONFIG_USERMAIN_STACKSIZE,
-                      (main_t)CONFIG_USER_ENTRYPOINT,
-                      (FAR char * const *)NULL);
+                      USERSPACE->us_entrypoint, argv);
+#else
+  ret = nxtask_create("init", CONFIG_USERMAIN_PRIORITY,
+                      CONFIG_USERMAIN_STACKSIZE,
+                      (main_t)CONFIG_USER_ENTRYPOINT, argv);
 #endif
-  DEBUGASSERT(pid > 0);
-  UNUSED(pid);
-}
+  DEBUGASSERT(ret > 0);
 
 #elif defined(CONFIG_INIT_FILEPATH)
-static inline void nx_start_application(void)
-{
-  int ret;
-
-#ifdef CONFIG_BOARD_LATE_INITIALIZE
-  /* Perform any last-minute, board-specific initialization, if so
-   * configured.
-   */
-
-  board_late_initialize();
-#endif
 
 #ifdef CONFIG_INIT_MOUNT
   /* Mount the file system containing the init program. */
 
-  ret = mount(CONFIG_INIT_MOUNT_SOURCE, CONFIG_INIT_MOUNT_TARGET,
-              CONFIG_INIT_MOUNT_FSTYPE, CONFIG_INIT_MOUNT_FLAGS,
-              CONFIG_INIT_MOUNT_DATA);
+  ret = nx_mount(CONFIG_INIT_MOUNT_SOURCE, CONFIG_INIT_MOUNT_TARGET,
+                 CONFIG_INIT_MOUNT_FSTYPE, CONFIG_INIT_MOUNT_FLAGS,
+                 CONFIG_INIT_MOUNT_DATA);
   DEBUGASSERT(ret >= 0);
-  UNUSED(ret);
 #endif
 
   /* Start the application initialization program from a program in a
@@ -306,19 +282,13 @@ static inline void nx_start_application(void)
 
   sinfo("Starting init task: %s\n", CONFIG_USER_INITPATH);
 
-  ret = exec(CONFIG_USER_INITPATH, NULL, CONFIG_INIT_SYMTAB,
-             CONFIG_INIT_NEXPORTS);
+  ret = exec(CONFIG_USER_INITPATH, argv,
+             CONFIG_INIT_SYMTAB, CONFIG_INIT_NEXPORTS);
   DEBUGASSERT(ret >= 0);
+#endif
+
   UNUSED(ret);
 }
-
-#elif defined(CONFIG_INIT_NONE)
-#  define nx_start_application()
-
-#else
-#  error "Cannot start initialization thread"
-
-#endif
 
 /****************************************************************************
  * Name: nx_start_task
@@ -431,6 +401,10 @@ int nx_bringup(void)
    * However, the environment containing the PATH variable will be inherited
    * by all of the threads created by the IDLE task.
    */
+
+#ifdef CONFIG_LIB_HOMEDIR
+  setenv("PWD", CONFIG_LIB_HOMEDIR, 1);
+#endif
 
 #ifdef CONFIG_PATH_INITIAL
   setenv("PATH", CONFIG_PATH_INITIAL, 1);

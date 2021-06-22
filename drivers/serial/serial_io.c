@@ -1,36 +1,20 @@
 /****************************************************************************
  * drivers/serial/serial_io.c
  *
- *   Copyright (C) 2007-2009, 2011, 2015, 2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -46,9 +30,9 @@
 
 #include <sys/types.h>
 #include <stdint.h>
-#include <signal.h>
 #include <debug.h>
 
+#include <nuttx/signal.h>
 #include <nuttx/serial/serial.h>
 
 /****************************************************************************
@@ -139,7 +123,7 @@ void uart_recvchars(FAR uart_dev_t *dev)
 #endif
   unsigned int status;
   int nexthead = rxbuf->head + 1;
-#if defined(CONFIG_TTY_SIGINT) || defined(CONFIG_TTY_SIGSTP)
+#if defined(CONFIG_TTY_SIGINT) || defined(CONFIG_TTY_SIGTSTP)
   int signo = 0;
 #endif
   uint16_t nbytes = 0;
@@ -184,8 +168,8 @@ void uart_recvchars(FAR uart_dev_t *dev)
 
       if (nbuffered >= watermark)
         {
-          /* Let the lower level driver know that the watermark level has been
-           * crossed.  It will probably activate RX flow control.
+          /* Let the lower level driver know that the watermark level has
+           * been crossed.  It will probably activate RX flow control.
            */
 
           if (uart_rxflowcontrol(dev, nbuffered, true))
@@ -196,8 +180,9 @@ void uart_recvchars(FAR uart_dev_t *dev)
             }
         }
 #else
-      /* Check if RX buffer is full and allow serial low-level driver to pause
-       * processing. This allows proper utilization of hardware flow control.
+      /* Check if RX buffer is full and allow serial low-level driver to
+       * pause processing. This allows proper utilization of hardware flow
+       * control.
        */
 
       if (is_full)
@@ -217,9 +202,12 @@ void uart_recvchars(FAR uart_dev_t *dev)
       ch = uart_receive(dev, &status);
 
 #ifdef CONFIG_TTY_SIGINT
-      /* Is this the special character that will generate the SIGINT signal? */
+      /* Is this the special character that will generate the SIGINT
+       * signal?
+       */
 
-      if (dev->pid >= 0 && ch == CONFIG_TTY_SIGINT_CHAR)
+      if (dev->pid >= 0 && (dev->tc_lflag & ISIG) &&
+          ch == CONFIG_TTY_SIGINT_CHAR)
         {
           /* Yes.. note that the kill is needed and do not put the character
            * into the Rx buffer.  It should not be read as normal data.
@@ -229,10 +217,13 @@ void uart_recvchars(FAR uart_dev_t *dev)
         }
       else
 #endif
-#ifdef CONFIG_TTY_SIGSTP
-      /* Is this the special character that will generate the SIGSTP signal? */
+#ifdef CONFIG_TTY_SIGTSTP
+      /* Is this the special character that will generate the SIGTSTP
+       * signal?
+       */
 
-      if (dev->pid >= 0 && ch == CONFIG_TTY_SIGSTP_CHAR)
+      if (dev->pid >= 0 && (dev->tc_lflag & ISIG) &&
+          ch == CONFIG_TTY_SIGTSTP_CHAR)
         {
 #ifdef CONFIG_TTY_SIGINT
           /* Give precedence to SIGINT */
@@ -244,7 +235,7 @@ void uart_recvchars(FAR uart_dev_t *dev)
                * into the Rx buffer.  It should not be read as normal data.
                */
 
-              signo = SIGSTP;
+              signo = SIGTSTP;
             }
         }
       else
@@ -285,12 +276,12 @@ void uart_recvchars(FAR uart_dev_t *dev)
       uart_datareceived(dev);
     }
 
-#if defined(CONFIG_TTY_SIGINT) || defined(CONFIG_TTY_SIGSTP)
+#if defined(CONFIG_TTY_SIGINT) || defined(CONFIG_TTY_SIGTSTP)
   /* Send the signal if necessary */
 
   if (signo != 0)
     {
-      kill(dev->pid, signo);
+      nxsig_kill(dev->pid, signo);
       uart_reset_sem(dev);
     }
 #endif

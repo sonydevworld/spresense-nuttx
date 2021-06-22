@@ -83,7 +83,7 @@ Modules
     ----------------- ---------------------- ---------------------- ------------------------------------
     2  GND            2       GND            2  GND
     ----------------- ---------------------- ---------------------- ------------------------------------
-    3  LIGHTSENSOR    3  PB00 AIN[8]         3  PA10 AIN[18]
+    3  LIGHT_SENSOR   3  PB00 AIN[8]         3  PA10 AIN[18]
     ----------------- ---------------------- ---------------------- ------------------------------------
     4  LP_OUT         4  PB01 AIN[9]         4  PA11 AIN[19]
     ----------------- ---------------------- ---------------------- ------------------------------------
@@ -530,13 +530,13 @@ Configurations
 
      Build Setup:
        CONFIG_HOST_WINDOWS=y   : Windows Host
-       CONFIG_WINDOWS_CYGWIN=y : Cygwin environment on windoes
+       CONFIG_WINDOWS_CYGWIN=y : Cygwin environment on windows
 
-  4. These configurations use the CodeSourcery toolchain.  But
+  4. These configurations use the ARM EABI toolchain.  But
      that is easily reconfigured:
 
      System Type -> Toolchain:
-       CONFIG_ARMV6M_TOOLCHAIN_CODESOURCERYW=y
+       CONFIG_ARMV6M_TOOLCHAIN_GNU_EABIW=y
 
      Any re-configuration should be done before making NuttX or else the
      subsequent 'make' will fail.  If you have already attempted building
@@ -562,7 +562,7 @@ Configuration sub-directories
     NOTES:
 
     1. This configuration is set up to build on Windows using the Cygwin
-       environment using the CodeSourcery toolchain.  This can be easily
+       environment using the ARM EABI toolchain.  This can be easily
        changed as described above under "Configurations."
 
     2. By default, this configuration provides a serial console on SERCOM4
@@ -588,7 +588,7 @@ Configuration sub-directories
        Sometimes NuttX and your toolchain will disagree on the underlying
        type of size_t; sometimes it is an 'unsigned int' and sometimes it is
        an 'unsigned long int'.  If this error occurs, then you may need to
-       toggle the value of CONFIG_CXX_NEWLONG.
+       toggle the value of CONFIG_ARCH_SIZET_LONG.
 
     4. If the I/O1 module is connected to the SAMD21 Xplained Pro, then
        support for the SD card slot can be enabled by making the following
@@ -608,7 +608,7 @@ Configuration sub-directories
          CONFIG_FAT_MAXFNAME=32            : Maximum supported file name length
 
          There are issues related to patents that Microsoft holds on FAT long
-         file name technologies.  See the top level COPYING file for further
+         file name technologies.  See the top level NOTICE file for further
          details.
 
        System Type -> Peripherals:

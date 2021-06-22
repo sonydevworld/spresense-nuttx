@@ -1,36 +1,20 @@
 /****************************************************************************
  * sched/task/task_exithook.c
  *
- *   Copyright (C) 2011-2013, 2015. 2018-2019 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -86,7 +70,6 @@ static inline void nxtask_atexit(FAR struct tcb_s *tcb)
 
   if (group && group->tg_nmembers == 1)
     {
-#if defined(CONFIG_SCHED_ATEXIT_MAX) && CONFIG_SCHED_ATEXIT_MAX > 1
       int index;
 
       /* Call each atexit function in reverse order of registration atexit()
@@ -95,37 +78,22 @@ static inline void nxtask_atexit(FAR struct tcb_s *tcb)
        * group exits, i.e., from higher to lower indices.
        */
 
-      for (index = CONFIG_SCHED_ATEXIT_MAX - 1; index >= 0; index--)
+      for (index = CONFIG_SCHED_EXIT_MAX - 1; index >= 0; index--)
         {
-          if (group->tg_atexitfunc[index])
+          if (group->tg_exit[index].func.at)
             {
               atexitfunc_t func;
 
               /* Nullify the atexit function to prevent its reuse. */
 
-              func = group->tg_atexitfunc[index];
-              group->tg_atexitfunc[index] = NULL;
+              func = group->tg_exit[index].func.at;
+              group->tg_exit[index].func.at = NULL;
 
               /* Call the atexit function */
 
               (*func)();
             }
         }
-#else
-      if (group->tg_atexitfunc)
-        {
-          atexitfunc_t func;
-
-          /* Nullify the atexit function to prevent its reuse. */
-
-          func = group->tg_atexitfunc;
-          group->tg_atexitfunc = NULL;
-
-          /* Call the atexit function */
-
-          (*func)();
-        }
-#endif
     }
 }
 #else
@@ -160,7 +128,6 @@ static inline void nxtask_onexit(FAR struct tcb_s *tcb, int status)
 
   if (group && group->tg_nmembers == 1)
     {
-#if defined(CONFIG_SCHED_ONEXIT_MAX) && CONFIG_SCHED_ONEXIT_MAX > 1
       int index;
 
       /* Call each on_exit function in reverse order of registration.
@@ -169,37 +136,26 @@ static inline void nxtask_onexit(FAR struct tcb_s *tcb, int status)
        * when the task group exits, i.e., from higher to lower indices.
        */
 
-      for (index = CONFIG_SCHED_ONEXIT_MAX - 1; index >= 0; index--)
+      for (index = CONFIG_SCHED_EXIT_MAX - 1; index >= 0; index--)
         {
-          if (group->tg_onexitfunc[index])
+          if (group->tg_exit[index].func.on)
             {
               onexitfunc_t func;
+              FAR void    *arg;
 
               /* Nullify the on_exit function to prevent its reuse. */
 
-              func = group->tg_onexitfunc[index];
-              group->tg_onexitfunc[index] = NULL;
+              func = group->tg_exit[index].func.on;
+              arg  = group->tg_exit[index].arg;
+
+              group->tg_exit[index].func.on = NULL;
+              group->tg_exit[index].arg     = NULL;
 
               /* Call the on_exit function */
 
-              (*func)(status, group->tg_onexitarg[index]);
+              (*func)(status, arg);
             }
         }
-#else
-      if (group->tg_onexitfunc)
-        {
-          onexitfunc_t func;
-
-          /* Nullify the on_exit function to prevent its reuse. */
-
-          func = group->tg_onexitfunc;
-          group->tg_onexitfunc = NULL;
-
-          /* Call the on_exit function */
-
-          (*func)(status, group->tg_onexitarg);
-        }
-#endif
     }
 }
 #else
@@ -228,14 +184,9 @@ static inline void nxtask_exitstatus(FAR struct task_group_s *group,
     {
       /* No.. Find the exit status entry for this task in the parent TCB */
 
-      child = group_findchild(group, getpid());
+      child = group_find_child(group, getpid());
       if (child)
         {
-#ifndef HAVE_GROUP_MEMBERS
-          /* No group members? Save the exit status */
-
-          child->ch_status = status;
-#endif
           /* Save the exit status..  For the case of HAVE_GROUP_MEMBERS,
            * the child status will be as exited until the last member
            * of the task group exits.
@@ -272,7 +223,7 @@ static inline void nxtask_groupexit(FAR struct task_group_s *group)
     {
       /* No.. Find the exit status entry for this task in the parent TCB */
 
-      child = group_findchild(group, getpid());
+      child = group_find_child(group, getpid());
       if (child)
         {
           /* Mark that all members of the child task group has exited */
@@ -292,13 +243,13 @@ static inline void nxtask_groupexit(FAR struct task_group_s *group)
  * Name: nxtask_sigchild
  *
  * Description:
- *   Send the SIGCHILD signal to the parent thread
+ *   Send the SIGCHLD signal to the parent thread
  *
  ****************************************************************************/
 
 #ifdef CONFIG_SCHED_HAVE_PARENT
 #ifdef HAVE_GROUP_MEMBERS
-static inline void nxtask_sigchild(grpid_t pgrpid, FAR struct tcb_s *ctcb,
+static inline void nxtask_sigchild(pid_t ppid, FAR struct tcb_s *ctcb,
                                    int status)
 {
   FAR struct task_group_s *chgrp = ctcb->group;
@@ -312,14 +263,14 @@ static inline void nxtask_sigchild(grpid_t pgrpid, FAR struct tcb_s *ctcb,
    * this case, the child task group has been orphaned.
    */
 
-  pgrp = group_findby_grpid(pgrpid);
+  pgrp = group_findbypid(ppid);
   if (!pgrp)
     {
       /* Set the task group ID to an invalid group ID.  The dead parent
        * task group ID could get reused some time in the future.
        */
 
-      chgrp->tg_pgrpid = INVALID_GROUP_ID;
+      chgrp->tg_ppid = INVALID_PROCESS_ID;
       return;
     }
 
@@ -354,11 +305,7 @@ static inline void nxtask_sigchild(grpid_t pgrpid, FAR struct tcb_s *ctcb,
       info.si_code            = CLD_EXITED;
       info.si_errno           = OK;
       info.si_value.sival_ptr = NULL;
-#ifndef CONFIG_DISABLE_PTHREAD
-      info.si_pid             = chgrp->tg_task;
-#else
-      info.si_pid             = ctcb->pid;
-#endif
+      info.si_pid             = chgrp->tg_pid;
       info.si_status          = status;
 
       /* Send the signal to one thread in the group */
@@ -407,11 +354,7 @@ static inline void nxtask_sigchild(FAR struct tcb_s *ptcb,
       info.si_code            = CLD_EXITED;
       info.si_errno           = OK;
       info.si_value.sival_ptr = NULL;
-#ifndef CONFIG_DISABLE_PTHREAD
-      info.si_pid             = ctcb->group->tg_task;
-#else
-      info.si_pid             = ctcb->pid;
-#endif
+      info.si_pid             = ctcb->group->tg_pid;
       info.si_status          = status;
 
       /* Send the signal.  We need to use this internal interface so that we
@@ -433,7 +376,7 @@ static inline void nxtask_sigchild(FAR struct tcb_s *ptcb,
  * Name: nxtask_signalparent
  *
  * Description:
- *   Send the SIGCHILD signal to the parent task group
+ *   Send the SIGCHLD signal to the parent task group
  *
  ****************************************************************************/
 
@@ -449,7 +392,7 @@ static inline void nxtask_signalparent(FAR struct tcb_s *ctcb, int status)
 
   /* Send SIGCHLD to all members of the parent's task group */
 
-  nxtask_sigchild(ctcb->group->tg_pgrpid, ctcb, status);
+  nxtask_sigchild(ctcb->group->tg_ppid, ctcb, status);
   sched_unlock();
 #else
   FAR struct tcb_s *ptcb;
@@ -462,7 +405,7 @@ static inline void nxtask_signalparent(FAR struct tcb_s *ctcb, int status)
    * handle multiple calls to nxtask_signalparent.
    */
 
-  ptcb = sched_gettcb(ctcb->group->tg_ppid);
+  ptcb = nxsched_get_tcb(ctcb->group->tg_ppid);
   if (ptcb == NULL)
     {
       /* The parent no longer exists... bail */
@@ -561,7 +504,7 @@ static inline void nxtask_exitwakeup(FAR struct tcb_s *tcb, int status)
  *
  ****************************************************************************/
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
 static inline void nxtask_flushstreams(FAR struct tcb_s *tcb)
 {
   FAR struct task_group_s *group = tcb->group;
@@ -570,8 +513,7 @@ static inline void nxtask_flushstreams(FAR struct tcb_s *tcb)
 
   if (group && group->tg_nmembers == 1)
     {
-#if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && \
-     defined(CONFIG_MM_KERNEL_HEAP)
+#ifdef CONFIG_MM_KERNEL_HEAP
       lib_flushall(tcb->group->tg_streamlist);
 #else
       lib_flushall(&tcb->group->tg_streamlist);
@@ -615,9 +557,9 @@ static inline void nxtask_flushstreams(FAR struct tcb_s *tcb)
 
 void nxtask_exithook(FAR struct tcb_s *tcb, int status, bool nonblocking)
 {
-  /* Under certain conditions, nxtask_exithook() can be called multiple times.
-   * A bit in the TCB was set the first time this function was called.  If
-   * that bit is set, then just exit doing nothing more..
+  /* Under certain conditions, nxtask_exithook() can be called multiple
+   * times.  A bit in the TCB was set the first time this function was
+   * called.  If that bit is set, then just exit doing nothing more..
    */
 
   if ((tcb->flags & TCB_FLAG_EXIT_PROCESSING) != 0)
@@ -636,7 +578,6 @@ void nxtask_exithook(FAR struct tcb_s *tcb, int status, bool nonblocking)
   tcb->cpcount = 0;
 #endif
 
-#if defined(CONFIG_SCHED_ATEXIT) || defined(CONFIG_SCHED_ONEXIT)
   /* If exit function(s) were registered, call them now before we do any un-
    * initialization.
    *
@@ -647,20 +588,34 @@ void nxtask_exithook(FAR struct tcb_s *tcb, int status, bool nonblocking)
    *    a bug.
    * 2. We cannot call the exit functions if nonblocking is requested:  These
    *    functions might block.
-   * 3. This function will only be called with with non-blocking == true
+   * 3. This function will only be called with non-blocking == true
    *    only when called through _exit(). _exit() behaviors requires that
    *    the exit functions *not* be called.
    */
 
   if (!nonblocking)
     {
+#if defined(CONFIG_SCHED_ATEXIT) || defined(CONFIG_SCHED_ONEXIT)
       nxtask_atexit(tcb);
 
       /* Call any registered on_exit function(s) */
 
       nxtask_onexit(tcb, status);
-    }
 #endif
+
+      /* If this is the last thread in the group, then flush all streams
+       * (File descriptors will be closed when the TCB is deallocated).
+       *
+       * NOTES:
+       * 1. We cannot flush the buffered I/O if nonblocking is requested.
+       *    that might cause this logic to block.
+       * 2. This function will only be called with non-blocking == true
+       *    only when called through _exit(). _exit() behavior does not
+       *    require that the streams be flushed
+       */
+
+      nxtask_flushstreams(tcb);
+    }
 
   /* If the task was terminated by another task, it may be in an unknown
    * state.  Make some feeble effort to recover the state.
@@ -668,29 +623,19 @@ void nxtask_exithook(FAR struct tcb_s *tcb, int status, bool nonblocking)
 
   nxtask_recover(tcb);
 
-  /* Send the SIGCHILD signal to the parent task group */
+  /* NOTE: signal handling needs to be done in a criticl section */
+
+#ifdef CONFIG_SMP
+  irqstate_t flags = enter_critical_section();
+#endif
+
+  /* Send the SIGCHLD signal to the parent task group */
 
   nxtask_signalparent(tcb, status);
 
   /* Wakeup any tasks waiting for this task to exit */
 
   nxtask_exitwakeup(tcb, status);
-
-  /* If this is the last thread in the group, then flush all streams (File
-   * descriptors will be closed when the TCB is deallocated).
-   *
-   * NOTES:
-   * 1. We cannot flush the buffered I/O if nonblocking is requested.
-   *    that might cause this logic to block.
-   * 2. This function will only be called with with non-blocking == true
-   *    only when called through _exit(). _exit() behavior does not
-   *    require that the streams be flushed
-   */
-
-  if (!nonblocking)
-    {
-      nxtask_flushstreams(tcb);
-    }
 
   /* Leave the task group.  Perhaps discarding any un-reaped child
    * status (no zombies here!)
@@ -701,6 +646,10 @@ void nxtask_exithook(FAR struct tcb_s *tcb, int status, bool nonblocking)
   /* Deallocate anything left in the TCB's queues */
 
   nxsig_cleanup(tcb); /* Deallocate Signal lists */
+
+#ifdef CONFIG_SMP
+  leave_critical_section(flags);
+#endif
 
   /* This function can be re-entered in certain cases.  Set a flag
    * bit in the TCB to not that we have already completed this exit

@@ -1,56 +1,42 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/armv7-r/cp15.h
- * CP15 register access
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *  "ARM Architecture Reference Manual, ARMv7-A and ARMv7-R edition", Copyright
- *   1996-1998, 2000, 2004-2012 ARM. All rights reserved. ARM DDI 0406C.c (ID051414)
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
+
+/* References:
+ *  "ARM Architecture Reference Manual, ARMv7-A and ARMv7-R edition",
+ *   Copyright 1996-1998, 2000, 2004-2012 ARM.
+ * All rights reserved. ARM DDI 0406C.c (ID051414)
+ */
 
 #ifndef __ARCH_ARM_SRC_ARMV7_R_CP15_H
 #define __ARCH_ARM_SRC_ARMV7_R_CP15_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
+ ****************************************************************************/
+
 /* System control register descriptions.
  *
  * CP15 registers are accessed with MRC and MCR instructions as follows:
@@ -107,15 +93,15 @@
 
 #define CP15_DFAR(r)       _CP15(0, r, c6, c0, 0)   /* Data Fault Address Register */
 #define CP15_IFAR(r)       _CP15(0, r, c6, c0, 2)   /* Instruction Fault Address Register */
-#define CP15_DRBAR(r)      _CP15(0, r, c6, c1, 0)  /* Data Region Base Address Register */
-#define CP15_DRSR(r)       _CP15(0, r, c6, c1, 2)  /* Data Region Size and Enable Register */
-#define CP15_DRACR(r)      _CP15(0, r, c6, c1, 4)  /* Data Region Access Control Register */
+#define CP15_DRBAR(r)      _CP15(0, r, c6, c1, 0)   /* Data Region Base Address Register */
+#define CP15_DRSR(r)       _CP15(0, r, c6, c1, 2)   /* Data Region Size and Enable Register */
+#define CP15_DRACR(r)      _CP15(0, r, c6, c1, 4)   /* Data Region Access Control Register */
 #ifndef CONFIG_ARM_HAVE_MPU_UNIFIED
-#  define CP15_IRBAR(r)    _CP15(0, r, c6, c1, 1)  /* Instruction Region Base Address Register */
-#  define CP15_IRSR(r)     _CP15(0, r, c6, c1, 3)  /* Instruction Region Size and Enable Register */
-#  define CP15_IRACR(r)    _CP15(0, r, c6, c1, 5)  /* Instruction Region Access Control Register */
+#  define CP15_IRBAR(r)    _CP15(0, r, c6, c1, 1)   /* Instruction Region Base Address Register */
+#  define CP15_IRSR(r)     _CP15(0, r, c6, c1, 3)   /* Instruction Region Size and Enable Register */
+#  define CP15_IRACR(r)    _CP15(0, r, c6, c1, 5)   /* Instruction Region Access Control Register */
 #endif
-#define CP15_RGNR(r)       _CP15(0, r, c6, c2, 0)  /* MPU Region Number Register */
+#define CP15_RGNR(r)       _CP15(0, r, c6, c2, 0)   /* MPU Region Number Register */
 
 #define CP15_ICIALLUIS(r)  _CP15(0, r, c7, c1, 0)   /* Cache Operations Registers */
 #define CP15_BPIALLIS(r)   _CP15(0, r, c7, c1, 6)
@@ -155,16 +141,16 @@
 #define CP15_TPIDRURO(r)   _CP15(0, r, c13, c0, 3)
 #define CP15_TPIDRPRW(r)   _CP15(0, r, c13, c0, 4)
 
-#define CP15_CNTFRQ(r)     _CP15(0, r, c14, c0, 0)  /* Counter Frequency register */
-#define CP15_CNTKCTL(r)    _CP15(0, r, c14, c1, 0)  /* Timer PL1 Control register */
-#define CP15_CNTP_TVAL(r)  _CP15(0, r, c14, c2, 0)  /* PL1 Physical TimerValue register */
-#define CP15_CNTP_CTL(r)   _CP15(0, r, c14, c2, 0)  /* PL1 Physical Timer Control register */
-#define CP15_CNTV_TVAL(r)  _CP15(0, r, c14, c3, 0)  /* Virtual TimerValue register */
-#define CP15_CNTV_CTL(r)   _CP15(0, r, c14, c3, 0)  /* Virtual Timer Control register */
-#define CP15_CNTPCT(r,n)   _CP15(0, r, c14, c14, n) /* 64-bit Physical Count register */
-#define CP15_CNTVCT(r,n)   _CP15(1, r, c14, c14, n) /* Virtual Count register */
+#define CP15_CNTFRQ(r)     _CP15(0, r, c14, c0, 0)   /* Counter Frequency register */
+#define CP15_CNTKCTL(r)    _CP15(0, r, c14, c1, 0)   /* Timer PL1 Control register */
+#define CP15_CNTP_TVAL(r)  _CP15(0, r, c14, c2, 0)   /* PL1 Physical TimerValue register */
+#define CP15_CNTP_CTL(r)   _CP15(0, r, c14, c2, 0)   /* PL1 Physical Timer Control register */
+#define CP15_CNTV_TVAL(r)  _CP15(0, r, c14, c3, 0)   /* Virtual TimerValue register */
+#define CP15_CNTV_CTL(r)   _CP15(0, r, c14, c3, 0)   /* Virtual Timer Control register */
+#define CP15_CNTPCT(r,n)   _CP15(0, r, c14, c14, n)  /* 64-bit Physical Count register */
+#define CP15_CNTVCT(r,n)   _CP15(1, r, c14, c14, n)  /* Virtual Count register */
 #define CP15_CNTP_CVAL(r,n) _CP15(2, r, c14, c14, n) /* PL1 Physical Timer CompareValue register */
 #define CP15_CNTV_CVAL(r,n) _CP15(3, r, c14, c14, n) /* Virtual Timer CompareValue register */
-#define CP15_DCIALLU(r)    _CP15(0, r, c15, c5, 0)  /* Invalidate data cache */
+#define CP15_DCIALLU(r)    _CP15(0, r, c15, c5, 0)   /* Invalidate data cache */
 
 #endif /* __ARCH_ARM_SRC_ARMV7_R_CP15_H */

@@ -1,35 +1,20 @@
 /****************************************************************************
  * tools/cmpconfig.c
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -63,11 +48,12 @@ static void show_usage(const char *progname)
   exit(EXIT_FAILURE);
 }
 
-static void compare_variables(struct variable_s *list1, struct variable_s *list2)
+static int compare_variables(struct variable_s *list1,
+                             struct variable_s *list2)
 {
   char *varval1;
   char *varval2;
-  int result;
+  int ret = 0;
 
   while (list1 || list2)
     {
@@ -94,27 +80,33 @@ static void compare_variables(struct variable_s *list1, struct variable_s *list2
           printf("file1:\n");
           printf("file2: %s=%s\n\n", list2->var, varval2);
           list2 = list2->flink;
+          ret = EXIT_FAILURE;
         }
       else if (!list2)
         {
           printf("file1: %s=%s\n", list1->var, varval1);
           printf("file2:\n\n");
           list1 = list1->flink;
+          ret = EXIT_FAILURE;
         }
       else
         {
+          int result;
+
           result = strcmp(list1->var, list2->var);
           if (result < 0)
             {
               printf("file1: %s=%s\n", list1->var, varval1);
               printf("file2:\n\n");
               list1 = list1->flink;
+              ret = EXIT_FAILURE;
             }
           else if (result > 0)
             {
               printf("file1:\n");
               printf("file2: %s=%s\n\n", list2->var, varval2);
               list2 = list2->flink;
+              ret = EXIT_FAILURE;
             }
           else /* if (result == 0) */
             {
@@ -130,6 +122,8 @@ static void compare_variables(struct variable_s *list1, struct variable_s *list2
             }
         }
     }
+
+  return ret;
 }
 
 /****************************************************************************
@@ -171,9 +165,5 @@ int main(int argc, char **argv, char **envp)
   fclose(stream1);
   fclose(stream2);
 
-  printf("Comparing:\n\n");
-  printf("  file1 = %s\n", argv[1]);
-  printf("  file2 = %s\n\n", argv[2]);
-  compare_variables(list1, list2);
-  return EXIT_SUCCESS;
+  return compare_variables(list1, list2);
 }

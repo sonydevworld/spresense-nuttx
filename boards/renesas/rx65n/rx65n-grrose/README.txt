@@ -11,6 +11,14 @@ Contents
   - Serial Console
   - LEDs
   - Networking
+  - Contents
+  - RTC
+  - USB Device
+  - RSPI
+  - RIIC
+  - DTC
+  - USB Host
+  - USB Host Hub
   - Debugging
 
 Board Features
@@ -32,14 +40,6 @@ See the RX65N GRROSE website for further information about this board:
 
   - http://gadget.renesas.com/en/product/rose.html
 
-Status/Open Issues
-==================
-Ethernet
----------
-1.Observed instability in Link Management, due to difference in hardware design.(No Seperate Interrupt line for PHY) 
-2.Currently tested only ping and udpblaster application.
-3. Executed long run ping and udpblaster stress test for 12 hrs. Code is able to execute for 12hrs without any breakage. 
-
 Serial Console
 ==============
 RX65N GRROSE supports 12 serial ports (SCI0 - SCI12), however only 5 ports can be tested(SCI0, SCI1, SCI2,
@@ -47,74 +47,74 @@ SCI5 & SCI6).
 
 Please find the pin configurations for SCI0, SCI1, SCI2, SCI5 & SCI6
 
-SCI0 Pin Configuration : 
+SCI0 Pin Configuration :
 
------------ 
-RX65N GRROSE
-  Function    
 -----------
-  P21   RXD0  
-  P20   TXD0  
+RX65N GRROSE
+  Function
+-----------
+  P21   RXD0
+  P20   TXD0
 ------------
 
-SCI1 Pin Configuration : 
+SCI1 Pin Configuration :
 
------------ 
-RX65N GRROSE
-  Function    
 -----------
-  P30   RXD1  
-  P26   TXD1  
+RX65N GRROSE
+  Function
+-----------
+  P30   RXD1
+  P26   TXD1
 ------------
 
-SCI2 Pin Configuration : 
+SCI2 Pin Configuration :
 
------------ 
-RX65N GRROSE
-  Function    
 -----------
-  P12   RXD2  
-  P13   TXD2  
+RX65N GRROSE
+  Function
+-----------
+  P12   RXD2
+  P13   TXD2
 ------------
 
 SCI3 Pin Configuration :
 
------------ 
-RX65N GRROSE
-  Function    (connected to WiFi module)  
 -----------
-  P25   RXD3 
+RX65N GRROSE
+  Function    (connected to WiFi module)
+-----------
+  P25   RXD3
   P23   TXD3
 ------------
-  
-SCI5 Pin Configuration : 
 
------------ 
-RX65N GRROSE
-  Function    
+SCI5 Pin Configuration :
+
 -----------
-  PC2   RXD5  
-  PC3   TXD5  
+RX65N GRROSE
+  Function
+-----------
+  PC2   RXD5
+  PC3   TXD5
 ------------
 
-SCI6 Pin Configuration : 
+SCI6 Pin Configuration :
 
------------ 
-RX65N GRROSE
-  Function    
 -----------
-  P33   RXD6  
-  P32   TXD6  
+RX65N GRROSE
+  Function
+-----------
+  P33   RXD6
+  P32   TXD6
 ------------
 
 SCI8 Pin Configuration :
 
------------ 
-RX65N GRROSE
-  Function   (Half duplication mode with RS485 driver)  
 -----------
-  PC6   RXD8 
-  PC7   TXD8 
+RX65N GRROSE
+  Function   (Half duplication mode with RS485 driver)
+-----------
+  PC6   RXD8
+  PC7   TXD8
   PC5   Direction (L=TX, H=RX)
 
 Serial Connection Configuration
@@ -139,22 +139,22 @@ Networking
 Ethernet Connections
 -----------
 
-  ------        --------- 
-  RX65N 
-  GRROSE        Ethernet  
+  ------        ---------
+  RX65N
+  GRROSE        Ethernet
   Pin           Function
-  ------        --------- 
-  PA4           ET0_MDC   
+  ------        ---------
+  PA4           ET0_MDC
   PA3           ET0_MDIO
   PB2           REF50CK0
   PB7           RMII0_CRS_DV
-  PB1           RMII0_RXD0    
-  PB0           RMII0_RXD1      
-  PB3           RMII0_RX_ER      
-  PB5           RMII0_ETXD0      
-  PB6           RMII0_ETXD1       
+  PB1           RMII0_RXD0
+  PB0           RMII0_RXD1
+  PB3           RMII0_RX_ER
+  PB5           RMII0_ETXD0
+  PB6           RMII0_ETXD1
   PB4           RMII0_TXD_EN
-  PA5           ET0_LINKSTA 
+  PA5           ET0_LINKSTA
   PA6_ET_RST    ETHER reset
   ------         ---------
 NuttX Configurations
@@ -179,9 +179,9 @@ CONFIG_SCHED_LPWORK=y    :  Low Priority Work queue support
 
 Using the network with NSH
 --------------------------
-The IP address is configured using DHCP, using the below mentioned configurations : 
+The IP address is configured using DHCP, using the below mentioned configurations :
 
-The IP address is configured using DHCP, using the below mentioned configurations : 
+The IP address is configured using DHCP, using the below mentioned configurations :
 
 CONFIG_NETUTILS_DHCPC=y
 CONFIG_NETUTILS_DHCPD=y
@@ -209,16 +209,181 @@ target side, you can:
   56 bytes from 10.75.24.250: icmp_seq=9 time=0 ms
   56 bytes from 10.75.24.250: icmp_seq=10 time=0 ms
   10 packets transmitted, 10 received, 0% packet loss, time 10100 ms
-  
+
 On the host side, you should also be able to ping the RX65N-GRROSE:
 
   $ ping 10.75.24.53
 
-Configure UDP blaster application as mentioned below : 
+Configure UDP blaster application as mentioned below :
 
 CONFIG_EXAMPLES_UDPBLASTER_HOSTIP=0x0a4b1801  (10.75.24.1) ------> Gateway IP
 CONFIG_EXAMPLES_UDPBLASTER_NETMASK=0xfffffe00 (255.255.254.0) --------> Netmask
-CONFIG_EXAMPLES_UDPBLASTER_TARGETIP=0x0a4b189b (10.75.24.155) ---------> Target IP 
+CONFIG_EXAMPLES_UDPBLASTER_TARGETIP=0x0a4b189b (10.75.24.155) ---------> Target IP
+
+RSPI
+-----------
+
+For GRROSE board only channel 1 can be tested since RSPI channel1 pinout is only brought out as
+Pin number 2 and 3 in CN4 is used for MOSIB and MISOB respectively.
+
+USB Host
+=============
+For the RX65N RSK2MB board, to be used as USB Device, the following Jumper settings need to be done
+
+J7     Short Pin 1 & Pin 2
+J16    Short Pin 2 & Pin 3
+
+USB Device
+=============
+For the RX65N RSK2MB board, to be used as USB Device, the following Jumper settings need to be done
+
+J7     Short Pin 2 & Pin 3
+J16    Short Pin 1 & Pin 2
+
+RTC
+==========
+
+NuttX Configurations
+---------------
+The configurations listed in Renesas_RX65N_NuttX_RTC_Design.doc need to be enabled.
+
+RTC Testing
+------------------
+The test cases mentioned in Renesas_RX65N_RTC_Test_Cases.xls are to be executed
+as part of RTC testing.
+
+The following configurations are to be enabled as part of testing RTC examples.
+CONFIG_EXAMPLES_ALARM
+CONFIG_EXAMPLES_PERIODIC
+CONFIG_EXAMPLES_CARRY
+
+USB Device Configurations
+--------------------------
+The following configurations need to be enabled for USB Device
+
+CONFIG_USBDEV
+CONFIG_CDCACM
+CONFIG_STDIO_BUFFER_SIZE=64
+CONFIG_STDIO_LINEBUFFER
+
+USB Device Testing
+------------------------
+The following testing is executed as part of USB Device testing on RX65N target for GRROSE board
+
+echo "This is a test for USB Device" > /dev/ttyACM0
+
+xd 0 0x20000 > /dev/ttyACM0
+
+The output of the commands mentioned above should be seen on the USB Device COM port on teraterm
+
+RSPI Configurations
+--------------------------
+The following configurations need to be enabled for RSPI
+
+CONFIG_SYSTEM_SPITOOL=y
+
+RSPI Testing
+------------------------
+The following testing is executed as part of RSPI testing on RX65N target for GRROSE board
+
+On GRROSE board only channel 1 can be tested since RSPI channel1 pinout is only brought out.
+
+Following command can be used for testing RSPI communication to slave device.
+spi exch -b 0 -x 4 aabbccdd
+where b is bus number and x is Number of word to exchange.
+
+RIIC Configurations
+--------------------------
+The following configurations need to be enabled for RIIC
+
+CONFIG_SYSTEM_I2CTOOL=y
+
+RIIC Testing
+------------------------
+
+On GRROSE board, none of the RIIC channel pins are brought out in the board so not tested for communication.
+
+DTC Configurations
+--------------------------
+The following configurations need to be enabled for DTC.
+
+CONFIG_SYSTEM_SPITOOL=y
+
+DTC Testing
+------------------------
+
+DTC has been tested using RSPI driver.
+
+USB Host Configurations
+--------------------------
+The following configurations need to be enabled for USB Host Mode driver to 
+support USB HID Keyboard class and MSC Class.
+
+CONFIG_USBHOST=y
+CONFIG_USBHOST_HIDKBD=y
+CONFIG_FS_FAT=y
+CONFIG_EXAMPLES_HIDKBD=y
+
+USB Host Driver Testing
+------------------------
+The Following Class Drivers were tested as mentioned below : 
+
+- USB HID Keyboard Class
+On the NuttX Console "hidkbd" application was executed 
+
+nsh> hidkbd
+The characters typed from the keyboard were executed correctly.
+
+- USB MSC Class
+
+The MSC device is enumerated as sda in /dev directory.
+
+The block device is mounted using the command as mentioned below : 
+
+mount -t vfat /dev/sda /mnt
+
+The MSC device is mounted in /dev directory 
+
+The copy command is executed to test the Read/Write functionality
+
+cp /mnt/<file.txt> /mnt/file_copy.txt
+
+USB Host Hub Configurations
+--------------------------
+The following configurations need to be enabled for USB Host Mode driver to 
+support USB HID Keyboard class and MSC Class.
+
+CONFIG_RX65N_USBHOST=y
+CONFIG_USBHOST_HUB=y
+CONFIG_USBHOST_ASYNCH=y
+CONFIG_USBHOST=y
+CONFIG_USBHOST_HIDKBD=y
+CONFIG_FS_FAT=y
+CONFIG_EXAMPLES_HIDKBD=y
+
+USB Host Hub Driver Testing
+------------------------
+The Following Class Drivers were tested as mentioned below : 
+
+- USB HID Keyboard Class
+On the NuttX Console "hidkbd" application was executed 
+
+nsh> hidkbd
+The characters typed from the keyboard were executed correctly.
+
+- USB MSC Class
+The MSC device is enumerated as sda in /dev directory.
+
+The block device is mounted using the command as mentioned below : 
+
+mount -t vfat /dev/sda /mnt
+
+The MSC device is mounted in /dev directory 
+
+The copy command is executed to test the Read/Write functionality
+
+cp /mnt/<file.txt> /mnt/file_copy.txt
+
 Debugging
 ==========
 
@@ -238,17 +403,17 @@ CONFIG_DEBUG_SYMBOLS = y (Set this option, using menuconfig only, DO NOT Enable 
 
 Flashing NuttX
 ===============
-Alternativly, NuttX binary can be flashed using Renesas flash programmer tool without using e2 studio/Cygwin
+Alternatively, NuttX binary can be flashed using Renesas flash programmer tool without using e2 studio/Cygwin
 
 Below are the steps mentioned to flash NuttX binary using Renesas flash programmer tool(RFP).
 
 1.In order to flash using Renesas flash programmer tool, nuttx.mot file should be generated.
-2. Add the following lines in tools/Makefile.unix file : 
+2. Add the following lines in tools/Makefile.unix file :
 ifeq ($(CONFIG_MOTOROLA_SREC),y)
-	@echo "CP: $(NUTTXNAME).mot"
-	$(Q) $(OBJCOPY) $(OBJCOPYARGS) $(BIN) -O srec -I elf32-rx-be-ns $(NUTTXNAME).mot
+	@echo "CP: nuttx.mot"
+	$(Q) $(OBJCOPY) $(OBJCOPYARGS) $(BIN) -O srec -I elf32-rx-be-ns nuttx.mot
 endif
-3. Add CONFIG_MOTOROLA_SREC=y in defconfig file or choose make menucofig->Build Setup-> Binary Output Format-> 
+3. Add CONFIG_MOTOROLA_SREC=y in defconfig file or choose make menucofig->Build Setup-> Binary Output Format->
    Select Motorola SREC format.
 4. Download Renesas flash programmer tool from https://www.renesas.com/in/en/products/software-tools/tools/programmer/renesas-flash-programmer-programming-gui.html#downloads
 5. Refer to the user manual document, for steps to flash NuttX binary using RFP tool.

@@ -1,35 +1,20 @@
 /****************************************************************************
  * sched/sched/sched.h
  *
- *   Copyright (C) 2007-2014, 2016, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -72,17 +57,12 @@
 
 /* These are macros to access the current CPU and the current task on a CPU.
  * These macros are intended to support a future SMP implementation.
- * NOTE: this_task() for SMP is implemented in sched_thistask.c if the CPU
- * supports disabling of inter-processor interrupts or if it supports the
- * atomic fetch add operation.
+ * NOTE: this_task() for SMP is implemented in sched_thistask.c
  */
 
 #ifdef CONFIG_SMP
 #  define current_task(cpu)      ((FAR struct tcb_s *)g_assignedtasks[cpu].head)
 #  define this_cpu()             up_cpu_index()
-#  if !defined(CONFIG_ARCH_GLOBAL_IRQDISABLE) && !defined(CONFIG_ARCH_HAVE_FETCHADD)
-#    define this_task()          (current_task(this_cpu()))
-#  endif
 #else
 #  define current_task(cpu)      ((FAR struct tcb_s *)g_readytorun.head)
 #  define this_cpu()             (0)
@@ -130,7 +110,7 @@
  * NOTE also that CPU load measurement data is retained in his table vs. in
  * the TCB which would seem to be the more logic place.  It is place in the
  * hash table, instead, to facilitate CPU load adjustments on all threads
- * during timer interrupt handling. sched_foreach() could do this too, but
+ * during timer interrupt handling. nxsched_foreach() could do this too, but
  * this would require a little more overhead.
  */
 
@@ -265,29 +245,6 @@ extern volatile dq_queue_t g_waitingforfill;
 
 extern volatile dq_queue_t g_inactivetasks;
 
-/* These are lists of dayed memory deallocations that need to be handled
- * within the IDLE loop or worker thread.  These deallocations get queued
- * by sched_kufree and sched_kfree() if the OS needs to deallocate memory
- * while it is within an interrupt handler.
- */
-
-#if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && \
-     defined(CONFIG_MM_KERNEL_HEAP)
-extern volatile sq_queue_t g_delayed_kfree;
-#endif
-
-#ifndef CONFIG_BUILD_KERNEL
-/* REVISIT:  It is not safe to defer user allocation in the kernel mode
- * build.  Why?  Because the correct user context will not be in place
- * when these deferred de-allocations are performed.  In order to make
- * this work, we would need to do something like:  (1) move g_delayed_kufree
- * into the group structure, then traverse the groups to collect garbage on
- * a group-by-group basis.
- */
-
-extern volatile sq_queue_t g_delayed_kufree;
-#endif
-
 /* This is the value of the last process ID assigned to a task */
 
 extern volatile pid_t g_lastpid;
@@ -354,9 +311,9 @@ extern volatile uint32_t g_cpuload_total;
  *    locked.
  * 2. Scheduling logic would set the bit associated with the cpu in
  *    'g_cpu_lockset' when the TCB at the head of the g_assignedtasks[cpu]
- *    list transitions has 'lockcount' > 0. This might happen when sched_lock()
- *    is called, or after a context switch that changes the TCB at the
- *    head of the g_assignedtasks[cpu] list.
+ *    list transitions has 'lockcount' > 0. This might happen when
+ *    sched_lock() is called, or after a context switch that changes the
+ *    TCB at the head of the g_assignedtasks[cpu] list.
  * 3. Similarly, the cpu bit in the global 'g_cpu_lockset' would be cleared
  *    when the TCB at the head of the g_assignedtasks[cpu] list has
  *    'lockcount' == 0. This might happen when sched_unlock() is called, or
@@ -391,14 +348,6 @@ extern volatile cpu_set_t g_cpu_lockset SP_SECTION;
 
 extern volatile spinlock_t g_cpu_tasklistlock SP_SECTION;
 
-#if defined(CONFIG_ARCH_HAVE_FETCHADD) && !defined(CONFIG_ARCH_GLOBAL_IRQDISABLE)
-/* This is part of the sched_lock() logic to handle atomic operations when
- * locking the scheduler.
- */
-
-extern volatile int16_t g_global_lockcount;
-#endif
-
 #endif /* CONFIG_SMP */
 
 /****************************************************************************
@@ -407,15 +356,15 @@ extern volatile int16_t g_global_lockcount;
 
 /* Task list manipulation functions */
 
-bool sched_addreadytorun(FAR struct tcb_s *rtrtcb);
-bool sched_removereadytorun(FAR struct tcb_s *rtrtcb);
-bool sched_addprioritized(FAR struct tcb_s *tcb, DSEG dq_queue_t *list);
-void sched_mergeprioritized(FAR dq_queue_t *list1, FAR dq_queue_t *list2,
-                            uint8_t task_state);
-bool sched_mergepending(void);
-void sched_addblocked(FAR struct tcb_s *btcb, tstate_t task_state);
-void sched_removeblocked(FAR struct tcb_s *btcb);
-int  nxsched_setpriority(FAR struct tcb_s *tcb, int sched_priority);
+bool nxsched_add_readytorun(FAR struct tcb_s *rtrtcb);
+bool nxsched_remove_readytorun(FAR struct tcb_s *rtrtcb);
+bool nxsched_add_prioritized(FAR struct tcb_s *tcb, DSEG dq_queue_t *list);
+void nxsched_merge_prioritized(FAR dq_queue_t *list1, FAR dq_queue_t *list2,
+                               uint8_t task_state);
+bool nxsched_merge_pending(void);
+void nxsched_add_blocked(FAR struct tcb_s *btcb, tstate_t task_state);
+void nxsched_remove_blocked(FAR struct tcb_s *btcb);
+int  nxsched_set_priority(FAR struct tcb_s *tcb, int sched_priority);
 
 /* Priority inheritance support */
 
@@ -423,70 +372,58 @@ int  nxsched_setpriority(FAR struct tcb_s *tcb, int sched_priority);
 int  nxsched_reprioritize(FAR struct tcb_s *tcb, int sched_priority);
 #else
 #  define nxsched_reprioritize(tcb,sched_priority) \
-     nxsched_setpriority(tcb,sched_priority)
+     nxsched_set_priority(tcb,sched_priority)
 #endif
 
 /* Support for tickless operation */
 
 #ifdef CONFIG_SCHED_TICKLESS
-unsigned int sched_timer_cancel(void);
-void sched_timer_resume(void);
-void sched_timer_reassess(void);
+unsigned int nxsched_cancel_timer(void);
+void nxsched_resume_timer(void);
+void nxsched_reassess_timer(void);
 #else
-#  define sched_timer_cancel() (0)
-#  define sched_timer_resume()
-#  define sched_timer_reassess()
+#  define nxsched_cancel_timer() (0)
+#  define nxsched_resume_timer()
+#  define nxsched_reassess_timer()
 #endif
 
 /* Scheduler policy support */
 
 #if CONFIG_RR_INTERVAL > 0
-uint32_t sched_roundrobin_process(FAR struct tcb_s *tcb, uint32_t ticks,
-                                  bool noswitches);
+uint32_t nxsched_process_roundrobin(FAR struct tcb_s *tcb, uint32_t ticks,
+                                    bool noswitches);
 #endif
 
 #ifdef CONFIG_SCHED_SPORADIC
-int  sched_sporadic_initialize(FAR struct tcb_s *tcb);
-int  sched_sporadic_start(FAR struct tcb_s *tcb);
-int  sched_sporadic_stop(FAR struct tcb_s *tcb);
-int  sched_sporadic_reset(FAR struct tcb_s *tcb);
-int  sched_sporadic_resume(FAR struct tcb_s *tcb);
-int  sched_sporadic_suspend(FAR struct tcb_s *tcb);
-uint32_t sched_sporadic_process(FAR struct tcb_s *tcb, uint32_t ticks,
-                                bool noswitches);
-void sched_sporadic_lowpriority(FAR struct tcb_s *tcb);
+int  nxsched_initialize_sporadic(FAR struct tcb_s *tcb);
+int  nxsched_start_sporadic(FAR struct tcb_s *tcb);
+int  nxsched_stop_sporadic(FAR struct tcb_s *tcb);
+int  nxsched_reset_sporadic(FAR struct tcb_s *tcb);
+int  nxsched_resume_sporadic(FAR struct tcb_s *tcb);
+int  nxsched_suspend_sporadic(FAR struct tcb_s *tcb);
+uint32_t nxsched_process_sporadic(FAR struct tcb_s *tcb, uint32_t ticks,
+                                  bool noswitches);
+void nxsched_sporadic_lowpriority(FAR struct tcb_s *tcb);
 #endif
 
 #ifdef CONFIG_SIG_SIGSTOP_ACTION
-void sched_suspend(FAR struct tcb_s *tcb);
-void sched_continue(FAR struct tcb_s *tcb);
+void nxsched_suspend(FAR struct tcb_s *tcb);
+void nxsched_continue(FAR struct tcb_s *tcb);
 #endif
 
 #ifdef CONFIG_SMP
-#if defined(CONFIG_ARCH_GLOBAL_IRQDISABLE) || defined(CONFIG_ARCH_HAVE_FETCHADD)
 FAR struct tcb_s *this_task(void);
-#endif
 
-int  sched_cpu_select(cpu_set_t affinity);
-int  sched_cpu_pause(FAR struct tcb_s *tcb);
+int  nxsched_select_cpu(cpu_set_t affinity);
+int  nxsched_pause_cpu(FAR struct tcb_s *tcb);
 
-irqstate_t sched_tasklist_lock(void);
-void sched_tasklist_unlock(irqstate_t lock);
-
-#if defined(CONFIG_ARCH_HAVE_FETCHADD) && !defined(CONFIG_ARCH_GLOBAL_IRQDISABLE)
-#  define sched_islocked_global() \
-     (spin_islocked(&g_cpu_schedlock) || g_global_lockcount > 0)
-#else
-#  define sched_islocked_global() \
-     spin_islocked(&g_cpu_schedlock)
-#endif
-
-#  define sched_islocked_tcb(tcb) sched_islocked_global()
+#  define nxsched_islocked_global() spin_islocked(&g_cpu_schedlock)
+#  define nxsched_islocked_tcb(tcb) nxsched_islocked_global()
 
 #else
-#  define sched_cpu_select(a)     (0)
-#  define sched_cpu_pause(t)      (-38)  /* -ENOSYS */
-#  define sched_islocked_tcb(tcb) ((tcb)->lockcount > 0)
+#  define nxsched_select_cpu(a)     (0)
+#  define nxsched_pause_cpu(t)      (-38)  /* -ENOSYS */
+#  define nxsched_islocked_tcb(tcb) ((tcb)->lockcount > 0)
 #endif
 
 #if defined(CONFIG_SCHED_CPULOAD) && !defined(CONFIG_SCHED_CPULOAD_EXTCLK)
@@ -498,15 +435,14 @@ void weak_function nxsched_process_cpuload(void);
 /* Critical section monitor */
 
 #ifdef CONFIG_SCHED_CRITMONITOR
-void sched_critmon_preemption(FAR struct tcb_s *tcb, bool state);
-void sched_critmon_csection(FAR struct tcb_s *tcb, bool state);
-void sched_critmon_resume(FAR struct tcb_s *tcb);
-void sched_critmon_suspend(FAR struct tcb_s *tcb);
+void nxsched_critmon_preemption(FAR struct tcb_s *tcb, bool state);
+void nxsched_critmon_csection(FAR struct tcb_s *tcb, bool state);
+void nxsched_resume_critmon(FAR struct tcb_s *tcb);
+void nxsched_suspend_critmon(FAR struct tcb_s *tcb);
 #endif
 
 /* TCB operations */
 
-bool sched_verifytcb(FAR struct tcb_s *tcb);
-int  sched_releasetcb(FAR struct tcb_s *tcb, uint8_t ttype);
+bool nxsched_verify_tcb(FAR struct tcb_s *tcb);
 
 #endif /* __SCHED_SCHED_SCHED_H */

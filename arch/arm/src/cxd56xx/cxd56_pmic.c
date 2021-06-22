@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_pmic.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -109,9 +94,9 @@ enum pmic_cmd_type_e
 
 /* Register CNT_USB2 [1:0] USB_CUR_LIM constants */
 
-#define PMIC_CUR_LIM_2_5mA  0
-#define PMIC_CUR_LIM_100mA  1
-#define PMIC_CUR_LIM_500mA  2
+#define PMIC_CUR_LIM_2_5MA  0
+#define PMIC_CUR_LIM_100MA  1
+#define PMIC_CUR_LIM_500MA  2
 
 /* Register CNT_CHG1 [6:5] VO_CHG_DET4 constants */
 
@@ -612,7 +597,8 @@ int cxd56_pmic_set_loadswitch(uint8_t chset, bool value)
  *   chset - LoadSwitch Channel number(s)
  *
  * Returned Value:
- *   Return true if all of the specified chset are on. Otherwise, return false
+ *   Return true if all of the specified chset are on.
+ *   Otherwise, return false
  *
  ****************************************************************************/
 
@@ -709,7 +695,8 @@ int cxd56_pmic_set_ddc_ldo(uint8_t chset, bool value)
  *   chset - DDC/LDO Channel number(s)
  *
  * Returned Value:
- *   Return true if all of the specified chset are on. Otherwise, return false
+ *   Return true if all of the specified chset are on.
+ *   Otherwise, return false
  *
  ****************************************************************************/
 
@@ -970,15 +957,15 @@ int cxd56_pmic_getchargecurrent(FAR int *current)
 
   switch (val & 0x3)
     {
-      case PMIC_CUR_LIM_2_5mA:
+      case PMIC_CUR_LIM_2_5MA:
         *current = 2;
         break;
 
-      case PMIC_CUR_LIM_100mA:
+      case PMIC_CUR_LIM_100MA:
         *current = 100;
         break;
 
-      case PMIC_CUR_LIM_500mA:
+      case PMIC_CUR_LIM_500MA:
         *current = 500;
         break;
 
@@ -1013,15 +1000,15 @@ int cxd56_pmic_setchargecurrent(int current)
   switch (current)
     {
       case 2:
-        val = PMIC_CUR_LIM_2_5mA;
+        val = PMIC_CUR_LIM_2_5MA;
         break;
 
       case 100:
-        val = PMIC_CUR_LIM_100mA;
+        val = PMIC_CUR_LIM_100MA;
         break;
 
       case 500:
-        val = PMIC_CUR_LIM_500mA;
+        val = PMIC_CUR_LIM_500MA;
         break;
 
       default:
@@ -1090,7 +1077,8 @@ int cxd56_pmic_getchargestate(uint8_t *state)
  * Name: cxd56_pmic_setrechargevol
  *
  * Description:
- *   Set threshold voltage against full charge for automatic restart charging.
+ *   Set threshold voltage against full charge for automatic restart
+ *   charging.
  *
  * Input Parameter:
  *   mv - Available values are -400, -350, -300 and -250 (mv)
@@ -1135,7 +1123,8 @@ int cxd56_pmic_setrechargevol(int mv)
  * Name: cxd56_pmic_getrechargevol
  *
  * Description:
- *   Get threshold voltage against full charge for automatic restart charging.
+ *   Get threshold voltage against full charge for automatic restart
+ *   charging.
  *
  * Input Parameter:
  *   mv - Possible values are -400, -350, -300 and -250 (mv)

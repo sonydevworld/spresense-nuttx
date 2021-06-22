@@ -1,36 +1,20 @@
 /************************************************************************************
  * include/nuttx/can/can.h
  *
- *   Copyright (C) 2008, 2009, 2011-2012, 2015-2017, 2019 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ************************************************************************************/
 
@@ -47,6 +31,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include <nuttx/list.h>
 #include <nuttx/fs/fs.h>
@@ -113,8 +98,23 @@
 /* Ioctl commands supported by the upper half CAN driver.
  *
  * CANIOC_RTR:
- *   Description:  Send the remote transmission request and wait for the response.
- *   Argument:     A reference to struct canioc_rtr_s
+ *   Description:    Send the given message as a remote request. On successful
+ *                   return, the passed message structure is updated with
+ *                   the contents of the received message; i.e. the message
+ *                   ID and the standard/extended ID indication bit stay the
+ *                   same, but the DLC and data bits are updated with the
+ *                   contents of the received message. If no response is
+ *                   received after the specified timeout, ioctl will return.
+ *
+ *                   Note: Lower-half drivers that do not implement
+ *                         CONFIG_CAN_USE_RTR and implement co_remoterequest
+ *                         will result in EINVAL if this ioctl is called
+ *                         with an extended-ID message.
+ *
+ *   Argument:       A pointer to struct canioc_rtr_s
+ *   Returned Value: Zero (OK) is returned on success. Otherwise, -1 (ERROR)
+ *                   is returned with the errno variable set to indicate the
+ *                   nature of the error (for example, ETIMEDOUT)
  *
  * Ioctl commands that may or may not be supported by the lower half CAN driver.
  *
@@ -197,6 +197,24 @@
  *                   is returned with the errno variable set to indicate the
  *                   nature of the error.
  *   Dependencies:   None
+ *
+ * CANIOC_SET_NART:
+ *   Description:    Enable/Disable NART (No Automatic Retry)
+ *   Argument:       Set to 1 to enable NART, 0 to disable. Default is
+ *                   disabled.
+ *   Returned Value: Zero (OK) is returned on success.  Otherwise -1 (ERROR)
+ *                   is returned with the errno variable set to indicate the
+ *                   nature of the error.
+ *   Dependencies:   None
+ *
+ * CANIOC_SET_ABOM:
+ *   Description:    Enable/Disable ABOM (Automatic Bus-off Management)
+ *   Argument:       Set to 1 to enable ABOM, 0 to disable. Default is
+ *                   disabled.
+ *   Returned Value: Zero (OK) is returned on success.  Otherwise -1 (ERROR)
+ *                   is returned with the errno variable set to indicate the
+ *                   nature of the error.
+ *   Dependencies:   None
  */
 
 #define CANIOC_RTR                _CANIOC(1)
@@ -209,13 +227,15 @@
 #define CANIOC_GET_CONNMODES      _CANIOC(8)
 #define CANIOC_SET_CONNMODES      _CANIOC(9)
 #define CANIOC_BUSOFF_RECOVERY    _CANIOC(10)
+#define CANIOC_SET_NART           _CANIOC(11)
+#define CANIOC_SET_ABOM           _CANIOC(12)
 
 #define CAN_FIRST                 0x0001         /* First common command */
-#define CAN_NCMDS                 10             /* Ten common commands */
+#define CAN_NCMDS                 12             /* Ten common commands */
 
 /* User defined ioctl commands are also supported. These will be forwarded
  * by the upper-half CAN driver to the lower-half CAN driver via the co_ioctl()
- * method fo the CAN lower-half interface.  However, the lower-half driver
+ * method of the CAN lower-half interface.  However, the lower-half driver
  * must reserve a block of commands as follows in order prevent IOCTL
  * command numbers from overlapping.
  *
@@ -314,7 +334,7 @@
 #  define CAN_ERROR2_BIT1         (1 << 4) /* Bit 4: Unable to send recessive bit */
 #  define CAN_ERROR2_OVERLOAD     (1 << 5) /* Bit 5: Bus overload */
 #  define CAN_ERROR2_ACTIVE       (1 << 6) /* Bit 6: Active error announcement */
-#  define CAN_ERROR2_TX           (1 << 7) /* Bit 7: Error occured on transmission */
+#  define CAN_ERROR2_TX           (1 << 7) /* Bit 7: Error occurred on transmission */
 
 /* Data[3]:  Error in CAN protocol.  This provides the loation of the error. */
 
@@ -435,7 +455,12 @@ begin_packed_struct struct can_hdr_s
   uint8_t      ch_error  : 1; /* 1=ch_id is an error report */
 #endif
   uint8_t      ch_extid  : 1; /* Extended ID indication */
-  uint8_t      ch_unused : 1; /* Unused */
+#ifdef CONFIG_CAN_FD
+  uint8_t      ch_edl    : 1; /* Extended Data Length */
+  uint8_t      ch_brs    : 1; /* Bit Rate Switch */
+  uint8_t      ch_esi    : 1; /* Error State Indicator */
+#endif
+  uint8_t      ch_unused : 1; /* FIXME: This field is useless, kept for backward compatibility */
 } end_packed_struct;
 
 #else
@@ -447,7 +472,12 @@ begin_packed_struct struct can_hdr_s
 #ifdef CONFIG_CAN_ERRORS
   uint8_t      ch_error  : 1; /* 1=ch_id is an error report */
 #endif
-  uint8_t      ch_unused : 2; /* Unused */
+#ifdef CONFIG_CAN_FD
+  uint8_t      ch_edl    : 1; /* Extended Data Length */
+  uint8_t      ch_brs    : 1; /* Bit Rate Switch */
+  uint8_t      ch_esi    : 1; /* Error State Indicator */
+#endif
+  uint8_t      ch_unused : 1; /* FIXME: This field is useless, kept for backward compatibility */
 } end_packed_struct;
 #endif
 
@@ -482,8 +512,7 @@ struct can_txfifo_s
 
 struct can_rtrwait_s
 {
-  sem_t         cr_sem;                  /* Wait for RTR response */
-  uint16_t      cr_id;                   /* The ID that is waited for */
+  sem_t         cr_sem;                  /* Wait for response/is the cd_rtr entry available */
   FAR struct can_msg_s *cr_msg;          /* This is where the RTR response goes */
 };
 
@@ -527,7 +556,13 @@ struct can_ops_s
 
   CODE int (*co_ioctl)(FAR struct can_dev_s *dev, int cmd, unsigned long arg);
 
-  /* Send a remote request */
+  /* Send a remote request. Lower-half drivers should NOT implement this if
+   * they support sending RTR messages with the regular send function
+   * (i.e. CONFIG_CAN_USE_RTR). Instead, they should mention CAN_USE_RTR
+   * in their Kconfig help and set this to NULL to indicate that the normal
+   * send function should be used instead. Lower-half drivers must implement
+   * either this or CONFIG_CAN_USE_RTR to support CANIOC_RTR.
+   */
 
   CODE int (*co_remoterequest)(FAR struct can_dev_s *dev, uint16_t id);
 
@@ -560,18 +595,14 @@ struct can_ops_s
 struct can_reader_s
 {
   struct list_node     list;
-  sem_t                read_sem;
-  FAR struct file     *filep;
   struct can_rxfifo_s  fifo;             /* Describes receive FIFO */
 };
 
 struct can_dev_s
 {
-  uint8_t              cd_ocount;        /* The number of times the device has been opened */
   uint8_t              cd_npendrtr;      /* Number of pending RTR messages */
   volatile uint8_t     cd_ntxwaiters;    /* Number of threads waiting to enqueue a message */
-  volatile uint8_t     cd_nrxwaiters;    /* Number of threads waiting to receive a message */
-  struct list_node     cd_readers;       /* Number of readers */
+  struct list_node     cd_readers;       /* List of readers */
 #ifdef CONFIG_CAN_ERRORS
   uint8_t              cd_error;         /* Flags to indicate internal device errors */
 #endif
@@ -590,16 +621,31 @@ struct can_dev_s
 };
 
 /* Structures used with ioctl calls */
+
 /* CANIOC_RTR: */
 
 struct canioc_rtr_s
 {
-  uint16_t              ci_id;           /* The 11-bit ID to use in the RTR message */
-  FAR struct can_msg_s *ci_msg;          /* The location to return the RTR response */
+  /* How long to wait for the response */
+
+  struct timespec       ci_timeout;
+
+  /* The location to return the RTR response. The arbitration fields
+   * (i.e. message ID and extended ID indication, if applicable) should be
+   * set to the values the driver will watch for. On return from the ioctl,
+   * the DLC and data fields will be updated by the received message.
+   *
+   * The block of memory must be large enough to hold an message of size
+   * CAN_MSGLEN(CAN_MAXDATALEN) even if a smaller DLC is requested, since
+   * the response DLC may not match the requested one.
+   */
+
+  FAR struct can_msg_s *ci_msg;
 };
 
-/* CANIOC_GET_BITTIMING/CANIOC_SET_BITTIMING: */
-/* Bit time = Tquanta * (Sync_Seg + Prop_Seq + Phase_Seg1 + Phase_Seg2)
+/* CANIOC_GET_BITTIMING/CANIOC_SET_BITTIMING:
+ *
+ * Bit time = Tquanta * (Sync_Seg + Prop_Seq + Phase_Seg1 + Phase_Seg2)
  *          = Tquanta * (TSEG1 + TSEG2 + 1)
  * Where
  *   TSEG1 = Prop_Seq + Phase_Seg1
@@ -614,15 +660,16 @@ struct canioc_bittiming_s
   uint8_t               bt_sjw;          /* Synchronization Jump Width in time quanta */
 };
 
-/* CANIOC_GET_CONNMODES/CANIOC_SET_CONNMODES: */
-/* A CAN device may support loopback and silent mode. Both modes may not be
+/* CANIOC_GET_CONNMODES/CANIOC_SET_CONNMODES:
+ *
+ * A CAN device may support loopback and silent mode. Both modes may not be
  * settable independently.
  */
 
 struct canioc_connmodes_s
 {
   uint8_t               bm_loopback : 1; /* Enable reception of messages sent
-                                          * by this node.*/
+                                          * by this node. */
   uint8_t               bm_silent   : 1; /* Disable transmission of messages.
                                           * The node still receives messages. */
 };
@@ -654,11 +701,7 @@ struct canioc_stdfilter_s
 };
 
 /************************************************************************************
- * Public Data
- ************************************************************************************/
-
-/************************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ************************************************************************************/
 
 #undef EXTERN
@@ -779,7 +822,7 @@ int can_txdone(FAR struct can_dev_s *dev);
  * Description:
  *   Called from the CAN interrupt handler at the completion of a send
  *   operation.  This interface is needed only for CAN hardware that
- *   supports queing of outgoing messages in a H/W FIFO.
+ *   supports queueing of outgoing messages in a H/W FIFO.
  *
  *   The CAN upper half driver also supports a queue of output messages in a
  *   S/W FIFO.  Messages are added to that queue when when can_write() is
@@ -801,7 +844,7 @@ int can_txdone(FAR struct can_dev_s *dev);
  *   another transfer.
  *
  *   If the CAN hardware supports a H/W FIFO, can_txdone() is not called
- *   when the tranfer is complete, but rather when the transfer is queued in
+ *   when the transfer is complete, but rather when the transfer is queued in
  *   the H/W FIFO.  When the H/W FIFO becomes full, then dev_txready() will
  *   report false and the number of queued messages in the S/W FIFO will grow.
  *

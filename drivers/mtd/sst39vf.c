@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/mtd/sst39vf.c
  *
- *   Copyright (C) 2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -57,6 +42,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration */
 
 #ifndef CONFIG_SST39VF_BASE_ADDRESS
@@ -85,21 +71,13 @@
 /****************************************************************************
  * Private Types
  ****************************************************************************/
+
 /* This describes one chip in the SST39VF family */
 
 struct sst39vf_chip_s
 {
-#if 0 /* Not used */
-  bool     top;        /* Top protect SST39VF1602/3202 */
-#endif
   uint16_t chipid;     /* ID of the chip */
-#if 0 /* Not used */
-  uint16_t nblocks;    /* Number of erase blocks */
-#endif
   uint16_t nsectors;   /* Number of erase-ablesectors */
-#if 0 /* Not used */
-  uint32_t blocksize;  /* Size of one erase block */
-#endif
   uint32_t sectorsize; /* Size of one sector */
 };
 
@@ -125,11 +103,14 @@ struct sst39vf_dev_s
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
 /* Low Level Helpers */
 
-static inline void sst39vf_flashwrite(FAR const struct sst39vf_wrinfo_s *wrinfo);
+static inline void
+sst39vf_flashwrite(FAR const struct sst39vf_wrinfo_s *wrinfo);
 static inline uint16_t sst39vf_flashread(uintptr_t address);
-static void sst39vf_writeseq(FAR const struct sst39vf_wrinfo_s *wrinfo, int nseq);
+static void sst39vf_writeseq(FAR const struct sst39vf_wrinfo_s *wrinfo,
+                             int nseq);
 static int sst39vf_chiperase(FAR struct sst39vf_dev_s *priv);
 static int sst39vf_sectorerase(FAR struct sst39vf_dev_s *priv,
                                uintptr_t sectaddr);
@@ -155,42 +136,30 @@ static int sst39vf_ioctl(FAR struct mtd_dev_s *dev, int cmd,
 
 static const struct sst39vf_chip_s g_sst39vf1601 =
 {
-  /* false,                    top - Bottom hardware block protection */
   0x234b,                   /* chipid */
-  /* 32,                       nblocks */
   512,                      /* nsectors */
-  /* 64*1024,                  blocksize */
-  4*1024,                   /* sectorsize */
+  4 * 1024                  /* sectorsize */
 };
 
 static const struct sst39vf_chip_s g_sst39vf1602 =
 {
-  /* true,                     top - Top hardware block protection */
   0x234a,                   /* chipid */
-  /* 32,                       nblocks */
   512,                      /* nsectors */
-  /* 64*1024,                  blocksize */
-  4*1024,                   /* sectorsize */
+  4 * 1024                  /* sectorsize */
 };
 
 static const struct sst39vf_chip_s g_sst39vf3201 =
 {
-  /* false,                    top - Bottom hardware block protection */
   0x235b,                   /* chipid */
-  /* 64,                       nblocks */
   1024,                     /* nsectors */
-  /* 64*1024,                  blocksize */
-  4*1024,                   /* sectorsize */
+  4 * 1024                  /* sectorsize */
 };
 
 static const struct sst39vf_chip_s g_sst39vf3202 =
 {
-  /* true,                     top - Top hardware block protection */
   0x235a,                   /* chipid */
-  /* 64,                       nblocks */
   1024,                     /* nsectors */
-  /* 64*1024,                  blocksize */
-  4*1024,                   /* sectorsize */
+  4 * 1024                  /* sectorsize */
 };
 
 /* This structure holds the state of the MTD driver */
@@ -215,79 +184,83 @@ static struct sst39vf_dev_s g_sst39vf =
 
 static const struct sst39vf_wrinfo_s g_wordprogram[3] =
 {
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055}, {0x5555, 0x00a0} /* , {address, data} */
+  {
+    0x5555, 0x00aa
+  },
+  {
+    0x2aaa, 0x0055
+  },
+  {
+    0x5555, 0x00a0
+  }
 };
 
 static const struct sst39vf_wrinfo_s g_sectorerase[5] =
 {
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055}, {0x5555, 0x0080},
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055} /* , {sector, 0x0030} */
+  {
+    0x5555, 0x00aa
+  },
+  {
+    0x2aaa, 0x0055
+  },
+  {
+    0x5555, 0x0080
+  },
+  {
+    0x5555, 0x00aa
+  },
+  {
+    0x2aaa, 0x0055
+  }
 };
-
-#if 0 /* Not used */
-static const struct sst39vf_wrinfo_s g_blockerase[5] =
-{
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055}, {0x5555, 0x80},
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055} /* , {block, 0x0050} */
-};
-#endif
 
 static const struct sst39vf_wrinfo_s g_chiperase[6] =
 {
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055}, {0x5555, 0x0080},
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055}, {0x5555, 0x0010}
+  {
+    0x5555, 0x00aa
+  },
+  {
+    0x2aaa, 0x0055
+  },
+  {
+    0x5555, 0x0080
+  },
+  {
+    0x5555, 0x00aa
+  },
+  {
+    0x2aaa, 0x0055
+  },
+  {
+    0x5555, 0x0010
+  }
 };
-
-#if 0 /* Not used */
-static const struct sst39vf_wrinfo_s g_erasesuspend[1] =
-{
-  {0x5555, 0x00aa}
-};
-
-static const struct sst39vf_wrinfo_s g_eraseresume[1] =
-{
-  {0x5555, 0x00aa}
-};
-
-static const struct sst39vf_wrinfo_s g_querysecid[3] =
-{
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055},  {0x5555, 0x0088}
-};
-
-static const struct sst39vf_wrinfo_s g_securityid_wordprogram[3] =
-{
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055},  {0x5555, 0x00a5}, /* {address, data} */
-};
-
-static const struct sst39vf_wrinfo_s g_securityid_lockout[3] =
-{
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055},  {0x5555, 0x0085} /* {0xXX, 0x0000} */
-};
-#endif
 
 static const struct sst39vf_wrinfo_s g_swid_entry[3] =
 {
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055},  {0x5555, 0x0090}
+  {
+    0x5555, 0x00aa
+  },
+  {
+    0x2aaa, 0x0055
+  },
+  {
+    0x5555, 0x0090
+  }
 };
-
-#if 0 /* Not used */
-static const struct sst39vf_wrinfo_s g_cfiquery[3] =
-{
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055},  {0x5555, 0x0080},
-};
-#endif
 
 static const struct sst39vf_wrinfo_s g_swid_exit[3] =
 {
-  {0x5555, 0x00aa}, {0x2aaa, 0x0055},  {0x5555, 0x00f0}
+  {
+    0x5555, 0x00aa
+  },
+  {
+    0x2aaa, 0x0055
+  },
+  {
+    0x5555, 0x00f0
+  }
 };
-
-#if 0 /* Not used */
-static const struct sst39vf_wrinfo_s g_swid_exit2[1] =
-{
-  {0x0000, 0x00f0},
-};
-#endif
 
 /****************************************************************************
  * Private Functions
@@ -301,7 +274,8 @@ static const struct sst39vf_wrinfo_s g_swid_exit2[1] =
  *
  ****************************************************************************/
 
-static inline void sst39vf_flashwrite(FAR const struct sst39vf_wrinfo_s *wrinfo)
+static inline void
+sst39vf_flashwrite(FAR const struct sst39vf_wrinfo_s *wrinfo)
 {
   volatile uint16_t *addr = SST39VF_ADDR(wrinfo->address);
   *addr = wrinfo->data;
@@ -328,7 +302,8 @@ static inline uint16_t sst39vf_flashread(uintptr_t address)
  *
  ****************************************************************************/
 
-static void sst39vf_writeseq(FAR const struct sst39vf_wrinfo_s *wrinfo, int nseq)
+static void sst39vf_writeseq(FAR const struct sst39vf_wrinfo_s *wrinfo,
+                             int nseq)
 {
   while (nseq--)
     {
@@ -357,8 +332,8 @@ static void sst39vf_writeseq(FAR const struct sst39vf_wrinfo_s *wrinfo, int nseq
  *   "An additional Toggle Bit is available on DQ2, which can be used in
  *    conjunction with DQ6 to check whether a particular sector is being
  *    actively erased or erase-suspended. ... The Toggle Bit (DQ2) is valid
- *    after the rising edge of the last WE# (or CE#) pulse of Write operation.
- *    ..."
+ *    after the rising edge of the last WE# (or CE#) pulse of Write
+ *    operation."
  *
  ****************************************************************************/
 
@@ -402,12 +377,12 @@ static int sst39vf_waittoggle(FAR const struct sst39vf_wrinfo_s *wrinfo,
  *   Erase the entire chip
  *
  *   "The SST39VF160x/320x provide a Chip-Erase operation, which allows the
- *    user to erase the entire memory array to the “1” state. This is useful
- *    when the entire device must be quickly erased.  The Chip-Erase operation
- *    is initiated by executing a six-byte command sequence with Chip-Erase
- *    command (10H) at address 5555H in the last byte sequence. The Erase
- *    operation begins with the rising edge of the sixth WE# or CE#,
- *    whichever occurs first. During the Erase operation, the only valid
+ *    user to erase the entire memory array to the “1” state. This is
+ *    useful when the entire device must be quickly erased.  The Chip-Erase
+ *    operation is initiated by executing a six-byte command sequence with
+ *    Chip-Erase command (10H) at address 5555H in the last byte sequence.
+ *    The Erase operation begins with the rising edge of the sixth WE# or
+ *    CE#, whichever occurs first. During the Erase operation, the only valid
  *    read is Toggle Bit or Data# Polling... Any commands issued during the
  *    Chip-Erase operation are ignored. When WP# is low, any attempt to
  *    Chip-Erase will be ignored. During the command sequence, WP# should
@@ -436,7 +411,7 @@ static int sst39vf_chiperase(FAR struct sst39vf_dev_s *priv)
   wrinfo.address = CONFIG_SST39VF_BASE_ADDRESS;
   wrinfo.data    = 0xffff;
 
-  start = clock_systimer();
+  start = clock_systime_ticks();
   while (delay < MSEC2TICK(SST39VF_TSCE_MSEC))
     {
       /* Check if the erase is complete */
@@ -448,7 +423,7 @@ static int sst39vf_chiperase(FAR struct sst39vf_dev_s *priv)
 
       /* No, check if the timeout has elapsed */
 
-      elapsed = clock_systimer() - start;
+      elapsed = clock_systime_ticks() - start;
       if (elapsed > MSEC2TICK(SST39VF_TSCE_MSEC))
         {
           return -ETIMEDOUT;
@@ -506,13 +481,13 @@ static int sst39vf_sectorerase(FAR struct sst39vf_dev_s *priv,
 
   /* Use the data toggle delay method.  The typical delay is 18 MSec. The
    * maximum is 25 MSec.  With a 10 MS system timer resolution, this is
-   * the difference of of waiting 20MS vs. 20MS.  So using the data toggle
+   * the difference of waiting 20MS vs. 20MS.  So using the data toggle
    * delay method should give better write performance by about 10MS per
    * block.
    */
 
 #if 0
-  start = clock_systimer();
+  start = clock_systime_ticks();
   while (delay < MSEC2TICK(SST39VF_TSE_MSEC))
     {
       /* Check if the erase is complete */
@@ -524,7 +499,7 @@ static int sst39vf_sectorerase(FAR struct sst39vf_dev_s *priv,
 
       /* No, check if the timeout has elapsed */
 
-      elapsed = clock_systimer() - start;
+      elapsed = clock_systime_ticks() - start;
       if (elapsed > MSEC2TICK(SST39VF_TSE_MSEC))
         {
           return -ETIMEDOUT;
@@ -553,8 +528,8 @@ static int sst39vf_sectorerase(FAR struct sst39vf_dev_s *priv,
  *   programming, the sector where the word exists must be fully erased. The
  *   rogram operation is accomplished in three steps. The first step is the
  *   three-byte load sequence for Software Data Protection. The second step
- *   is to load word address and word data. During the Word-Program operation,
- *   the addresses are latched on the falling edge of either CE# or WE#,
+ *   is to load word address and word data. During the Word-Program operation
+ *   , the addresses are latched on the falling edge of either CE# or WE#,
  *   whichever occurs last. The data is latched on the rising edge of either
  *   CE# or WE#, whichever occurs first. The third step is the internal
  *   Program operation which is initiated after the rising edge of the
@@ -721,7 +696,8 @@ static ssize_t sst39vf_read(FAR struct mtd_dev_s *dev, off_t offset,
  * Name: sst39vf_ioctl
  ****************************************************************************/
 
-static int sst39vf_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
+static int sst39vf_ioctl(FAR struct mtd_dev_s *dev,
+                         int cmd, unsigned long arg)
 {
   FAR struct sst39vf_dev_s *priv = (FAR struct sst39vf_dev_s *)dev;
   int ret = -ENOTTY;
@@ -735,8 +711,8 @@ static int sst39vf_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
           FAR struct mtd_geometry_s *geo = (FAR struct mtd_geometry_s *)arg;
           if (geo)
             {
-              /* Populate the geometry structure with information need to know
-               * the capacity and how to access the device.
+              /* Populate the geometry structure with information need to
+               * know the capacity and how to access the device.
                */
 
               geo->blocksize    = priv->chip->sectorsize;
@@ -814,7 +790,7 @@ FAR struct mtd_dev_s *sst39vf_initialize(void)
   sst39vf_writeseq(g_swid_exit, 3);
   up_udelay(10);
 
-  /* Now see if we can suport the part */
+  /* Now see if we can support the part */
 
   finfo("Manufacturer: %02x\n", manufacturer);
   finfo("Chip ID:      %04x\n", chipid);

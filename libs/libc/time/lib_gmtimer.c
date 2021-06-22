@@ -1,36 +1,20 @@
 /****************************************************************************
  * libs/libc/time/lib_gmtimer.c
  *
- *   Copyright (C) 2007, 2009, 2011, 2015, 2019 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -46,14 +30,7 @@
 #include <debug.h>
 
 #include <nuttx/time.h>
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#define SEC_PER_MIN  ((time_t)60)
-#define SEC_PER_HOUR ((time_t)60 * SEC_PER_MIN)
-#define SEC_PER_DAY  ((time_t)24 * SEC_PER_HOUR)
+#include <nuttx/clock.h>
 
 /****************************************************************************
  * Private Function Prototypes
@@ -122,7 +99,7 @@ static void clock_utc2gregorian(time_t jd, FAR int *year, FAR int *month,
 
   l = jd + 68569;
   n = (4 * l) / 146097;
-  l = l - (146097 * n + 3)/4;
+  l = l - (146097 * n + 3) / 4;
   i = (4000 * (l + 1)) / 1461001;
   l = l - (1461 * i) / 4 + 31;
   j = (80 * l) / 2447;
@@ -156,7 +133,7 @@ static void clock_utc2julian(time_t jd, FAR int *year, FAR int *month,
   n = (l - 1) / 365 - l / 1461;
   i = l - 365 * n + 30;
   j = (80 * i) / 2447;
-  d = i - (2447 * j)/80;
+  d = i - (2447 * j) / 80;
   i = j / 11;
   m = j + 2 - 12 * i;
   y = 4 * k + n + i - 4716;
@@ -267,9 +244,9 @@ static void clock_utc2calendar(time_t days, FAR int *year, FAR int *month,
         }
       else
         {
-           /* No... The one we want is somwhere between value+1 and max */
+          /* No... The one we want is somewhere between value+1 and max */
 
-           min = value + 1;
+          min = value + 1;
         }
 
       /* If we break out of the loop because min == max, then we want value
@@ -280,14 +257,14 @@ static void clock_utc2calendar(time_t days, FAR int *year, FAR int *month,
     }
   while (min < max);
 
-  /* The selected month number is in value. Subtract the number of days in the
-   * selected month
+  /* The selected month number is in value. Subtract the number of days in
+   * the selected month
    */
 
   days -= clock_daysbeforemonth(value, leapyear);
 
-  /* At this point, value has the month into this year (zero based) and days has
-   * number of days into this month (zero based)
+  /* At this point, value has the month into this year (zero based) and days
+   * has number of days into this month (zero based)
    */
 
   *month = value + 1; /* 1-based */
@@ -308,7 +285,7 @@ static void clock_utc2calendar(time_t days, FAR int *year, FAR int *month,
  *
  ****************************************************************************/
 
-FAR struct tm *gmtime_r(FAR const time_t *timer, FAR struct tm *result)
+FAR struct tm *gmtime_r(FAR const time_t *timep, FAR struct tm *result)
 {
   time_t epoch;
   time_t jdn;
@@ -321,7 +298,7 @@ FAR struct tm *gmtime_r(FAR const time_t *timer, FAR struct tm *result)
 
   /* Get the seconds since the EPOCH */
 
-  epoch = *timer;
+  epoch = *timep;
   linfo("timer=%d\n", (int)epoch);
 
   /* Convert to days, hours, minutes, and seconds since the EPOCH */
@@ -349,20 +326,27 @@ FAR struct tm *gmtime_r(FAR const time_t *timer, FAR struct tm *result)
 
   /* Then return the struct tm contents */
 
-  result->tm_year  = (int)year - 1900; /* Relative to 1900 */
-  result->tm_mon   = (int)month - 1;   /* zero-based */
-  result->tm_mday  = (int)day;         /* one-based */
-  result->tm_hour  = (int)hour;
-  result->tm_min   = (int)min;
-  result->tm_sec   = (int)sec;
+  result->tm_year   = (int)year - 1900; /* Relative to 1900 */
+  result->tm_mon    = (int)month - 1;   /* zero-based */
+  result->tm_mday   = (int)day;         /* one-based */
+  result->tm_hour   = (int)hour;
+  result->tm_min    = (int)min;
+  result->tm_sec    = (int)sec;
 
-#if defined(CONFIG_TIME_EXTENDED)
-  result->tm_wday  = clock_dayoftheweek(day, month, year);
-  result->tm_yday  = day +
-                     clock_daysbeforemonth(result->tm_mon,
-                                           clock_isleapyear(year));
-  result->tm_isdst = 0;
-#endif
+  result->tm_wday   = clock_dayoftheweek(day, month, year);
+  result->tm_yday   = day +
+                      clock_daysbeforemonth(result->tm_mon,
+                                            clock_isleapyear(year));
+  result->tm_isdst  = 0;
+  result->tm_gmtoff = 0;
+  result->tm_zone   = NULL;
 
   return result;
 }
+
+#ifndef CONFIG_LIBC_LOCALTIME
+FAR struct tm *localtime_r(FAR const time_t *timep, FAR struct tm *result)
+{
+  return gmtime_r(timep, result);
+}
+#endif

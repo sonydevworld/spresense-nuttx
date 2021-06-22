@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/pipes/pipe.c
  *
- *   Copyright (C) 2008-2009, 2015, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,7 +32,6 @@
 #include <errno.h>
 
 #include <nuttx/fs/fs.h>
-#include <nuttx/drivers/drivers.h>
 #include <nuttx/semaphore.h>
 
 #include "pipe_common.h"
@@ -160,38 +144,14 @@ static int pipe_close(FAR struct file *filep)
 }
 
 /****************************************************************************
- * Public Functions
+ * Name: pipe_register
  ****************************************************************************/
 
-/****************************************************************************
- * Name: pipe2
- *
- * Description:
- *   pipe() creates a pair of file descriptors, pointing to a pipe inode,
- *   and  places them in the array pointed to by 'fd'. fd[0] is for reading,
- *   fd[1] is for writing.
- *
- *   NOTE: pipe2 is a special, non-standard, NuttX-only interface.  Since
- *   the NuttX FIFOs are based in in-memory, circular buffers, the ability
- *   to control the size of those buffers is critical for system tuning.
- *
- * Input Parameters:
- *   fd[2] - The user provided array in which to catch the pipe file
- *   descriptors
- *   bufsize - The size of the in-memory, circular buffer in bytes.
- *
- * Returned Value:
- *   0 is returned on success; otherwise, -1 is returned with errno set
- *   appropriately.
- *
- ****************************************************************************/
-
-int pipe2(int fd[2], size_t bufsize)
+static int pipe_register(size_t bufsize, int flags,
+                         FAR char *devname, size_t namesize)
 {
-  FAR struct pipe_dev_s *dev = NULL;
-  char devname[16];
+  FAR struct pipe_dev_s *dev;
   int pipeno;
-  int errcode;
   int ret;
 
   /* Get exclusive access to the pipe allocation data */
@@ -199,7 +159,6 @@ int pipe2(int fd[2], size_t bufsize)
   ret = nxsem_wait(&g_pipesem);
   if (ret < 0)
     {
-      errcode = -ret;
       goto errout;
     }
 
@@ -208,14 +167,13 @@ int pipe2(int fd[2], size_t bufsize)
   pipeno = pipe_allocate();
   if (pipeno < 0)
     {
-      nxsem_post(&g_pipesem);
-      errcode = -pipeno;
-      goto errout;
+      ret = pipeno;
+      goto errout_with_sem;
     }
 
   /* Create a pathname to the pipe device */
 
-  snprintf(devname, sizeof(devname), "/dev/pipe%d", pipeno);
+  snprintf(devname, namesize, "/dev/pipe%d", pipeno);
 
   /* Check if the pipe device has already been created */
 
@@ -226,8 +184,7 @@ int pipe2(int fd[2], size_t bufsize)
       dev = pipecommon_allocdev(bufsize);
       if (!dev)
         {
-          nxsem_post(&g_pipesem);
-          errcode = ENOMEM;
+          ret = -ENOMEM;
           goto errout_with_pipe;
         }
 
@@ -239,7 +196,6 @@ int pipe2(int fd[2], size_t bufsize)
       if (ret != 0)
         {
           nxsem_post(&g_pipesem);
-          errcode = -ret;
           goto errout_with_dev;
         }
 
@@ -249,45 +205,127 @@ int pipe2(int fd[2], size_t bufsize)
     }
 
   nxsem_post(&g_pipesem);
+  return OK;
+
+errout_with_dev:
+  pipecommon_freedev(dev);
+
+errout_with_pipe:
+  pipe_free(pipeno);
+
+errout_with_sem:
+  nxsem_post(&g_pipesem);
+
+errout:
+  return ret;
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: nx_pipe
+ *
+ * Description:
+ *   nx_pipe() creates a pair of file descriptors, pointing to a pipe inode,
+ *   and  places them in the array pointed to by 'fd'. fd[0] is for reading,
+ *   fd[1] is for writing.
+ *
+ *   NOTE: nx_pipe is a special, non-standard, NuttX-only interface.  Since
+ *   the NuttX FIFOs are based in in-memory, circular buffers, the ability
+ *   to control the size of those buffers is critical for system tuning.
+ *
+ * Input Parameters:
+ *   fd[2] - The user provided array in which to catch the pipe file
+ *   descriptors
+ *   bufsize - The size of the in-memory, circular buffer in bytes.
+ *   flags - The file status flags.
+ *
+ * Returned Value:
+ *   0 is returned on success; a negated errno value is returned on a
+ *   failure.
+ *
+ ****************************************************************************/
+
+int file_pipe(FAR struct file *filep[2], size_t bufsize, int flags)
+{
+  char devname[16];
+  int ret;
+
+  /* Register a new pipe device */
+
+  ret = pipe_register(bufsize, flags, devname, sizeof(devname));
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Get a write file descriptor */
 
-  fd[1] = nx_open(devname, O_WRONLY);
-  if (fd[1] < 0)
+  ret = file_open(filep[1], devname, O_WRONLY | flags);
+  if (ret < 0)
     {
-      errcode = -fd[1];
       goto errout_with_driver;
     }
 
   /* Get a read file descriptor */
 
-  fd[0] = nx_open(devname, O_RDONLY);
-  if (fd[0] < 0)
+  ret = file_open(filep[0], devname, O_RDONLY | flags);
+  if (ret < 0)
     {
-      errcode = -fd[0];
       goto errout_with_wrfd;
     }
 
   return OK;
 
 errout_with_wrfd:
-  close(fd[1]);
+  file_close(filep[1]);
 
 errout_with_driver:
   unregister_driver(devname);
+  return ret;
+}
 
-errout_with_dev:
-  if (dev)
+int nx_pipe(int fd[2], size_t bufsize, int flags)
+{
+  char devname[16];
+  int ret;
+
+  /* Register a new pipe device */
+
+  ret = pipe_register(bufsize, flags, devname, sizeof(devname));
+  if (ret < 0)
     {
-      pipecommon_freedev(dev);
+      return ret;
     }
 
-errout_with_pipe:
-  pipe_free(pipeno);
+  /* Get a write file descriptor */
 
-errout:
-  set_errno(errcode);
-  return ERROR;
+  fd[1] = nx_open(devname, O_WRONLY | flags);
+  if (fd[1] < 0)
+    {
+      ret = fd[1];
+      goto errout_with_driver;
+    }
+
+  /* Get a read file descriptor */
+
+  fd[0] = nx_open(devname, O_RDONLY | flags);
+  if (fd[0] < 0)
+    {
+      ret = fd[0];
+      goto errout_with_wrfd;
+    }
+
+  return OK;
+
+errout_with_wrfd:
+  nx_close(fd[1]);
+
+errout_with_driver:
+  unregister_driver(devname);
+  return ret;
 }
 
 #endif /* CONFIG_DEV_PIPE_SIZE > 0 */

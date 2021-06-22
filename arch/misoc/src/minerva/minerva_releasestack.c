@@ -1,5 +1,5 @@
 /****************************************************************************
- *  arch/misoc/src/minerva/up_releasestack.c
+ * arch/misoc/src/minerva/minerva_releasestack.c
  *
  *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -89,14 +89,14 @@ void up_release_stack(FAR struct tcb_s *dtcb, uint8_t ttype)
 
   if (dtcb->stack_alloc_ptr)
     {
-#if defined(CONFIG_BUILD_KERNEL) && defined(CONFIG_MM_KERNEL_HEAP)
+#ifdef CONFIG_MM_KERNEL_HEAP
       /* Use the kernel allocator if this is a kernel thread */
 
       if (ttype == TCB_FLAG_TTYPE_KERNEL)
         {
           if (kmm_heapmember(dtcb->stack_alloc_ptr))
             {
-              sched_kfree(dtcb->stack_alloc_ptr);
+              kmm_free(dtcb->stack_alloc_ptr);
             }
         }
       else
@@ -106,7 +106,7 @@ void up_release_stack(FAR struct tcb_s *dtcb, uint8_t ttype)
 
           if (umm_heapmember(dtcb->stack_alloc_ptr))
             {
-              sched_ufree(dtcb->stack_alloc_ptr);
+              kumm_free(dtcb->stack_alloc_ptr);
             }
         }
 

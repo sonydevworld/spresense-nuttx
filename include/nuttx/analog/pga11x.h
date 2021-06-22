@@ -1,40 +1,20 @@
 /****************************************************************************
  * include/nuttx/analog/pga11x.h
  *
- *   Copyright (C) 2012, 2015 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References:
- *   "PGA112, PGA113, PGA116, PGA117: Zerø-Drift PROGRAMMABLE GAIN AMPLIFIER
- *   with MUX", SBOS424B, March 2008, Revised September 2008, Texas
- *   Instruments Incorporated"
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,7 +33,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* Prerequisites:
  *  CONFIG_ADC=y is needed to enable support for analog input devices
  *
@@ -86,11 +68,12 @@
 #endif
 
 /* PGA11x Commands **********************************************************/
+
 /* Write command Gain Selection Bits (PGA112/PGA113)
  *
  * the PGA112 and PGA116 provide binary gain selections (1, 2, 4, 8, 16, 32,
- * 64, 128); the PGA113 and PGA117 provide scope gain selections (1, 2, 5, 10,
- * 20, 50, 100, 200).
+ * 64, 128); the PGA113 and PGA117 provide scope gain selections (1, 2, 5,
+ * 10, 20, 50, 100, 200).
  */
 
 #define PGA11X_GAIN_1          (0) /* Gain=1:   Scope Gain=1 */
@@ -114,17 +97,17 @@
  * 10-channel input MUX.
  */
 
-#define PGA11X_CHAN_VCAL       (0) /* VCAL/CH0 */
-#define PGA11X_CHAN_CH0        (0) /* VCAL/CH0 */
-#define PGA11X_CHAN_CH1        (1) /* CH1 */
-#define PGA11X_CHAN_CH2        (2) /* CH2 (PGA116/PGA117 only) */
-#define PGA11X_CHAN_CH3        (3) /* CH3 (PGA116/PGA117 only) */
-#define PGA11X_CHAN_CH4        (4) /* CH4 (PGA116/PGA117 only) */
-#define PGA11X_CHAN_CH5        (5) /* CH5 (PGA116/PGA117 only) */
-#define PGA11X_CHAN_CH6        (6) /* CH6 (PGA116/PGA117 only) */
-#define PGA11X_CHAN_CH7        (7) /* CH7 (PGA116/PGA117 only) */
-#define PGA11X_CHAN_CH8        (8) /* CH8 (PGA116/PGA117 only) */
-#define PGA11X_CHAN_CH9        (9) /* CH9 (PGA116/PGA117 only) */
+#define PGA11X_CHAN_VCAL       (0)  /* VCAL/CH0 */
+#define PGA11X_CHAN_CH0        (0)  /* VCAL/CH0 */
+#define PGA11X_CHAN_CH1        (1)  /* CH1 */
+#define PGA11X_CHAN_CH2        (2)  /* CH2 (PGA116/PGA117 only) */
+#define PGA11X_CHAN_CH3        (3)  /* CH3 (PGA116/PGA117 only) */
+#define PGA11X_CHAN_CH4        (4)  /* CH4 (PGA116/PGA117 only) */
+#define PGA11X_CHAN_CH5        (5)  /* CH5 (PGA116/PGA117 only) */
+#define PGA11X_CHAN_CH6        (6)  /* CH6 (PGA116/PGA117 only) */
+#define PGA11X_CHAN_CH7        (7)  /* CH7 (PGA116/PGA117 only) */
+#define PGA11X_CHAN_CH8        (8)  /* CH8 (PGA116/PGA117 only) */
+#define PGA11X_CHAN_CH9        (9)  /* CH9 (PGA116/PGA117 only) */
 #define PGA11X_CHAN_CAL1       (12) /* CAL1: connects to GND */
 #define PGA11X_CHAN_CAL2       (13) /* CAL2: connects to 0.9VCAL */
 #define PGA11X_CHAN_CAL3       (14) /* CAL3: connects to 0.1VCAL */
@@ -150,8 +133,8 @@ struct pga11x_usettings_s
 
 /* These structures are used to encode gain and channel settings.  This
  * includes both devices in the case of a daisy-chained configuration.
- * NOTE: This this logic is currently limited to only 2 devices in the
- * daisy-chain.
+ * NOTE: This logic is currently limited to only 2 devices in the daisy-
+ * chain.
  */
 
 struct pga11x_settings_s
@@ -269,7 +252,8 @@ int pga11x_uselect(PGA11X_HANDLE handle, int pos,
  *
  ****************************************************************************/
 
-int pga11x_read(PGA11X_HANDLE handle, FAR struct pga11x_settings_s *settings);
+int pga11x_read(PGA11X_HANDLE handle,
+                FAR struct pga11x_settings_s *settings);
 
 /****************************************************************************
  * Name: pga11x_uread

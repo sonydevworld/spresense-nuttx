@@ -2,35 +2,20 @@
  * wireless/bluetooth/bt_netdev.c
  * Network stack interface
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -63,10 +48,15 @@
 #include <nuttx/net/bluetooth.h>
 #include <nuttx/net/sixlowpan.h>
 #include <nuttx/wireless/bluetooth/bt_core.h>
+#include <netpacket/bluetooth.h>
 
 #include "bt_hcicore.h"
+
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
 #include "bt_l2cap.h"
 #include "bt_conn.h"
+#endif
+
 #include "bt_ioctl.h"
 
 #if defined(CONFIG_NET_6LOWPAN) || defined(CONFIG_NET_BLUETOOTH)
@@ -89,7 +79,9 @@
 #  error CONFIG_IOB_BUFSIZE to small for max Bluetooth frame
 #endif
 
-/* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per second */
+/* TX poll delay = 1 seconds.
+ * CLK_TCK is the number of clock ticks per second
+ */
 
 #define TXPOLL_WDDELAY   (1*CLK_TCK)
 
@@ -121,10 +113,15 @@ struct btnet_driver_s
 
   sem_t bd_exclsem;                  /* Exclusive access to struct */
   bool bd_bifup;                     /* true:ifup false:ifdown */
-  WDOG_ID bd_txpoll;                 /* TX poll timer */
+  struct wdog_s bd_txpoll;           /* TX poll timer */
   struct work_s bd_pollwork;         /* Defer poll work to the work queue */
+
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
   struct bt_conn_cb_s bd_hcicb;      /* HCI connection status callbacks */
   struct bt_l2cap_chan_s bd_l2capcb; /* L2CAP status callbacks */
+#else
+  struct bt_hci_cb_s bd_hcicb;       /* HCI RAW packet callbacks */
+#endif
 };
 
 /****************************************************************************
@@ -136,8 +133,9 @@ struct btnet_driver_s
 static int  btnet_advertise(FAR struct net_driver_s *netdev);
 static inline void btnet_netmask(FAR struct net_driver_s *netdev);
 
-/* Bluetooth callback functions ***************************************/
+/* Bluetooth callback functions *********************************************/
 
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
 /* L2CAP callbacks */
 
 static void btnet_l2cap_connected(FAR struct bt_conn_s *conn,
@@ -155,6 +153,9 @@ static void btnet_hci_connected(FAR struct bt_conn_s *conn,
               FAR void *context);
 static void btnet_hci_disconnected(FAR struct bt_conn_s *conn,
               FAR void *context);
+#else
+static void btnet_hci_received(FAR struct bt_buf_s *buf, FAR void *context);
+#endif
 
 /* Network interface support ************************************************/
 
@@ -162,7 +163,7 @@ static void btnet_hci_disconnected(FAR struct bt_conn_s *conn,
 
 static int  btnet_txpoll_callback(FAR struct net_driver_s *netdev);
 static void btnet_txpoll_work(FAR void *arg);
-static void btnet_txpoll_expiry(int argc, wdparm_t arg, ...);
+static void btnet_txpoll_expiry(wdparm_t arg);
 
 /* NuttX callback functions */
 
@@ -184,6 +185,16 @@ static int  btnet_req_data(FAR struct radio_driver_s *netdev,
               FAR const void *meta, FAR struct iob_s *framelist);
 static int  btnet_properties(FAR struct radio_driver_s *netdev,
               FAR struct radiodev_properties_s *properties);
+
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
+static int  btnet_req_l2cap_data(FAR struct btnet_driver_s *priv,
+                                 FAR struct bluetooth_frame_meta_s *meta,
+                                 FAR struct iob_s *framelist);
+#endif
+
+static int  btnet_req_hci_data(FAR struct btnet_driver_s *priv,
+                               FAR struct bluetooth_frame_meta_s *meta,
+                               FAR struct iob_s *framelist);
 
 /****************************************************************************
  * Private Data
@@ -274,6 +285,7 @@ static inline void btnet_netmask(FAR struct net_driver_s *netdev)
 #endif
 }
 
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
 /****************************************************************************
  * Name: btnet_hci_connect/disconnect/encrypt_change
  *
@@ -473,6 +485,125 @@ static void btnet_hci_disconnected(FAR struct bt_conn_s *conn,
   wlinfo("Disconnected\n");
 #warning Missing logic
 }
+#else
+
+/****************************************************************************
+ * Name: btnet_hci_received
+ *
+ * Description:
+ *   This callback is called from the RX queue handling when an HCI
+ *   packet is received from controller.
+ *
+ * Input Parameters:
+ *   buf - The packet
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *   No assumption should be made about the thread of execution that these
+ *   are called from
+ *
+ ****************************************************************************/
+
+static void btnet_hci_received(FAR struct bt_buf_s *buf, FAR void *context)
+{
+  FAR struct btnet_driver_s *priv;
+  FAR struct iob_s *frame;
+  struct bluetooth_frame_meta_s meta;
+  int ret = -ENODEV;
+
+  wlinfo("Received frame\n");
+
+  DEBUGASSERT(buf != NULL && buf->frame != NULL);
+
+  /* Detach the IOB frame from the buffer structure */
+
+  frame      = buf->frame;
+  buf->frame = NULL;
+
+  /* Ignore the frame if the network is not up */
+
+  priv = (FAR struct btnet_driver_s *)context;
+  if (!priv->bd_bifup)
+    {
+      wlwarn("WARNING: Dropped... Network is down\n");
+      goto drop;
+    }
+
+  /* Make sure that the size/offset data matches the buffer structure data. */
+
+  DEBUGASSERT(frame->io_offset == BLUETOOTH_H4_HDRLEN);
+
+  /* Rearrange IOB to consider H4 header */
+
+  frame->io_len    = buf->len + frame->io_offset;
+  frame->io_pktlen = buf->len + frame->io_offset;
+  frame->io_offset = 0;
+
+  DEBUGASSERT(frame->io_len <= CONFIG_IOB_BUFSIZE);
+
+  /* Write H4 header */
+
+  switch (buf->type)
+    {
+      case BT_EVT:
+        frame->io_data[0] = HCI_EVENT_PKT;
+        break;
+      case BT_ACL_IN:
+        frame->io_data[0] = HCI_ACLDATA_PKT;
+        break;
+      default:
+        wlerr("Bad HCI type: %i\n", buf->type);
+        goto drop;
+        break;
+    }
+
+  /* Construct the frame meta data.
+   */
+
+  meta.bm_channel = HCI_CHANNEL_RAW;
+  meta.bm_proto = BTPROTO_HCI;
+
+  /* Transfer the frame to the network logic */
+
+  net_lock();
+
+#ifdef CONFIG_NET_BLUETOOTH
+  /* Invoke the PF_BLUETOOTH tap first.  If the frame matches
+   * with a connected PF_BLUETOOTH socket, it will take the
+   * frame and return success.
+   */
+
+  ret = bluetooth_input(&priv->bd_dev, frame, (FAR void *)&meta);
+#endif
+
+drop:
+
+  /* Handle errors */
+
+  if (ret < 0)
+    {
+      iob_free(frame, IOBUSER_WIRELESS_BLUETOOTH);
+
+      /* Increment statistics */
+
+      NETDEV_RXDROPPED(&priv->bd_dev.r_dev);
+    }
+  else
+    {
+      /* Increment statistics */
+
+      NETDEV_RXPACKETS(&priv->bd_dev.r_dev);
+      NETDEV_RXIPV6(&priv->bd_dev.r_dev);
+    }
+
+  /* Release our reference on the buffer */
+
+  net_unlock();
+}
+
+#endif
 
 /****************************************************************************
  * Name: btnet_txpoll_callback
@@ -499,8 +630,8 @@ static void btnet_hci_disconnected(FAR struct bt_conn_s *conn,
 
 static int btnet_txpoll_callback(FAR struct net_driver_s *netdev)
 {
-  /* If zero is returned, the polling will continue until all connections have
-   * been examined.
+  /* If zero is returned, the polling will continue until all connections
+   * have been examined.
    */
 
   return 0;
@@ -547,8 +678,8 @@ static void btnet_txpoll_work(FAR void *arg)
 
   /* Setup the watchdog poll timer again */
 
-  wd_start(priv->bd_txpoll, TXPOLL_WDDELAY, btnet_txpoll_expiry, 1,
-           (wdparm_t)priv);
+  wd_start(&priv->bd_txpoll, TXPOLL_WDDELAY,
+           btnet_txpoll_expiry, (wdparm_t)priv);
   net_unlock();
 }
 
@@ -559,8 +690,7 @@ static void btnet_txpoll_work(FAR void *arg)
  *   Periodic timer handler.  Called from the timer interrupt handler.
  *
  * Input Parameters:
- *   argc - The number of available arguments
- *   arg  - The first argument
+ *   arg  - The argument
  *
  * Returned Value:
  *   None
@@ -570,7 +700,7 @@ static void btnet_txpoll_work(FAR void *arg)
  *
  ****************************************************************************/
 
-static void btnet_txpoll_expiry(int argc, wdparm_t arg, ...)
+static void btnet_txpoll_expiry(wdparm_t arg)
 {
   FAR struct btnet_driver_s *priv = (FAR struct btnet_driver_s *)arg;
 
@@ -627,8 +757,8 @@ static int btnet_ifup(FAR struct net_driver_s *netdev)
 
       /* Set and activate a timer process */
 
-      wd_start(priv->bd_txpoll, TXPOLL_WDDELAY, btnet_txpoll_expiry,
-               1, (wdparm_t)priv);
+      wd_start(&priv->bd_txpoll, TXPOLL_WDDELAY,
+               btnet_txpoll_expiry, (wdparm_t)priv);
 
       /* The interface is now up */
 
@@ -663,11 +793,11 @@ static int btnet_ifdown(FAR struct net_driver_s *netdev)
 
   /* Disable interruption */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
 
   /* Cancel the TX poll timer and TX timeout timers */
 
-  wd_cancel(priv->bd_txpoll);
+  wd_cancel(&priv->bd_txpoll);
 
   /* Put the EMAC in its reset, non-operational state.  This should be
    * a known configuration that will guarantee the btnet_ifup() always
@@ -677,7 +807,7 @@ static int btnet_ifdown(FAR struct net_driver_s *netdev)
   /* Mark the device "down" */
 
   priv->bd_bifup = false;
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
   return OK;
 }
 
@@ -793,8 +923,8 @@ static int btnet_txavail(FAR struct net_driver_s *netdev)
 static int btnet_addmac(FAR struct net_driver_s *netdev,
                         FAR const uint8_t *mac)
 {
-  /* Add the MAC address to the hardware multicast routing table.  Not used
-   * with Bluetooth.
+  /* Add the MAC address to the hardware multicast routing table.
+   *  Not used with Bluetooth.
    */
 
   return -ENOSYS;
@@ -805,8 +935,8 @@ static int btnet_addmac(FAR struct net_driver_s *netdev,
  * Name: btnet_rmmac
  *
  * Description:
- *   NuttX Callback: Remove the specified MAC address from the hardware multicast
- *   address filtering
+ *   NuttX Callback: Remove the specified MAC address from the hardware
+ *   multicast address filtering
  *
  * Input Parameters:
  *   netdev  - Reference to the NuttX driver state structure
@@ -823,8 +953,8 @@ static int btnet_addmac(FAR struct net_driver_s *netdev,
 static int btnet_rmmac(FAR struct net_driver_s *netdev,
                        FAR const uint8_t *mac)
 {
-  /* Remove the MAC address from the hardware multicast routing table  Not used
-   * with Bluetooth.
+  /* Remove the MAC address from the hardware multicast routing table
+   *  Not used with Bluetooth.
    */
 
   return -ENOSYS;
@@ -851,7 +981,26 @@ static int btnet_rmmac(FAR struct net_driver_s *netdev,
 static int btnet_get_mhrlen(FAR struct radio_driver_s *netdev,
                             FAR const void *meta)
 {
-  /* Always report the maximum frame length. */
+  const struct bluetooth_frame_meta_s *btmeta = meta;
+
+  if (btmeta->bm_proto == BTPROTO_HCI)
+    {
+      /* the net device only requires the H4 header, the rest is already
+       * part of the packet
+       */
+
+      return BLUETOOTH_H4_HDRLEN;
+    }
+  else if (btmeta->bm_proto == BTPROTO_L2CAP)
+    {
+      /* Report the complete header size, since H4 + ACL + L2CAP header
+       * will not be part of the packet
+       */
+
+      /* TODO: correct? */
+
+      return BLUETOOTH_MAX_HDRLEN;
+    }
 
   return BLUETOOTH_MAX_HDRLEN;
 }
@@ -879,16 +1028,58 @@ static int btnet_req_data(FAR struct radio_driver_s *netdev,
 {
   FAR struct btnet_driver_s *priv;
   FAR struct bluetooth_frame_meta_s *btmeta;
-  FAR struct bt_conn_s *conn;
-  FAR struct bt_buf_s *buf;
-  FAR struct iob_s *iob;
-  bt_addr_le_t peer;
+
+  priv   = (FAR struct btnet_driver_s *)netdev;
+  btmeta = (FAR struct bluetooth_frame_meta_s *)meta;
 
   wlinfo("Received framelist\n");
   DEBUGASSERT(priv != NULL && meta != NULL && framelist != NULL);
 
-  priv   = (FAR struct btnet_driver_s *)netdev;
-  btmeta = (FAR struct bluetooth_frame_meta_s *)meta;
+  if (btmeta->bm_proto == BTPROTO_HCI)
+    {
+      return btnet_req_hci_data(priv, btmeta, framelist);
+    }
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
+  else if (btmeta->bm_proto == BTPROTO_L2CAP)
+    {
+      return btnet_req_l2cap_data(priv, btmeta, framelist);
+    }
+#endif
+  else
+    {
+      return -EOPNOTSUPP;
+    }
+
+  return OK;
+}
+
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
+/****************************************************************************
+ * Name: btnet_req_l2cap_data
+ *
+ * Description:
+ *   Requests the transfer of a list of L2CAP frames to the MAC.
+ *
+ * Input Parameters:
+ *   priv      - Bluetooth network device
+ *   btmeta    - Bluetooth frame metadata
+ *   framelist - Head of a list of L2CAP frames to be transferred.
+ *
+ * Returned Value:
+ *   Zero (OK) returned on success; a negated errno value is returned on
+ *   any failure.
+ *
+ ****************************************************************************/
+
+static int  btnet_req_l2cap_data(FAR struct btnet_driver_s *priv,
+                                 FAR struct bluetooth_frame_meta_s *btmeta,
+                                 FAR struct iob_s *framelist)
+{
+  FAR struct bt_conn_s *conn;
+  bt_addr_le_t peer;
+  FAR struct iob_s *iob;
+  FAR struct bt_buf_s *buf;
+  UNUSED(priv);
 
   /* Create a connection structure for this peer if one does not already
    * exist.
@@ -944,7 +1135,85 @@ static int btnet_req_data(FAR struct radio_driver_s *netdev,
       NETDEV_TXDONE(&priv->bd_dev.r_dev);
     }
 
-  UNUSED(priv);
+  return OK;
+}
+#endif
+
+/****************************************************************************
+ * Name: btnet_req_hci_data
+ *
+ * Description:
+ *   Requests the transfer of a list of HCI frames to the MAC.
+ *
+ * Input Parameters:
+ *   priv      - Bluetooth network device
+ *   btmeta    - Bluetooth frame metadata
+ *   framelist - Head of a list of HCI frames to be transferred.
+ *
+ * Returned Value:
+ *   Zero (OK) returned on success; a negated errno value is returned on
+ *   any failure.
+ *
+ ****************************************************************************/
+
+static int  btnet_req_hci_data(FAR struct btnet_driver_s *priv,
+                               FAR struct bluetooth_frame_meta_s *meta,
+                               FAR struct iob_s *framelist)
+{
+  FAR struct iob_s *iob;
+  FAR struct bt_buf_s *buf;
+
+  /* Add the incoming list of frames to the MAC's outgoing queue */
+
+  for (iob = framelist; iob != NULL; iob = framelist)
+    {
+      /* Increment statistics */
+
+      NETDEV_TXPACKETS(&priv->bd_dev.r_dev);
+
+      /* Remove the IOB from the queue */
+
+      framelist     = iob->io_flink;
+      iob->io_flink = NULL;
+
+      DEBUGASSERT(iob->io_offset == BLUETOOTH_H4_HDRLEN &&
+                  iob->io_len >= BLUETOOTH_H4_HDRLEN);
+
+      /* Allocate a buffer to contain the IOB */
+
+      switch (iob->io_data[iob->io_offset])
+        {
+          case HCI_ACLDATA_PKT:
+            iob->io_offset += 1;
+            buf = bt_buf_alloc(BT_ACL_OUT, iob, 0);
+            break;
+          case HCI_COMMAND_PKT:
+            iob->io_offset += 1;
+            buf = bt_buf_alloc(BT_CMD, iob, 0);
+            break;
+          case HCI_EVENT_PKT:
+            iob->io_offset += 1;
+            buf = bt_buf_alloc(BT_EVT, iob, 0);
+            break;
+          default:
+            return -EOPNOTSUPP;
+            break;
+        }
+
+      if (buf == NULL)
+        {
+          wlerr("ERROR:  Failed to allocate buffer container\n");
+          return -ENOMEM;
+        }
+
+      bt_send(g_btdev.btdev, buf);
+      bt_buf_release(buf);
+
+      /* Transfer the frame to the Bluetooth stack. */
+
+      NETDEV_TXDONE(&priv->bd_dev.r_dev);
+    }
+
   return OK;
 }
 
@@ -1008,8 +1277,13 @@ int bt_netdev_register(FAR const struct bt_driver_s *btdev)
   FAR struct btnet_driver_s *priv;
   FAR struct radio_driver_s *radio;
   FAR struct net_driver_s  *netdev;
+
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
   FAR struct bt_conn_cb_s *hcicb;
   FAR struct bt_l2cap_chan_s *l2capcb;
+#else
+  FAR struct bt_hci_cb_s *hcicb;
+#endif
   int ret;
 
   /* Get the interface structure associated with this interface number. */
@@ -1034,13 +1308,14 @@ int bt_netdev_register(FAR const struct bt_driver_s *btdev)
   netdev->d_addmac    = btnet_addmac;      /* Add multicast MAC address */
   netdev->d_rmmac     = btnet_rmmac;       /* Remove multicast MAC address */
 #endif
- #ifdef CONFIG_NETDEV_IOCTL
+#if defined(CONFIG_NETDEV_IOCTL) && defined(CONFIG_WIRELESS_BLUETOOTH_HOST)
   netdev->d_ioctl     = btnet_ioctl;       /* Handle network IOCTL commands */
 #endif
-  netdev->d_private   = (FAR void *)priv;  /* Used to recover private state from netdev */
+  netdev->d_private   = priv;              /* Used to recover private state from netdev */
 
   /* Connection status change callbacks */
 
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
   hcicb               = &priv->bd_hcicb;
   hcicb->context      = priv;
   hcicb->connected    = btnet_hci_connected;
@@ -1058,16 +1333,17 @@ int bt_netdev_register(FAR const struct bt_driver_s *btdev)
   l2capcb->receive        = btnet_l2cap_receive;
 
   bt_l2cap_chan_default(l2capcb);
+#else
+  hcicb                = &priv->bd_hcicb;
+  hcicb->context       = priv;
+  hcicb->received      = btnet_hci_received;
 
-  /* Create a watchdog for timing polling for and timing of transmissions */
-
-  priv->bd_txpoll     = wd_create();       /* Create periodic poll timer */
+  bt_hci_cb_register(hcicb);
+#endif
 
   /* Setup a locking semaphore for exclusive device driver access */
 
   nxsem_init(&priv->bd_exclsem, 0, 1);
-
-  DEBUGASSERT(priv->bd_txpoll != NULL);
 
   /* Set the network mask. */
 
@@ -1112,9 +1388,10 @@ int bt_netdev_register(FAR const struct bt_driver_s *btdev)
   btnet_ifdown(netdev);
 
 #ifdef CONFIG_NET_6LOWPAN
-  /* Make sure the our single packet buffer is attached. We must do this before
-   * registering the device since, once the device is registered, a packet may
-   * be attempted to be forwarded and require the buffer.
+  /* Make sure the our single packet buffer is attached.
+   * We must do this before registering the device since, once the device is
+   * registered, a packet may be attempted to be forwarded and require the
+   * buffer.
    */
 
   priv->bd_dev.r_dev.d_buf = g_iobuffer.rb_buf;
@@ -1133,10 +1410,6 @@ int bt_netdev_register(FAR const struct bt_driver_s *btdev)
   nerr("ERROR: netdev_register() failed: %d\n", ret);
 
 errout:
-
-  /* Release wdog timers */
-
-  wd_delete(priv->bd_txpoll);
 
   /* Un-initialize semaphores */
 

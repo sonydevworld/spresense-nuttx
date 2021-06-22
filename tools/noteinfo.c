@@ -1,3 +1,27 @@
+/****************************************************************************
+ * tools/noteinfo.c
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -12,7 +36,8 @@
  *
  ****************************************************************************/
 
-unsigned char noteinfo_bin[] = {
+unsigned char noteinfo_bin[] =
+{
   0x06, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x01, 0x00, 0x0c, 0x0c, 0x64, 0x00,
   0x06, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x01, 0x00, 0x0c, 0x0d, 0x64, 0x00,
   0x06, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x01, 0x00, 0x0c, 0x0c, 0x64, 0x00,
@@ -765,6 +790,10 @@ static unsigned int next_ndx(unsigned int ndx)
   return ndx;
 }
 
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
 int main(int argc, char **argv)
 {
   struct note_common_s *note;
@@ -789,7 +818,7 @@ int main(int argc, char **argv)
            exit(1);
         }
 
-      for (bufndx = 0; bufndx < size;)
+      for (bufndx = 0; bufndx < size; )
         {
           buffer[bufndx] = noteinfo_bin[notndx];
 
@@ -819,9 +848,9 @@ int main(int argc, char **argv)
       remainder = size - bufndx;
       if (remainder > 0)
         {
-          switch(note->nc_type)
+          switch (note->nc_type)
           {
-            /* Followed by a varible length, NULL terminated name */
+            /* Followed by a variable length, NULL terminated name */
 
             case 0: /* NOTE_START */
               buffer[size - 1] = '\0';
@@ -857,7 +886,7 @@ int main(int argc, char **argv)
               if (remainder >= 2)
                 {
                   value = (unsigned int)buffer[bufndx] << 8 |
-                          (unsigned int)buffer[bufndx+1];
+                          (unsigned int)buffer[bufndx + 1];
                   bufndx += 2;
                   remainder -= 2;
                   break;
@@ -874,7 +903,7 @@ int main(int argc, char **argv)
               remainder--;
               break;
 
-            /* Nothing addition shold follow these types */
+            /* Nothing addition shoold follow these types */
 
             case 1: /* NOTE_STOP */
             case 3: /* NOTE_RESUME */

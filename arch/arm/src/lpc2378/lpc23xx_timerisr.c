@@ -50,7 +50,7 @@
 
 #include "clock/clock.h"
 #include "lpc2378.h"
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "lpc23xx_scb.h"
 #include "lpc23xx_vic.h"
@@ -113,6 +113,7 @@ static int lpc23xx_timerisr(int irq, uint32_t * regs, FAR void *arg)
 
 #ifdef CONFIG_VECTORED_INTERRUPTS
   /* write any value to VICAddress to acknowledge the interrupt */
+
   vic_putreg(0, VIC_ADDRESS_OFFSET);
 #endif
 
@@ -134,7 +135,7 @@ static int lpc23xx_timerisr(int irq, uint32_t * regs, FAR void *arg)
  ****************************************************************************/
 
 /****************************************************************************
- * Function:  arm_timer_initialize
+ * Function:  up_timer_initialize
  *
  * Description:
  *   This function is called during start-up to initialize
@@ -142,7 +143,7 @@ static int lpc23xx_timerisr(int irq, uint32_t * regs, FAR void *arg)
  *
  ****************************************************************************/
 
-void arm_timer_initialize(void)
+void up_timer_initialize(void)
 {
   uint16_t mcr;
 
@@ -170,7 +171,7 @@ void arm_timer_initialize(void)
   /* Set timer match register to get a TICK_PER_SEC rate See arch/board.h and
    */
 
-  tmr_putreg32(T0_TICKS_COUNT, TMR_MR0_OFFSET); /* 10ms Intterrupt */
+  tmr_putreg32(T0_TICKS_COUNT, TMR_MR0_OFFSET); /* 10ms Interrupt */
 
   /* Reset timer counter register and interrupt on match */
 
@@ -180,6 +181,7 @@ void arm_timer_initialize(void)
   tmr_putreg16(mcr, TMR_MCR_OFFSET);    /* -- bit 0=1 -int on MR0, bit 1=1 - Reset on MR0 */
 
   /* Enable counting */
+
   /* ~ tmr_putreg32(1, TMR_TCR_OFFSET); */
 
   tmr_putreg8(TMR_CR_ENABLE, TMR_TCR_OFFSET);

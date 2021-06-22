@@ -1,35 +1,20 @@
 /****************************************************************************
  * libs/libc/stdlib/lib_srand.c
  *
- *   Copyright (C) 2007, 2011, 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -39,7 +24,7 @@
 
 #include <nuttx/config.h>
 
-#include <sys/types.h>
+#include <math.h>
 #include <stdlib.h>
 
 #include <nuttx/lib/lib.h>
@@ -120,9 +105,9 @@ static inline unsigned long fgenerate1(void)
 {
   unsigned long randint;
 
-  /* First order congruential generator.  One may be added to the result of the
-   * generated value to avoid the value zero.  This would be fatal for the
-   * first order random number generator.
+  /* First order congruential generator.  One may be added to the result of
+   * the generated value to avoid the value zero.  This would be fatal for
+   * the first order random number generator.
    */
 
   randint    = (RND1_CONSTK * g_randint1) % RND1_CONSTP;
@@ -158,8 +143,8 @@ static inline unsigned long fgenerate2(void)
   g_randint2 = g_randint1;
   g_randint1 = randint;
 
-  /* We cannot permit both values to become zero.  That would be fatal for the
-   * second order random number generator.
+  /* We cannot permit both values to become zero.  That would be fatal for
+   * the second order random number generator.
    */
 
   if (g_randint2 == 0 && g_randint1 == 0)
@@ -200,8 +185,8 @@ static inline unsigned long fgenerate3(void)
   g_randint2 = g_randint1;
   g_randint1 = randint;
 
-  /* We cannot permit all three values to become zero.  That would be fatal for the
-   * third order random number generator.
+  /* We cannot permit all three values to become zero.  That would be fatal
+   * for the third order random number generator.
    */
 
   if (g_randint3 == 0 && g_randint2 == 0 && g_randint1 == 0)

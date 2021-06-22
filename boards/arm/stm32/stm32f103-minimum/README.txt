@@ -41,7 +41,7 @@ STM32F103C8T6 Minimum System Development Boards:
     Good things about the red board:
 
     - 1.5k pull up resistor on the PA12 pin (USB D+) which you can
-      programatically drag down for automated USB reset.
+      programmatically drag down for automated USB reset.
     - large power capacitors and LDO power.
     - User LED on PC13
 
@@ -412,8 +412,6 @@ SDCard support:
 
     CONFIG_FS_FAT=y
 
-    CONFIG_FS_WRITABLE=y
-
     CONFIG_MMCSD=y
     CONFIG_MMCSD_NSLOTS=1
     CONFIG_MMCSD_SPI=y
@@ -483,7 +481,7 @@ Nokia 5110 LCD Display support:
   nsh> ?
   help usage:  help [-v] [<cmd>]
 
-    [           dd          free        mb          sh          usleep
+    [           dd          free        mb          source      usleep
     ?           echo        help        mh          sleep       xd
     cat         exec        hexdump     mw          test
     cd          exit        kill        pwd         true
@@ -537,6 +535,32 @@ USB Console support:
   After flashing the firmware in the board, unplug and plug it in the computer
   and it will create a /dev/ttyACM0 device in the Linux. Use minicom with this
   device to get access to NuttX NSH console (press Enter three times to start)
+
+MCP2515 External Module
+=======================
+
+  You can use an external MCP2515 (tested with NiRen MCP2515_CAN module) to
+  get CAN Bus working on STM32F103C8 chip (remember the internal CAN cannot
+  work with USB at same time because they share the SRAM buffer).
+
+  You can connect the MCP2515 module in the STM32F103 Minimum board this way:
+  connect PA5 (SPI1 CLK) to SCK; PA7 (SPI1 MOSI) to SI; PA6 (SPI MISO) to SO;
+  PA4 to CS; B0 to INT. Also connect 5V to VCC and GND to GND.
+
+  Note: Although MCP2515 can work with 2.7V-5.5V it is more stable when using
+  it on BluePill board on 5V.
+
+  Testing: you will need at least 2 boards each one with a MCP2515 module
+  connected to it. Connect CAN High from the first module to the CAN High of
+  the second module, and the CAN Low from the first module to the CAN Low of
+  the second module.
+
+  You need to modify the "CAN example" application on menuconfig and create
+  two firmware versions: the first firmware will be Read-only and the second
+  one Write-only. Flash the first firmware in the first board and the second
+  firmware in the second board. Now you can start the both boards, run the
+  "can" command in the Write-only board and then run the "can" command in the
+  Read-only board. You should see the data coming.
 
 STM32F103 Minimum - specific Configuration Options
 ==================================================
@@ -754,13 +778,13 @@ Configurations
        b. Execute 'make menuconfig' in nuttx/ in order to start the
           reconfiguration process.
 
-    2. By default, this configuration uses the CodeSourcery toolchain
+    2. By default, this configuration uses the ARM EABI toolchain
        for Windows and builds under Cygwin (or probably MSYS).  That
        can easily be reconfigured, of course.
 
        CONFIG_HOST_WINDOWS=y                   : Builds under Windows
        CONFIG_WINDOWS_CYGWIN=y                 : Using Cygwin
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
     3. This configuration does have UART2 output enabled and set up as
        the system logging device:
@@ -768,7 +792,7 @@ Configurations
        CONFIG_SYSLOG_CHAR=y               : Use a character device for system logging
        CONFIG_SYSLOG_DEVPATH="/dev/ttyS0" : UART2 will be /dev/ttyS0
 
-       However, there is nothing to generate SYLOG output in the default
+       However, there is nothing to generate SYSLOG output in the default
        configuration so nothing should appear on UART2 unless you enable
        some debug output or enable the USB monitor.
 
@@ -776,7 +800,7 @@ Configurations
        device will save encoded trace output in in-memory buffer; if the
        USB monitor is enabled, that trace buffer will be periodically
        emptied and dumped to the system logging device (UART2 in this
-       configuraion):
+       configuration):
 
        CONFIG_USBDEV_TRACE=y                   : Enable USB trace feature
        CONFIG_USBDEV_TRACE_NRECORDS=128        : Buffer 128 records in memory

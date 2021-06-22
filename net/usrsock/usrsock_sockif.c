@@ -60,9 +60,6 @@ static int        usrsock_sockif_setup(FAR struct socket *psock,
                                        int protocol);
 static sockcaps_t usrsock_sockif_sockcaps(FAR struct socket *psock);
 static void       usrsock_sockif_addref(FAR struct socket *psock);
-static ssize_t    usrsock_sockif_send(FAR struct socket *psock,
-                                      FAR const void *buf, size_t len,
-                                      int flags);
 static int        usrsock_sockif_close(FAR struct socket *psock);
 
 /****************************************************************************
@@ -81,13 +78,12 @@ const struct sock_intf_s g_usrsock_sockif =
   usrsock_connect,            /* si_connect */
   usrsock_accept,             /* si_accept */
   usrsock_poll,               /* si_poll */
-  usrsock_sockif_send,        /* si_send */
-  usrsock_sendto,             /* si_sendto */
+  usrsock_sendmsg,            /* si_sendmsg */
+  usrsock_recvmsg,            /* si_recvmsg */
+  usrsock_sockif_close,       /* si_close */
 #ifdef CONFIG_NET_SENDFILE
   NULL,                       /* si_sendfile */
 #endif
-  usrsock_recvfrom,           /* si_recvfrom */
-  usrsock_sockif_close,       /* si_close */
   usrsock_ioctl               /* si_ioctl */
 };
 
@@ -96,7 +92,7 @@ const struct sock_intf_s g_usrsock_sockif =
  ****************************************************************************/
 
 /****************************************************************************
- * Name: inet_setup
+ * Name: usrsock_sockif_setup
  *
  * Description:
  *   Called for socket() to verify that the provided socket type and
@@ -225,33 +221,6 @@ static void usrsock_sockif_addref(FAR struct socket *psock)
 }
 
 /****************************************************************************
- * Name: usrsock_sockif_send
- *
- * Description:
- *   The usrsock_sockif_send() call may be used only when the socket is in
- *   a connected state  (so that the intended recipient is known).
- *
- * Input Parameters:
- *   psock    An instance of the internal socket structure.
- *   buf      Data to send
- *   len      Length of data to send
- *   flags    Send flags (ignored)
- *
- * Returned Value:
- *   On success, returns the number of characters sent.  On  error, a negated
- *   errno value is returned (see send() for the list of appropriate error
- *   values.
- *
- ****************************************************************************/
-
-static ssize_t usrsock_sockif_send(FAR struct socket *psock,
-                                   FAR const void *buf,
-                                   size_t len, int flags)
-{
-  return usrsock_sendto(psock, buf, len, flags, NULL, 0);
-}
-
-/****************************************************************************
  * Name: usrsock_sockif_close
  *
  * Description:
@@ -262,8 +231,6 @@ static ssize_t usrsock_sockif_send(FAR struct socket *psock,
  *
  * Returned Value:
  *   0 on success; -1 on error with errno set appropriately.
- *
- * Assumptions:
  *
  ****************************************************************************/
 

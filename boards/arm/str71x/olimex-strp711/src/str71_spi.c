@@ -1,36 +1,20 @@
 /****************************************************************************
  * boards/arm/str71x/olimex-strp711/src/str71_spi.c
  *
- *   Copyright (C) 2008-2010, 2012, 2016-2017 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -54,8 +38,8 @@
 
 #include <arch/board/board.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "chip.h"
 #include "str71x.h"
@@ -233,8 +217,8 @@
  * P1.10/USBCLK 10/14 WP         P1.10 input
  * P1.15/HTXD   13/15 CP         P1.15 input
  *
- * Use of SPI1 doesn't conflict with anything.  WP conflicts USB; CP conflicts
- * with HTXD.
+ * Use of SPI1 doesn't conflict with anything.  WP conflicts USB;
+ * CP conflicts with HTXD.
  */
 
 /* MMC/SD additional pins */
@@ -285,7 +269,7 @@
 #elif CONFIG_STR714X_BSPI0_RXFIFO_DEPTH == 10
 #  define STR71X_BSPI0_CSR1RXFIFODEPTH STR71X_BSPICSR1_RFE110
 #else
-#  error "Invaid RX FIFO depth setting"
+#  error "Invalid RX FIFO depth setting"
 #endif
 
 #define STR71X_BSPI0_CSR1DISABLE STR71X_BSPI0_CSR1RXFIFODEPTH
@@ -312,7 +296,7 @@
 #elif CONFIG_STR714X_BSPI0_TXFIFO_DEPTH == 10
 #  define STR71X_BSPI0_CSR1TXFIFODEPTH STR71X_BSPICSR2_TFE110
 #else
-#  error "Invaid TX FIFO depth setting"
+#  error "Invalid TX FIFO depth setting"
 #endif
 
 #define STR71X_BSPI0_CSR2VALUE STR71X_BSPI0_CSR1TXFIFODEPTH
@@ -338,7 +322,7 @@
 #elif CONFIG_STR714X_BSPI1_RXFIFO_DEPTH == 10
 #  define STR71X_BSPI1_CSR1RXFIFODEPTH STR71X_BSPICSR1_RFE110
 #else
-#  error "Invaid RX FIFO depth setting"
+#  error "Invalid RX FIFO depth setting"
 #endif
 
 #define STR71X_BSPI1_CSR1DISABLE STR71X_BSPI1_CSR1RXFIFODEPTH
@@ -365,7 +349,7 @@
 #elif CONFIG_STR714X_BSPI1_TXFIFO_DEPTH == 10
 #  define STR71X_BSPI1_CSR1TXFIFODEPTH STR71X_BSPICSR2_TFE110
 #else
-#  error "Invaid TX FIFO depth setting"
+#  error "Invalid TX FIFO depth setting"
 #endif
 
 #define STR71X_BSPI1_CSR2VALUE STR71X_BSPI1_CSR1TXFIFODEPTH
@@ -413,7 +397,7 @@ static uint8_t  spi_status(FAR struct spi_dev_s *dev, uint32_t devid);
 static int    spi_cmddata(FAR struct spi_dev_s *dev, uint32_t devid,
                           bool cmd);
 #endif
-static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd);
+static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd);
 static void   spi_sndblock(FAR struct spi_dev_s *dev,
                            FAR const void *buffer, size_t buflen);
 static void   spi_recvblock(FAR struct spi_dev_s *dev,
@@ -441,7 +425,10 @@ static const struct spi_ops_s g_spiops =
 #ifdef CONFIG_STR71X_BSPI0
 static struct str71x_spidev_s g_spidev0 =
 {
-  .spidev  = { &g_spiops },
+  .spidev  =
+  {
+    &g_spiops
+  },
   .spibase = STR71X_BSPI0_BASE,
   .csbit   = ENC_GPIO0_CS,
   .exclsem = SEM_INITIALIZER(1)
@@ -451,7 +438,10 @@ static struct str71x_spidev_s g_spidev0 =
 #ifdef CONFIG_STR71X_BSPI1
 static struct str71x_spidev_s g_spidev1 =
 {
-  .spidev  = { &g_spiops },
+  .spidev  =
+  {
+    &g_spiops
+  },
   .spibase = STR71X_BSPI1_BASE,
   .csbit   = MMCSD_GPIO0_CS,
   .exclsem = SEM_INITIALIZER(1)
@@ -528,23 +518,32 @@ static inline void spi_drain(FAR struct str71x_spidev_s *priv)
 #if CONFIG_STR714X_BSPI0_TXFIFO_DEPTH > 1
   /* Wait while the TX FIFO is full */
 
-  while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFF) != 0);
+  while (spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFF)
+    {
+    }
 #else
   /* Wait until the TX FIFO is empty */
 
-  while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFE) == 0);
+  while (!(spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFE))
+    {
+    }
 #endif
+
   /* Write 0xff to the TX FIFO */
 
   spi_putreg(priv, STR71X_BSPI_TXR_OFFSET, 0xff00);
 
   /* Wait for the TX FIFO empty */
 
-  while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFNE) != 0);
+  while (spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFNE)
+    {
+    }
 
   /* Wait for the RX FIFO not empty */
 
-  while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_RFNE) == 0);
+  while (!(spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_RFNE))
+    {
+    }
 
   /* Then read and discard bytes until the RX FIFO is empty */
 
@@ -552,19 +551,19 @@ static inline void spi_drain(FAR struct str71x_spidev_s *priv)
     {
       spi_getreg(priv, STR71X_BSPI_RXR_OFFSET);
     }
-  while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_RFNE) != 0);
+  while (spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_RFNE);
 }
 
 /****************************************************************************
  * Name: spi_lock
  *
  * Description:
- *   On SPI busses where there are multiple devices, it will be necessary to
- *   lock SPI to have exclusive access to the busses for a sequence of
+ *   On SPI buses where there are multiple devices, it will be necessary to
+ *   lock SPI to have exclusive access to the buses for a sequence of
  *   transfers.  The bus should be locked before the chip is selected. After
  *   locking the SPI bus, the caller should then also call the setfrequency,
  *   setbits, and setmode methods to make sure that the SPI is properly
- *   configured for the device.  If the SPI buss is being shared, then it
+ *   configured for the device.  If the SPI bus is being shared, then it
  *   may have been left in an incompatible state.
  *
  * Input Parameters:
@@ -672,7 +671,7 @@ static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev,
 
   divisor = (STR71X_PCLK1 + (frequency >> 1)) / frequency;
 
-  /* The divisor must be an even number and contrained to the range of
+  /* The divisor must be an even number and constrained to the range of
    * 5 (master mode, or 7 for slave mode) and 255.  These bits must
    * be configured BEFORE  the BSPE or MSTR bits.. i.e., before the SPI
    * is put into master mode.
@@ -784,7 +783,7 @@ static int spi_cmddata(FAR struct spi_dev_s *dev, uint32_t devid, bool cmd)
  *
  ****************************************************************************/
 
-static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
+static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 {
   FAR struct str71x_spidev_s *priv = (FAR struct str71x_spidev_s *)dev;
 
@@ -793,11 +792,15 @@ static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
 #if CONFIG_STR714X_BSPI0_TXFIFO_DEPTH > 1
   /* Wait while the TX FIFO is full */
 
-  while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFF) != 0);
+  while (spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFF)
+    {
+    }
 #else
   /* Wait until the TX FIFO is empty */
 
-  while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFE) == 0);
+  while (!(spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFE))
+    {
+    }
 #endif
 
   /* Write the byte to the TX FIFO */
@@ -806,7 +809,9 @@ static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
 
   /* Wait for the RX FIFO not empty */
 
-  while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_RFNE) == 0);
+  while (!(spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_RFNE))
+    {
+    }
 
   /* Get the received value from the RX FIFO and return it */
 
@@ -825,14 +830,16 @@ static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
  *   buflen - the length of data to send from the buffer in number of words.
  *            The wordsize is determined by the number of bits-per-word
  *            selected for the SPI interface.  If nbits <= 8, the data is
- *            packed into uint8_t's; if nbits >8, the data is packed into uint16_t's
+ *            packed into uint8_t's; if nbits >8, the data is packed into
+ *            uint16_t's
  *
  * Returned Value:
  *   None
  *
  ****************************************************************************/
 
-static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer, size_t buflen)
+static void spi_sndblock(FAR struct spi_dev_s *dev,
+                         FAR const void *buffer, size_t buflen)
 {
   FAR struct str71x_spidev_s *priv = (FAR struct str71x_spidev_s *)dev;
   FAR const uint8_t *ptr = (FAR const uint8_t *)buffer;
@@ -840,13 +847,14 @@ static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer, size
 
   DEBUGASSERT(priv && priv->spibase);
 
-  /* Loop while thre are bytes remaining to be sent */
+  /* Loop while there are bytes remaining to be sent */
 
   while (buflen > 0)
     {
       /* While the TX FIFO is not full and there are bytes left to send */
 
-      while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFF) == 0 && buflen > 0)
+      while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) &
+              STR71X_BSPICSR2_TFF) == 0 && buflen > 0)
         {
           /* Send the data */
 
@@ -882,7 +890,7 @@ static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer, size
           csr2 = spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET);
         }
     }
-  while ((csr2 & STR71X_BSPICSR2_RFNE) != 0 || (csr2 & STR71X_BSPICSR2_TFNE) == 0);
+  while ((csr2 & STR71X_BSPICSR2_RFNE) || !(csr2 & STR71X_BSPICSR2_TFNE));
 }
 
 /****************************************************************************
@@ -910,7 +918,7 @@ static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer,
                           size_t buflen)
 {
   FAR struct str71x_spidev_s *priv = (FAR struct str71x_spidev_s *)dev;
-  FAR uint8_t *ptr = (FAR uint8_t*)buffer;
+  FAR uint8_t *ptr = (FAR uint8_t *)buffer;
   uint32_t fifobytes = 0;
 
   DEBUGASSERT(priv && priv->spibase);
@@ -927,17 +935,18 @@ static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer,
        * and (3) there are more bytes to be sent.
        */
 
-      while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFF) == 0 &&
-             (fifobytes < CONFIG_STR714X_BSPI0_TXFIFO_DEPTH) && buflen > 0)
+      while (spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_TFF
+             && fifobytes < CONFIG_STR714X_BSPI0_TXFIFO_DEPTH && buflen > 0)
         {
           spi_putreg(priv, STR71X_BSPI_TXR_OFFSET, 0xff00);
           buflen--;
           fifobytes++;
         }
 
-      /* Now, read the RX data from the RX FIFO while the RX FIFO is not empty */
+      /* Now, read RX data from RX FIFO while RX FIFO is not empty */
 
-      while ((spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET) & STR71X_BSPICSR2_RFNE) != 0)
+      while (spi_getreg(priv, STR71X_BSPI_CSR2_OFFSET)
+             & STR71X_BSPICSR2_RFNE)
         {
           *ptr++ = (uint8_t)(spi_getreg(priv, STR71X_BSPI_RXR_OFFSET) >> 8);
           fifobytes--;

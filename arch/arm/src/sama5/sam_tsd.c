@@ -4,11 +4,6 @@
  *   Copyright (C) 2013, 2016-2017 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *
- * References:
- *
- *   SAMA5D3 Series Data Sheet
- *   Atmel NoOS sample code.
- *
  * The Atmel sample code has a BSD compatible license that requires this
  * copyright notice:
  *
@@ -43,6 +38,12 @@
  *
  ****************************************************************************/
 
+/* References:
+ *
+ *   SAMA5D3 Series Data Sheet
+ *   Atmel NoOS sample code.
+ */
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -51,6 +52,7 @@
 
 #include <sys/types.h>
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -70,7 +72,7 @@
 
 #include <arch/board/board.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "hardware/sam_adc.h"
 #include "sam_adc.h"
 #include "sam_tsd.h"
@@ -80,7 +82,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Driver support ***********************************************************/
+
 /* This format is used to construct the /dev/input[n] device driver path.  It
  * defined here so that it will be used consistently in all places.
  */
@@ -177,7 +181,7 @@ struct sam_tsd_s
   struct sam_adc_s *adc;        /* ADC device handle */
   struct work_s work;           /* Supports the interrupt handling "bottom half" */
   struct sam_sample_s sample;   /* Last sampled touch point data */
-  WDOG_ID wdog;                 /* Poll the position while the pen is down */
+  struct wdog_s wdog;           /* Poll the position while the pen is down */
 
   /* The following is a list if poll structures of threads waiting for
    * driver events. The 'struct pollfd' reference for each open is also
@@ -194,12 +198,13 @@ struct sam_tsd_s
 /* Interrupt bottom half logic and data sampling */
 
 static void sam_tsd_notify(struct sam_tsd_s *priv);
-static int  sam_tsd_sample(struct sam_tsd_s *priv, struct sam_sample_s *sample);
+static int  sam_tsd_sample(struct sam_tsd_s *priv,
+              struct sam_sample_s *sample);
 static int  sam_tsd_waitsample(struct sam_tsd_s *priv,
               struct sam_sample_s *sample);
 static void sam_tsd_bottomhalf(void *arg);
 static int  sam_tsd_schedule(struct sam_tsd_s *priv);
-static void sam_tsd_expiry(int argc, uint32_t arg1, ...);
+static void sam_tsd_expiry(wdparm_t arg);
 
 /* Character driver methods */
 
@@ -251,23 +256,10 @@ static void sam_tsd_notify(struct sam_tsd_s *priv)
 {
   int i;
 
-  /* If there are threads waiting for read data, then signal one of them
-   * that the read data is available.
-   */
-
-  if (priv->nwaiters > 0)
-    {
-      /* After posting this semaphore, we need to exit because the touchscreen
-       * is no longer available.
-       */
-
-      nxsem_post(&priv->waitsem);
-    }
-
-  /* If there are threads waiting on poll() for touchscreen data to become available,
-   * then wake them up now.  NOTE: we wake up all waiting threads because we
-   * do not know that they are going to do.  If they all try to read the data,
-   * then some make end up blocking after all.
+  /* If there are threads waiting on poll() for touchscreen data to become
+   * available, then wake them up now.  NOTE: we wake up all waiting threads
+   * because we do not know that they are going to do.  If they all try to
+   * read the data, then some make end up blocking after all.
    */
 
   for (i = 0; i < CONFIG_SAMA5_TSD_NPOLLWAITERS; i++)
@@ -280,13 +272,27 @@ static void sam_tsd_notify(struct sam_tsd_s *priv)
           nxsem_post(fds->sem);
         }
     }
+
+  /* If there are threads waiting for read data, then signal one of them
+   * that the read data is available.
+   */
+
+  if (priv->nwaiters > 0)
+    {
+      /* After posting this semaphore, we need to exit because the
+       * touchscreen is no longer available.
+       */
+
+      nxsem_post(&priv->waitsem);
+    }
 }
 
 /****************************************************************************
  * Name: sam_tsd_sample
  ****************************************************************************/
 
-static int sam_tsd_sample(struct sam_tsd_s *priv, struct sam_sample_s *sample)
+static int sam_tsd_sample(struct sam_tsd_s *priv,
+                          struct sam_sample_s *sample)
 {
   irqstate_t flags;
   int ret = -EAGAIN;
@@ -339,10 +345,11 @@ static int sam_tsd_sample(struct sam_tsd_s *priv, struct sam_sample_s *sample)
  * Name: sam_tsd_waitsample
  ****************************************************************************/
 
-static int sam_tsd_waitsample(struct sam_tsd_s *priv, struct sam_sample_s *sample)
+static int sam_tsd_waitsample(struct sam_tsd_s *priv,
+                              struct sam_sample_s *sample)
 {
   irqstate_t flags;
-  int ret;
+  int ret = 0;
 
   /* Interrupts me be disabled when this is called to (1) prevent posting
    * of semaphores from interrupt handlers, and (2) to prevent sampled data
@@ -377,10 +384,6 @@ static int sam_tsd_waitsample(struct sam_tsd_s *priv, struct sam_sample_s *sampl
 
       if (ret < 0)
         {
-          /* If we are awakened by a signal, then we need to return
-           * the failure now.
-           */
-
           ierr("ERROR: nxsem_wait: %d\n", ret);
           goto errout;
         }
@@ -389,7 +392,7 @@ static int sam_tsd_waitsample(struct sam_tsd_s *priv, struct sam_sample_s *sampl
   iinfo("Sampled\n");
 
   /* Re-acquire the semaphore that manages mutually exclusive access to
-   * the device structure.  We may have to wait here.  But we have our sample.
+   * the device structure. We may have to wait here. But we have our sample.
    * Interrupts and pre-emption will be re-enabled while we wait.
    */
 
@@ -422,7 +425,7 @@ errout:
  *
  * Input Parameters:
  *   priv - The touchscreen private data structure
- *   tsav - The new (shifted) value of the TSAV field of the ADC TSMR regsiter.
+ *   tsav - The new (shifted) value of the TSAV field of ADC TSMR register
  *
  * Returned Value:
  *   None
@@ -478,9 +481,9 @@ static void sam_tsd_setaverage(struct sam_tsd_s *priv, uint32_t tsav)
  * Description:
  *   This function executes on the worker thread.  It is scheduled by
  *   sam_tsd_interrupt whenever any interesting, enabled TSD event occurs.
- *   All TSD interrupts are disabled when this function runs.  sam_tsd_bottomhalf
- *   will re-enable TSD interrupts when it completes processing all pending
- *   TSD events.
+ *   All TSD interrupts are disabled when this function runs.
+ *   sam_tsd_bottomhalf will re-enable TSD interrupts when it completes
+ *   processing all pending TSD events.
  *
  * Input Parameters:
  *   arg - The touchscreen private data structure cast to (void *)
@@ -526,7 +529,7 @@ static void sam_tsd_bottomhalf(void *arg)
 
   /* Handle the change from pen down to pen up */
 
-  iinfo("pending: %08x pendown: %d contact: %d\n",
+  iinfo("pending: %08" PRIx32 " pendown: %d contact: %d\n",
         pending, pendown, priv->sample.contact);
 
   if (!pendown)
@@ -542,8 +545,8 @@ static void sam_tsd_bottomhalf(void *arg)
 
       ier = ADC_INT_PEN;
 
-      /* Ignore the interrupt if the pen was already up (CONTACT_NONE == pen up
-       * and already reported; CONTACT_UP == pen up, but not reported)
+      /* Ignore the interrupt if the pen was already up (CONTACT_NONE == pen
+       * up and already reported; CONTACT_UP == pen up, but not reported)
        */
 
       if (priv->sample.contact == CONTACT_NONE ||
@@ -572,8 +575,8 @@ static void sam_tsd_bottomhalf(void *arg)
     }
 
   /* It is a pen down event.  If the last loss-of-contact event has not been
-   * processed yet, then we have to ignore the pen down event (or else it will
-   * look like a drag event)
+   * processed yet, then we have to ignore the pen down event (or else it
+   * will look like a drag event)
    */
 
   else if (priv->sample.contact == CONTACT_UP)
@@ -585,14 +588,14 @@ static void sam_tsd_bottomhalf(void *arg)
        * this case; we rely on the timer expiry to get us going again.
        */
 
-      wd_start(priv->wdog, TSD_WDOG_DELAY, sam_tsd_expiry, 1,
-               (uint32_t)priv);
+      wd_start(&priv->wdog, TSD_WDOG_DELAY,
+               sam_tsd_expiry, (wdparm_t)priv);
       ier = 0;
       goto ignored;
     }
   else
     {
-      /* The pen is down and the driver has accepted the last sample values. */
+      /* The pen is down and the driver accepted the last sample values. */
 
       /* While the pen is down we want interrupts on all data ready and pen
        * release events.
@@ -633,7 +636,10 @@ static void sam_tsd_bottomhalf(void *arg)
 
       if (xraw == 0 || xraw >= xscale || yraw == 0 || yraw > yscale)
         {
-          iwarn("WARNING: Discarding: x %d:%d y %d:%d\n", xraw, xscale);
+          iwarn("WARNING: Discarding: x %" PRId32 ":%" PRId32
+                " y %" PRId32 ":%" PRId32 "\n",
+                xraw, xscale,
+                yraw, yscale);
           goto ignored;
         }
 
@@ -664,8 +670,8 @@ static void sam_tsd_bottomhalf(void *arg)
 
       /* Continue to sample the position while the pen is down */
 
-      wd_start(priv->wdog, TSD_WDOG_DELAY, sam_tsd_expiry, 1,
-               (uint32_t)priv);
+      wd_start(&priv->wdog, TSD_WDOG_DELAY,
+               sam_tsd_expiry, (wdparm_t)priv);
 
       /* Check the thresholds.  Bail if (1) this is not the first
        * measurement and (2) there is no significant difference from
@@ -751,6 +757,7 @@ static void sam_tsd_bottomhalf(void *arg)
   /* Exit, re-enabling touchscreen interrupts */
 
 ignored:
+
   /* Re-enable touchscreen interrupts as appropriate. */
 
   sam_adc_putreg(priv->adc, SAM_ADC_IER, ier);
@@ -772,7 +779,7 @@ static int sam_tsd_schedule(struct sam_tsd_s *priv)
    * while the pen remains down.
    */
 
-  wd_cancel(priv->wdog);
+  wd_cancel(&priv->wdog);
 
   /* Disable further touchscreen interrupts.  Touchscreen interrupts will be
    * re-enabled after the worker thread executes.
@@ -780,9 +787,9 @@ static int sam_tsd_schedule(struct sam_tsd_s *priv)
 
   sam_adc_putreg(priv->adc, SAM_ADC_IDR, ADC_TSD_ALLINTS);
 
-  /* Transfer processing to the worker thread.  Since touchscreen ADC interrupts are
-   * disabled while the work is pending, no special action should be required
-   * to protected the work queue.
+  /* Transfer processing to the worker thread.  Since touchscreen ADC
+   * interrupts are disabled while the work is pending, no special action
+   * should be required to protected the work queue.
    */
 
   DEBUGASSERT(priv->work.worker == NULL);
@@ -804,9 +811,9 @@ static int sam_tsd_schedule(struct sam_tsd_s *priv)
  *
  ****************************************************************************/
 
-static void sam_tsd_expiry(int argc, uint32_t arg1, ...)
+static void sam_tsd_expiry(wdparm_t arg)
 {
-  struct sam_tsd_s *priv = (struct sam_tsd_s *)((uintptr_t)arg1);
+  struct sam_tsd_s *priv = (struct sam_tsd_s *)arg;
 
   /* Schedule touchscreen work */
 
@@ -1588,7 +1595,7 @@ static void sam_tsd_uninitialize(struct sam_tsd_s *priv)
    * while the pen remains down.
    */
 
-  wd_cancel(priv->wdog);
+  wd_cancel(&priv->wdog);
 
   /* Disable further touchscreen interrupts.  Touchscreen interrupts will be
    * re-enabled after the worker thread executes.
@@ -1653,7 +1660,6 @@ int sam_tsd_register(struct sam_adc_s *adc, int minor)
 
   memset(priv, 0, sizeof(struct sam_tsd_s));
   priv->adc     = adc;               /* Save the ADC device handle */
-  priv->wdog    = wd_create();       /* Create a watchdog timer */
   priv->threshx = INVALID_THRESHOLD; /* Initialize thresholding logic */
   priv->threshy = INVALID_THRESHOLD; /* Initialize thresholding logic */
 
@@ -1662,7 +1668,7 @@ int sam_tsd_register(struct sam_adc_s *adc, int minor)
    */
 
   nxsem_init(&priv->waitsem, 0, 0);
-  nxsem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&priv->waitsem, SEM_PRIO_NONE);
 
   /* Register the device as an input device */
 

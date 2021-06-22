@@ -1,35 +1,20 @@
 /****************************************************************************
  * sched/signal/sig_default.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -62,7 +47,7 @@
 
 #if defined(CONFIG_SIG_SIGUSR1_ACTION) || defined(CONFIG_SIG_SIGUSR2_ACTION) || \
     defined(CONFIG_SIG_SIGALRM_ACTION) || defined(CONFIG_SIG_SIGPOLL_ACTION) || \
-    defined(CONFIG_SIG_SIGKILL_ACTION)
+    defined(CONFIG_SIG_SIGKILL_ACTION) || defined(CONFIG_SIG_SIGPIPE_ACTION)
 #  define HAVE_NXSIG_ABNORMAL_TERMINANTION 1
 #endif
 
@@ -101,7 +86,8 @@ static void nxsig_stop_task(int signo);
 
 static _sa_handler_t nxsig_default_action(int signo);
 static void nxsig_setup_default_action(FAR struct task_group_s *group,
-                                       FAR const struct nxsig_defaction_s *info);
+                                       FAR const struct nxsig_defaction_s *
+                                           info);
 
 /****************************************************************************
  * Private Data
@@ -133,12 +119,14 @@ static const struct nxsig_defaction_s g_defactions[] =
 #endif
 #ifdef CONFIG_SIG_SIGSTOP_ACTION
   { SIGSTOP, SIG_FLAG_NOCATCH, nxsig_stop_task },
-  { SIGSTP,  0,                nxsig_stop_task },
+  { SIGTSTP, 0,                nxsig_stop_task },
   { SIGCONT, SIG_FLAG_NOCATCH, nxsig_null_action },
 #endif
 #ifdef CONFIG_SIG_SIGKILL_ACTION
   { SIGINT,  0,                nxsig_abnormal_termination },
   { SIGKILL, SIG_FLAG_NOCATCH, nxsig_abnormal_termination },
+  { SIGQUIT, 0,                nxsig_abnormal_termination },
+  { SIGTERM, 0,                nxsig_abnormal_termination },
 #endif
 #ifdef CONFIG_SIG_SIGPIPE_ACTION
   { SIGPIPE, 0,                nxsig_abnormal_termination }
@@ -206,74 +194,24 @@ static void nxsig_abnormal_termination(int signo)
 {
   FAR struct tcb_s *rtcb = (FAR struct tcb_s *)this_task();
 
-  /* Check to see if this task has the non-cancelable bit set in its
-   * flags. Suppress context changes for a bit so that the flags are stable.
-   * (the flags should not change in interrupt handling).
-   */
+  /* Notify the target if the non-cancelable or deferred cancellation set */
 
-  sched_lock();
-  if ((rtcb->flags & TCB_FLAG_NONCANCELABLE) != 0)
+  if (nxnotify_cancellation(rtcb))
     {
-      /* Then we cannot cancel the thread now.  Here is how this is
-       * supposed to work:
-       *
-       * "When cancelability is disabled, all cancels are held pending
-       *  in the target thread until the thread changes the cancelability.
-       *  When cancelability is deferred, all cancels are held pending in
-       *  the target thread until the thread changes the cancelability,
-       *  calls a function which is a cancellation point or calls
-       *  pthread_testcancel(), thus creating a cancellation point.  When
-       *  cancelability is asynchronous, all cancels are acted upon
-       *  immediately, interrupting the thread with its processing."
-       *
-       * REVISIT:  Does this rule apply to equally to both SIGKILL and
-       * SIGINT?
-       */
-
-      rtcb->flags |= TCB_FLAG_CANCEL_PENDING;
-      sched_unlock();
       return;
     }
-
-#ifdef CONFIG_CANCELLATION_POINTS
-  /* Check if this task supports deferred cancellation */
-
-  if ((rtcb->flags & TCB_FLAG_CANCEL_DEFERRED) != 0)
-    {
-      /* Then we cannot cancel the task asynchronously.  Mark the cancellation
-       * as pending.
-       */
-
-      rtcb->flags |= TCB_FLAG_CANCEL_PENDING;
-
-      /* If the task is waiting at a cancellation point, then notify of the
-       * cancellation thereby waking the task up with an ECANCELED error.
-       */
-
-      if (rtcb->cpcount > 0)
-        {
-          nxnotify_cancellation(rtcb);
-        }
-
-      sched_unlock();
-      return;
-    }
-#endif
-
-  sched_unlock();
 
   /* Careful:  In the multi-threaded task, the signal may be handled on a
    * child pthread.
    */
 
 #ifdef HAVE_GROUP_MEMBERS
-  /* Kill of of the children of the task.  This will not kill the currently
+  /* Kill all of the children of the task.  This will not kill the currently
    * running task/pthread (this_task).  It will kill the main thread of the
-   * task group if the this_task is a
-   * pthread.
+   * task group if this_task is a pthread.
    */
 
-  group_killchildren((FAR struct task_tcb_s *)rtcb);
+  group_kill_children(rtcb);
 #endif
 
 #ifndef CONFIG_DISABLE_PTHREAD
@@ -302,7 +240,7 @@ static void nxsig_abnormal_termination(int signo)
  * Name: nxsig_stop_task
  *
  * Description:
- *   This is the handler for the abnormal termination default action.
+ *   This is the handler for the stop default action.
  *
  * Input Parameters:
  *   Standard signal handler parameters
@@ -328,16 +266,16 @@ static void nxsig_stop_task(int signo)
    */
 
 #ifdef HAVE_GROUP_MEMBERS
-  /* Suspend of of the children of the task.  This will not suspend the
+  /* Suspend all of the children of the task.  This will not suspend the
    * currently running task/pthread (this_task).  It will suspend the
-   * main thread of the task group if the this_task is a pthread.
+   * main thread of the task group if this_task is a pthread.
    */
 
-  group_suspendchildren(rtcb);
+  group_suspend_children(rtcb);
 #endif
 
   /* Lock the scheduler so this thread is not pre-empted until after we
-   * call sched_suspend().
+   * call nxsched_suspend().
    */
 
   sched_lock();
@@ -364,7 +302,7 @@ static void nxsig_stop_task(int signo)
 
       group->tg_waitflags = 0;
 
-      /* YWakeup any tasks waiting for this task to exit or stop. */
+      /* Wakeup any tasks waiting for this task to exit or stop. */
 
       while (group->tg_exitsem.semcount < 0)
         {
@@ -377,7 +315,7 @@ static void nxsig_stop_task(int signo)
 
   /* Then, finally, suspend this the final thread of the task group */
 
-  sched_suspend(rtcb);
+  nxsched_suspend(rtcb);
   sched_unlock();
 }
 #endif
@@ -437,7 +375,8 @@ static _sa_handler_t nxsig_default_action(int signo)
  ****************************************************************************/
 
 static void nxsig_setup_default_action(FAR struct task_group_s *group,
-                                       FAR const struct nxsig_defaction_s *info)
+                                       FAR const struct nxsig_defaction_s *
+                                           info)
 {
   /* Get the address of the handler for this signals default action. */
 
@@ -458,7 +397,7 @@ static void nxsig_setup_default_action(FAR struct task_group_s *group,
 
       /* Indicate that the default signal handler has been attached */
 
-      sigaddset(&group->tg_sigdefault, (int)info->signo);
+      nxsig_addset(&group->tg_sigdefault, (int)info->signo);
     }
 }
 
@@ -494,7 +433,7 @@ bool nxsig_isdefault(FAR struct tcb_s *tcb, int signo)
    * false in all other cases.
    */
 
-  ret = sigismember(&group->tg_sigdefault, signo);
+  ret = nxsig_ismember(&group->tg_sigdefault, signo);
   return ret < 0 ? false : (bool)ret;
 }
 
@@ -539,7 +478,7 @@ bool nxsig_iscatchable(int signo)
  *
  * Description:
  *   If 'defaction' is true, then return the default signal handler action
- *   for the specified signal and mark that the default signal hander is
+ *   for the specified signal and mark that the default signal handler is
  *   in place (it is not yet).
  *
  *   If 'defaction' is false, then mark that the default signal handler is
@@ -578,23 +517,23 @@ _sa_handler_t nxsig_default(FAR struct tcb_s *tcb, int signo, bool defaction)
       handler = nxsig_default_action(signo);
       if (handler != SIG_IGN)
         {
-          /* sigaddset() is not atomic (but neither is sigaction()) */
+          /* nxsig_addset() is not atomic (but neither is sigaction()) */
 
-          flags = spin_lock_irqsave();
-          sigaddset(&group->tg_sigdefault, signo);
-          spin_unlock_irqrestore(flags);
+          flags = spin_lock_irqsave(NULL);
+          nxsig_addset(&group->tg_sigdefault, signo);
+          spin_unlock_irqrestore(NULL, flags);
         }
     }
 
   if (handler == SIG_IGN)
     {
-      /* We are unsetting the default action.  NOTE that sigdelset() is not
+      /* We are unsetting the default action. NOTE that nxsig_delset() is not
        * atomic (but neither is sigaction()).
        */
 
-      flags = spin_lock_irqsave();
-      sigdelset(&group->tg_sigdefault, signo);
-      spin_unlock_irqrestore(flags);
+      flags = spin_lock_irqsave(NULL);
+      nxsig_delset(&group->tg_sigdefault, signo);
+      spin_unlock_irqrestore(NULL, flags);
     }
 
   return handler;

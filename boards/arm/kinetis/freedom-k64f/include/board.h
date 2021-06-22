@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/kinetis/freedom-k64f/include/board.h
  *
- *   Copyright (C) 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -54,7 +39,7 @@
 
 /* The Freedom K64F uses a 50MHz external clock from the Micrel Ethernet PHY.
  * The Kinetis MCU startup from an internal digitally-controlled oscillator
- * (DCO). Nuttx will enable the main external oscillator (EXTAL0/XTAL0).
+ * (DCO). NuttX will enable the main external oscillator (EXTAL0/XTAL0).
  * The external oscillator/resonator can range from 32.768 KHz up to 50 MHz.
  * The default external source for the MCG oscillator inputs (EXTAL) is
  * 50 MHz clock source from Micrel Ethernet PHY.
@@ -70,8 +55,8 @@
  * a KINETIS_MCG_PLL_REF_MIN >= PLLIN <= KINETIS_MCG_PLL_REF_MIN reference
  * clock to the PLL.
  *
- *   PLL Input frequency:   PLLIN  = REFCLK / PRDIV = 50  Mhz  / 20 = 2.5 MHz
- *   PLL Output frequency:  PLLOUT = PLLIN  * VDIV  = 2.5 Mhz  * 48 = 120 MHz
+ *   PLL Input frequency:   PLLIN  = REFCLK / PRDIV = 50  MHz  / 20 = 2.5 MHz
+ *   PLL Output frequency:  PLLOUT = PLLIN  * VDIV  = 2.5 MHz  * 48 = 120 MHz
  *   MCG Frequency:         PLLOUT = 120 MHz
  *
  * PRDIV register value is the divider minus KINETIS_MCG_C5_PRDIV_BASE.
@@ -101,6 +86,27 @@
 #define BOARD_BUS_FREQ      (BOARD_MCG_FREQ / BOARD_OUTDIV2)
 #define BOARD_FLEXBUS_FREQ  (BOARD_MCG_FREQ / BOARD_OUTDIV3)
 #define BOARD_FLASHCLK_FREQ (BOARD_MCG_FREQ / BOARD_OUTDIV4)
+
+/* Use BOARD_MCG_FREQ as the output SIM_SOPT2 MUX selected by
+ * SIM_SOPT2[PLLFLLSEL]
+ */
+
+#define BOARD_SOPT2_PLLFLLSEL   SIM_SOPT2_PLLFLLSEL_MCGPLLCLK
+#define BOARD_SOPT2_FREQ        BOARD_MCG_FREQ
+
+/* Divider output clock = Divider input clock * ((USBFRAC+1) / (USBDIV+1))
+ *     SIM_CLKDIV2_FREQ = BOARD_SOPT2_FREQ * ((USBFRAC+1) / (USBDIV+1))
+ *     SIM_CLKDIV2_FREQ = BOARD_SOPT2_FREQ / (USBDIV+1)* (USBFRAC+1)
+ *                48MHz = 120MHz / (4 + 1) * (1 + 1)
+ */
+
+#if (BOARD_SOPT2_FREQ == 120000000L)
+#  define BOARD_SIM_CLKDIV2_USBFRAC     2
+#  define BOARD_SIM_CLKDIV2_USBDIV      5
+#  define BOARD_SIM_CLKDIV2_FREQ        (BOARD_SOPT2_FREQ / \
+                                         BOARD_SIM_CLKDIV2_USBDIV * \
+                                         BOARD_SIM_CLKDIV2_USBFRAC)
+#endif
 
 /* SDHC clocking ************************************************************/
 
@@ -151,6 +157,15 @@
 #  define BOARD_SDHC_SD4MODE_PRESCALER SDHC_SYSCTL_SDCLKFS_DIV2
 #  define BOARD_SDHC_SD4MODE_DIVISOR   SDHC_SYSCTL_DVS_DIV(3)
 #endif
+
+/* Use the output of SIM_SOPT2[PLLFLLSEL] as the USB clock source */
+
+#define BOARD_USB_CLKSRC               SIM_SOPT2_USBSRC
+#define BOARD_USB_FREQ                 BOARD_SIM_CLKDIV2_FREQ
+
+/* Allow USBOTG-FS Controller to Read from FLASH */
+
+#define BOARD_USB_FLASHACCESS
 
 /* PWM Configuration */
 
@@ -218,14 +233,15 @@
  * Besides the general purpose input/output functions, SW2 and SW3 can be
  * low-power wake up signal. Also, only SW3 can be a non-maskable interrupt.
  *
- *   Switch    GPIO Function
- *   --------- ---------------------------------------------------------------
- *   SW2       PTC6/SPI0_SOUT/PD0_EXTRG/I2S0_RX_BCLK/FB_AD9/I2S0_MCLK/LLWU_P10
- *   SW3       PTA4/FTM0_CH1/NMI_b/LLWU_P3
+ *   Switch  GPIO Function
+ *   ------- ---------------------------------------------------------------
+ *   SW2     PTC6/SPI0_SOUT/PD0_EXTRG/I2S0_RX_BCLK/FB_AD9/I2S0_MCLK/LLWU_P10
+ *   SW3     PTA4/FTM0_CH1/NMI_b/LLWU_P3
  */
 
 #define BUTTON_SW2        0
 #define BUTTON_SW3        1
+#define NUM_BUTTONS       2
 
 #define BUTTON_SW2_BIT    (1 << BUTTON_SW2)
 #define BUTTON_SW3_BIT    (1 << BUTTON_SW3)
@@ -249,7 +265,7 @@
 
 /* An alternative serial port might use a standard serial shield mounted
  * on the Freedom Board.  In this case, Arduino pin D1 provides UART TX and
- * pin D0 privides UART RX.
+ * pin D0 provides UART RX.
  *
  * The I/O headers on the FRDM-K64F board are arranged to enable
  * compatibility with Arduino shield. The outer rows of pins (even numbered
@@ -268,4 +284,15 @@
 #define PIN_UART3_RX      PIN_UART3_RX_2
 #define PIN_UART3_TX      PIN_UART3_TX_2
 
-#endif  /* __BOARDS_ARM_FREEDOM_K64F_INCLUDE_BOARD_H */
+/* I2C Bus 0
+ *
+ *  Pin Name   K64   Name
+ *  ---- ----- ------ ---------
+ *   11  SCL    PTE24  2C0_SCL
+ *   12  SDA    PTE25  2C0_SDA
+ */
+
+#define PIN_I2C0_SCL      PIN_I2C0_SCL_4
+#define PIN_I2C0_SDA      PIN_I2C0_SDA_4
+
+#endif /* __BOARDS_ARM_FREEDOM_K64F_INCLUDE_BOARD_H */

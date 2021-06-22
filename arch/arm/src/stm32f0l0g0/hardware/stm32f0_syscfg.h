@@ -1,57 +1,43 @@
-/****************************************************************************************************
+/****************************************************************************
  * arch/arm/src/stm32f0l0g0/hardware/stm32f0_syscfg.h
  *
- *   Copyright (C) 2017-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *           Alan Carvalho de Assis <acassis@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ****************************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_STM32F0L0G0_HARDWARE_STM32F0_SYSCFG_H
 #define __ARCH_ARM_SRC_STM32F0L0G0_HARDWARE_STM32F0_SYSCFG_H
 
-/****************************************************************************************************
+/****************************************************************************
  * Included Files
- ****************************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 #include "chip.h"
 
-/****************************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ****************************************************************************************************/
+ ****************************************************************************/
 
-/* Register Offsets *********************************************************************************/
+/* Register Offsets *********************************************************/
 
 #define STM32_SYSCFG_CFGR1_OFFSET      0x0000 /* SYSCFG configuration register 1 */
+
 #define STM32_SYSCFG_EXTICR_OFFSET(p)  (0x0008 + ((p) & 0x000c)) /* Registers are displaced by 4! */
+
 #define STM32_SYSCFG_EXTICR1_OFFSET    0x0008 /* SYSCFG external interrupt configuration register 1 */
 #define STM32_SYSCFG_EXTICR2_OFFSET    0x000c /* SYSCFG external interrupt configuration register 2 */
 #define STM32_SYSCFG_EXTICR3_OFFSET    0x0010 /* SYSCFG external interrupt configuration register 3 */
@@ -89,7 +75,7 @@
 #define STM32_SYSCFG_ITLINE29_OFFSET   0x00f4 /* SYSCFG interrupt line 29 status register (STM32F09x) */
 #define STM32_SYSCFG_ITLINE30_OFFSET   0x00f8 /* SYSCFG interrupt line 30 status register (STM32F09x) */
 
-/* Register Addresses *******************************************************************************/
+/* Register Addresses *******************************************************/
 
 #define STM32_SYSCFG_CFGR1             (STM32_SYSCFG_BASE + STM32_SYSCFG_CFGR1_OFFSET)
 
@@ -133,7 +119,7 @@
 #define STM32_SYSCFG_ITLINE29          (STM32_SYSCFG_BASE + STM32_SYSCFG_ITLINE29_OFFSET)
 #define STM32_SYSCFG_ITLINE30          (STM32_SYSCFG_BASE + STM32_SYSCFG_ITLINE30_OFFSET)
 
-/* Register Bitfield Definitions ********************************************************************/
+/* Register Bitfield Definitions ********************************************/
 
 /* SYSCFG memory remap register */
 
@@ -142,12 +128,14 @@
 #  define SYSCFG_CFGR1_MEMMODE_FLASH   (0 << SYSCFG_CFGR1_MEMMODE_SHIFT) /* 00: Main Flash at 0x00000000 */
 #  define SYSCFG_CFGR1_MEMMODE_SYSTEM  (1 << SYSCFG_CFGR1_MEMMODE_SHIFT) /* 01: System Flash at 0x00000000 */
 #  define SYSCFG_CFGR1_MEMMODE_SRAM    (3 << SYSCFG_CFGR1_MEMMODE_SHIFT) /* 11: Embedded SRAM at 0x00000000 */
+
 #define SYSCFG_CFGR1_PA11_PA12_RMP     (1 << 4)  /* Bit 4:  PA11 and PA12 remapping bit for small packages */
 #define SYSCFG_CFGR1_IRMOD_SHIFT       (6)       /* Bits 6-7: IR Modulation Envelope signal selection */
 #define SYSCFG_CFGR1_IRMOD_MASK        (3 << SYSCFG_CFGR1_IRMOD_SHIFT)
 #  define SYSCFG_CFGR1_IRMOD_TIM16     (0 << SYSCFG_CFGR1_IRMOD_SHIFT) /* 00: TIM16 selected */
 #  define SYSCFG_CFGR1_IRMOD_USART1    (1 << SYSCFG_CFGR1_IRMOD_SHIFT) /* 01: USART1 selected */
 #  define SYSCFG_CFGR1_IRMOD_USART4    (2 << SYSCFG_CFGR1_IRMOD_SHIFT) /* 10: USART1 selected */
+
 #define SYSCFG_CFGR1_ADC_DMARMP        (1 << 8)  /* Bit 8:  ADC DMA remapping bit. Only STM32F03x/F04x/F05x/F07x */
 #define SYSCFG_CFGR1_USART1_TXDMARMP   (1 << 9)  /* Bit 9: USART1_TX_DMA request remapping bit. Only STM32F03x/F04x/F05x/F07x */
 #define SYSCFG_CFGR1_USART1_RXDMARMP   (1 << 10) /* Bit 10: USART1_TX_DMA request remapping bit. Only STM32F03x/F04x/F05x/F07x */
@@ -182,40 +170,40 @@
 #define SYSCFG_EXTICR_EXTI_SHIFT(g)    (((g) & 3) << 2)
 #define SYSCFG_EXTICR_EXTI_MASK(g)     (SYSCFG_EXTICR_PORT_MASK << (SYSCFG_EXTICR_EXTI_SHIFT(g)))
 
-#define SYSCFG_EXTICR1_EXTI0_SHIFT     (0)       /* Bits 0-3: EXTI 0 coinfiguration */
+#define SYSCFG_EXTICR1_EXTI0_SHIFT     (0)       /* Bits 0-3: EXTI 0 configuration */
 #define SYSCFG_EXTICR1_EXTI0_MASK      (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR1_EXTI0_SHIFT)
-#define SYSCFG_EXTICR1_EXTI1_SHIFT     (4)       /* Bits 4-7: EXTI 1 coinfiguration */
+#define SYSCFG_EXTICR1_EXTI1_SHIFT     (4)       /* Bits 4-7: EXTI 1 configuration */
 #define SYSCFG_EXTICR1_EXTI1_MASK      (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR1_EXTI1_SHIFT)
-#define SYSCFG_EXTICR1_EXTI2_SHIFT     (8)       /* Bits 8-11: EXTI 2 coinfiguration */
+#define SYSCFG_EXTICR1_EXTI2_SHIFT     (8)       /* Bits 8-11: EXTI 2 configuration */
 #define SYSCFG_EXTICR1_EXTI2_MASK      (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR1_EXTI2_SHIFT)
-#define SYSCFG_EXTICR1_EXTI3_SHIFT     (12)      /* Bits 12-15: EXTI 3 coinfiguration */
+#define SYSCFG_EXTICR1_EXTI3_SHIFT     (12)      /* Bits 12-15: EXTI 3 configuration */
 #define SYSCFG_EXTICR1_EXTI3_MASK      (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR1_EXTI3_SHIFT)
 
-#define SYSCFG_EXTICR2_EXTI4_SHIFT     (0)       /* Bits 0-3: EXTI 4 coinfiguration */
+#define SYSCFG_EXTICR2_EXTI4_SHIFT     (0)       /* Bits 0-3: EXTI 4 configuration */
 #define SYSCFG_EXTICR2_EXTI4_MASK      (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR2_EXTI4_SHIFT)
-#define SYSCFG_EXTICR2_EXTI5_SHIFT     (4)       /* Bits 4-7: EXTI 5 coinfiguration */
+#define SYSCFG_EXTICR2_EXTI5_SHIFT     (4)       /* Bits 4-7: EXTI 5 configuration */
 #define SYSCFG_EXTICR2_EXTI5_MASK      (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR2_EXTI5_SHIFT)
-#define SYSCFG_EXTICR2_EXTI6_SHIFT     (8)       /* Bits 8-11: EXTI 6 coinfiguration */
+#define SYSCFG_EXTICR2_EXTI6_SHIFT     (8)       /* Bits 8-11: EXTI 6 configuration */
 #define SYSCFG_EXTICR2_EXTI6_MASK      (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR2_EXTI6_SHIFT)
-#define SYSCFG_EXTICR2_EXTI7_SHIFT     (12)      /* Bits 12-15: EXTI 7 coinfiguration */
+#define SYSCFG_EXTICR2_EXTI7_SHIFT     (12)      /* Bits 12-15: EXTI 7 configuration */
 #define SYSCFG_EXTICR2_EXTI7_MASK      (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR2_EXTI7_SHIFT)
 
-#define SYSCFG_EXTICR3_EXTI8_SHIFT     (0)       /* Bits 0-3: EXTI 8 coinfiguration */
+#define SYSCFG_EXTICR3_EXTI8_SHIFT     (0)       /* Bits 0-3: EXTI 8 configuration */
 #define SYSCFG_EXTICR3_EXTI8_MASK      (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR3_EXTI8_SHIFT)
-#define SYSCFG_EXTICR3_EXTI9_SHIFT     (4)       /* Bits 4-7: EXTI 9 coinfiguration */
+#define SYSCFG_EXTICR3_EXTI9_SHIFT     (4)       /* Bits 4-7: EXTI 9 configuration */
 #define SYSCFG_EXTICR3_EXTI9_MASK      (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR3_EXTI9_SHIFT)
-#define SYSCFG_EXTICR3_EXTI10_SHIFT    (8)       /* Bits 8-11: EXTI 10 coinfiguration */
+#define SYSCFG_EXTICR3_EXTI10_SHIFT    (8)       /* Bits 8-11: EXTI 10 configuration */
 #define SYSCFG_EXTICR3_EXTI10_MASK     (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR3_EXTI10_SHIFT)
-#define SYSCFG_EXTICR3_EXTI11_SHIFT    (12)      /* Bits 12-15: EXTI 11 coinfiguration */
+#define SYSCFG_EXTICR3_EXTI11_SHIFT    (12)      /* Bits 12-15: EXTI 11 configuration */
 #define SYSCFG_EXTICR3_EXTI11_MASK     (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR3_EXTI11_SHIFT)
 
-#define SYSCFG_EXTICR4_EXTI12_SHIFT    (0)       /* Bits 0-3: EXTI 12 coinfiguration */
+#define SYSCFG_EXTICR4_EXTI12_SHIFT    (0)       /* Bits 0-3: EXTI 12 configuration */
 #define SYSCFG_EXTICR4_EXTI12_MASK     (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR4_EXTI12_SHIFT)
-#define SYSCFG_EXTICR4_EXTI13_SHIFT    (4)       /* Bits 4-7: EXTI 13 coinfiguration */
+#define SYSCFG_EXTICR4_EXTI13_SHIFT    (4)       /* Bits 4-7: EXTI 13 configuration */
 #define SYSCFG_EXTICR4_EXTI13_MASK     (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR4_EXTI13_SHIFT)
-#define SYSCFG_EXTICR4_EXTI14_SHIFT    (8)       /* Bits 8-11: EXTI 14 coinfiguration */
+#define SYSCFG_EXTICR4_EXTI14_SHIFT    (8)       /* Bits 8-11: EXTI 14 configuration */
 #define SYSCFG_EXTICR4_EXTI14_MASK     (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR4_EXTI14_SHIFT)
-#define SYSCFG_EXTICR4_EXTI15_SHIFT    (12)      /* Bits 12-15: EXTI 15 coinfiguration */
+#define SYSCFG_EXTICR4_EXTI15_SHIFT    (12)      /* Bits 12-15: EXTI 15 configuration */
 #define SYSCFG_EXTICR4_EXTI15_MASK     (SYSCFG_EXTICR_PORT_MASK << SYSCFG_EXTICR4_EXTI15_SHIFT)
 
 /* SYSCFG configuration register 2 */

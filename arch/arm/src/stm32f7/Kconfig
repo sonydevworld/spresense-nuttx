@@ -661,7 +661,6 @@ config STM32F7_STM32F722XX
 	default n
 	select STM32F7_STM32F72XX
 	select ARCH_HAVE_FPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -679,7 +678,6 @@ config STM32F7_STM32F723XX
 	default n
 	select STM32F7_STM32F72XX
 	select ARCH_HAVE_FPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -696,7 +694,6 @@ config STM32F7_STM32F745XX
 	default n
 	select STM32F7_STM32F74XX
 	select ARCH_HAVE_FPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -716,7 +713,6 @@ config STM32F7_STM32F746XX
 	default n
 	select STM32F7_STM32F74XX
 	select ARCH_HAVE_FPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -732,6 +728,8 @@ config STM32F7_STM32F746XX
 	select STM32F7_HAVE_CAN2
 	select STM32F7_HAVE_SPI4
 	select STM32F7_HAVE_EXTERNAL_ULPI
+	select STM32F7_HAVE_SAI1
+	select STM32F7_HAVE_SAI2
 
 config STM32F7_STM32F756XX
 	bool
@@ -760,14 +758,13 @@ config STM32F7_STM32F765XX
 	select STM32F7_STM32F76XX
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
 	select ARMV7M_HAVE_DTCM
 	select STM32F7_HAVE_FMC
 	select STM32F7_HAVE_ETHRNET
-	select STM32F7_HAVE_RNG # data sheet says yes, Product matix says no
+	select STM32F7_HAVE_RNG # data sheet says yes, Product matrix says no
 	select STM32F7_HAVE_SPI5 if !STM32F7_IO_CONFIG_V
 	select STM32F7_HAVE_SPI6 if !STM32F7_IO_CONFIG_V
 	select STM32F7_HAVE_SDMMC2 if !STM32F7_IO_CONFIG_V
@@ -804,13 +801,12 @@ config STM32F7_STM32F767XX
 	select STM32F7_HAVE_CAN2
 	select STM32F7_HAVE_SPI4
 
-config STM32F7_STM32F768XX # Revisit Wehn parts released
+config STM32F7_STM32F768XX # Revisit When parts released
 	bool
 	default n
 	select STM32F7_STM32F76XX
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -837,7 +833,6 @@ config STM32F7_STM32F768AX # Revisit When parts released
 	select STM32F7_STM32F76XX
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -863,7 +858,6 @@ config STM32F7_STM32F769XX
 	select STM32F7_STM32F76XX
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -890,7 +884,6 @@ config STM32F7_STM32F769AX # Revisit When parts released
 	select STM32F7_STM32F76XX
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -916,7 +909,6 @@ config STM32F7_STM32F777XX
 	select STM32F7_STM32F77XX
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -945,7 +937,6 @@ config STM32F7_STM32F778XX # Revisit when parts released
 	select STM32F7_STM32F77XX
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -974,7 +965,6 @@ config STM32F7_STM32F778AX
 	select STM32F7_STM32F77XX
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -1002,7 +992,6 @@ config STM32F7_STM32F779XX
 	select STM32F7_STM32F77XX
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -1031,7 +1020,6 @@ config STM32F7_STM32F779AX
 	select STM32F7_STM32F77XX
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARCH_HAVE_SDIO_DELAYED_INVLDT
 	select ARMV7M_HAVE_ICACHE
 	select ARMV7M_HAVE_DCACHE
 	select ARMV7M_HAVE_ITCM
@@ -1122,27 +1110,13 @@ config STM32F7_PROGMEM
 	bool "Flash progmem support"
 	default n
 	---help---
-		Add progmem support, start block and end block options are provided to 
+		Add progmem support, start block and end block options are provided to
 		obtain an uniform flash memory mapping.
-
-if STM32F7_PROGMEM
-
-config STM32F7_PROGMEM_STARTBLOCK
-	int "First mapped progmem block"
-	default 0
-	range 0 64
-
-config STM32F7_PROGMEM_LASTBLOCK
-	int "Last mapped progmem block"
-	default -1
-	range -1 64
-
-endif # STM32F7_PROGMEM
 
 menu "STM32 Peripheral Support"
 
-# These "hidden" settings determine is a peripheral option is available for the
-# selection MCU
+# These "hidden" settings determine whether a peripheral option is available
+# for the selected MCU
 
 config STM32F7_HAVE_LTDC
 	bool
@@ -1153,6 +1127,10 @@ config STM32F7_HAVE_FMC
 	default n
 
 config STM32F7_HAVE_ETHRNET
+	bool
+	default n
+
+config STM32F7_HAVE_PHY_POLLED
 	bool
 	default n
 
@@ -1235,6 +1213,15 @@ config STM32F7_HAVE_INTERNAL_ULPI
 config STM32F7_HAVE_EXTERNAL_ULPI
 	bool
 	default n
+
+config STM32F7_HAVE_SAI1
+	bool
+	default n
+
+config STM32F7_HAVE_SAI2
+	bool
+	default n
+
 
 # These "hidden" settings are the OR of individual peripheral selections
 # indicating that the general capability is required.
@@ -1405,6 +1392,7 @@ config STM32F7_ETHMAC
 	depends on STM32F7_HAVE_ETHRNET
 	select NETDEVICES
 	select ARCH_HAVE_PHY
+	select STM32F7_HAVE_PHY_POLLED
 
 config STM32F7_FMC
 	bool "FMC"
@@ -1491,12 +1479,48 @@ config STM32F7_RNG
 config STM32F7_SAI1
 	bool "SAI1"
 	default n
+	depends on STM32F7_HAVE_SAI1
+
+config STM32F7_SAI1_A
+	bool "SAI1 Block A"
+	default n
+	select AUDIO
+	select I2S
+	select SCHED_HPWORK
 	select STM32F7_SAI
+	depends on STM32F7_SAI1
+
+config STM32F7_SAI1_B
+	bool "SAI1 Block B"
+	default n
+	select AUDIO
+	select I2S
+	select SCHED_HPWORK
+	select STM32F7_SAI
+	depends on STM32F7_SAI1
 
 config STM32F7_SAI2
 	bool "SAI2"
 	default n
+	select STM32F7_HAVE_SAI2
+
+config STM32F7_SAI2_A
+	bool "SAI2 Block A"
+	default n
+	select AUDIO
+	select I2S
+	select SCHED_HPWORK
 	select STM32F7_SAI
+	depends on STM32F7_SAI2
+
+config STM32F7_SAI2_B
+	bool "SAI2 Block B"
+	default n
+	select AUDIO
+	select I2S
+	select SCHED_HPWORK
+	select STM32F7_SAI
+	depends on STM32F7_SAI2
 
 config STM32F7_SDMMC1
 	bool "SDMMC1"
@@ -1738,6 +1762,13 @@ config USART1_RXDMA
 	---help---
 		In high data rate usage, Rx DMA may eliminate Rx overrun errors
 
+config USART1_TXDMA
+	bool "USART1 Tx DMA"
+	default n
+	depends on STM32F7_USART1 && STM32F7_DMA2
+	---help---
+		In high data rate usage, Rx DMA may reduce CPU Load
+
 config USART2_RS485
 	bool "RS-485 on USART2"
 	default n
@@ -1762,6 +1793,13 @@ config USART2_RXDMA
 	depends on STM32F7_USART2 && STM32F7_DMA1
 	---help---
 		In high data rate usage, Rx DMA may eliminate Rx overrun errors
+
+config USART2_TXDMA
+	bool "USART2 Tx DMA"
+	default n
+	depends on STM32F7_USART2 && STM32F7_DMA1
+	---help---
+		In high data rate usage, Rx DMA may reduce CPU Load
 
 config USART3_RS485
 	bool "RS-485 on USART3"
@@ -1788,6 +1826,13 @@ config USART3_RXDMA
 	---help---
 		In high data rate usage, Rx DMA may eliminate Rx overrun errors
 
+config USART3_TXDMA
+	bool "USART3 Tx DMA"
+	default n
+	depends on STM32F7_USART3 && STM32F7_DMA1
+	---help---
+		In high data rate usage, Rx DMA may reduce CPU Load
+
 config UART4_RS485
 	bool "RS-485 on UART4"
 	default n
@@ -1812,6 +1857,13 @@ config UART4_RXDMA
 	depends on STM32F7_UART4 && STM32F7_DMA1
 	---help---
 		In high data rate usage, Rx DMA may eliminate Rx overrun errors
+
+config UART4_TXDMA
+	bool "UART4 Tx DMA"
+	default n
+	depends on STM32F7_UART4 && STM32F7_DMA1
+	---help---
+		In high data rate usage, Rx DMA may reduce CPU Load
 
 config UART5_RS485
 	bool "RS-485 on UART5"
@@ -1838,6 +1890,13 @@ config UART5_RXDMA
 	---help---
 		In high data rate usage, Rx DMA may eliminate Rx overrun errors
 
+config UART5_TXDMA
+	bool "UART5 Tx DMA"
+	default n
+	depends on STM32F7_UART5 && STM32F7_DMA1
+	---help---
+		In high data rate usage, Rx DMA may reduce CPU Load
+
 config USART6_RS485
 	bool "RS-485 on USART6"
 	default n
@@ -1863,6 +1922,13 @@ config USART6_RXDMA
 	---help---
 		In high data rate usage, Rx DMA may eliminate Rx overrun errors
 
+config USART6_TXDMA
+	bool "USART6 Tx DMA"
+	default n
+	depends on STM32F7_USART6 && STM32F7_DMA2
+	---help---
+		In high data rate usage, Rx DMA may reduce CPU Load
+
 config UART7_RS485
 	bool "RS-485 on UART7"
 	default n
@@ -1884,9 +1950,16 @@ config UART7_RS485_DIR_POLARITY
 config UART7_RXDMA
 	bool "UART7 Rx DMA"
 	default n
-	depends on STM32F7_UART7 && STM32F7_DMA2
+	depends on STM32F7_UART7 && STM32F7_DMA1
 	---help---
 		In high data rate usage, Rx DMA may eliminate Rx overrun errors
+
+config UART7_TXDMA
+	bool "UART7 Tx DMA"
+	default n
+	depends on STM32F7_UART7 && STM32F7_DMA1
+	---help---
+		In high data rate usage, Rx DMA may reduce CPU Load
 
 config UART8_RS485
 	bool "RS-485 on UART8"
@@ -1909,9 +1982,16 @@ config UART8_RS485_DIR_POLARITY
 config UART8_RXDMA
 	bool "UART8 Rx DMA"
 	default n
-	depends on STM32F7_UART8 && STM32F7_DMA2
+	depends on STM32F7_UART8 && STM32F7_DMA1
 	---help---
 		In high data rate usage, Rx DMA may eliminate Rx overrun errors
+
+config UART8_TXDMA
+	bool "UART8 Tx DMA"
+	default n
+	depends on STM32F7_UART8 && STM32F7_DMA1
+	---help---
+		In high data rate usage, Rx DMA may reduce CPU Load
 
 config STM32F7_SERIAL_RXDMA_BUFFER_SIZE
 	int "Rx DMA buffer size"
@@ -1947,7 +2027,7 @@ config STM32F7_FLOWCONTROL_BROKEN
 		Enable UART RTS flow control using Software. Because STM
 		Current STM32 have broken HW based RTS behavior (they assert
 		nRTS after every byte received)  Enable this setting workaround
-		this issue by useing software based management of RTS
+		this issue by using software based management of RTS
 
 config STM32F7_USART_BREAKS
 	bool "Add TIOxSBRK to support sending Breaks"
@@ -2032,6 +2112,14 @@ config STM32F7_INTERNAL_ULPI
 endchoice #"ULPI Selection"
 
 endmenu # OTG_HS Config
+
+config STM32F7_EXTERNAL_RAM
+	bool "External RAM on FMC"
+	default n
+	depends on STM32F7_FMC
+	select ARCH_HAVE_HEAP2
+	---help---
+		In addition to internal SDRAM, external RAM may be available through the FMC.
 
 menu "QuadSPI Configuration"
 	depends on STM32F7_QUADSPI
@@ -2184,12 +2272,28 @@ config STM32F7_SPI_DMA
 	---help---
 		Use DMA to improve SPI transfer performance.  Cannot be used with STM32F7_SPI_INTERRUPT.
 
+config STM32F7_SPI_DMATHRESHOLD
+	int "SPI DMA threshold"
+	default 4
+	depends on STM32F7_SPI_DMA
+	---help---
+		When SPI DMA is enabled, small DMA transfers will still be performed
+		by polling logic.  But we need a threshold value to determine what
+		is small.
+
 config STM32F7_SPI1_DMA
 	bool "SPI1 DMA"
 	default n
 	depends on STM32F7_SPI1 && STM32F7_SPI_DMA
 	---help---
 		Use DMA to improve SPI1 transfer performance.
+
+config STM32F7_SPI1_DMA_BUFFER
+	int "SPI1 DMA buffer size"
+	default 0
+	depends on STM32F7_SPI1_DMA
+	---help---
+		Add a properly aligned DMA buffer for RX and TX DMA for SPI1.
 
 config STM32F7_SPI2_DMA
 	bool "SPI2 DMA"
@@ -2198,12 +2302,26 @@ config STM32F7_SPI2_DMA
 	---help---
 		Use DMA to improve SPI2 transfer performance.
 
+config STM32F7_SPI2_DMA_BUFFER
+	int "SPI2 DMA buffer size"
+	default 0
+	depends on STM32F7_SPI2_DMA
+	---help---
+		Add a properly aligned DMA buffer for RX and TX DMA for SPI2.
+
 config STM32F7_SPI3_DMA
 	bool "SPI3 DMA"
 	default n
 	depends on STM32F7_SPI3 && STM32F7_SPI_DMA
 	---help---
 		Use DMA to improve SPI3 transfer performance.
+
+config STM32F7_SPI3_DMA_BUFFER
+	int "SPI3 DMA buffer size"
+	default 0
+	depends on STM32F7_SPI3_DMA
+	---help---
+		Add a properly aligned DMA buffer for RX and TX DMA for SPI3.
 
 config STM32F7_SPI4_DMA
 	bool "SPI4 DMA"
@@ -2212,6 +2330,13 @@ config STM32F7_SPI4_DMA
 	---help---
 		Use DMA to improve SPI4 transfer performance.
 
+config STM32F7_SPI4_DMA_BUFFER
+	int "SPI4 DMA buffer size"
+	default 0
+	depends on STM32F7_SPI4_DMA
+	---help---
+		Add a properly aligned DMA buffer for RX and TX DMA for SPI4.
+
 config STM32F7_SPI5_DMA
 	bool "SPI5 DMA"
 	default n
@@ -2219,12 +2344,26 @@ config STM32F7_SPI5_DMA
 	---help---
 		Use DMA to improve SPI5 transfer performance.
 
+config STM32F7_SPI5_DMA_BUFFER
+	int "SPI5 DMA buffer size"
+	default 0
+	depends on STM32F7_SPI5_DMA
+	---help---
+		Add a properly aligned DMA buffer for RX and TX DMA for SPI5.
+
 config STM32F7_SPI6_DMA
 	bool "SPI6 DMA"
 	default n
 	depends on STM32F7_SPI6 && STM32F7_SPI_DMA
 	---help---
 		Use DMA to improve SPI6 transfer performance.
+
+config STM32F7_SPI6_DMA_BUFFER
+	int "SPI6 DMA buffer size"
+	default 0
+	depends on STM32F7_SPI6_DMA
+	---help---
+		Add a properly aligned DMA buffer for RX and TX DMA for SPI6.
 
 endmenu # "SPI Configuration"
 
@@ -2293,7 +2432,7 @@ config STM32F7_SDMMC1_DMAPRIO
 	hex "SDMMC1 DMA priority"
 	default 0x00010000
 	---help---
-		Select SDMMC1 DMA prority.
+		Select SDMMC1 DMA priority.
 
 		Options are: 0x00000000 low, 0x00010000 medium,
 		0x00020000 high, 0x00030000 very high.  Default: medium.
@@ -2329,7 +2468,7 @@ config STM32F7_SDMMC2_DMAPRIO
 	hex "SDMMC2 DMA priority"
 	default 0x00010000
 	---help---
-		Select SDMMC2 DMA prority.
+		Select SDMMC2 DMA priority.
 
 		Options are: 0x00000000 low, 0x00010000 medium,
 		0x00020000 high, 0x00030000 very high.  Default: medium.
@@ -2429,10 +2568,24 @@ endchoice #"RTC clock source"
 
 if STM32F7_RTC_LSECLOCK
 
+config STM32F7_RTC_AUTO_LSECLOCK_START_DRV_CAPABILITY
+	bool "Automaticaly boost the LSE oscillator drive capability level until it starts-up"
+	default n
+	---help---
+		This will cycle through the values from low to high. To avoid
+		damaging the the crystal. We want to use the lowest setting that gets
+		the OSC running. See app note AN2867
+
+			0 = Low drive capability (default)
+			1 = Medium high drive capability
+			2 = Medium low drive capability
+			3 = High drive capability
+
 config STM32F7_RTC_LSECLOCK_START_DRV_CAPABILITY
 	int "LSE oscillator drive capability level at LSE start-up"
 	default 0
 	range 0 3
+	depends on !STM32F7_RTC_AUTO_LSECLOCK_START_DRV_CAPABILITY
 	---help---
 		0 = Low drive capability (default)
 		1 = Medium high drive capability
@@ -2443,6 +2596,7 @@ config STM32F7_RTC_LSECLOCK_RUN_DRV_CAPABILITY
 	int "LSE oscillator drive capability level after LSE start-up"
 	default 0
 	range 0 3
+	depends on !STM32F7_RTC_AUTO_LSECLOCK_START_DRV_CAPABILITY
 	---help---
 		0 = Low drive capability (default)
 		1 = Medium high drive capability
@@ -2461,7 +2615,7 @@ config STM32F7_CUSTOM_CLOCKCONFIG
 
 config STM32F7_DTCMEXCLUDE
 	bool "Exclude DTCM SRAM from the heap"
-	default y if ELF
+	default y if LIBC_ARCH_ELF
 	depends on ARMV7M_HAVE_DTCM
 	---help---
 		Exclude DTCM SRAM from the HEAP because it appears to be impossible
@@ -2485,6 +2639,17 @@ config STM32F7_DMACAPABLE
 		used to check if it is possible to do DMA from the selected address.
 		Drivers then may use this information to determine if they should
 		attempt the DMA or fall back to a different transfer method.
+
+config STM32F7_DMACAPABLE_ASSUME_CACHE_ALIGNED
+	bool "Do not disqualify DMA capability based on cache alignment"
+	depends on STM32F7_DMACAPABLE && ARMV7M_DCACHE && !ARMV7M_DCACHE_WRITETHROUGH
+	default n
+	---help---
+		This option configures the stm32_dmacapable to not disqualify
+		DMA operations on memory that is not dcache aligned based solely
+		on the starting addresss and byte count.
+		Use this when ALL buffer extents are known to be aligned, but the
+		the count does not use the complete buffer.
 
 menu "Timer Configuration"
 
@@ -5109,6 +5274,16 @@ config STM32F7_PHYINIT
 		provide stm32_phyinitialize();  The STM32 Ethernet driver will call this function
 		one time before it first uses the PHY.
 
+config STM32F7_PHY_POLLING
+	bool "Support network monitoring by poling the PHY"
+	default n
+	depends on STM32F7_HAVE_PHY_POLLED
+	select ARCH_PHY_POLLED
+	---help---
+		Some boards may not have an interrupt connected to the PHY.
+		This option allows the network monitor to be used by polling the
+		the PHY for status.
+
 config STM32F7_MII
 	bool "Use MII interface"
 	default n
@@ -5760,6 +5935,70 @@ config STM32F7_QENCODER_SAMPLE_EVENT_8
 	bool "8"
 
 endchoice
+
+endmenu
+
+menu "SAI Configuration"
+	depends on STM32F7_SAI
+
+choice
+	prompt "Operation mode"
+	default STM32F7_SAI_DMA
+	---help---
+		Select the operation mode the SAI driver should use.
+
+config STM32F7_SAI_POLLING
+	bool "Polling"
+	---help---
+		The SAI registers are polled for events.
+
+config STM32F7_SAI_INTERRUPTS
+	bool "Interrupt"
+	---help---
+		Select to enable interrupt driven SAI support.
+
+config STM32F7_SAI_DMA
+	bool "DMA"
+	---help---
+		Use DMA to improve SAI transfer performance.
+
+endchoice # Operation mode
+
+choice
+	prompt "SAI1 synchronization enable"
+	default STM32F7_SAI1_BOTH_ASYNC
+	depends on STM32F7_SAI1_A && STM32F7_SAI1_B
+	---help---
+		Select the synchronization mode of the SAI sub-blocks
+
+config STM32F7_SAI1_BOTH_ASYNC
+	bool "Both asynchronous"
+
+config STM32F7_SAI1_A_SYNC_WITH_B
+	bool "Block A is synchronous with Block B"
+
+config STM32F7_SAI1_B_SYNC_WITH_A
+	bool "Block B is synchronous with Block A"
+
+endchoice # SAI1 synchronization enable
+
+choice
+	prompt "SAI2 synchronization enable"
+	default STM32F7_SAI2_BOTH_ASYNC
+	depends on STM32F7_SAI2_A && STM32F7_SAI2_B
+	---help---
+		Select the synchronization mode of the SAI sub-blocks
+
+config STM32F7_SAI2_BOTH_ASYNC
+	bool "Both asynchronous"
+
+config STM32F7_SAI2_A_SYNC_WITH_B
+	bool "Block A is synchronous with Block B"
+
+config STM32F7_SAI2_B_SYNC_WITH_A
+	bool "Block B is synchronous with Block A"
+
+endchoice # SAI2 synchronization enable
 
 endmenu
 

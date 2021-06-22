@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/renesas/src/sh1/sh1_serial.c
  *
- *   Copyright (C) 2008-2009, 2012 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -138,14 +123,14 @@
 
 struct up_dev_s
 {
-          uint32_t scibase;   /* Base address of SCI registers */
-          uint32_t baud;      /* Configured baud */
- volatile  uint8_t scr;       /* Saved SCR value */
- volatile  uint8_t ssr;       /* Saved SR value (only used during interrupt processing) */
-           uint8_t irq;       /* Base IRQ associated with this SCI */
-           uint8_t parity;    /* 0=none, 1=odd, 2=even */
-           uint8_t bits;      /* Number of bits (7 or 8) */
-              bool stopbits2; /* true: Configure with 2 stop bits instead of 1 */
+  uint32_t scibase;     /* Base address of SCI registers */
+  uint32_t baud;        /* Configured baud */
+  volatile uint8_t scr; /* Saved SCR value */
+  volatile uint8_t ssr; /* Saved SR value (only used during interrupt processing) */
+  uint8_t irq;          /* Base IRQ associated with this SCI */
+  uint8_t parity;       /* 0=none, 1=odd, 2=even */
+  uint8_t bits;         /* Number of bits (7 or 8) */
+  bool stopbits2;       /* true: Configure with 2 stop bits instead of 1 */
 };
 
 /****************************************************************************
@@ -157,7 +142,7 @@ static void up_shutdown(struct uart_dev_s *dev);
 static int  up_attach(struct uart_dev_s *dev);
 static void up_detach(struct uart_dev_s *dev);
 static int  up_interrupt(int irq, void *context, FAR void *arg);
-static int  up_receive(struct uart_dev_s *dev, uint32_t *status);
+static int  up_receive(struct uart_dev_s *dev, unsigned int *status);
 static void up_rxint(struct uart_dev_s *dev, bool enable);
 static bool up_rxavailable(struct uart_dev_s *dev);
 static void up_send(struct uart_dev_s *dev, int ch);
@@ -251,7 +236,7 @@ static uart_dev_t g_sci1port =
   {
     .size   = CONFIG_SCI1_TXBUFSIZE,
     .buffer = g_sci1txbuffer,
-   },
+  },
   .ops      = &g_sci_ops,
   .priv     = &g_sci1priv,
 };
@@ -274,7 +259,8 @@ static inline uint8_t up_serialin(struct up_dev_s *priv, int offset)
  * Name: up_serialout
  ****************************************************************************/
 
-static inline void up_serialout(struct up_dev_s *priv, int offset, uint8_t value)
+static inline void up_serialout(struct up_dev_s *priv, int offset,
+                                uint8_t value)
 {
   putreg8(value, priv->scibase + offset);
 }
@@ -333,6 +319,7 @@ static inline void up_waittxready(struct up_dev_s *priv)
       if ((up_serialin(priv, SH1_SCI_SSR_OFFSET) & SH1_SCISSR_TDRE) != 0)
         {
           /* The TDR is empty... return */
+
           break;
         }
     }
@@ -389,7 +376,7 @@ static inline void up_setbrr(struct up_dev_s *priv, unsigned int baud)
 static int up_setup(struct uart_dev_s *dev)
 {
 #ifndef CONFIG_SUPPRESS_SCI_CONFIG
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   uint8_t smr;
 
   /* Disable the transmitter and receiver */
@@ -410,7 +397,7 @@ static int up_setup(struct uart_dev_s *dev)
 
   if (priv->parity == 1)
     {
-      smr |= (SH1_SCISMR_PE|SH1_SCISMR_OE);
+      smr |= (SH1_SCISMR_PE | SH1_SCISMR_OE);
     }
   else if (priv->parity == 2)
     {
@@ -457,7 +444,7 @@ static int up_setup(struct uart_dev_s *dev)
 
 static void up_shutdown(struct uart_dev_s *dev)
 {
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   up_disablesciint(priv, NULL);
 }
 
@@ -470,15 +457,16 @@ static void up_shutdown(struct uart_dev_s *dev)
  *   the setup() method is called, however, the serial console may operate in
  *   a non-interrupt driven mode during the boot phase.
  *
- *   RX and TX interrupts are not enabled when by the attach method (unless the
- *   hardware supports multiple levels of interrupt enabling).  The RX and TX
- *   interrupts are not enabled until the txint() and rxint() methods are called.
+ *   RX and TX interrupts are not enabled when by the attach method (unless
+ *   the hardware supports multiple levels of interrupt enabling).  The RX
+ *   and TX interrupts are not enabled until the txint() and rxint() methods
+ *   are called.
  *
  ****************************************************************************/
 
 static int up_attach(struct uart_dev_s *dev)
 {
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   int ret;
 
   /* Attach the RDR full IRQ (RXI) that is enabled by the RIE SCR bit */
@@ -486,14 +474,17 @@ static int up_attach(struct uart_dev_s *dev)
   ret = irq_attach(priv->irq + SH1_RXI_IRQ_OFFSET, up_interrupt, dev);
   if (ret == OK)
     {
-      /* The RIE interrupt enable also enables the receive error interrupt (ERI) */
+      /* The RIE interrupt enable also enables the receive error interrupt
+       * (ERI)
+       */
 
       ret = irq_attach(priv->irq + SH1_ERI_IRQ_OFFSET, up_interrupt, dev);
       if (ret == OK)
         {
           /* Attach the TDR empty IRQ (TXI) enabled by the TIE SCR bit */
 
-          ret = irq_attach(priv->irq + SH1_TXI_IRQ_OFFSET, up_interrupt, dev);
+          ret = irq_attach(priv->irq + SH1_TXI_IRQ_OFFSET, up_interrupt,
+                           dev);
           if (ret == OK)
             {
 #ifdef CONFIG_ARCH_IRQPRIO
@@ -524,14 +515,14 @@ static int up_attach(struct uart_dev_s *dev)
  *
  * Description:
  *   Detach SCI interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception is
- *   the serial console which is never shutdown.
+ *   closed normally just before the shutdown method is called.
+ *   The exception is the serial console which is never shutdown.
  *
  ****************************************************************************/
 
 static void up_detach(struct uart_dev_s *dev)
 {
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
 
   /* Disable all SCI interrupts */
 
@@ -560,7 +551,7 @@ static void up_detach(struct uart_dev_s *dev)
  *   when an interrupt received on the 'irq'  It should call
  *   uart_transmitchars or uart_receivechar to perform the
  *   appropriate data transfers.  The interrupt handling logic\
- *   must be able to map the 'irq' number into the approprite
+ *   must be able to map the 'irq' number into the appropriate
  *   up_dev_s structure in order to call these functions.
  *
  ****************************************************************************/
@@ -571,7 +562,7 @@ static int up_interrupt(int irq, void *context, FAR void *arg)
   struct up_dev_s *priv;
 
   DEBUGASSERT(dev != NULL && dev->priv != NULL);
-  priv = (struct up_dev_s*)dev->priv;
+  priv = (struct up_dev_s *)dev->priv;
 
   /* Get the current SCI status  */
 
@@ -589,30 +580,34 @@ static int up_interrupt(int irq, void *context, FAR void *arg)
 
       if ((priv->ssr & SH1_SCISSR_RDRF) != 0)
         {
-           /* Rx data register not empty ... process incoming bytes */
+          /* Rx data register not empty ... process incoming bytes */
 
-           uart_recvchars(dev);
+          uart_recvchars(dev);
         }
 
-      /* Clear all read related events (probably already done in up_receive)) */
+      /* Clear all read related events (probably already done in
+       * up_receive))
+       */
 
-      priv->ssr &= ~(SH1_SCISSR_RDRF|SH1_SCISSR_ORER|SH1_SCISSR_FER|SH1_SCISSR_PER);
+      priv->ssr &= ~(SH1_SCISSR_RDRF | SH1_SCISSR_ORER | SH1_SCISSR_FER |
+                     SH1_SCISSR_PER);
     }
 
   /* Handle outgoing, transmit bytes (TDRE: Transmit Data Register Empty)
-   * when TIE is enabled.  TIE is only enabled when the driver is waiting with
-   * buffered data.  Since TDRE is usually true,
+   * when TIE is enabled.  TIE is only enabled when the driver is waiting
+   * with buffered data.  Since TDRE is usually true,
    */
 
-  if ((priv->ssr & SH1_SCISSR_TDRE) != 0 && (priv->scr & SH1_SCISCR_TIE) != 0)
+  if ((priv->ssr & SH1_SCISSR_TDRE) != 0 &&
+      (priv->scr & SH1_SCISCR_TIE) != 0)
     {
-       /* Tx data register empty ... process outgoing bytes */
+      /* Tx data register empty ... process outgoing bytes */
 
-       uart_xmitchars(dev);
+      uart_xmitchars(dev);
 
-       /* Clear the TDR empty flag (Possibly done in up_send, will have not
-        * effect if the TDR is still empty)
-        */
+      /* Clear the TDR empty flag (Possibly done in up_send, will have not
+       * effect if the TDR is still empty)
+       */
 
       priv->ssr &= ~SH1_SCISSR_TDRE;
     }
@@ -639,7 +634,7 @@ static int up_interrupt(int irq, void *context, FAR void *arg)
 
 static int up_receive(struct uart_dev_s *dev, unsigned int *status)
 {
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   uint8_t rdr;
   uint8_t ssr;
 
@@ -647,12 +642,13 @@ static int up_receive(struct uart_dev_s *dev, unsigned int *status)
 
   rdr  = up_serialin(priv, SH1_SCI_RDR_OFFSET);
 
-  /* Clear all read related status in  real ssr (so that when when rxavailable
-   * is called again, it will return false.
+  /* Clear all read related status in  real ssr (so that when when
+   * rxavailable is called again, it will return false.
    */
 
   ssr = up_serialin(priv, SH1_SCI_SSR_OFFSET);
-  ssr &= ~(SH1_SCISSR_RDRF|SH1_SCISSR_ORER|SH1_SCISSR_FER|SH1_SCISSR_PER);
+  ssr &= ~(SH1_SCISSR_RDRF | SH1_SCISSR_ORER | SH1_SCISSR_FER |
+           SH1_SCISSR_PER);
   up_serialout(priv, SH1_SCI_SSR_OFFSET, ssr);
 
   /* For status, return the SSR at the time that the interrupt was received */
@@ -674,7 +670,7 @@ static int up_receive(struct uart_dev_s *dev, unsigned int *status)
 
 static void up_rxint(struct uart_dev_s *dev, bool enable)
 {
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   irqstate_t flags;
 
   /* Disable interrupts to prevent asynchronous accesses */
@@ -716,7 +712,7 @@ static bool up_rxavailable(struct uart_dev_s *dev)
 {
   /* Return true if the RDR full bit is set in the SSR */
 
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   return ((up_serialin(priv, SH1_SCI_SSR_OFFSET) & SH1_SCISSR_RDRF) != 0);
 }
 
@@ -730,7 +726,7 @@ static bool up_rxavailable(struct uart_dev_s *dev)
 
 static void up_send(struct uart_dev_s *dev, int ch)
 {
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   uint8_t ssr;
 
   /* Write the data to the TDR */
@@ -754,7 +750,7 @@ static void up_send(struct uart_dev_s *dev, int ch)
 
 static void up_txint(struct uart_dev_s *dev, bool enable)
 {
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   irqstate_t flags;
 
   /* Disable interrupts to prevent asynchronous accesses */
@@ -809,7 +805,7 @@ static void up_txint(struct uart_dev_s *dev, bool enable)
 
 static bool up_txready(struct uart_dev_s *dev)
 {
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   return (up_serialin(priv, SH1_SCI_SSR_OFFSET) & SH1_SCISSR_TDRE) != 0;
 }
 
@@ -888,7 +884,7 @@ void up_consoleinit(void)
 int up_putc(int ch)
 {
 #ifdef HAVE_CONSOLE
-  struct up_dev_s *priv = (struct up_dev_s*)CONSOLE_DEV.priv;
+  struct up_dev_s *priv = (struct up_dev_s *)CONSOLE_DEV.priv;
   uint8_t  scr;
 
   up_disablesciint(priv, &scr);

@@ -1,26 +1,20 @@
 /****************************************************************************
  * arch/xtensa/src/esp32/hardware/esp32_gpio_sigmap.h
  *
- * Adapted from use in NuttX by:
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *
- * Derives from logic originally provided by Espressif Systems:
- *
- *   Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -435,5 +429,6 @@
 #define SIG_IN_FUNC226_IDX            226
 #define SIG_IN_FUNC227_IDX            227
 #define SIG_IN_FUNC228_IDX            228
+#define SIG_GPIO_OUT_IDX              256
 
 #endif /* __ARCH_XTENSA_SRC_ESP32_HARDWARE_ESP32_GPIO_SIGMAP_H */

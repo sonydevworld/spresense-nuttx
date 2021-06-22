@@ -1,48 +1,33 @@
-/****************************************************************************************************
+/****************************************************************************
  * arch/arm/include/nrf52/nrf52_irq.h
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ****************************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_INCLUDE_NRF52_NRF52_IRQ_H
 #define __ARCH_ARM_INCLUDE_NRF52_NRF52_IRQ_H
 
-/****************************************************************************************************
+/****************************************************************************
  * Included Files
- ****************************************************************************************************/
+ ****************************************************************************/
 
-/****************************************************************************************************
- * Pre-processor Definitions
- ****************************************************************************************************/
+/****************************************************************************
+ * Pre-processor Prototypes
+ ****************************************************************************/
 
 /* Cortex-M4 External interrupts (vectors >= 16) */
 
@@ -86,16 +71,30 @@
 #define NRF52_IRQ_I2S           (NRF52_IRQ_EXTINT+37)  /* Inter-IC Sound interface */
 #define NRF52_IRQ_FPU           (NRF52_IRQ_EXTINT+38)  /* FPU interrupt */
 
-#if defined(CONFIG_ARCH_FAMILY_NRF52840)
-#define NRF52_IRQ_USBD          (NRF52_IRQ_EXTINT+39)  /* USB device */
-#define NRF52_IRQ_UARTE1        (NRF52_IRQ_EXTINT+40)  /* UARTE 1 */
-#define NRF52_IRQ_QSPI          (NRF52_IRQ_EXTINT+41)  /* Quad SPI */
-#define NRF52_IRQ_PWM3          (NRF52_IRQ_EXTINT+45)  /* Pulse Width Modulation Unit 3 */
-#define NRF52_IRQ_SPIM3         (NRF52_IRQ_EXTINT+47)  /* SPI Master 3 */
+#ifdef CONFIG_NRF52_HAVE_USBDEV
+#  define NRF52_IRQ_USBD        (NRF52_IRQ_EXTINT+39)  /* USB device */
+#endif
+#ifdef CONFIG_NRF52_HAVE_UART1
+#  define NRF52_IRQ_UART1       (NRF52_IRQ_EXTINT+40)  /* UART/UARTE 1 */
+#endif
+#ifdef CONFIG_NRF52_HAVE_QSPI
+#  define NRF52_IRQ_QSPI        (NRF52_IRQ_EXTINT+41)  /* Quad SPI */
+#endif
+#ifdef CONFIG_NRF52_HAVE_PWM3
+#  define NRF52_IRQ_PWM3        (NRF52_IRQ_EXTINT+45)  /* Pulse Width Modulation Unit 3 */
+#endif
+#ifdef CONFIG_NRF52_HAVE_SPI3_MASTER
+#  define NRF52_IRQ_SPI3        (NRF52_IRQ_EXTINT+47)  /* SPI Master 3 */
+#endif
 
-#define NRF52_IRQ_NEXTINT       (48)
+#if defined(CONFIG_ARCH_CHIP_NRF52832)
+#  define NRF52_IRQ_NEXTINT     (39)
+#elif defined(CONFIG_ARCH_CHIP_NRF52833)
+#  define NRF52_IRQ_NEXTINT     (48)
+#elif defined(CONFIG_ARCH_CHIP_NRF52840)
+#  define NRF52_IRQ_NEXTINT     (48)
 #else
-#define NRF52_IRQ_NEXTINT       (39)
+#  error Unknown NRF52 chip !
 #endif
 
 #define NRF52_IRQ_NIRQS         (NRF52_IRQ_EXTINT+NRF52_IRQ_NEXTINT)

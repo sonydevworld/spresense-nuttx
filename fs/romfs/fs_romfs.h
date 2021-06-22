@@ -1,37 +1,20 @@
 /****************************************************************************
  * fs/romfs/fs_romfs.h
  *
- *   Copyright (C) 2008-2009, 2011 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References: Linux/Documentation/filesystems/romfs.txt
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -79,7 +62,8 @@
                                 *        to 16 byte boundary. */
 
 /* Bits 0-3 of the rf_next offset provide mode information.  These are the
- * values specified in  */
+ * values specified in
+ */
 
 #define RFNEXT_MODEMASK    7    /* Bits 0-2: Mode; bit 3: Executable */
 #define RFNEXT_ALLMODEMASK 15   /* Bits 0-3: All mode bits */
@@ -99,6 +83,11 @@
 #define IS_HARDLINK(rfn)   IS_MODE(rfn,RFNEXT_HARDLINK)
 #define IS_DIRECTORY(rfn)  IS_MODE(rfn,RFNEXT_DIRECTORY)
 #define IS_FILE(rfn)       IS_MODE(rfn,RFNEXT_FILE)
+#define IS_SOFTLINK(rfn)   IS_MODE(rfn,RFNEXT_SOFTLINK)
+#define IS_BLOCKDEV(rfn)   IS_MODE(rfn,RFNEXT_BLOCKDEV)
+#define IS_CHARDEV(rfn)    IS_MODE(rfn,RFNEXT_CHARDEV)
+#define IS_SOCKET(rfn)     IS_MODE(rfn,RFNEXT_SOCKET)
+#define IS_FIFO(rfn)       IS_MODE(rfn,RFNEXT_FIFO)
 #define IS_EXECUTABLE(rfn) (((rfn) & RFNEXT_EXEC) != 0)
 
 /* RFNEXT_SOFTLINK, RFNEXT_BLOCKDEV, RFNEXT_CHARDEV, RFNEXT_SOCKET, and
@@ -129,9 +118,9 @@
  * Public Types
  ****************************************************************************/
 
-/* This structure represents the overall mountpoint state.  An instance of this
- * structure is retained as inode private data on each mountpoint that is
- * mounted with a fat32 filesystem.
+/* This structure represents the overall mountpoint state.  An instance of
+ * this structure is retained as inode private data on each mountpoint that
+ * is mounted with a fat32 filesystem.
  */
 
 struct romfs_file_s;
@@ -141,7 +130,7 @@ struct romfs_mountpt_s
   struct romfs_file_s *rm_head;      /* A list to all files opened on this mountpoint */
 
   bool     rm_mounted;              /* true: The file system is ready */
-  uint16_t rm_hwsectorsize;         /* HW: Sector size reported by block driver*/
+  uint16_t rm_hwsectorsize;         /* HW: Sector size reported by block driver */
   sem_t    rm_sem;                  /* Used to assume thread-safe access */
   uint32_t rm_rootoffset;           /* Saved offset to the first root directory entry */
   uint32_t rm_hwnsectors;           /* HW: The number of sectors reported by the hardware */
@@ -202,7 +191,7 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************/
 
-void romfs_semtake(FAR struct romfs_mountpt_s *rm);
+int  romfs_semtake(FAR struct romfs_mountpt_s *rm);
 void romfs_semgive(FAR struct romfs_mountpt_s *rm);
 int  romfs_hwread(FAR struct romfs_mountpt_s *rm, FAR uint8_t *buffer,
        uint32_t sector, unsigned int nsectors);

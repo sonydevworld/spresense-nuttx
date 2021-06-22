@@ -52,7 +52,7 @@
 #include <nuttx/usb/usbhost.h>
 #include <nuttx/usb/usbdev_trace.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "stm32.h"
 #include "stm32_otghs.h"
 #include "axoloti.h"
@@ -224,6 +224,7 @@ int stm32_usbhost_initialize(void)
   /* First, register all of the class drivers needed to support the drivers
    * that we care about:
    */
+
   uinfo("Register class drivers\n");
 
 #ifdef CONFIG_USBHOST_MSC

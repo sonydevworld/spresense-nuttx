@@ -28,11 +28,9 @@ Contents
 Development Environment
 =======================
 
-  Either Linux (recommended), Mac or Cygwin on Windows can be used for the development environment.
-  The source has been built only using the GNU toolchain (see below).  Other
-  toolchains will likely cause problems. Testing was performed using the Cygwin
-  environment because the Raisonance R-Link emulatator and some RIDE7 development tools
-  were used and those tools works only under Windows.
+  Either Linux (recommended), Mac or Cygwin on Windows can be used for the development
+  environment.  The source has been built only using the GNU toolchain (see below).
+  Other toolchains will likely cause problems.
 
 DFU
 ===
@@ -87,7 +85,7 @@ DFU
   3. Run the DFU SE program to load nuttx.bin into FLASH.
 
   What if the DFU loader is not in FLASH? The loader code is available
-  inside of the Demo dirctory of the USBLib ZIP file that can be downloaded
+  inside of the Demo directory of the USBLib ZIP file that can be downloaded
   from the STMicro Website. You can build it using RIDE (or other toolchains);
   you will need a JTAG emulator to burn it into FLASH the first time.
 

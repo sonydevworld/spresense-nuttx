@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/armv7-r/arm_gicv2.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -48,8 +33,8 @@
 
 #include <arch/irq.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 #include "gic.h"
 
 #ifdef CONFIG_ARMV7R_HAVE_GICv2
@@ -128,6 +113,7 @@ void arm_gic0_initialize(void)
    */
 
   /* Enable GIC distributor */
+
   putreg32(0x3, GIC_ICDDCR);
 
   /* Registers with 1-bit per interrupt */
@@ -183,17 +169,17 @@ void arm_gic_initialize(void)
 
   /* Registers with 1-bit per interrupt */
 
-  putreg32(0x00000000, GIC_ICDISR(0));	/* SGIs and PPIs secure */
-  putreg32(0xf8000000, GIC_ICDICER(0));	/* PPIs disabled */
+  putreg32(0x00000000, GIC_ICDISR(0));  /* SGIs and PPIs secure */
+  putreg32(0xf8000000, GIC_ICDICER(0)); /* PPIs disabled */
 
   /* Registers with 8-bits per interrupt */
 
-  putreg32(0x80808080, GIC_ICDIPR(0));	/* SGI[3:0] priority */
-  putreg32(0x80808080, GIC_ICDIPR(4));	/* SGI[4:7] priority */
-  putreg32(0x80808080, GIC_ICDIPR(8));	/* SGI[8:11] priority */
-  putreg32(0x80808080, GIC_ICDIPR(12));	/* SGI[12:15] priority */
-  putreg32(0x80000000, GIC_ICDIPR(24));	/* PPI[0] priority */
-  putreg32(0x80808080, GIC_ICDIPR(28));	/* PPI[1:4] priority */
+  putreg32(0x80808080, GIC_ICDIPR(0));  /* SGI[3:0] priority */
+  putreg32(0x80808080, GIC_ICDIPR(4));  /* SGI[4:7] priority */
+  putreg32(0x80808080, GIC_ICDIPR(8));  /* SGI[8:11] priority */
+  putreg32(0x80808080, GIC_ICDIPR(12)); /* SGI[12:15] priority */
+  putreg32(0x80000000, GIC_ICDIPR(24)); /* PPI[0] priority */
+  putreg32(0x80808080, GIC_ICDIPR(28)); /* PPI[1:4] priority */
 
   /* Set the binary point register.
    *
@@ -201,9 +187,10 @@ void arm_gic_initialize(void)
    * field; the value n (n=0-6) specifies that bits (n+1) through bit 7 are
    * used in the comparison for interrupt pre-emption.  A GIC supports a
    * minimum of 16 and a maximum of 256 priority levels so not all binary
-   * point settings may be meaningul. The special value n=7 (GIC_ICCBPR_NOPREMPT)
-   * disables pre-emption.  We disable all pre-emption here to prevent nesting
-   * of interrupt handling.
+   * point settings may be meaningul.
+   * The special value n=7 (GIC_ICCBPR_NOPREMPT) disables pre-emption.
+   * We disable all pre-emption here to prevent nesting of interrupt
+   * handling.
    */
 
   putreg32(GIC_ICCBPR_NOPREMPT, GIC_ICCBPR);
@@ -219,12 +206,25 @@ void arm_gic_initialize(void)
 #if defined(CONFIG_ARCH_TRUSTZONE_SECURE) || defined(CONFIG_ARCH_TRUSTZONE_BOTH)
   /* Clear secure state ICCICR bits to be configured below */
 
-  iccicr &= ~(GIC_ICCICRS_FIQEN | GIC_ICCICRS_ACKTCTL | GIC_ICCICRS_CBPR | GIC_ICCICRS_EOIMODES | GIC_ICCICRS_EOIMODENS | GIC_ICCICRS_ENABLEGRP0 | GIC_ICCICRS_ENABLEGRP1 | GIC_ICCICRS_FIQBYPDISGRP0 | GIC_ICCICRS_IRQBYPDISGRP0 | GIC_ICCICRS_FIQBYPDISGRP1 | GIC_ICCICRS_IRQBYPDISGRP1);
+  iccicr &= ~(GIC_ICCICRS_FIQEN         |
+              GIC_ICCICRS_ACKTCTL       |
+              GIC_ICCICRS_CBPR          |
+              GIC_ICCICRS_EOIMODES      |
+              GIC_ICCICRS_EOIMODENS     |
+              GIC_ICCICRS_ENABLEGRP0    |
+              GIC_ICCICRS_ENABLEGRP1    |
+              GIC_ICCICRS_FIQBYPDISGRP0 |
+              GIC_ICCICRS_IRQBYPDISGRP0 |
+              GIC_ICCICRS_FIQBYPDISGRP1 |
+              GIC_ICCICRS_IRQBYPDISGRP1);
 
 #elif defined(CONFIG_ARCH_TRUSTZONE_NONSECURE)
   /* Clear non-secure state ICCICR bits to be configured below */
 
-  iccicr &= ~(GIC_ICCICRS_EOIMODENS | GIC_ICCICRU_ENABLEGRP1 | GIC_ICCICRU_FIQBYPDISGRP1 | GIC_ICCICRU_IRQBYPDISGRP1);
+  iccicr &= ~(GIC_ICCICRS_EOIMODENS     |
+              GIC_ICCICRU_ENABLEGRP1    |
+              GIC_ICCICRU_FIQBYPDISGRP1 |
+              GIC_ICCICRU_IRQBYPDISGRP1);
 
 #endif
 
@@ -247,7 +247,7 @@ void arm_gic_initialize(void)
    * REVISIT: I don't yet fully understand this setting.
    */
 
-  // iccicr |= GIC_ICCICRS_ACKTCTL;
+  /* iccicr |= GIC_ICCICRS_ACKTCTL; */
 
   /* Program the SBPR bit to select the required binary pointer behavior.
    *
@@ -256,7 +256,8 @@ void arm_gic_initialize(void)
    * REVISIT: I don't yet fully understand this setting.
    */
 
-  // iccicr |= GIC_ICCICRS_CBPR;
+  /* iccicr |= GIC_ICCICRS_CBPR; */
+
 #endif
 
 #if defined(CONFIG_ARCH_TRUSTZONE_SECURE) || defined(CONFIG_ARCH_TRUSTZONE_BOTH)
@@ -307,19 +308,30 @@ void arm_gic_initialize(void)
    * bypass.
    */
 
-  iccicr |= (GIC_ICCICRS_ENABLEGRP0 | GIC_ICCICRS_FIQBYPDISGRP0 | GIC_ICCICRS_IRQBYPDISGRP0 | GIC_ICCICRS_FIQBYPDISGRP1 | GIC_ICCICRS_IRQBYPDISGRP1);
+  iccicr |= (GIC_ICCICRS_ENABLEGRP0    |
+             GIC_ICCICRS_FIQBYPDISGRP0 |
+             GIC_ICCICRS_IRQBYPDISGRP0 |
+             GIC_ICCICRS_FIQBYPDISGRP1 |
+             GIC_ICCICRS_IRQBYPDISGRP1);
 
 #elif defined(CONFIG_ARCH_TRUSTZONE_BOTH)
   /* Enable the Group 0/1 interrupts, FIQEn and disable Group 0/1
    * bypass.
    */
 
-  iccicr |= (GIC_ICCICRS_ENABLEGRP0 | GIC_ICCICRS_ENABLEGRP1 | GIC_ICCICRS_FIQBYPDISGRP0 | GIC_ICCICRS_IRQBYPDISGRP0 | GIC_ICCICRS_FIQBYPDISGRP1 | GIC_ICCICRS_IRQBYPDISGRP1);
+  iccicr |= (GIC_ICCICRS_ENABLEGRP0    |
+             GIC_ICCICRS_ENABLEGRP1    |
+             GIC_ICCICRS_FIQBYPDISGRP0 |
+             GIC_ICCICRS_IRQBYPDISGRP0 |
+             GIC_ICCICRS_FIQBYPDISGRP1 |
+             GIC_ICCICRS_IRQBYPDISGRP1);
 
-#else							/* defined(CONFIG_ARCH_TRUSTZONE_NONSECURE) */
+#else              /* defined(CONFIG_ARCH_TRUSTZONE_NONSECURE) */
   /* Enable the Group 1 interrupts and disable Group 1 bypass. */
 
-  iccicr |= (GIC_ICCICRU_ENABLEGRP1 | GIC_ICCICRU_FIQBYPDISGRP1 | GIC_ICCICRU_IRQBYPDISGRP1);
+  iccicr |= (GIC_ICCICRU_ENABLEGRP1    |
+             GIC_ICCICRU_FIQBYPDISGRP1 |
+             GIC_ICCICRU_IRQBYPDISGRP1);
 
 #endif
 
@@ -392,8 +404,8 @@ uint32_t *arm_decodeirq(uint32_t *regs)
  *
  *   This function implements enabling of the device specified by 'irq'
  *   at the interrupt controller level if supported by the architecture
- *   (up_irq_restore() supports the global level, the device level is hardware
- *   specific).
+ *   (up_irq_restore() supports the global level, the device level is
+ *   hardware specific).
  *
  *   Since this API is not supported on all architectures, it should be
  *   avoided in common implementations where possible.
@@ -503,7 +515,7 @@ int up_prioritize_irq(int irq, int priority)
  *   If CONFIG_SMP is not selected, the cpuset is ignored and SGI is sent
  *   only to the current CPU.
  *
- * Input Paramters
+ * Input Parameters
  *   sgi    - The SGI interrupt ID (0-15)
  *   cpuset - The set of CPUs to receive the SGI
  *
@@ -517,9 +529,13 @@ int arm_cpu_sgi(int sgi, unsigned int cpuset)
   uint32_t regval;
 
 #ifdef CONFIG_SMP
-  regval = GIC_ICDSGIR_INTID(sgi) | GIC_ICDSGIR_CPUTARGET(cpuset) | GIC_ICDSGIR_TGTFILTER_LIST;
+  regval = GIC_ICDSGIR_INTID(sgi)        |
+           GIC_ICDSGIR_CPUTARGET(cpuset) |
+           GIC_ICDSGIR_TGTFILTER_LIST;
 #else
-  regval = GIC_ICDSGIR_INTID(sgi) | GIC_ICDSGIR_CPUTARGET(0) | GIC_ICDSGIR_TGTFILTER_THIS;
+  regval = GIC_ICDSGIR_INTID(sgi)   |
+           GIC_ICDSGIR_CPUTARGET(0) |
+           GIC_ICDSGIR_TGTFILTER_THIS;
 #endif
 
   putreg32(regval, GIC_ICDSGIR);

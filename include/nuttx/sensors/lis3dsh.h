@@ -1,36 +1,20 @@
 /****************************************************************************
  * include/nuttx/sensors/lis3dsh.h
  *
- *   Copyright (C) 2016 DS-Automotion GmbH. All rights reserved.
- *   Author:  Alexander Entinger <a.entinger@ds-automotion.com>
- *            Thomas Ilk
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -52,7 +36,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* LIS3DSH Register Definitions **********************************************/
+/* LIS3DSH Register Definitions *********************************************/
 
 #define LIS3DSH_INFO_REG_1    (0x0D)
 #define LIS3DSH_INFO_REG_2    (0x0E)
@@ -153,48 +137,48 @@
 #define LIS3DSH_TC2_REG_1     (0x7D)
 #define LIS3DSH_TC2_REG_2     (0x7E)
 
-/* LIS3DSH CTRL_REG_3 Definitions **********************************************/
+/* LIS3DSH CTRL_REG_3 Definitions *******************************************/
 
-#define LIS3DSH_CTRL_REG_3_DR_EN_bm       (1<<7)  /* DRDY signal enable to INT 1 */
-#define LIS3DSH_CTRL_REG_3_IEA_bm         (1<<6)  /* Interrupt signal polarity */
-#define LIS3DSH_CTRL_REG_3_IEL_bm         (1<<5)  /* Interrupt signal latching */
-#define LIS3DSH_CTRL_REG_3_INT2_EN_bm     (1<<4)  /* Interrupt 2 enable / disable */
-#define LIS3DSH_CTRL_REG_3_INT1_EN_bm     (1<<3)  /* Interrupt 1 enable / disable */
-#define LIS3DSH_CTRL_REG_3_VFILT_bm       (1<<2)  /* Vector filter enable / disable */
-#define LIS3DSH_CTRL_REG_3_STRT_bm        (1<<0)  /* Enable soft reset */
+#define LIS3DSH_CTRL_REG_3_DR_EN_BM       (1<<7)  /* DRDY signal enable to INT 1 */
+#define LIS3DSH_CTRL_REG_3_IEA_BM         (1<<6)  /* Interrupt signal polarity */
+#define LIS3DSH_CTRL_REG_3_IEL_BM         (1<<5)  /* Interrupt signal latching */
+#define LIS3DSH_CTRL_REG_3_INT2_EN_BM     (1<<4)  /* Interrupt 2 enable / disable */
+#define LIS3DSH_CTRL_REG_3_INT1_EN_BM     (1<<3)  /* Interrupt 1 enable / disable */
+#define LIS3DSH_CTRL_REG_3_VFILT_BM       (1<<2)  /* Vector filter enable / disable */
+#define LIS3DSH_CTRL_REG_3_STRT_BM        (1<<0)  /* Enable soft reset */
 
-/* LIS3DSH CTRL_REG_4 Definitions **********************************************/
+/* LIS3DSH CTRL_REG_4 Definitions *******************************************/
 
-#define LIS3DSH_CTRL_REG_4_ODR_3_bm       (1<<7)  /* Output data rate and power mode selection bit 3 */
-#define LIS3DSH_CTRL_REG_4_ODR_2_bm       (1<<6)  /* Output data rate and power mode selection bit 2 */
-#define LIS3DSH_CTRL_REG_4_ODR_1_bm       (1<<5)  /* Output data rate and power mode selection bit 1 */
-#define LIS3DSH_CTRL_REG_4_ODR_0_bm       (1<<4)  /* Output data rate and power mode selection bit 0 */
-#define LIS3DSH_CTRL_REG_4_BDU_bm         (1<<3)  /* Enable block data update for accelerating data */
-#define LIS3DSH_CTRL_REG_4_ZEN_bm         (1<<2)  /* Enable Z-axis */
-#define LIS3DSH_CTRL_REG_4_YEN_bm         (1<<1)  /* Enable Y-axis */
-#define LIS3DSH_CTRL_REG_4_XEN_bm         (1<<0)  /* Enable X-axis */
+#define LIS3DSH_CTRL_REG_4_ODR_3_BM       (1<<7)  /* Output data rate and power mode selection bit 3 */
+#define LIS3DSH_CTRL_REG_4_ODR_2_BM       (1<<6)  /* Output data rate and power mode selection bit 2 */
+#define LIS3DSH_CTRL_REG_4_ODR_1_BM       (1<<5)  /* Output data rate and power mode selection bit 1 */
+#define LIS3DSH_CTRL_REG_4_ODR_0_BM       (1<<4)  /* Output data rate and power mode selection bit 0 */
+#define LIS3DSH_CTRL_REG_4_BDU_BM         (1<<3)  /* Enable block data update for accelerating data */
+#define LIS3DSH_CTRL_REG_4_ZEN_BM         (1<<2)  /* Enable Z-axis */
+#define LIS3DSH_CTRL_REG_4_YEN_BM         (1<<1)  /* Enable Y-axis */
+#define LIS3DSH_CTRL_REG_4_XEN_BM         (1<<0)  /* Enable X-axis */
 
-/* LIS3DSH CTRL_REG_5 Definitions **********************************************/
+/* LIS3DSH CTRL_REG_5 Definitions *******************************************/
 
-#define LIS3DSH_CTRL_REG_5_BW_2_bm        (1<<7)  /* Anti-aliasing filter bandwidth bit 2 */
-#define LIS3DSH_CTRL_REG_5_BW_1_bm        (1<<6)  /* Anti-aliasing filter bandwidth bit 1 */
-#define LIS3DSH_CTRL_REG_5_FSCALE_2_bm    (1<<5)  /* Full-scale selection bit 2 */
-#define LIS3DSH_CTRL_REG_5_FSCALE_1_bm    (1<<4)  /* Full-scale selection bit 1 */
-#define LIS3DSH_CTRL_REG_5_FSCALE_0_bm    (1<<3)  /* Full-scale selection bit 0 */
-#define LIS3DSH_CTRL_REG_5_ST_2_bm        (1<<2)  /* Enable self-test bit 2 */
-#define LIS3DSH_CTRL_REG_5_ST_1_bm        (1<<1)  /* Enable self-test bit 1 */
-#define LIS3DSH_CTRL_REG_5_SIM_bm         (1<<0)  /* Enable SPI 4-wire interface */
+#define LIS3DSH_CTRL_REG_5_BW_2_BM        (1<<7)  /* Anti-aliasing filter bandwidth bit 2 */
+#define LIS3DSH_CTRL_REG_5_BW_1_BM        (1<<6)  /* Anti-aliasing filter bandwidth bit 1 */
+#define LIS3DSH_CTRL_REG_5_FSCALE_2_BM    (1<<5)  /* Full-scale selection bit 2 */
+#define LIS3DSH_CTRL_REG_5_FSCALE_1_BM    (1<<4)  /* Full-scale selection bit 1 */
+#define LIS3DSH_CTRL_REG_5_FSCALE_0_BM    (1<<3)  /* Full-scale selection bit 0 */
+#define LIS3DSH_CTRL_REG_5_ST_2_BM        (1<<2)  /* Enable self-test bit 2 */
+#define LIS3DSH_CTRL_REG_5_ST_1_BM        (1<<1)  /* Enable self-test bit 1 */
+#define LIS3DSH_CTRL_REG_5_SIM_BM         (1<<0)  /* Enable SPI 4-wire interface */
 
-/* LIS3DSH CTRL_REG_6 Definitions **********************************************/
+/* LIS3DSH CTRL_REG_6 Definitions *******************************************/
 
-#define LIS3DSH_CTRL_REG_6_BOOT_bm        (1<<7)  /* Force reboot, cleared as soon as the reboot is finished. Active high */
-#define LIS3DSH_CTRL_REG_6_FIFO_EN_bm     (1<<6)  /* Enable FIFO */
-#define LIS3DSH_CTRL_REG_6_WTM_EN_bm      (1<<5)  /* Enable FIFO watermark level use */
-#define LIS3DSH_CTRL_REG_6_ADD_INC_bm     (1<<4)  /* Register address automatically incremented during a multiple byte access with a serial interface */
-#define LIS3DSH_CTRL_REG_6_P1_EMPTY_bm    (1<<3)  /* Enable FIFO empty indication on Int1 */
-#define LIS3DSH_CTRL_REG_6_P1_WTM_bm      (1<<2)  /* FIFO watermark interrupt Int1 */
-#define LIS3DSH_CTRL_REG_6_P1_OVERRUN_bm  (1<<1)  /* FIFO overrun interrupt on Int1 */
-#define LIS3DSH_CTRL_REG_6_P2_BOOT_bm     (1<<0)  /* BOOT interrupt on Int2 */
+#define LIS3DSH_CTRL_REG_6_BOOT_BM        (1<<7)  /* Force reboot, cleared as soon as the reboot is finished. Active high */
+#define LIS3DSH_CTRL_REG_6_FIFO_EN_BM     (1<<6)  /* Enable FIFO */
+#define LIS3DSH_CTRL_REG_6_WTM_EN_BM      (1<<5)  /* Enable FIFO watermark level use */
+#define LIS3DSH_CTRL_REG_6_ADD_INC_BM     (1<<4)  /* Register address automatically incremented during a multiple byte access with a serial interface */
+#define LIS3DSH_CTRL_REG_6_P1_EMPTY_BM    (1<<3)  /* Enable FIFO empty indication on Int1 */
+#define LIS3DSH_CTRL_REG_6_P1_WTM_BM      (1<<2)  /* FIFO watermark interrupt Int1 */
+#define LIS3DSH_CTRL_REG_6_P1_OVERRUN_BM  (1<<1)  /* FIFO overrun interrupt on Int1 */
+#define LIS3DSH_CTRL_REG_6_P2_BOOT_BM     (1<<0)  /* BOOT interrupt on Int2 */
 
 /* SPI BUS PARAMETERS *******************************************************/
 

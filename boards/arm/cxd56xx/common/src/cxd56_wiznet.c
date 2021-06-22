@@ -151,7 +151,7 @@ static void wiznet_irq_enable(bool enable)
       cxd56_gpioint_disable(WIZNET_PIN_INT);
     }
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************

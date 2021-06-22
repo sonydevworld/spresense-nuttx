@@ -1,5 +1,5 @@
 ############################################################################
-# Make.defs
+# fs/hostfs/Make.defs
 #
 #   Copyright (C) 2015 Ken Pettit. All rights reserved.
 #   Author: Ken Pettit <pettitkd@gmail.com>
@@ -14,7 +14,7 @@
 #    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
 #    distribution.
-# 3. Neither the name Nuttx nor the names of its contributors may be
+# 3. Neither the name NuttX nor the names of its contributors may be
 #    used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -32,11 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
-
-# Files required for HostFS file system support
-
-ASRCS +=
-CSRCS +=
 
 # Include HOSTFS build support
 

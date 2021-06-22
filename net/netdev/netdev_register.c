@@ -1,36 +1,20 @@
 /****************************************************************************
  * net/netdev/netdev_register.c
  *
- *   Copyright (C) 2007-2012, 2014-2015, 2017-2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,6 +37,7 @@
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/ethernet.h>
 #include <nuttx/net/bluetooth.h>
+#include <nuttx/net/can.h>
 
 #include "utils/utils.h"
 #include "igmp/igmp.h"
@@ -71,6 +56,8 @@
 #define NETDEV_PAN_FORMAT   "pan%d"
 #define NETDEV_WLAN_FORMAT  "wlan%d"
 #define NETDEV_WPAN_FORMAT  "wpan%d"
+#define NETDEV_WWAN_FORMAT  "wwan%d"
+#define NETDEV_CAN_FORMAT   "can%d"
 
 #if defined(CONFIG_DRIVERS_IEEE80211) /* Usually also has CONFIG_NET_ETHERNET */
 #  define NETDEV_DEFAULT_FORMAT NETDEV_WLAN_FORMAT
@@ -82,6 +69,8 @@
 #  define NETDEV_DEFAULT_FORMAT NETDEV_SLIP_FORMAT
 #elif defined(CONFIG_NET_TUN)
 #  define NETDEV_DEFAULT_FORMAT NETDEV_TUN_FORMAT
+#elif defined(CONFIG_NET_CAN)
+#  define NETDEV_DEFAULT_FORMAT NETDEV_CAN_FORMAT
 #else /* if defined(CONFIG_NET_LOOPBACK) */
 #  define NETDEV_DEFAULT_FORMAT NETDEV_LO_FORMAT
 #endif
@@ -237,8 +226,8 @@ static int get_ifindex(void)
  *
  * Input Parameters:
  *   dev    - The device driver structure to be registered.
- *   lltype - Link level protocol used by the driver (Ethernet, SLIP, TUN, ...
- *              ...
+ *   lltype - Link level protocol used by the driver (Ethernet, SLIP, TUN,
+ *            ...)
  *
  * Returned Value:
  *   0:Success; negated errno on failure
@@ -253,6 +242,8 @@ int netdev_register(FAR struct net_driver_s *dev, enum net_lltype_e lltype)
 {
   FAR char devfmt_str[IFNAMSIZ];
   FAR const char *devfmt;
+  uint16_t pktsize = 0;
+  uint8_t llhdrlen = 0;
   int devnum;
 #ifdef CONFIG_NETDEV_IFINDEX
   int ifindex;
@@ -268,69 +259,101 @@ int netdev_register(FAR struct net_driver_s *dev, enum net_lltype_e lltype)
         {
 #ifdef CONFIG_NET_LOOPBACK
           case NET_LL_LOOPBACK:   /* Local loopback */
-            dev->d_llhdrlen = 0;
-            dev->d_pktsize  = NET_LO_PKTSIZE;
-            devfmt          = NETDEV_LO_FORMAT;
+            llhdrlen = 0;
+            pktsize  = NET_LO_PKTSIZE;
+            devfmt   = NETDEV_LO_FORMAT;
             break;
 #endif
 
 #ifdef CONFIG_NET_ETHERNET
           case NET_LL_ETHERNET:   /* Ethernet */
-            dev->d_llhdrlen = ETH_HDRLEN;
-            dev->d_pktsize  = CONFIG_NET_ETH_PKTSIZE;
-            devfmt          = NETDEV_ETH_FORMAT;
+            llhdrlen = ETH_HDRLEN;
+            pktsize  = CONFIG_NET_ETH_PKTSIZE;
+            devfmt   = NETDEV_ETH_FORMAT;
             break;
 #endif
 
 #ifdef CONFIG_DRIVERS_IEEE80211
           case NET_LL_IEEE80211:  /* IEEE 802.11 */
-            dev->d_llhdrlen = ETH_HDRLEN;
-            dev->d_pktsize  = CONFIG_NET_ETH_PKTSIZE;
-            devfmt          = NETDEV_WLAN_FORMAT;
+            llhdrlen = ETH_HDRLEN;
+            pktsize  = CONFIG_NET_ETH_PKTSIZE;
+            devfmt   = NETDEV_WLAN_FORMAT;
+            break;
+#endif
+
+#ifdef CONFIG_NET_CAN
+          case NET_LL_CAN:  /* CAN bus */
+            dev->d_llhdrlen = 0;
+            dev->d_pktsize  = NET_CAN_PKTSIZE;
+            devfmt          = NETDEV_CAN_FORMAT;
             break;
 #endif
 
 #ifdef CONFIG_NET_BLUETOOTH
-          case NET_LL_BLUETOOTH:  /* Bluetooth */
-            dev->d_llhdrlen = BLUETOOTH_MAX_HDRLEN; /* Determined at runtime */
+          case NET_LL_BLUETOOTH:              /* Bluetooth */
+            llhdrlen = BLUETOOTH_MAX_HDRLEN;  /* Determined at runtime */
 #ifdef CONFIG_NET_6LOWPAN
-            dev->d_pktsize  = CONFIG_NET_6LOWPAN_PKTSIZE;
+            pktsize  = CONFIG_NET_6LOWPAN_PKTSIZE;
 #endif
-            devfmt          = NETDEV_BNEP_FORMAT;
+            devfmt   = NETDEV_BNEP_FORMAT;
             break;
 #endif
 
 #if defined(CONFIG_NET_6LOWPAN) || defined(CONFIG_NET_IEEE802154)
           case NET_LL_IEEE802154: /* IEEE 802.15.4 MAC */
           case NET_LL_PKTRADIO:   /* Non-IEEE 802.15.4 packet radio */
-            dev->d_llhdrlen = 0;  /* Determined at runtime */
+            llhdrlen = 0;         /* Determined at runtime */
 #ifdef CONFIG_NET_6LOWPAN
-            dev->d_pktsize  = CONFIG_NET_6LOWPAN_PKTSIZE;
+            pktsize  = CONFIG_NET_6LOWPAN_PKTSIZE;
 #endif
-            devfmt          = NETDEV_WPAN_FORMAT;
+            devfmt   = NETDEV_WPAN_FORMAT;
             break;
 #endif
 
 #ifdef CONFIG_NET_SLIP
           case NET_LL_SLIP:       /* Serial Line Internet Protocol (SLIP) */
-            dev->d_llhdrlen = 0;
-            dev->d_pktsize  = CONFIG_NET_SLIP_PKTSIZE;
-            devfmt          = NETDEV_SLIP_FORMAT;
+            llhdrlen = 0;
+            pktsize  = CONFIG_NET_SLIP_PKTSIZE;
+            devfmt   = NETDEV_SLIP_FORMAT;
             break;
 #endif
 
 #ifdef CONFIG_NET_TUN
           case NET_LL_TUN:        /* Virtual Network Device (TUN) */
-            dev->d_llhdrlen = 0;  /* This will be overwritten by tun_ioctl
+            llhdrlen = 0;         /* This will be overwritten by tun_ioctl
                                    * if used as a TAP (layer 2) device */
-            dev->d_pktsize  = CONFIG_NET_TUN_PKTSIZE;
-            devfmt          = NETDEV_TUN_FORMAT;
+            pktsize  = CONFIG_NET_TUN_PKTSIZE;
+            devfmt   = NETDEV_TUN_FORMAT;
+            break;
+#endif
+
+#ifdef CONFIG_NET_MBIM
+          case NET_LL_MBIM:
+            llhdrlen = 0;
+            pktsize  = 1200;
+            devfmt   = NETDEV_WWAN_FORMAT;
             break;
 #endif
 
           default:
             nerr("ERROR: Unrecognized link type: %d\n", lltype);
             return -EINVAL;
+        }
+
+      /* Update the package length.  A network driver may provide custom
+       * values for MAC header length and for the maximum packet size.  Some
+       * driver implementations (for example, the simulator) will require
+       * dynamic MTU calculations to support tunneling (as an example).
+       */
+
+      if (dev->d_llhdrlen == 0)
+        {
+          dev->d_llhdrlen = llhdrlen;
+        }
+
+      if (dev->d_pktsize == 0)
+        {
+          dev->d_pktsize = pktsize;
         }
 
       /* Remember the verified link type */

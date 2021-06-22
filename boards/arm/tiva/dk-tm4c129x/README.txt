@@ -159,7 +159,7 @@ Buttons and LEDs
   logic.  APIs are provided to support application control of the LED in
   that case (in include/board.h and src/tm4c_userleds.c).
 
-  If CONFIG_ARCH_LEDS is defined then the usage of the LEDs by Nuttx is
+  If CONFIG_ARCH_LEDS is defined then the usage of the LEDs by NuttX is
   defined in include/board.h and src/tm4c_autoleds.c. The LEDs are used to
   encode OS-related events as follows:
 
@@ -232,11 +232,9 @@ Networking Support
     CONFIG_NET_ARP_IPIN=y               : Enable ARP address harvesting
     CONFIG_NET_ARP_SEND=y               : Send ARP request before sending data
     CONFIG_NET_TCP=y                    : Enable TCP/IP networking
-    CONFIG_NET_TCP_READAHEAD=y          : Support TCP read-ahead
     CONFIG_NET_TCP_WRITE_BUFFERS=y      : Support TCP write-buffering
     CONFIG_NET_TCPBACKLOG=y             : Support TCP/IP backlog
     CONFIG_NET_MAX_LISTENPORTS=20       :
-    CONFIG_NET_TCP_READAHEAD_BUFSIZE=536  Read-ahead buffer size
     CONFIG_NET_UDP=y                    : Enable UDP networking
     CONFIG_NET_BROADCAST=y              : Needed for DNS name resolution
     CONFIG_NET_ICMP=y                   : Enable ICMP networking
@@ -340,7 +338,7 @@ Networking Support
       cp          free        kill        mkrd        put         usleep
       cmp         get         losetup     mh          rm          wget
       dd          help        ls          mount       rmdir       xd
-      df          hexdump     mb          mv          sh
+      df          hexdump     mb          mv          source
 
     Builtin Apps:
     nsh>
@@ -669,13 +667,13 @@ Where <subdir> is one of the following:
        b. Execute 'make menuconfig' in nuttx/ in order to start the
           reconfiguration process.
 
-    2. By default, this configuration uses the CodeSourcery toolchain
+    2. By default, this configuration uses the ARM EABI toolchain
        for Windows and builds under Cygwin (or probably MSYS).  That
        can easily be reconfigured, of course.
 
        CONFIG_HOST_WINDOWS=y                   : Windows
        :CONFIG_WINDOWS_CYGWIN=y                : Cygwin under Windows
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcry fro Windows (arm-none-eabi-gcc)
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
        CONFIG_RAW_BINARY=y                     : Output formats: ELF and raw binary
 
     3. Default stack sizes are large and should really be tuned to reduce
@@ -687,7 +685,6 @@ Where <subdir> is one of the following:
          CONFIG_PTHREAD_STACK_DEFAULT=2048
          CONFIG_POSIX_SPAWN_PROXY_STACKSIZE=1024
          CONFIG_TASK_SPAWN_DEFAULT_STACKSIZE=2048
-         CONFIG_BUILTIN_PROXY_STACKSIZE=1024
          CONFIG_NSH_TELNETD_DAEMONSTACKSIZE=2048
          CONFIG_NSH_TELNETD_CLIENTSTACKSIZE=2048
 

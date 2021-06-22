@@ -47,6 +47,7 @@
 #ifdef CONFIG_NET
 
 #include <stdint.h>
+#include <string.h>
 #include <debug.h>
 
 #include <net/if.h>
@@ -128,6 +129,7 @@ static uint16_t icmp_datahandler(FAR struct net_driver_s *dev,
 
   net_ipv4addr_copy(inaddr.sin_addr.s_addr,
                     net_ip4addr_conv32(ipv4->srcipaddr));
+  memset(inaddr.sin_zero, 0, sizeof(inaddr.sin_zero));
 
   /* Copy the src address info into the I/O buffer chain.  We will not wait
    * for an I/O buffer to become available in this context.  It there is
@@ -158,7 +160,8 @@ static uint16_t icmp_datahandler(FAR struct net_driver_s *dev,
        * not free any I/O buffers.
        */
 
-      nerr("ERROR: Failed to source address to the I/O buffer chain: %d\n", ret);
+      nerr("ERROR: Failed to source address to the I/O buffer chain: %d\n",
+           ret);
       goto drop_with_chain;
     }
 
@@ -273,8 +276,9 @@ void icmp_input(FAR struct net_driver_s *dev)
       /* The slow way... sum over the ICMP message */
 
       icmp->icmpchksum = 0;
-      icmp->icmpchksum = ~icmp_chksum(dev, (((uint16_t)ipv4->len[0] << 8) |
-                                             (uint16_t)ipv4->len[1]) - iphdrlen);
+      icmp->icmpchksum = ~icmp_chksum(dev,
+                                     (((uint16_t)ipv4->len[0] << 8) |
+                                       (uint16_t)ipv4->len[1]) - iphdrlen);
       if (icmp->icmpchksum == 0)
         {
           icmp->icmpchksum = 0xffff;
@@ -328,8 +332,8 @@ void icmp_input(FAR struct net_driver_s *dev)
           goto drop;
         }
 
-      flags = devif_conn_event(dev, conn, ICMP_ECHOREPLY, conn->list);
-      if ((flags & ICMP_ECHOREPLY) != 0)
+      flags = devif_conn_event(dev, conn, ICMP_NEWDATA, conn->list);
+      if ((flags & ICMP_NEWDATA) != 0)
         {
           uint16_t nbuffered;
 

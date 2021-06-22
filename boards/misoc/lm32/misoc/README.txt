@@ -18,7 +18,7 @@ Buildroot Toolchain
   Bitbucket GIT repository (https://bitbucket.org/nuttx/buildroot).
   This GNU toolchain builds and executes in the Linux or Cygwin environment.
 
-  1. You must have already configured Nuttx in <some-dir>/nuttx.
+  1. You must have already configured NuttX in <some-dir>/nuttx.
 
      tools/configure.sh misoc:<sub-dir>
      make oldconfig context
@@ -65,7 +65,7 @@ boards/misoc/lm32/misoc/include/generated
 
   In order to build this configuration, you must provide the
   boards/misoc/lm32/misoc/include/generated directory.  It contains the generated
-  Misoc files and may be a symbolic link.  The base configurtion will NOT
+  Misoc files and may be a symbolic link.  The base configuration will NOT
   build without this directory!
 
   There is a sample generated directory at boards/misoc/include/generated-sample.
@@ -75,4 +75,3 @@ boards/misoc/lm32/misoc/include/generated
     $ ln -s boards/misoc/lm32/misoc/include/generated-sample boards/misoc/lm32/misoc/include/generated
 
   That should permit a test build.
-

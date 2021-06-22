@@ -1,37 +1,22 @@
-/************************************************************************************
+/****************************************************************************
  * include/nuttx/leds/userled.h
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __INCLUDE_NUTTX_LEDS_USERLED_H
 #define __INCLUDE_NUTTX_LEDS_USERLED_H
@@ -43,11 +28,10 @@
 #include <nuttx/config.h>
 #include <nuttx/fs/ioctl.h>
 
-#ifdef CONFIG_ARCH_HAVE_LEDS
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* ioctl commands */
 
 /* Command:     ULEDIOC_SUPPORTED
@@ -91,12 +75,13 @@
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
 /* This type is a bit set that contains the state of all LEDs as defined
  * in arch/board/board.h.  This is the value that is returned when reading
  * from or writing to the LED driver.
  */
 
-typedef uint8_t userled_set_t;
+typedef uint32_t userled_set_t;
 
 /* A reference to this structure is provided with the ULEDIOC_SETLED IOCTL
  * command and describes the LED to be set and the new value of the LED.
@@ -127,7 +112,8 @@ struct userled_lowerhalf_s
 {
   /* Return the set of LEDs supported by the board */
 
-  CODE userled_set_t (*ll_supported)(FAR const struct userled_lowerhalf_s *lower);
+  CODE userled_set_t
+  (*ll_supported)(FAR const struct userled_lowerhalf_s *lower);
 
   /* Set the current state of one LED */
 
@@ -197,5 +183,4 @@ int userled_lower_initialize(FAR const char *devname);
 }
 #endif
 
-#endif /* CONFIG_ARCH_HAVE_LEDS */
 #endif /* __INCLUDE_NUTTX_LEDS_USERLED_H */

@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/inode/fs_inodesearch.c
  *
- *   Copyright (C) 2007-2009, 2011-2012, 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -41,6 +26,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <limits.h>
 #include <assert.h>
 #include <errno.h>
@@ -59,6 +45,7 @@ static int _inode_linktarget(FAR struct inode *node,
                              FAR struct inode_search_s *desc);
 #endif
 static int _inode_search(FAR struct inode_search_s *desc);
+static FAR const char *_inode_getcwd(void);
 
 /****************************************************************************
  * Public Data
@@ -150,9 +137,9 @@ static int _inode_compare(FAR const char *fname, FAR struct inode *node)
  * Name: _inode_linktarget
  *
  * Description:
- *   If the inode is a soft link, then (1) get the name of the full path of
- *   the soft link, (2) recursively look-up the inode referenced by the soft
- *   link, and (3) return the inode referenced by the soft link.
+ *   If the inode is a soft link, then (1) recursively look-up the inode
+ *   referenced by the soft link, and (2) return the inode referenced by
+ *   the soft link.
  *
  * Assumptions:
  *   The caller holds the g_inode_sem semaphore
@@ -169,11 +156,7 @@ static int _inode_linktarget(FAR struct inode *node,
 
   DEBUGASSERT(desc != NULL && node != NULL);
 
-  /* An infinite loop is avoided only by the loop count.
-   *
-   * REVISIT:  The ELOOP error should be reported to the application in that
-   * case but there is no simple mechanism to do that.
-   */
+  /* An infinite loop is avoided only by the loop count. */
 
   save = desc->nofollow;
   while (INODE_IS_SOFTLINK(node))
@@ -205,7 +188,6 @@ static int _inode_linktarget(FAR struct inode *node,
 
       node = desc->node;
       DEBUGASSERT(node != NULL);
-      desc->linktgt = link;
     }
 
   desc->nofollow = save;
@@ -244,7 +226,7 @@ static int _inode_search(FAR struct inode_search_s *desc)
   int ret = -ENOENT;
 
   /* Get the search path, skipping over the leading '/'.  The leading '/' is
-   * mandatory because only absolte paths are expected in this context.
+   * mandatory because only absolute paths are expected in this context.
    */
 
   DEBUGASSERT(desc != NULL && desc->path != NULL);
@@ -253,24 +235,6 @@ static int _inode_search(FAR struct inode_search_s *desc)
   if (*name != '/')
     {
       return -EINVAL;
-    }
-
-  /* Skip over the leading '/' */
-
-  while (*name == '/')
-    {
-      name++;
-    }
-
-  /* Special case the root directory.  There is no root inode and there is
-   * no name for the root.
-   */
-
-  if (*name == '\0')
-    {
-      /* This is a bug.  I don't know how to handle this case yet. */
-
-      return -ENOSYS;
     }
 
   /* Traverse the pseudo file system node tree until either (1) all nodes
@@ -345,9 +309,9 @@ static int _inode_search(FAR struct inode_search_s *desc)
                   int status;
 
                   /* If this intermediate inode in the is a soft link, then
-                   * (1) get the name of the full path of the soft link, (2)
-                   * recursively look-up the inode referenced by the soft
-                   * link, and (3) continue searching with that inode instead.
+                   * (1) recursively look-up the inode referenced by the
+                   * soft link, and (2) continue searching with that inode
+                   * instead.
                    */
 
                   status = _inode_linktarget(node, desc);
@@ -381,11 +345,32 @@ static int _inode_search(FAR struct inode_search_s *desc)
                                */
 
                               node    = newnode;
-                              above   = NULL;
-                              left    = NULL;
-                              relpath = name;
-
+                              above   = desc->parent;
+                              left    = desc->peer;
                               ret     = OK;
+
+                              if (*desc->relpath != '\0')
+                                {
+                                  char *buffer = NULL;
+
+                                  asprintf(&buffer,
+                                           "%s/%s", desc->relpath, name);
+                                  if (buffer != NULL)
+                                    {
+                                      kmm_free(desc->buffer);
+                                      desc->buffer = buffer;
+                                      relpath = buffer;
+                                    }
+                                  else
+                                    {
+                                      ret = -ENOMEM;
+                                    }
+                                }
+                              else
+                                {
+                                  relpath = name;
+                                }
+
                               break;
                             }
 
@@ -406,8 +391,7 @@ static int _inode_search(FAR struct inode_search_s *desc)
         }
     }
 
-  /* The node may or may not be null as per one of the following four cases
-   * cases:
+  /* The node may or may not be null as per one of the following four cases:
    *
    * With node = NULL
    *
@@ -429,6 +413,29 @@ static int _inode_search(FAR struct inode_search_s *desc)
   desc->parent  = above;
   desc->relpath = relpath;
   return ret;
+}
+
+/****************************************************************************
+ * Name: _inode_getcwd
+ *
+ * Description:
+ *   Return the current working directory
+ *
+ ****************************************************************************/
+
+static FAR const char *_inode_getcwd(void)
+{
+  FAR const char *pwd = "";
+
+#ifndef CONFIG_DISABLE_ENVIRON
+  pwd = getenv("PWD");
+  if (pwd == NULL)
+    {
+      pwd = CONFIG_LIB_HOMEDIR;
+    }
+#endif
+
+  return pwd;
 }
 
 /****************************************************************************
@@ -468,10 +475,20 @@ int inode_search(FAR struct inode_search_s *desc)
    * node if node is a symbolic link.
    */
 
-  DEBUGASSERT(desc != NULL);
-#ifdef CONFIG_PSEUDOFS_SOFTLINKS
-  desc->linktgt = NULL;
-#endif
+  DEBUGASSERT(desc != NULL && desc->path != NULL);
+
+  /* Convert the relative path to the absolute path */
+
+  if (*desc->path != '/')
+    {
+      asprintf(&desc->buffer, "%s/%s", _inode_getcwd(), desc->path);
+      if (desc->buffer == NULL)
+        {
+          return -ENOMEM;
+        }
+
+      desc->path = desc->buffer;
+    }
 
   ret = _inode_search(desc);
 
@@ -489,12 +506,6 @@ int inode_search(FAR struct inode_search_s *desc)
 
       if (!desc->nofollow && INODE_IS_SOFTLINK(node))
         {
-          /* Save some things we need that will be clobbered by the call to
-           * _inode_linktgt().
-           */
-
-          FAR const char *relpath = desc->relpath; /* Will always be "" here */
-
           /* The terminating inode is a valid soft link:  Return the inode,
            * corresponding to link target.  _inode_linktarget() will follow
            * a link (or a series of links to links) and will return the
@@ -509,71 +520,6 @@ int inode_search(FAR struct inode_search_s *desc)
                */
 
               return ret;
-            }
-
-          /* The dereferenced node might be a mountpoint */
-
-          node = desc->node;
-          DEBUGASSERT(node != NULL && desc->linktgt != NULL);
-
-          if (INODE_IS_MOUNTPT(node))
-            {
-              /* Yes... set up for the MOUNTPOINT logic below. */
-
-              desc->relpath = relpath;
-            }
-        }
-
-      /* Handle a special case.  This special occurs with either (1)
-       * inode_search() terminates early because it encountered a MOUNTPOINT
-       * at an intermediate node in the path, or (2) inode_search()
-       * terminates because it reached the terminal node and 'nofollow' is
-       * false and the above logic converted the symbolic link to a
-       * MOUNTPOINT.
-       *
-       * We can detect the special cases because desc->linktgt will be
-       * non-NULL.
-       */
-
-      if (desc->linktgt != NULL && INODE_IS_MOUNTPT(node))
-        {
-          FAR char *buffer;
-
-          /* There would be no problem in this case if the link was to
-           * either to the root directory of the MOUNTPOINT or to a
-           * regular file within the mounted volume.  However, there
-           * is a problem if the symbolic link is to a directory within
-           * the mounted volume.  In that case, the 'relpath' will be
-           * relative to the symbolic link and not to the MOUNTPOINT.
-           *
-           * We will handle the worst case by creating the full path
-           * excluding the symbolic link and performing the look-up
-           * again.
-           */
-
-          if (desc->relpath != NULL && *desc->relpath != '\0')
-            {
-              asprintf(&buffer, "%s/%s",
-                       desc->linktgt, desc->relpath);
-            }
-          else
-            {
-              buffer = strdup(desc->linktgt);
-            }
-
-          if (buffer == NULL)
-            {
-              ret = -ENOMEM;
-            }
-          else
-            {
-              /* Reset the search description and perform the search again. */
-
-              RELEASE_SEARCH(desc);
-              SETUP_SEARCH(desc, buffer, false);
-              desc->buffer = buffer;
-
-              ret = _inode_search(desc);
             }
         }
     }

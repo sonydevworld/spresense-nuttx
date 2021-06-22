@@ -7,8 +7,7 @@ menuconfig VNCSERVER
 	bool "VNC server"
 	default n
 	depends on NET_TCP && !NX_LCDDRIVER
-	select NET_TCP_READAHEAD
-	select NX_UPDATE
+	select FB_UPDATE
 	---help---
 		Enable support for a VNC Remote Frame Buffer (RFB) server.
 
@@ -45,7 +44,7 @@ config VNCSERVER_PRIO
 
 config VNCSERVER_STACKSIZE
 	int "VNC server stack size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 
 config VNCSERVER_UPDATER_PRIO
 	int "VNC updater thread priority"
@@ -53,7 +52,7 @@ config VNCSERVER_UPDATER_PRIO
 
 config VNCSERVER_UPDATER_STACKSIZE
 	int "VNC updater thread stack size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 
 choice
 	prompt "VNC color format"
@@ -149,8 +148,8 @@ config VNCSERVER_DEBUG
 	default n
 	depends on DEBUG_FEATURES && !DEBUG_GRAPHICS
 	---help---
-		Normally VNC debug output is selected with DEBUG_GRAPHICS.  The VNC
-		server server support this special option to enable GRAPHICS debug
+		Normally VNC debug output is selected with DEBUG_GRAPHICS.  The
+		VNC server support this special option to enable GRAPHICS debug
 		output for the VNC server while GRAPHICS debug is disabled.  This
 		provides an cleaner, less cluttered output when you only wish to
 		debug the VNC server versus enabling DEBUG_GRAPHICS globally.

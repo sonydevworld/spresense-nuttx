@@ -32,7 +32,7 @@ Status
     for recovery from this condition at: https://community.nxp.com/thread/505593 .
     But none of those options are working for me.
 
-    Give the success running of of SRAM and the success of the same fixes
+    Give the success running of SRAM and the success of the same fixes
     on the S32K118, I believe that the NSH configuration should now run out
     of FLASH.  Unfortunately, I cannot demonstrate that.
 
@@ -72,7 +72,7 @@ LEDs and Buttons
   the common RGB LED driver.
 
   If CONFIG_ARCH_LEDs is defined, then NuttX will control the LEDs on board
-  the s32k146evb.  The following definitions describe how NuttX controls the
+  the S32K146EVB.  The following definitions describe how NuttX controls the
   LEDs:
 
     ==========================================+========+========+=========
@@ -87,7 +87,7 @@ LEDs and Buttons
     LED_SIGNAL       In a signal handler               (no change)
     LED_ASSERTION    An assertion failed               (no change)
     LED_PANIC        The system has crashed      FLASH    OFF      OFF
-    LED_IDLE         S32K146EVN in sleep mode          (no change)
+    LED_IDLE         S32K146EVB in sleep mode          (no change)
     ==========================================+========+========+=========
 
   Buttons
@@ -114,7 +114,7 @@ Thread-Aware Debugging with Eclipse
 
   Based on correspondence with Han Raaijmakers <han.raaijmakers@nxp.com>
 
-  OpenOCD-nuttx build on Linux (NXW00504) making use of S32DS for ARM 2018R1. Nuttx is built with debug symbols.
+  OpenOCD-nuttx build on Linux (NXW00504) making use of S32DS for ARM 2018R1. NuttX is built with debug symbols.
 
   Resulting debug window gives nuttx threads.  The full stack details can be viewed.
 

@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/udp/udp_txdrain.c
  *
- *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,19 +25,15 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
-#include <semaphore.h>
 #include <sched.h>
-#include <time.h>
 #include <assert.h>
 #include <errno.h>
 
-#include <nuttx/wqueue.h>
-#include <nuttx/kmalloc.h>
-#include <nuttx/net/net.h>
+#include <nuttx/semaphore.h>
 
 #include "udp/udp.h"
 
-#if defined(CONFIG_NET_UDP_WRITE_BUFFERS) && defined(CONFIG_UDP_NOTIFIER)
+#if defined(CONFIG_NET_UDP_WRITE_BUFFERS) && defined(CONFIG_NET_UDP_NOTIFIER)
 
 /****************************************************************************
  * Private Functions
@@ -74,25 +55,13 @@
 
 static void txdrain_worker(FAR void *arg)
 {
-  /* The entire notifier entry is passed to us.  That is because we are
-   * responsible for disposing of the entry via kmm_free() when we are
-   * finished with it.
-   */
+  FAR sem_t *waitsem = (FAR sem_t *)arg;
 
-  FAR struct work_notifier_entry_s *notifier =
-    (FAR struct work_notifier_entry_s *)arg;
-  FAR sem_t *waitsem;
-
-  DEBUGASSERT(notifier != NULL && notifier->info.arg != NULL);
-  waitsem = (FAR sem_t *)notifier->info.arg;
-
-  /* Free the notifier entry */
-
-  kmm_free(notifier);
+  DEBUGASSERT(waitsem != NULL);
 
   /* Then just post the semaphore, waking up tcp_txdrain() */
 
-  sem_post(waitsem);
+  nxsem_post(waitsem);
 }
 
 /****************************************************************************
@@ -107,7 +76,7 @@ static void txdrain_worker(FAR void *arg)
  *
  * Input Parameters:
  *   psock   - An instance of the internal socket structure.
- *   abstime - The absolute time when the timeout will occur
+ *   timeout - The relative time when the timeout will occur
  *
  * Returned Value:
  *   Zero (OK) is returned on success; a negated errno value is returned
@@ -115,14 +84,13 @@ static void txdrain_worker(FAR void *arg)
  *
  ****************************************************************************/
 
-int udp_txdrain(FAR struct socket *psock,
-                FAR const struct timespec *abstime)
+int udp_txdrain(FAR struct socket *psock, unsigned int timeout)
 {
   FAR struct udp_conn_s *conn;
   sem_t waitsem;
   int ret;
 
-  DEBUGASSERT(psock != NULL && psock->s_crefs > 0 && psock->s_conn != NULL);
+  DEBUGASSERT(psock != NULL && psock->s_conn != NULL);
   DEBUGASSERT(psock->s_type == SOCK_DGRAM);
 
   conn = (FAR struct udp_conn_s *)psock->s_conn;
@@ -130,6 +98,7 @@ int udp_txdrain(FAR struct socket *psock,
   /* Initialize the wait semaphore */
 
   nxsem_init(&waitsem, 0, 0);
+  nxsem_set_protocol(&waitsem, SEM_PRIO_NONE);
 
   /* The following needs to be done with the network stable */
 
@@ -141,7 +110,7 @@ int udp_txdrain(FAR struct socket *psock,
 
       /* There is pending write data.. wait for it to drain. */
 
-      ret = net_timedwait_uninterruptible(&waitsem, abstime);
+      ret = net_timedwait_uninterruptible(&waitsem, timeout);
 
       /* Tear down the notifier (in case we timed out or were canceled) */
 
@@ -156,4 +125,4 @@ int udp_txdrain(FAR struct socket *psock,
   return ret;
 }
 
-#endif /* CONFIG_NET_UDP_WRITE_BUFFERS && CONFIG_UDP_NOTIFIER */
+#endif /* CONFIG_NET_UDP_WRITE_BUFFERS && CONFIG_NET_UDP_NOTIFIER */

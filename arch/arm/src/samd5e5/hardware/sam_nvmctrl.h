@@ -1,54 +1,39 @@
-/********************************************************************************************
+/****************************************************************************
  * arch/arm/src/samd5e5/hardware/sam_nvmctrl.h
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_SAMD5E5_HARDWARE_SAM_NVMCTRL_H
 #define __ARCH_ARM_SRC_SAMD5E5_HARDWARE_SAM_NVMCTRL_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
 #include "hardware/sam_memorymap.h"
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
-/* NVMCTRL register offsets *****************************************************************/
+/* NVMCTRL register offsets *************************************************/
 
 #define SAM_NVMCTRL_CTRLA_OFFSET     0x0000  /* Control A register */
 #define SAM_NVMCTRL_CTRLB_OFFSET     0x0004  /* Control B register */
@@ -66,11 +51,11 @@
 #define SAM_NVMCTRL_SEECFG_OFFSET    0x002a  /* SmartEEPROM configuration register */
 #define SAM_NVMCTRL_SEESTAT_OFFSET   0x002c  /* SmartEEPROM status register */
 
-
-/* NVMCTRL register addresses ***************************************************************/
+/* NVMCTRL register addresses ***********************************************/
 
 #define SAM_NVMCTRL_CTRLA            (SAM_NVMCTRL_BASE + SAM_NVMCTRL_CTRLA_OFFSET)
 #define SAM_NVMCTRL_CTRLB            (SAM_NVMCTRL_BASE + SAM_NVMCTRL_CTRLB_OFFSET)
+#define SAM_NVMCTRL_PARAM            (SAM_NVMCTRL_BASE + SAM_NVMCTRL_PARAM_OFFSET)
 #define SAM_NVMCTRL_INTENCLR         (SAM_NVMCTRL_BASE + SAM_NVMCTRL_INTENCLR_OFFSET)
 #define SAM_NVMCTRL_INTENSET         (SAM_NVMCTRL_BASE + SAM_NVMCTRL_INTENSET_OFFSET)
 #define SAM_NVMCTRL_INTFLAG          (SAM_NVMCTRL_BASE + SAM_NVMCTRL_INTFLAG_OFFSET)
@@ -84,7 +69,7 @@
 #define SAM_NVMCTRL_SEECFG           (SAM_NVMCTRL_BASE + SAM_NVMCTRL_SEECFG_OFFSET)
 #define SAM_NVMCTRL_SEESTAT          (SAM_NVMCTRL_BASE + SAM_NVMCTRL_SEESTAT_OFFSET)
 
-/* NVMCTRL register bit definitions *********************************************************/
+/* NVMCTRL register bit definitions *****************************************/
 
 /* Control A register */
 
@@ -95,15 +80,15 @@
 #  define NVMCTRL_CTRLA_WMODE_MAN    (0 << NVMCTRL_CTRLA_WMODE_SHIFT) /* Manual Write */
 #  define NVMCTRL_CTRLA_WMODE_ADW    (1 << NVMCTRL_CTRLA_WMODE_SHIFT) /* Automatic Double Word Write */
 #  define NVMCTRL_CTRLA_WMODE_AQW    (2 << NVMCTRL_CTRLA_WMODE_SHIFT) /* Automatic Quad Word */
-#  define NVMCTRL_CTRLA_WMODE_AP     (2 << NVMCTRL_CTRLA_WMODE_SHIFT) /* Automatic Page Write */
-#define NVMCTRL_CTRLA_PRM_SHIFT      (8)       /* Bits 8-9: Power Reduction Mode during Sleep */
+#  define NVMCTRL_CTRLA_WMODE_AP     (3 << NVMCTRL_CTRLA_WMODE_SHIFT) /* Automatic Page Write */
+#define NVMCTRL_CTRLA_PRM_SHIFT      (6)                              /* Bits 8-9: Power Reduction Mode during Sleep */
 #define NVMCTRL_CTRLA_PRM_MASK       (3 << NVMCTRL_CTRLA_PRM_SHIFT)
 #  define NVMCTRL_CTRLA_PRM_SEMIAUTO (0 << NVMCTRL_CTRLA_PRM_SHIFT) /* Enter low power on STANDBY/SPRM cmd;
                                                                      * Exit on first access */
 #  define NVMCTRL_CTRLA_PRM_FULLAUTO (1 << NVMCTRL_CTRLA_PRM_SHIFT) /* Enter/Exit low power on STANDBY */
 #  define NVMCTRL_CTRLA_PRM_MANUAL   (3 << NVMCTRL_CTRLA_PRM_SHIFT) /* Enter low power only on SPRM cmd;
                                                                      * Exit on first access */
-#define NVMCTRL_CTRLA_RWS_SHIFT      (8)       /* Bits 8-11: NVM Read Wait States */
+#define NVMCTRL_CTRLA_RWS_SHIFT      (8)                            /* Bits 8-11: NVM Read Wait States */
 #define NVMCTRL_CTRLA_RWS_MASK       (15 << NVMCTRL_CTRLA_RWS_SHIFT)
 #  define NVMCTRL_CTRLA_RWS(n)       ((uint32_t)(n) << NVMCTRL_CTRLA_RWS_SHIFT)
 #define NVMCTRL_CTRLA_AHBNS0         (1 << 12) /* Bit 12: Force AHB0 access to Non-Sequential */
@@ -139,7 +124,7 @@
 #  define NVMCTRL_CTRLB_CMD_USEE     (0x35 << NVMCTRL_CTRLB_CMD_SHIFT) /* Unlock SmartEEPROM data*/
 #  define NVMCTRL_CTRLB_CMD_LSEER    (0x36 << NVMCTRL_CTRLB_CMD_SHIFT) /* Lock SmartEEPROM registers */
 #  define NVMCTRL_CTRLB_CMD_USEER    (0x37 << NVMCTRL_CTRLB_CMD_SHIFT) /* Unlock SmartEEPROM registers */
-#define NVMCTRL_CTRLB_CMDEX_SHIFT    (8)       /* Bits 8-15: Command Execution */
+#define NVMCTRL_CTRLB_CMDEX_SHIFT    (8)                               /* Bits 8-15: Command Execution */
 #define NVMCTRL_CTRLB_CMDEX_MASK     (0xff << NVMCTRL_CTRLB_CMDEX_SHIFT)
 #  define NVMCTRL_CTRLB_CMDEX_KEY    (0xa5 << NVMCTRL_CTRLB_CMDEX_SHIFT)
 
@@ -158,11 +143,12 @@
 #  define NVMCTRL_PARAM_PSZ_256B     (5 << NVMCTRL_PARAM_PSZ_SHIFT) /* 256 bytes */
 #  define NVMCTRL_PARAM_PSZ_512B     (6 << NVMCTRL_PARAM_PSZ_SHIFT) /* 512 bytes */
 #  define NVMCTRL_PARAM_PSZ_1KB      (7 << NVMCTRL_PARAM_PSZ_SHIFT) /* 1024 bytes */
-#define NVMCTRL_PARAM_SEE_           (1 << 31) /* Bit 31: SmartEEPROM Supported */
+#define NVMCTRL_PARAM_SEE_           (1 << 31)                      /* Bit 31: SmartEEPROM Supported */
 
-/* Interrupt clear register */
-/* Interrupt set register */
-/* Interface flags status and clear register */
+/* Interrupt clear register
+ * Interrupt set register
+ * Interface flags status and clear register
+ */
 
 #define NVMCTRL_INT_DONE             (1 << 0)  /* Bit 0:  Command done interrupt */
 #define NVMCTRL_INT_ADDRE            (1 << 1)  /* Bit 1:  Address error interrupt */
@@ -208,7 +194,7 @@
 #  define NVMCTRL_ECCERR_TYPEL_NONE   (0 << NVMCTRL_ECCERR_TYPEL_SHIFT) /* No error detected */
 #  define NVMCTRL_ECCERR_TYPEL_SINGLE (1 << NVMCTRL_ECCERR_TYPEL_SHIFT) /* Single error(s) detected */
 #  define NVMCTRL_ECCERR_TYPEL_DUAL   (2 << NVMCTRL_ECCERR_TYPEL_SHIFT) /* Dual error(s) detected */
-#define NVMCTRL_ECCERR_TYPEH_SHIFT    (30)     /* Bits 30-31: High double-word error type */
+#define NVMCTRL_ECCERR_TYPEH_SHIFT    (30)                              /* Bits 30-31: High double-word error type */
 #define NVMCTRL_ECCERR_TYPEH_MASK     (3 << NVMCTRL_ECCERR_TYPEH_SHIFT)
 #  define NVMCTRL_ECCERR_TYPEH_NONE   (0 << NVMCTRL_ECCERR_TYPEH_SHIFT) /* No error detected */
 #  define NVMCTRL_ECCERR_TYPEH_SINGLE (1 << NVMCTRL_ECCERR_TYPEH_SHIFT) /* Single error(s) detected */
@@ -238,16 +224,16 @@
 #define NVMCTRL_SEESTAT_PSZ_MASK      (7 << NVMCTRL_SEESTAT_PSZ_SHIFT)
 #  define NVMCTRL_SEESTAT_PSZ(n)      ((uint32_t)(n) << NVMCTRL_SEESTAT_PSZ_SHIFT)
 
-/********************************************************************************************
+/****************************************************************************
  * Public Types
- ********************************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************************
+/****************************************************************************
  * Public Data
- ********************************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************************
- * Public Functions
- ********************************************************************************************/
+/****************************************************************************
+ * Public Functions Prototypes
+ ****************************************************************************/
 
 #endif /* __ARCH_ARM_SRC_SAMD5E5_HARDWARE_SAM_NVMCTRL_H */

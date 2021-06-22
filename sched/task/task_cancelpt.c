@@ -1,35 +1,20 @@
 /****************************************************************************
  * sched/task/task_cancelpt.c
  *
- *   Copyright (C) 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -56,8 +41,8 @@
  * mq_timedreceive() putmsg()                 sigsuspend()
  *
  * Each of the above function must call enter_cancellation_point() on entry
- * in order to establish the cancellation point and leave_cancellation_point()
- * on exit.  These functions are described below.
+ * in order to establish the cancellation point and
+ * leave_cancellation_point() on exit.  These functions are described below.
  *
  ****************************************************************************/
 
@@ -118,7 +103,7 @@ bool enter_cancellation_point(void)
    * need the TCB to be stationary (no interrupt level modification is
    * anticipated).
    *
-   * REVISIT: is locking the scheduler sufficent in SMP mode?
+   * REVISIT: is locking the scheduler sufficient in SMP mode?
    */
 
   sched_lock();
@@ -151,7 +136,8 @@ bool enter_cancellation_point(void)
           if (tcb->cpcount == 0)
             {
 #ifndef CONFIG_DISABLE_PTHREAD
-              if ((tcb->flags & TCB_FLAG_TTYPE_MASK) == TCB_FLAG_TTYPE_PTHREAD)
+              if ((tcb->flags & TCB_FLAG_TTYPE_MASK) ==
+                  TCB_FLAG_TTYPE_PTHREAD)
                 {
                   pthread_exit(PTHREAD_CANCELED);
                 }
@@ -207,7 +193,7 @@ void leave_cancellation_point(void)
    * need the TCB to be stationary (no interrupt level modification is
    * anticipated).
    *
-   * REVISIT: is locking the scheduler sufficent in SMP mode?
+   * REVISIT: is locking the scheduler sufficient in SMP mode?
    */
 
   sched_lock();
@@ -237,7 +223,8 @@ void leave_cancellation_point(void)
           if ((tcb->flags & TCB_FLAG_CANCEL_PENDING) != 0)
             {
 #ifndef CONFIG_DISABLE_PTHREAD
-              if ((tcb->flags & TCB_FLAG_TTYPE_MASK) == TCB_FLAG_TTYPE_PTHREAD)
+              if ((tcb->flags & TCB_FLAG_TTYPE_MASK) ==
+                  TCB_FLAG_TTYPE_PTHREAD)
                 {
                   pthread_exit(PTHREAD_CANCELED);
                 }
@@ -289,7 +276,7 @@ bool check_cancellation_point(void)
    * need the TCB to be stationary (no interrupt level modification is
    * anticipated).
    *
-   * REVISIT: is locking the scheduler sufficent in SMP mode?
+   * REVISIT: is locking the scheduler sufficient in SMP mode?
    */
 
   sched_lock();
@@ -314,6 +301,8 @@ bool check_cancellation_point(void)
   return ret;
 }
 
+#endif /* CONFIG_CANCELLATION_POINTS */
+
 /****************************************************************************
  * Name: nxnotify_cancellation
  *
@@ -322,12 +311,15 @@ bool check_cancellation_point(void)
  *   while we the thread is within the cancellation point.  This logic
  *   behaves much like sending a signal:  It will cause waiting threads
  *   to wake up and terminated with ECANCELED.  A call to
- *   leave_cancellation_point() whould then follow, causing the thread to
+ *   leave_cancellation_point() would then follow, causing the thread to
  *   exit.
+ *
+ * Returned Value:
+ *   Indicate whether the notification delivery to the target
  *
  ****************************************************************************/
 
-void nxnotify_cancellation(FAR struct tcb_s *tcb)
+bool nxnotify_cancellation(FAR struct tcb_s *tcb)
 {
   irqstate_t flags;
 
@@ -337,51 +329,86 @@ void nxnotify_cancellation(FAR struct tcb_s *tcb)
 
   flags = enter_critical_section();
 
-  /* Make sure that the cancellation pending indication is set. */
-
-  tcb->flags |= TCB_FLAG_CANCEL_PENDING;
-
   /* We only notify the cancellation if (1) the thread has not disabled
-   * cancellation, (2) the thread uses the deffered cancellation mode,
+   * cancellation, (2) the thread uses the deferred cancellation mode,
    * (3) the thread is waiting within a cancellation point.
    */
 
-  if (((tcb->flags & TCB_FLAG_NONCANCELABLE) == 0 &&
-       (tcb->flags & TCB_FLAG_CANCEL_DEFERRED) != 0) ||
-      tcb->cpcount > 0)
+  /* Check to see if this task has the non-cancelable bit set. */
+
+  if ((tcb->flags & TCB_FLAG_NONCANCELABLE) != 0)
     {
-      /* If the thread is blocked waiting for a semaphore, then the thread
-       * must be unblocked to handle the cancellation.
+      /* Then we cannot cancel the thread now.  Here is how this is
+       * supposed to work:
+       *
+       * "When cancellability is disabled, all cancels are held pending
+       *  in the target thread until the thread changes the cancellability.
+       *  When cancellability is deferred, all cancels are held pending in
+       *  the target thread until the thread changes the cancellability,
+       *  calls a function which is a cancellation point or calls
+       *  pthread_testcancel(), thus creating a cancellation point.  When
+       *  cancellability is asynchronous, all cancels are acted upon
+       *  immediately, interrupting the thread with its processing."
        */
 
-      if (tcb->task_state == TSTATE_WAIT_SEM)
-        {
-          nxsem_wait_irq(tcb, ECANCELED);
-        }
-
-      /* If the thread is blocked waiting on a signal, then the
-       * thread must be unblocked to handle the cancellation.
-       */
-
-      else if (tcb->task_state == TSTATE_WAIT_SIG)
-        {
-          nxsig_wait_irq(tcb, ECANCELED);
-        }
-
-#ifndef CONFIG_DISABLE_MQUEUE
-      /* If the thread is blocked waiting on a message queue, then the
-       * thread must be unblocked to handle the cancellation.
-       */
-
-      else if (tcb->task_state == TSTATE_WAIT_MQNOTEMPTY ||
-               tcb->task_state == TSTATE_WAIT_MQNOTFULL)
-        {
-          nxmq_wait_irq(tcb, ECANCELED);
-        }
-#endif
+      tcb->flags |= TCB_FLAG_CANCEL_PENDING;
+      leave_critical_section(flags);
+      return true;
     }
 
-  leave_critical_section(flags);
-}
+#ifdef CONFIG_CANCELLATION_POINTS
+  /* Check if this task supports deferred cancellation */
 
-#endif /* CONFIG_CANCELLATION_POINTS */
+  if ((tcb->flags & TCB_FLAG_CANCEL_DEFERRED) != 0)
+    {
+      /* Then we cannot cancel the task asynchronously.
+       * Mark the cancellation as pending.
+       */
+
+      tcb->flags |= TCB_FLAG_CANCEL_PENDING;
+
+      /* If the task is waiting at a cancellation point, then notify of the
+       * cancellation thereby waking the task up with an ECANCELED error.
+       */
+
+      if (tcb->cpcount > 0)
+        {
+          /* If the thread is blocked waiting for a semaphore, then the
+           * thread must be unblocked to handle the cancellation.
+           */
+
+          if (tcb->task_state == TSTATE_WAIT_SEM)
+            {
+              nxsem_wait_irq(tcb, ECANCELED);
+            }
+
+          /* If the thread is blocked waiting on a signal, then the
+           * thread must be unblocked to handle the cancellation.
+           */
+
+          else if (tcb->task_state == TSTATE_WAIT_SIG)
+            {
+              nxsig_wait_irq(tcb, ECANCELED);
+            }
+
+#ifndef CONFIG_DISABLE_MQUEUE
+          /* If the thread is blocked waiting on a message queue, then
+           * the thread must be unblocked to handle the cancellation.
+           */
+
+          else if (tcb->task_state == TSTATE_WAIT_MQNOTEMPTY ||
+                  tcb->task_state == TSTATE_WAIT_MQNOTFULL)
+            {
+              nxmq_wait_irq(tcb, ECANCELED);
+            }
+#endif
+        }
+
+      leave_critical_section(flags);
+      return true;
+    }
+#endif
+
+  leave_critical_section(flags);
+  return false;
+}
