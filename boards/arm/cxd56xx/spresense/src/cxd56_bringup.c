@@ -126,10 +126,6 @@
 #endif
 
 #ifdef CONFIG_CXD56_CISIF
-#  ifdef CONFIG_VIDEO_ISX012
-#    include <nuttx/video/isx012.h>
-#  endif
-#  include <nuttx/video/video_halif.h>
 #  include <arch/chip/cisif.h>
 #endif
 
@@ -387,20 +383,13 @@ int cxd56_bringup(void)
     {
       _err("ERROR: Failed to initialize ISX012 board. %d\n", errno);
     }
-
-  g_video_sensctrl_ops = isx012_initialize();
-  if (g_video_sensctrl_ops == NULL)
-    {
-      _err("ERROR: Failed to populate ISX012 devops. %d\n", errno);
-      ret = ERROR;
-    }
 #endif /* CONFIG_VIDEO_ISX012 */
 
 #ifdef CONFIG_CXD56_CISIF
-  g_video_imgdata_ops = cxd56_cisif_initialize();
-  if (g_video_imgdata_ops == NULL)
+  ret = cxd56_cisif_initialize();
+  if (ret < 0)
     {
-      _err("ERROR: Failed to populate CISIF operations. %d\n", errno);
+      _err("ERROR: Failed to initialize CISIF. %d\n", errno);
       ret = ERROR;
     }
 #endif /* CONFIG_CXD56_CISIF */

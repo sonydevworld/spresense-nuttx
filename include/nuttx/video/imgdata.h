@@ -1,7 +1,7 @@
 /****************************************************************************
- * drivers/video/video_framebuff.h
+ * include/nuttx/video/imgdata.h
  *
- *   Copyright 2018, 2021 Sony Semiconductor Solutions Corporation
+ *   Copyright 2021 Sony Semiconductor Solutions Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,70 +33,91 @@
  *
  ****************************************************************************/
 
-#ifndef __VIDEO_VIDEO_FRAMEBUFF_H__
-#define __VIDEO_VIDEO_FRAMEBUFF_H__
+#ifndef __INCLUDE_NUTTX_VIDEO_IMGDATA_H
+#define __INCLUDE_NUTTX_VIDEO_IMGDATA_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/video/video.h>
-#include <nuttx/semaphore.h>
+#include <sys/types.h>
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Format definition for start_capture() and validate_frame_setting */
+
+#define IMGDATA_FMT_MAX                  (2)
+#define IMGDATA_FMT_MAIN                 (0)
+#define IMGDATA_FMT_SUB                  (1)
+#define IMGDATA_PIX_FMT_UYVY             (0)
+#define IMGDATA_PIX_FMT_RGB565           (1)
+#define IMGDATA_PIX_FMT_JPEG             (2)
+#define IMGDATA_PIX_FMT_JPEG_WITH_SUBIMG (3)
+#define IMGDATA_PIX_FMT_SUBIMG_UYVY      (4)
+#define IMGDATA_PIX_FMT_SUBIMG_RGB565    (5)
 
 /****************************************************************************
  * Public Types
  ****************************************************************************/
 
-struct vbuf_container_s
+/* structure for validate_frame_setting() and start_capture() */
+
+typedef struct imgdata_format_s
 {
-  struct v4l2_buffer       buf;   /* Buffer information */
-  struct vbuf_container_s *next;  /* pointer to next buffer */
+  uint16_t width;
+  uint16_t height;
+  uint32_t pixelformat;
+} imgdata_format_t;
+
+typedef struct imgdata_interval_s
+{
+  uint32_t numerator;
+  uint32_t denominator;
+} imgdata_interval_t;
+
+typedef int (*imgdata_capture_t)(uint8_t result, uint32_t size);
+
+/* Structure for Data Control I/F */
+
+struct imgdata_ops_s
+{
+  CODE int (*init)(void);
+  CODE int (*uninit)(void);
+
+  CODE int (*validate_buf)(uint8_t *addr, uint32_t size);
+  CODE int (*set_buf)(uint8_t *addr, uint32_t size);
+
+  CODE int (*validate_frame_setting)(uint8_t nr_datafmts,
+                                     FAR imgdata_format_t *datafmts,
+                                     FAR imgdata_interval_t *interval);
+  CODE int (*start_capture)(uint8_t nr_datafmts,
+                            FAR imgdata_format_t *datafmts,
+                            FAR imgdata_interval_t *interval,
+                            FAR imgdata_capture_t callback);
+  CODE int (*stop_capture)(void);
 };
 
-typedef struct vbuf_container_s vbuf_container_t;
-
-struct video_framebuff_s
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
 {
-  enum v4l2_buf_mode  mode;
-  sem_t lock_empty;
-  int container_size;
-  vbuf_container_t *vbuf_alloced;
-  vbuf_container_t *vbuf_empty;
-  vbuf_container_t *vbuf_top;
-  vbuf_container_t *vbuf_tail;
-  vbuf_container_t *vbuf_curr;
-  vbuf_container_t *vbuf_next;
-};
-
-typedef struct video_framebuff_s video_framebuff_t;
+#else
+#define EXTERN extern
+#endif
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-/* Buffer access interface. */
+/* Register image data operations. */
 
-void              video_framebuff_init
-                       (video_framebuff_t *fbuf);
-void              video_framebuff_uninit
-                       (video_framebuff_t *fbuf);
-int               video_framebuff_realloc_container
-                       (video_framebuff_t *fbuf, int sz);
-vbuf_container_t *video_framebuff_get_container
-                       (video_framebuff_t *fbuf);
-void              video_framebuff_free_container
-                       (video_framebuff_t *fbuf, vbuf_container_t *cnt);
-void              video_framebuff_queue_container
-                       (video_framebuff_t *fbuf, vbuf_container_t *tgt);
-vbuf_container_t *video_framebuff_dq_valid_container
-                       (video_framebuff_t *fbuf);
-vbuf_container_t *video_framebuff_get_vacant_container
-                       (video_framebuff_t *fbuf);
-vbuf_container_t *video_framebuff_pop_curr_container
-                       (video_framebuff_t *fbuf);
-void              video_framebuff_capture_done
-                       (video_framebuff_t *fbuf);
-void              video_framebuff_change_mode
-                       (video_framebuff_t *fbuf, enum v4l2_buf_mode mode);
+void imgdata_register(const FAR struct imgdata_ops_s *ops);
 
-#endif  // __VIDEO_VIDEO_FRAMEBUFF_H__
+#undef EXTERN
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __INCLUDE_NUTTX_VIDEO_IMGDATA_H */

@@ -695,7 +695,6 @@
 #define INIT_CONT_OUTR              (AWB_BASE+0x003C)
 #define INIT_CONT_OUTB              (AWB_BASE+0x003E)
 
-
 /* AF OFFSET */
 
 #define AF_SYSTEM                   (AF_BASE+0x0005)
@@ -824,7 +823,6 @@
 
 #define MIPIOUT_EN                  (AUTOCOM_BASE+0x0031)
 #define AELEVEL                     (AUTOCOM_BASE+0x0099)
-
 
 /* VFRMPARA OFFSET */
 
