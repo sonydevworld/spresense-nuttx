@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/xtensa/src/esp32/esp32_intercpu_interrupt.c
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,21 +38,6 @@
 #ifdef CONFIG_SMP
 
 /****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/* Single parameter passed with the inter-CPU interrupt */
-
-static volatile uint8_t g_intcode[CONFIG_SMP_NCPUS] SP_SECTION;
-
-/* Spinlock protects parameter array */
-
-static volatile spinlock_t g_intercpu_spin[CONFIG_SMP_NCPUS] SP_SECTION =
-{
-  SP_UNLOCKED, SP_UNLOCKED
-};
-
-/****************************************************************************
  * Private Function
  ****************************************************************************/
 
@@ -82,10 +52,9 @@ static volatile spinlock_t g_intercpu_spin[CONFIG_SMP_NCPUS] SP_SECTION =
 static int esp32_fromcpu_interrupt(int fromcpu)
 {
   uintptr_t regaddr;
-  int intcode;
-  int tocpu;
 
   DEBUGASSERT((unsigned)fromcpu < CONFIG_SMP_NCPUS);
+  DEBUGASSERT(fromcpu != up_cpu_index());
 
   /* Clear the interrupt from the other CPU */
 
@@ -93,29 +62,9 @@ static int esp32_fromcpu_interrupt(int fromcpu)
                              DPORT_CPU_INTR_FROM_CPU_1_REG;
   putreg32(0, regaddr);
 
-  /* Get the inter-CPU interrupt code */
+  /* Call pause handler */
 
-  tocpu            = up_cpu_index();
-  intcode          = g_intcode[tocpu];
-  g_intcode[tocpu] = CPU_INTCODE_NONE;
-
-  spin_unlock(&g_intercpu_spin[tocpu]);
-
-  /* Dispatch the inter-CPU interrupt based on the intcode value */
-
-  switch (intcode)
-    {
-      case CPU_INTCODE_NONE:
-        break;
-
-      case CPU_INTCODE_PAUSE:
-        xtensa_pause_handler();
-        break;
-
-      default:
-        DEBUGPANIC();
-        break;
-    }
+  xtensa_pause_handler();
 
   return OK;
 }
@@ -157,27 +106,10 @@ int xtensa_intercpu_interrupt(int tocpu, int intcode)
   DEBUGASSERT((unsigned)tocpu < CONFIG_SMP_NCPUS &&
               (unsigned)intcode <= UINT8_MAX);
 
-  /* Make sure that each inter-cpu event is atomic.  The spinlock should
-   * only be locked if we just completed sending an interrupt to this
-   * CPU but the other CPU has not yet processed it.
-   */
-
-  spin_lock(&g_intercpu_spin[tocpu]);
-
-  /* Save the passed parameter.  The previous interrupt code should be
-   * CPU_INTCODE_NONE or we have overrun the other CPU.
-   */
-
-  DEBUGASSERT(g_intcode[tocpu] == CPU_INTCODE_NONE);
-  g_intcode[tocpu] = intcode;
-
-  /* Interrupt the other CPU (tocpu) form this CPU.  NOTE: that this logic
-   * fails in numerous ways if fromcpu == tocpu (for example because non-
-   * reentrant spinlocks are used).
-   */
-
   fromcpu = up_cpu_index();
   DEBUGASSERT(fromcpu != tocpu);
+
+  /* Generate an Inter-Processor Interrupt */
 
   if (fromcpu == 0)
     {

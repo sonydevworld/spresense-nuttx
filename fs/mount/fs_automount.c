@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/mount/fs_automount.c
  *
- *   Copyright (C) 2014, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -60,6 +45,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************
  *
  * CONFIG_FS_AUTOMOUNTER - Enables AUTOMOUNT support
@@ -86,7 +72,7 @@ struct automounter_state_s
 {
   FAR const struct automount_lower_s *lower; /* Board level interfaces */
   struct work_s work;                        /* Work queue support */
-  WDOG_ID wdog;                              /* Delay to retry un-mounts */
+  struct wdog_s wdog;                        /* Delay to retry un-mounts */
   bool mounted;                              /* True: Volume has been mounted */
   bool inserted;                             /* True: Media has been inserted */
 };
@@ -98,7 +84,7 @@ struct automounter_state_s
 static int  automount_findinode(FAR const char *path);
 static void automount_mount(FAR struct automounter_state_s *priv);
 static int  automount_unmount(FAR struct automounter_state_s *priv);
-static void automount_timeout(int argc, uint32_t arg1, ...);
+static void automount_timeout(wdparm_t arg);
 static void automount_worker(FAR void *arg);
 static int  automount_interrupt(FAR const struct automount_lower_s *lower,
               FAR void *arg, bool inserted);
@@ -118,7 +104,7 @@ static int  automount_interrupt(FAR const struct automount_lower_s *lower,
  *
  * Returned Value:
  *   OK_EXIST if the inode exists
- *   OK_NOENT if the indoe does not exist
+ *   OK_NOENT if the inode does not exist
  *   Negated errno if some failure occurs
  *
  ****************************************************************************/
@@ -128,13 +114,17 @@ static int automount_findinode(FAR const char *path)
   struct inode_search_s desc;
   int ret;
 
-  /* Make sure that we were given an absolute path */
+  /* Make sure that we were given a path */
 
-  DEBUGASSERT(path && path[0] == '/');
+  DEBUGASSERT(path != NULL);
 
   /* Get exclusive access to the in-memory inode tree. */
 
-  inode_semtake();
+  ret = inode_semtake();
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Find the inode */
 
@@ -228,15 +218,11 @@ static void automount_mount(FAR struct automounter_state_s *priv)
 
        /* Mount the file system */
 
-      ret = mount(lower->blockdev, lower->mountpoint, lower->fstype,
-                  0, NULL);
+      ret = nx_mount(lower->blockdev, lower->mountpoint, lower->fstype,
+                     0, NULL);
       if (ret < 0)
         {
-          int errcode = get_errno();
-          DEBUGASSERT(errcode > 0);
-
-          ferr("ERROR: Mount failed: %d\n", errcode);
-          UNUSED(errcode);
+          ferr("ERROR: Mount failed: %d\n", ret);
           return;
         }
 
@@ -286,25 +272,22 @@ static int automount_unmount(FAR struct automounter_state_s *priv)
 
       /* Un-mount the volume */
 
-      ret = umount2(lower->mountpoint, MNT_FORCE);
+      ret = nx_umount2(lower->mountpoint, MNT_FORCE);
       if (ret < 0)
         {
-          int errcode = get_errno();
-          DEBUGASSERT(errcode > 0);
-
           /* We expect the error to be EBUSY meaning that the volume could
            * not be unmounted because there are currently reference via open
            * files or directories.
            */
 
-          if (errcode == EBUSY)
+          if (ret == -EBUSY)
             {
               finfo("WARNING: Volume is busy, try again later\n");
 
               /* Start a timer to retry the umount2 after a delay */
 
-              ret = wd_start(priv->wdog, lower->udelay, automount_timeout, 1,
-                             (uint32_t)((uintptr_t)priv));
+              ret = wd_start(&priv->wdog, lower->udelay,
+                             automount_timeout, (wdparm_t)priv);
               if (ret < 0)
                 {
                   ferr("ERROR: wd_start failed: %d\n", ret);
@@ -316,8 +299,8 @@ static int automount_unmount(FAR struct automounter_state_s *priv)
 
           else
             {
-              ferr("ERROR: umount2 failed: %d\n", errcode);
-              return -errcode;
+              ferr("ERROR: umount2 failed: %d\n", ret);
+              return ret;
             }
         }
 
@@ -359,14 +342,14 @@ static int automount_unmount(FAR struct automounter_state_s *priv)
  *
  ****************************************************************************/
 
-static void automount_timeout(int argc, uint32_t arg1, ...)
+static void automount_timeout(wdparm_t arg)
 {
   FAR struct automounter_state_s *priv =
-    (FAR struct automounter_state_s *)((uintptr_t)arg1);
+    (FAR struct automounter_state_s *)arg;
   int ret;
 
   finfo("Timeout!\n");
-  DEBUGASSERT(argc == 1 && priv);
+  DEBUGASSERT(priv);
 
   /* Check the state of things.  This timeout at the interrupt level and
    * will cancel the timeout if there is any change in the insertion
@@ -404,7 +387,8 @@ static void automount_timeout(int argc, uint32_t arg1, ...)
 
 static void automount_worker(FAR void *arg)
 {
-  FAR struct automounter_state_s *priv = (FAR struct automounter_state_s *)arg;
+  FAR struct automounter_state_s *priv =
+    (FAR struct automounter_state_s *)arg;
   FAR const struct automount_lower_s *lower;
 
   DEBUGASSERT(priv && priv->lower);
@@ -460,7 +444,8 @@ static void automount_worker(FAR void *arg)
 static int automount_interrupt(FAR const struct automount_lower_s *lower,
                                FAR void *arg, bool inserted)
 {
-  FAR struct automounter_state_s *priv = (FAR struct automounter_state_s *)arg;
+  FAR struct automounter_state_s *priv =
+    (FAR struct automounter_state_s *)arg;
   int ret;
 
   DEBUGASSERT(lower && priv && priv->lower == lower);
@@ -501,7 +486,7 @@ static int automount_interrupt(FAR const struct automount_lower_s *lower,
     {
       /* Cancel any retry delays */
 
-      wd_cancel(priv->wdog);
+      wd_cancel(&priv->wdog);
     }
 
   return OK;
@@ -521,8 +506,8 @@ static int automount_interrupt(FAR const struct automount_lower_s *lower,
  *   lower - Persistent board configuration data
  *
  * Returned Value:
- *   A void* handle.  The only use for this handle is with automount_uninitialize().
- *   NULL is returned on any failure.
+ *   A void* handle.  The only use for this handle is with
+ *   automount_uninitialize().  NULL is returned on any failure.
  *
  ****************************************************************************/
 
@@ -548,16 +533,6 @@ FAR void *automount_initialize(FAR const struct automount_lower_s *lower)
   /* Initialize the automounter state structure */
 
   priv->lower = lower;
-
-  /* Get a timer to handle unmount retries */
-
-  priv->wdog  = wd_create();
-  if (!priv->wdog)
-    {
-      ferr("ERROR: Failed to create a timer\n");
-      automount_uninitialize(priv);
-      return NULL;
-    }
 
   /* Handle the initial state of the mount on the caller's thread */
 
@@ -607,7 +582,8 @@ FAR void *automount_initialize(FAR const struct automount_lower_s *lower)
 
 void automount_uninitialize(FAR void *handle)
 {
-  FAR struct automounter_state_s *priv = (FAR struct automounter_state_s *)handle;
+  FAR struct automounter_state_s *priv =
+    (FAR struct automounter_state_s *)handle;
   FAR const struct automount_lower_s *lower;
 
   DEBUGASSERT(priv && priv->lower);
@@ -618,9 +594,9 @@ void automount_uninitialize(FAR void *handle)
   AUTOMOUNT_DISABLE(lower);
   AUTOMOUNT_DETACH(lower);
 
-  /* Release resources */
+  /* Cancel the watchdog timer */
 
-  wd_delete(priv->wdog);
+  wd_cancel(&priv->wdog);
 
   /* And free the state structure */
 

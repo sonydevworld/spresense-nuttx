@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/procfs/netdev_statistics.c
  *
- *   Copyright (C) 2015, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -42,6 +27,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include <debug.h>
 
 #include <netinet/ether.h>
@@ -72,11 +58,13 @@ static int netprocfs_inet6draddress(FAR struct netprocfs_file_s *netfile);
 static int netprocfs_blank_line(FAR struct netprocfs_file_s *netfile);
 #endif
 #ifdef CONFIG_NETDEV_STATISTICS
-static int netprocfs_rxstatistics_header(FAR struct netprocfs_file_s *netfile);
+static int netprocfs_rxstatistics_header(
+    FAR struct netprocfs_file_s *netfile);
 static int netprocfs_rxstatistics(FAR struct netprocfs_file_s *netfile);
 static int netprocfs_rxpackets_header(FAR struct netprocfs_file_s *netfile);
 static int netprocfs_rxpackets(FAR struct netprocfs_file_s *netfile);
-static int netprocfs_txstatistics_header(FAR struct netprocfs_file_s *netfile);
+static int netprocfs_txstatistics_header(
+    FAR struct netprocfs_file_s *netfile);
 static int netprocfs_txstatistics(FAR struct netprocfs_file_s *netfile);
 static int netprocfs_errors(FAR struct netprocfs_file_s *netfile);
 #endif /* CONFIG_NETDEV_STATISTICS */
@@ -124,7 +112,7 @@ static int netprocfs_radio_linklayer(FAR struct netprocfs_file_s *netfile,
 {
   FAR struct netdev_varaddr_s *addr;
   FAR struct net_driver_s *dev;
-#if RADIO_MAX_ADDRLEN > 1 
+#if RADIO_MAX_ADDRLEN > 1
   int i;
 #endif
 
@@ -168,7 +156,7 @@ static int netprocfs_radio_linklayer(FAR struct netprocfs_file_s *netfile,
 }
 #endif
 
-  /****************************************************************************
+/****************************************************************************
  * Name: netprocfs_linklayer
  ****************************************************************************/
 
@@ -380,7 +368,8 @@ static int netprocfs_blank_line(FAR struct netprocfs_file_s *netfile)
  ****************************************************************************/
 
 #ifdef CONFIG_NETDEV_STATISTICS
-static int netprocfs_rxstatistics_header(FAR struct netprocfs_file_s *netfile)
+static int netprocfs_rxstatistics_header(
+    FAR struct netprocfs_file_s *netfile)
 {
   DEBUGASSERT(netfile != NULL);
   return snprintf(netfile->line, NET_LINELEN , "\tRX: %-8s %-8s %-8s\n",
@@ -492,7 +481,8 @@ static int netprocfs_rxpackets(FAR struct netprocfs_file_s *netfile)
  ****************************************************************************/
 
 #ifdef CONFIG_NETDEV_STATISTICS
-static int netprocfs_txstatistics_header(FAR struct netprocfs_file_s *netfile)
+static int netprocfs_txstatistics_header(
+    FAR struct netprocfs_file_s *netfile)
 {
   DEBUGASSERT(netfile != NULL);
 
@@ -515,7 +505,8 @@ static int netprocfs_txstatistics(FAR struct netprocfs_file_s *netfile)
   dev = netfile->dev;
   stats = &dev->d_statistics;
 
-  return snprintf(netfile->line, NET_LINELEN, "\t    %08lx %08lx %08lx %08lx\n",
+  return snprintf(netfile->line, NET_LINELEN,
+                  "\t    %08lx %08lx %08lx %08lx\n",
                   (unsigned long)stats->tx_packets,
                   (unsigned long)stats->tx_done,
                   (unsigned long)stats->tx_errors,
@@ -537,8 +528,9 @@ static int netprocfs_errors(FAR struct netprocfs_file_s *netfile)
   dev = netfile->dev;
   stats = &dev->d_statistics;
 
-  return snprintf(netfile->line, NET_LINELEN , "\tTotal Errors: %08x\n\n",
-                  (unsigned long)stats->errors);
+  return snprintf(netfile->line, NET_LINELEN,
+                  "\tTotal Errors: %08" PRIx32 "\n\n",
+                  stats->errors);
 }
 #endif /* CONFIG_NETDEV_STATISTICS */
 

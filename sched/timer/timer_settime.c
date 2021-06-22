@@ -1,36 +1,20 @@
 /****************************************************************************
  * sched/timer/timer_settime.c
  *
- *   Copyright (C) 2007-2010, 2013-2016, 2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -59,7 +43,7 @@
 static inline void timer_signotify(FAR struct posix_timer_s *timer);
 static inline void timer_restart(FAR struct posix_timer_s *timer,
                                  wdparm_t itimer);
-static void timer_timeout(int argc, wdparm_t itimer);
+static void timer_timeout(wdparm_t itimer);
 
 /****************************************************************************
  * Private Functions
@@ -114,8 +98,7 @@ static inline void timer_restart(FAR struct posix_timer_s *timer,
   if (timer->pt_delay)
     {
       timer->pt_last = timer->pt_delay;
-      wd_start(timer->pt_wdog, timer->pt_delay,
-               (wdentry_t)timer_timeout, 1, itimer);
+      wd_start(&timer->pt_wdog, timer->pt_delay, timer_timeout, itimer);
     }
 }
 
@@ -127,9 +110,7 @@ static inline void timer_restart(FAR struct posix_timer_s *timer,
  *   signaled.
  *
  * Input Parameters:
- *   argc   - the number of arguments (should be 1)
  *   itimer - A reference to the POSIX timer that just timed out
- *   signo  - The signal to use to wake up the task
  *
  * Returned Value:
  *   None
@@ -139,41 +120,8 @@ static inline void timer_restart(FAR struct posix_timer_s *timer,
  *
  ****************************************************************************/
 
-static void timer_timeout(int argc, wdparm_t itimer)
+static void timer_timeout(wdparm_t itimer)
 {
-#ifndef CONFIG_CAN_PASS_STRUCTS
-  /* On many small machines, pointers are encoded and cannot be simply cast
-   * from wdparm_t to struct tcb_s *.  The following union works around this
-   * (see wdogparm_t).
-   */
-
-  union
-  {
-    FAR struct posix_timer_s *timer;
-    wdparm_t                  itimer;
-  } u;
-
-  u.itimer = itimer;
-
-  /* Send the specified signal to the specified task.   Increment the
-   * reference count on the timer first so that will not be deleted until
-   * after the signal handler returns.
-   */
-
-  u.timer->pt_crefs++;
-  timer_signotify(u.timer);
-
-  /* Release the reference.  timer_release will return nonzero if the timer
-   * was not deleted.
-   */
-
-  if (timer_release(u.timer))
-    {
-      /* If this is a repetitive timer, then restart the watchdog */
-
-      timer_restart(u.timer, itimer);
-    }
-#else
   FAR struct posix_timer_s *timer = (FAR struct posix_timer_s *)itimer;
 
   /* Send the specified signal to the specified task.   Increment the
@@ -194,7 +142,6 @@ static void timer_timeout(int argc, wdparm_t itimer)
 
       timer_restart(timer, itimer);
     }
-#endif
 }
 
 /****************************************************************************
@@ -257,9 +204,9 @@ static void timer_timeout(int argc, wdparm_t itimer)
  *
  *   EINVAL - The timerid argument does not correspond to an ID returned by
  *     timer_create() but not yet deleted by timer_delete().
- *   EINVAL - A value structure specified a nanosecond value less than zero or
- *     greater than or equal to 1000 million, and the it_value member of that
- *     structure did not specify zero seconds and nanoseconds.
+ *   EINVAL - A value structure specified a nanosecond value less than zero
+ *     or greater than or equal to 1000 million, and the it_value member of
+ *     that structure did not specify zero seconds and nanoseconds.
  *
  * Assumptions:
  *
@@ -286,25 +233,27 @@ int timer_settime(timer_t timerid, int flags,
     {
       /* Get the number of ticks before the underlying watchdog expires */
 
-      delay = wd_gettime(timer->pt_wdog);
+      delay = wd_gettime(&timer->pt_wdog);
 
       /* Convert that to a struct timespec and return it */
 
       clock_ticks2time(delay, &ovalue->it_value);
-      clock_ticks2time(timer->pt_last, &ovalue->it_interval);
+      clock_ticks2time(timer->pt_delay, &ovalue->it_interval);
     }
 
-  /* Disarm the timer (in case the timer was already armed when timer_settime()
-   * is called).
+  /* Disarm the timer (in case the timer was already armed when
+   * timer_settime() is called).
    */
 
-  wd_cancel(timer->pt_wdog);
+  wd_cancel(&timer->pt_wdog);
 
   /* Cancel any pending notification */
 
   nxsig_cancel_notification(&timer->pt_work);
 
-  /* If the it_value member of value is zero, the timer will not be re-armed */
+  /* If the it_value member of value is zero, the timer will not be
+   * re-armed
+   */
 
   if (value->it_value.tv_sec <= 0 && value->it_value.tv_nsec <= 0)
     {
@@ -336,12 +285,9 @@ int timer_settime(timer_t timerid, int flags,
 
   if ((flags & TIMER_ABSTIME) != 0)
     {
-      /* Calculate a delay corresponding to the absolute time in 'value'.
-       * NOTE:  We have internal knowledge the clock_abstime2ticks only
-       * returns an error if clockid != CLOCK_REALTIME.
-       */
+      /* Calculate a delay corresponding to the absolute time in 'value' */
 
-      clock_abstime2ticks(CLOCK_REALTIME, &value->it_value, &delay);
+      clock_abstime2ticks(timer->pt_clock, &value->it_value, &delay);
     }
   else
     {
@@ -371,8 +317,8 @@ int timer_settime(timer_t timerid, int flags,
        */
 
       timer->pt_last = delay;
-      ret = wd_start(timer->pt_wdog, delay, (wdentry_t)timer_timeout,
-                     1, (wdparm_t)timer);
+      ret = wd_start(&timer->pt_wdog, delay,
+                     timer_timeout, (wdparm_t)timer);
       if (ret < 0)
         {
           set_errno(-ret);

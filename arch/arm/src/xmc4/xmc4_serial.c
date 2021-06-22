@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/xmc4/xmc4_serial.c
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,8 +38,8 @@
 
 #include <arch/board/board.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "chip.h"
 #include "xmc4_config.h"
@@ -64,7 +49,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Some sanity checks *******************************************************/
+
 /* Is there at least one UART enabled and configured as a RS-232 device? */
 
 #ifndef HAVE_UART_DEVICE
@@ -261,7 +248,7 @@ static int  xmc4_attach(struct uart_dev_s *dev);
 static void xmc4_detach(struct uart_dev_s *dev);
 static int  xmc4_interrupt(int irq, void *context, FAR void *arg);
 static int  xmc4_ioctl(struct file *filep, int cmd, unsigned long arg);
-static int  xmc4_receive(struct uart_dev_s *dev, uint32_t *status);
+static int  xmc4_receive(struct uart_dev_s *dev, unsigned int *status);
 static void xmc4_rxint(struct uart_dev_s *dev, bool enable);
 static bool xmc4_rxavailable(struct uart_dev_s *dev);
 static void xmc4_send(struct uart_dev_s *dev, int ch);
@@ -348,7 +335,7 @@ static uart_dev_t g_uart0port =
   {
     .size   = CONFIG_UART0_TXBUFSIZE,
     .buffer = g_uart0txbuffer,
-   },
+  },
   .ops      = &g_uart_ops,
   .priv     = &g_uart0priv,
 };
@@ -383,7 +370,7 @@ static uart_dev_t g_uart1port =
   {
     .size   = CONFIG_UART1_TXBUFSIZE,
     .buffer = g_uart1txbuffer,
-   },
+  },
   .ops      = &g_uart_ops,
   .priv     = &g_uart1priv,
 };
@@ -418,7 +405,7 @@ static uart_dev_t g_uart2port =
   {
     .size   = CONFIG_UART2_TXBUFSIZE,
     .buffer = g_uart2txbuffer,
-   },
+  },
   .ops      = &g_uart_ops,
   .priv     = &g_uart2priv,
 };
@@ -453,7 +440,7 @@ static uart_dev_t g_uart3port =
   {
     .size   = CONFIG_UART3_TXBUFSIZE,
     .buffer = g_uart3txbuffer,
-   },
+  },
   .ops      = &g_uart_ops,
   .priv     = &g_uart3priv,
 };
@@ -488,7 +475,7 @@ static uart_dev_t g_uart4port =
   {
     .size   = CONFIG_UART4_TXBUFSIZE,
     .buffer = g_uart4txbuffer,
-   },
+  },
   .ops      = &g_uart_ops,
   .priv     = &g_uart4priv,
 };
@@ -523,7 +510,7 @@ static uart_dev_t g_uart5port =
   {
     .size   = CONFIG_UART5_TXBUFSIZE,
     .buffer = g_uart5txbuffer,
-   },
+  },
   .ops      = &g_uart_ops,
   .priv     = &g_uart5priv,
 };
@@ -557,8 +544,9 @@ static inline void xmc4_serialout(struct xmc4_dev_s *priv,
  * Name: xmc4_modifyreg
  ****************************************************************************/
 
-static inline void xmc4_modifyreg(struct xmc4_dev_s *priv, unsigned int offset,
-                                  uint32_t setbits, uint32_t clrbits)
+static inline void xmc4_modifyreg(struct xmc4_dev_s *priv, unsigned
+                                  int offset, uint32_t setbits,
+                                  uint32_t clrbits)
 {
   irqstate_t flags;
   uintptr_t regaddr = priv->uartbase + offset;
@@ -678,14 +666,15 @@ static void xmc4_shutdown(struct uart_dev_s *dev)
  * Name: xmc4_attach
  *
  * Description:
- *   Configure the UART to operation in interrupt driven mode.  This method is
- *   called when the serial port is opened.  Normally, this is just after the
+ *   Configure the UART to operation in interrupt driven mode.  This method
+ *   is called when the serial port is opened.  Normally, this is just after
  *   the setup() method is called, however, the serial console may operate in
  *   a non-interrupt driven mode during the boot phase.
  *
- *   RX and TX interrupts are not enabled when by the attach method (unless the
- *   hardware supports multiple levels of interrupt enabling).  The RX and TX
- *   interrupts are not enabled until the txint() and rxint() methods are called.
+ *   RX and TX interrupts are not enabled when by the attach method (unless
+ *   the hardware supports multiple levels of interrupt enabling).
+ *   The RX and TX interrupts are not enabled until the txint() and rxint()
+ *   methods are called.
  *
  ****************************************************************************/
 
@@ -712,8 +701,8 @@ static int xmc4_attach(struct uart_dev_s *dev)
  *
  * Description:
  *   Detach UART interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception
- *   is the serial console which is never shutdown.
+ *   closed normally just before the shutdown method is called.
+ *   The exception is the serial console which is never shutdown.
  *
  ****************************************************************************/
 
@@ -739,7 +728,7 @@ static void xmc4_detach(struct uart_dev_s *dev)
  *   interrupt received on the 'irq'  It should call uart_transmitchars or
  *   uart_receivechar to perform the appropriate data transfers.  The
  *   interrupt handling logic must be able to map the 'irq' number into the
- *   approprite uart_dev_s structure in order to call these functions.
+ *   appropriate uart_dev_s structure in order to call these functions.
  *
  ****************************************************************************/
 
@@ -847,7 +836,7 @@ static int xmc4_ioctl(struct file *filep, int cmd, unsigned long arg)
  *
  ****************************************************************************/
 
-static int xmc4_receive(struct uart_dev_s *dev, uint32_t *status)
+static int xmc4_receive(struct uart_dev_s *dev, unsigned int *status)
 {
   struct xmc4_dev_s *priv = (struct xmc4_dev_s *)dev->priv;
   uint32_t outr;
@@ -885,8 +874,8 @@ static void xmc4_rxint(struct uart_dev_s *dev, bool enable)
   if (enable)
     {
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
-      /* Receive an interrupt when their is anything in the Rx data register (or an Rx
-       * timeout occurs).
+      /* Receive an interrupt when their is anything in the Rx data register
+       * (or an Rx timeout occurs).
        */
 
       priv->ccr |= CCR_RX_EVENTS;
@@ -1024,17 +1013,15 @@ static bool xmc4_txempty(struct uart_dev_s *dev)
  *   Performs the low level UART initialization early in debug so that the
  *   serial console will be available during bootup.  This must be called
  *   before xmc4_serialinit.  NOTE:  This function depends on GPIO pin
- *   configuration performed in xmc_lowsetup() and main clock iniialization
- *   performed in xmc_clock_configure().
+ *   configuration performed in xmc4_lowsetup() and main clock initialization
+ *   performed in xmc4_clock_configure().
  *
  ****************************************************************************/
 
 #if defined(USE_EARLYSERIALINIT)
 void xmc4_earlyserialinit(void)
 {
-  /* Disable interrupts from all UARTS.  The console is enabled in
-   * pic32mx_consoleinit()
-   */
+  /* Disable interrupts from all UARTS. */
 
   xmc4_restoreuartint(TTYS0_DEV.priv, 0);
 #ifdef TTYS1_DEV
@@ -1053,7 +1040,7 @@ void xmc4_earlyserialinit(void)
   xmc4_restoreuartint(TTYS5_DEV.priv, 0);
 #endif
 
-  /* Configuration whichever one is the console */
+  /* Configuration whichever one is the console. */
 
 #ifdef HAVE_UART_CONSOLE
   CONSOLE_DEV.isconsole = true;
@@ -1063,7 +1050,7 @@ void xmc4_earlyserialinit(void)
 #endif
 
 /****************************************************************************
- * Name: up_serialinit
+ * Name: arm_serialinit
  *
  * Description:
  *   Register serial console and serial ports.  This assumes
@@ -1077,7 +1064,7 @@ void xmc4_earlyserialinit(void)
  *
  ****************************************************************************/
 
-void up_serialinit(void)
+void arm_serialinit(void)
 {
 #ifdef HAVE_UART_CONSOLE
   /* Register the serial console */
@@ -1109,7 +1096,7 @@ void up_serialinit(void)
  * Name: up_putc
  *
  * Description:
- *   Provide priority, low-level access to support OS debug  writes
+ *   Provide priority, low-level access to support OS debug writes.
  *
  ****************************************************************************/
 
@@ -1127,10 +1114,10 @@ int up_putc(int ch)
     {
       /* Add CR */
 
-      up_lowputc('\r');
+      arm_lowputc('\r');
     }
 
-  up_lowputc(ch);
+  arm_lowputc(ch);
   xmc4_restoreuartint(priv, ccr);
 #endif
 
@@ -1156,10 +1143,10 @@ int up_putc(int ch)
     {
       /* Add CR */
 
-      up_lowputc('\r');
+      arm_lowputc('\r');
     }
 
-  up_lowputc(ch);
+  arm_lowputc(ch);
   return ch;
 }
 #endif

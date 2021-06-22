@@ -1,44 +1,29 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/stm32/stm32_opamp.h
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Author: Mateusz Szafoni <raiden00@railab.me>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_STM32_STM32_OPAMP_H
 #define __ARCH_ARM_SRC_STM32_STM32_OPAMP_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -54,9 +39,9 @@
 
 #include <nuttx/analog/opamp.h>
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor definitions
- ************************************************************************************/
+ ****************************************************************************/
 
 /* OPAMP operation mode */
 
@@ -69,7 +54,7 @@
 #define OPAMP_MUX_DISABLE 0
 #define OPAMP_MUX_ENABLE 1
 
-/* User callibration  */
+/* User calibration  */
 
 #define OPAMP_USERCAL_DISABLE 0
 #define OPAMP_USERCAL_ENABLE  1
@@ -82,9 +67,9 @@
 #define OPAMP_GAIN_DEFAULT    OPAMP_GAIN_2          /* Gain in PGA mode = 2 */
 #define OPAMP_LOCK_DEFAULT    OPAMP_LOCK_RW         /* Do not lock CSR register */
 
-/************************************************************************************
+/****************************************************************************
  * Public Types
- ************************************************************************************/
+ ****************************************************************************/
 
 /* CSR register lock state */
 
@@ -136,6 +121,7 @@ enum stm32_opamp2_vpsel_e
 {
 #ifndef CONFIG_STM32_STM32F33XX
   /* TODO: STM32F303xB/C and STM32F358C devices only */
+
   OPAMP2_VPSEL_PD14,
 #endif
   OPAMP2_VPSEL_PB14,
@@ -188,9 +174,9 @@ enum stm32_opamp4_vmsel_e
 };
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ASSEMBLY__
 #ifdef __cplusplus
@@ -202,24 +188,24 @@ extern "C"
 #endif
 
 /****************************************************************************
-* Name: stm32_opampinitialize
-*
-* Description:
-*   Initialize the OPAMP.
-*
-* Input Parameters:
-*   intf - The OPAMP interface number.
-*
-* Returned Value:
-*   Valid OPAMP device structure reference on success; a NULL on failure.
-*
-* Assumptions:
-*   1. Clock to the OPAMP block has enabled,
-*   2. Board-specific logic has already configured
-*
-****************************************************************************/
+ * Name: stm32_opampinitialize
+ *
+ * Description:
+ *   Initialize the OPAMP.
+ *
+ * Input Parameters:
+ *   intf - The OPAMP interface number.
+ *
+ * Returned Value:
+ *   Valid OPAMP device structure reference on success; a NULL on failure.
+ *
+ * Assumptions:
+ *   1. Clock to the OPAMP block has enabled,
+ *   2. Board-specific logic has already configured
+ *
+ ****************************************************************************/
 
-FAR struct opamp_dev_s* stm32_opampinitialize(int intf);
+FAR struct opamp_dev_s *stm32_opampinitialize(int intf);
 
 #undef EXTERN
 #ifdef __cplusplus
@@ -227,5 +213,5 @@ FAR struct opamp_dev_s* stm32_opampinitialize(int intf);
 #endif
 #endif /* __ASSEMBLY__ */
 
-#endif  /* CONFIG_STM32_OPAMP */
+#endif /* CONFIG_STM32_OPAMP */
 #endif /* __ARCH_ARM_SRC_STM32_STM32_OPAMP_H */

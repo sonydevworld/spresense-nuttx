@@ -47,6 +47,7 @@
 #include <errno.h>
 #include <debug.h>
 #include <fcntl.h>
+#include <poll.h>
 
 #include <nuttx/irq.h>
 #include <nuttx/kmalloc.h>
@@ -185,6 +186,13 @@ struct usbhost_state_s
   pid_t                                pollpid;      /* PID of the poll task */
   size_t                               out_seq_num;  /* The sequence number for outgoing packets */
   struct xbox_controller_buttonstate_s rpt;          /* The latest report out of the controller. */
+
+  /* The following is a list if poll structures of threads waiting for
+   * driver events. The 'struct pollfd' reference for each open is also
+   * retained in the f_priv field of the 'struct file'.
+   */
+
+  struct pollfd *fds[CONFIG_XBOXCONTROLLER_NPOLLWAITERS];
 };
 
 /****************************************************************************
@@ -193,7 +201,8 @@ struct usbhost_state_s
 
 /* Semaphores */
 
-static void usbhost_takesem(sem_t *sem);
+static int usbhost_takesem(FAR sem_t *sem);
+static void usbhost_forcetake(FAR sem_t *sem);
 #define usbhost_givesem(s) nxsem_post(s);
 
 /* Memory allocation services */
@@ -211,7 +220,10 @@ static inline void usbhost_mkdevname(FAR struct usbhost_state_s *priv,
 /* Worker thread actions */
 
 static void usbhost_destroy(FAR void *arg);
-static void usbhost_notify(FAR struct usbhost_state_s *priv);
+
+/* Polling support */
+
+static void usbhost_pollnotify(FAR struct usbhost_state_s *dev);
 static int usbhost_xboxcontroller_poll(int argc, char *argv[]);
 
 /* Helpers for usbhost_connect() */
@@ -237,8 +249,9 @@ static inline int usbhost_tfree(FAR struct usbhost_state_s *priv);
 
 /* struct usbhost_registry_s methods */
 
-static struct usbhost_class_s *usbhost_create(FAR struct usbhost_hubport_s *hport,
-                                              FAR const struct usbhost_id_s *id);
+static struct usbhost_class_s *
+  usbhost_create(FAR struct usbhost_hubport_s *hport,
+                 FAR const struct usbhost_id_s *id);
 
 /* struct usbhost_class_s methods */
 
@@ -254,7 +267,7 @@ static ssize_t usbhost_read(FAR struct file *filep,
                             FAR char *buffer, size_t len);
 static ssize_t usbhost_write(FAR struct file *filep,
                              FAR const char *buffer, size_t len);
-static int usbhost_ioctl(FAR struct file* filep, int cmd, unsigned long arg);
+static int usbhost_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
 static int usbhost_poll(FAR struct file *filep, FAR struct pollfd *fds,
                         bool setup);
 
@@ -269,22 +282,23 @@ static int usbhost_poll(FAR struct file *filep, FAR struct pollfd *fds,
 static const struct usbhost_id_s g_xboxcontroller_id[] =
 {
   /* XBox One classic controller */
+
   {
     USB_CLASS_VENDOR_SPEC,  /* base -- Must be one of the USB_CLASS_* definitions in usb.h */
-    0x0047,  /* subclass -- depends on the device */
-    0x00d0,  /* proto -- depends on the device    */
-    0x045e,  /* vid      */
-    0x02dd   /* pid      */
+    0x0047,                 /* subclass -- depends on the device */
+    0x00d0,                 /* proto -- depends on the device */
+    0x045e,                 /* vid */
+    0x02dd                  /* pid */
   },
 
   /* XBox One S controller */
 
   {
     USB_CLASS_VENDOR_SPEC,  /* base -- Must be one of the USB_CLASS_* definitions in usb.h */
-    0x0047,  /* subclass -- depends on the device */
-    0x00d0,  /* proto -- depends on the device    */
-    0x045e,  /* vid      */
-    0x02ea   /* pid      */
+    0x0047,                 /* subclass -- depends on the device */
+    0x00d0,                 /* proto -- depends on the device */
+    0x045e,                 /* vid */
+    0x02ea                  /* pid */
   }
 };
 
@@ -292,23 +306,23 @@ static const struct usbhost_id_s g_xboxcontroller_id[] =
 
 static struct usbhost_registry_s g_xboxcontroller =
 {
-  NULL,                   /* flink    */
-  usbhost_create,         /* create   */
-  2,                      /* nids     */
-  g_xboxcontroller_id     /* id[]     */
+  NULL,                     /* flink */
+  usbhost_create,           /* create */
+  2,                        /* nids */
+  g_xboxcontroller_id       /* id[] */
 };
 
 /* The configuration information for the block file device. */
 
 static const struct file_operations g_xboxcontroller_fops =
 {
-  usbhost_open,            /* open      */
-  usbhost_close,           /* close     */
-  usbhost_read,            /* read      */
-  usbhost_write,           /* write     */
-  NULL,                    /* seek      */
-  usbhost_ioctl,           /* ioctl     */
-  usbhost_poll             /* poll      */
+  usbhost_open,             /* open */
+  usbhost_close,            /* close */
+  usbhost_read,             /* read */
+  usbhost_write,            /* write */
+  NULL,                     /* seek */
+  usbhost_ioctl,            /* ioctl */
+  usbhost_poll              /* poll */
 };
 
 /* This is a bitmap that is used to allocate device names /dev/xboxa-z. */
@@ -334,9 +348,37 @@ static struct usbhost_state_s *g_priv;    /* Data passed to thread */
  *
  ****************************************************************************/
 
-static void usbhost_takesem(sem_t *sem)
+static int usbhost_takesem(FAR sem_t *sem)
 {
-  nxsem_wait_uninterruptible(sem);
+  return nxsem_wait_uninterruptible(sem);
+}
+
+/****************************************************************************
+ * Name: usbhost_forcetake
+ *
+ * Description:
+ *   This is just another wrapper but this one continues even if the thread
+ *   is canceled.  This must be done in certain conditions where were must
+ *   continue in order to clean-up resources.
+ *
+ ****************************************************************************/
+
+static void usbhost_forcetake(FAR sem_t *sem)
+{
+  int ret;
+
+  do
+    {
+      ret = nxsem_wait_uninterruptible(sem);
+
+      /* The only expected error would -ECANCELED meaning that the
+       * parent thread has been canceled.  We have to continue and
+       * terminate the poll in this case.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -ECANCELED);
+    }
+  while (ret < 0);
 }
 
 /****************************************************************************
@@ -363,7 +405,10 @@ static inline FAR struct usbhost_state_s *usbhost_allocclass(void)
   FAR struct usbhost_state_s *priv;
 
   DEBUGASSERT(!up_interrupt_context());
-  priv = (FAR struct usbhost_state_s *)kmm_malloc(sizeof(struct usbhost_state_s));
+
+  priv = (FAR struct usbhost_state_s *)
+    kmm_malloc(sizeof(struct usbhost_state_s));
+
   uinfo("Allocated: %p\n", priv);
   return priv;
 }
@@ -514,7 +559,7 @@ static void usbhost_destroy(FAR void *arg)
 }
 
 /****************************************************************************
- * Name: usbhost_notify
+ * Name: usbhost_pollnotify
  *
  * Description:
  *   Wake any threads waiting for controller data
@@ -527,7 +572,7 @@ static void usbhost_destroy(FAR void *arg)
  *
  ****************************************************************************/
 
-static void usbhost_notify(FAR struct usbhost_state_s *priv)
+static void usbhost_pollnotify(FAR struct usbhost_state_s *priv)
 {
   int i;
 
@@ -540,10 +585,10 @@ static void usbhost_notify(FAR struct usbhost_state_s *priv)
       nxsem_post(&priv->waitsem);
     }
 
-  /* If there are threads waiting on poll() for controller data to become available,
-   * then wake them up now.  NOTE: we wake up all waiting threads because we
-   * do not know that they are going to do.  If they all try to read the data,
-   * then some make end up blocking after all.
+  /* If there are threads waiting on poll() for controller data to become
+   * available, then wake them up now.  NOTE: we wake up all waiting threads
+   * because we do not know that they are going to do.  If they all try to
+   * read the data, then some make end up blocking after all.
    */
 
   for (i = 0; i < CONFIG_XBOXCONTROLLER_NPOLLWAITERS; i++)
@@ -588,10 +633,10 @@ static int usbhost_xboxcontroller_poll(int argc, char *argv[])
    * the start-up logic, and wait a bit to make sure that all of the class
    * creation logic has a chance to run to completion.
    *
-   * NOTE: that the reference count is *not* incremented here.  When the driver
-   * structure was created, it was created with a reference count of one.  This
-   * thread is responsible for that count.  The count will be decrement when
-   * this thread exits.
+   * NOTE: that the reference count is *not* incremented here.  When the
+   * driver structure was created, it was created with a reference count of
+   * one.  This thread is responsible for that count.  The count will be
+   * decrement when this thread exits.
    */
 
   priv = g_priv;
@@ -637,7 +682,7 @@ static int usbhost_xboxcontroller_poll(int argc, char *argv[])
                   uerr("  Too many errors... aborting: %d\n", nerrors);
                   ret = (int)nbytes;
                   break;
-               }
+                }
             }
         }
 
@@ -662,7 +707,11 @@ static int usbhost_xboxcontroller_poll(int argc, char *argv[])
                 {
                   /* Get exclusive access to the controller state data */
 
-                  usbhost_takesem(&priv->exclsem);
+                  ret = usbhost_takesem(&priv->exclsem);
+                  if (ret < 0)
+                    {
+                      goto exitloop;
+                    }
 
                   priv->tbuffer[0] = 0x05;
                   priv->tbuffer[1] = 0x20;
@@ -681,17 +730,23 @@ static int usbhost_xboxcontroller_poll(int argc, char *argv[])
               break;
 
             case USBHOST_GUIDE_BUTTON_STATUS:
+
               /* Get exclusive access to the controller state data */
 
-              usbhost_takesem(&priv->exclsem);
+              ret = usbhost_takesem(&priv->exclsem);
+              if (ret < 0)
+                {
+                  goto exitloop;
+                }
 
               /* Read the data out of the controller report. */
 
-              priv->rpt.guide = (priv->tbuffer[XBOX_BUTTON_GUIDE_INDEX] != 0) ? true : false;
+              priv->rpt.guide =
+                (priv->tbuffer[XBOX_BUTTON_GUIDE_INDEX] != 0) ? true : false;
               priv->valid = true;
 
-              /* The One X controller requires an ACK of the guide button status
-               * message.
+              /* The One X controller requires an ACK of the guide button
+               * status message.
                */
 
               if (priv->tbuffer[1] == 0x30)
@@ -711,19 +766,22 @@ static int usbhost_xboxcontroller_poll(int argc, char *argv[])
                   memcpy(priv->tbuffer, guide_button_report_ack,
                          sizeof(guide_button_report_ack));
 
-                  /* Ensure the sequence number is the same as the input packet. */
+                  /* Ensure the sequence number is the same as the input
+                   * packet.
+                   */
 
                   priv->tbuffer[2] = seq_num;
 
                   /* Perform the transfer. */
 
-                  nbytes = DRVR_TRANSFER(hport->drvr, priv->epout, priv->tbuffer,
-                                         sizeof(guide_button_report_ack));
+                  nbytes =
+                    DRVR_TRANSFER(hport->drvr, priv->epout, priv->tbuffer,
+                                  sizeof(guide_button_report_ack));
                 }
 
               /* Notify any waiters that new controller data is available */
 
-              usbhost_notify(priv);
+              usbhost_pollnotify(priv);
 
               /* Release our lock on the state structure */
 
@@ -732,78 +790,104 @@ static int usbhost_xboxcontroller_poll(int argc, char *argv[])
               break;
 
             case USBHOST_BUTTON_DATA:
-              /* Ignore the controller data if no task has opened the driver. */
+
+              /* Ignore the controller data if no task has opened the
+               * driver.
+               */
 
               if (priv->open)
                 {
                   /* Get exclusive access to the controller state data */
 
-                  usbhost_takesem(&priv->exclsem);
+                  ret = usbhost_takesem(&priv->exclsem);
+                  if (ret < 0)
+                    {
+                      goto exitloop;
+                    }
 
                   /* Read the data out of the controller report. */
 
                   priv->rpt.sync =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_SYNC_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_SYNC_INDEX,
                                     XBOX_BUTTON_SYNC_MASK);
                   priv->rpt.start =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_START_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_START_INDEX,
                                     XBOX_BUTTON_START_MASK);
                   priv->rpt.back =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_BACK_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_BACK_INDEX,
                                     XBOX_BUTTON_BACK_MASK);
                   priv->rpt.a =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_A_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_A_INDEX,
                                     XBOX_BUTTON_A_MASK);
                   priv->rpt.b =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_B_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_B_INDEX,
                                     XBOX_BUTTON_B_MASK);
                   priv->rpt.x =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_X_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_X_INDEX,
                                     XBOX_BUTTON_X_MASK);
                   priv->rpt.y =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_Y_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_Y_INDEX,
                                     XBOX_BUTTON_Y_MASK);
                   priv->rpt.dpad_up =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_DPAD_UP_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_DPAD_UP_INDEX,
                                     XBOX_BUTTON_DPAD_UP_MASK);
                   priv->rpt.dpad_down =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_DPAD_DOWN_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_DPAD_DOWN_INDEX,
                                     XBOX_BUTTON_DPAD_DOWN_MASK);
                   priv->rpt.dpad_left =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_DPAD_LEFT_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_DPAD_LEFT_INDEX,
                                     XBOX_BUTTON_DPAD_LEFT_MASK);
                   priv->rpt.dpad_right =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_DPAD_RIGHT_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_DPAD_RIGHT_INDEX,
                                     XBOX_BUTTON_DPAD_RIGHT_MASK);
                   priv->rpt.bumper_left =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_BUMPER_LEFT_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_BUMPER_LEFT_INDEX,
                                     XBOX_BUTTON_BUMPER_LEFT_MASK);
                   priv->rpt.bumper_right =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_BUMPER_RIGHT_INDEX, XBOX_BUTTON_BUMPER_RIGHT_MASK);
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_BUMPER_RIGHT_INDEX,
+                                    XBOX_BUTTON_BUMPER_RIGHT_MASK);
                   priv->rpt.stick_click_left =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_STICK_LEFT_INDEX,
-                                   XBOX_BUTTON_STICK_LEFT_MASK);
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_STICK_LEFT_INDEX,
+                                    XBOX_BUTTON_STICK_LEFT_MASK);
                   priv->rpt.stick_click_right =
-                    XBOX_BUTTON_SET(priv->tbuffer, XBOX_BUTTON_STICK_RIGHT_INDEX,
+                    XBOX_BUTTON_SET(priv->tbuffer,
+                                    XBOX_BUTTON_STICK_RIGHT_INDEX,
                                     XBOX_BUTTON_STICK_RIGHT_MASK);
+
                   priv->rpt.trigger_left =
-                    ((int16_t*)(priv->tbuffer))[XBOX_BUTTON_TRIGGER_LEFT];
+                    ((int16_t *)(priv->tbuffer))[XBOX_BUTTON_TRIGGER_LEFT];
                   priv->rpt.trigger_right =
-                    ((int16_t*)(priv->tbuffer))[XBOX_BUTTON_TRIGGER_RIGHT];
+                    ((int16_t *)(priv->tbuffer))[XBOX_BUTTON_TRIGGER_RIGHT];
                   priv->rpt.stick_left_x =
-                    ((int16_t*)(priv->tbuffer))[XBOX_BUTTON_STICK_LEFT_X];
+                    ((int16_t *)(priv->tbuffer))[XBOX_BUTTON_STICK_LEFT_X];
                   priv->rpt.stick_left_y =
-                    ((int16_t*)(priv->tbuffer))[XBOX_BUTTON_STICK_LEFT_Y];
+                    ((int16_t *)(priv->tbuffer))[XBOX_BUTTON_STICK_LEFT_Y];
                   priv->rpt.stick_right_x =
-                    ((int16_t*)(priv->tbuffer))[XBOX_BUTTON_STICK_RIGHT_X];
+                    ((int16_t *)(priv->tbuffer))[XBOX_BUTTON_STICK_RIGHT_X];
                   priv->rpt.stick_right_y =
-                    ((int16_t*)(priv->tbuffer))[XBOX_BUTTON_STICK_RIGHT_Y];
+                    ((int16_t *)(priv->tbuffer))[XBOX_BUTTON_STICK_RIGHT_Y];
 
                   priv->valid = true;
 
-                  /* Notify any waiters that new controller data is available */
+                  /* Notify any waiters that new controller data is
+                   * available.
+                   */
 
-                  usbhost_notify(priv);
+                  usbhost_pollnotify(priv);
 
                   /* Release our lock on the state structure */
 
@@ -813,7 +897,7 @@ static int usbhost_xboxcontroller_poll(int argc, char *argv[])
               break;
 
             default:
-              uinfo("Received messge type: %x\n", priv->tbuffer[0]);
+              uinfo("Received message type: %x\n", priv->tbuffer[0]);
             }
         }
 
@@ -830,15 +914,17 @@ static int usbhost_xboxcontroller_poll(int argc, char *argv[])
 #endif
     }
 
-  /* We get here when the driver is removed.. or when too many errors have
-   * been encountered.
+exitloop:
+
+  /* We get here when the driver is removed, when too many errors have
+   * been encountered, or when the thread is canceled.
    *
    * Make sure that we have exclusive access to the private data structure.
    * There may now be other tasks with the character driver open and actively
    * trying to interact with the class driver.
    */
 
-  usbhost_takesem(&priv->exclsem);
+  usbhost_forcetake(&priv->exclsem);
 
   /* Indicate that we are no longer running and decrement the reference
    * count held by this thread.  If there are no other users of the class,
@@ -918,7 +1004,8 @@ static int usbhost_sample(FAR struct usbhost_state_s *priv,
     {
       /* Return a copy of the sampled data. */
 
-      memcpy(sample, &priv->rpt, sizeof(struct xbox_controller_buttonstate_s));
+      memcpy(sample, &priv->rpt,
+             sizeof(struct xbox_controller_buttonstate_s));
 
       /* The sample has been reported and is no longer valid */
 
@@ -997,8 +1084,8 @@ static int usbhost_waitsample(FAR struct usbhost_state_s *priv,
   iinfo("Sampled\n");
 
   /* Re-acquire the semaphore that manages mutually exclusive access to
-   * the device structure.  We may have to wait here.  But we have our sample.
-   * Interrupts and pre-emption will be re-enabled while we wait.
+   * the device structure.  We may have to wait here.  But we have our
+   * sample.  Interrupts and pre-emption will be re-enabled while we wait.
    */
 
   ret = nxsem_wait(&priv->exclsem);
@@ -1037,8 +1124,8 @@ errout:
  *   desclen - The length in bytes of the configuration descriptor.
  *
  * Returned Value:
- *   On success, zero (OK) is returned. On a failure, a negated errno value is
- *   returned indicating the nature of the failure
+ *   On success, zero (OK) is returned. On a failure, a negated errno value
+ *   is returned indicating the nature of the failure
  *
  * Assumptions:
  *   This function will *not* be called from an interrupt handler.
@@ -1104,7 +1191,9 @@ static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
             uinfo("Interface descriptor\n");
             DEBUGASSERT(remaining >= USB_SIZEOF_IFDESC);
 
-            /* Did we already find what we needed from a preceding interface? */
+            /* Did we already find what we needed from a preceding
+             * interface?
+             */
 
             if ((found & USBHOST_ALLFOUND) == USBHOST_ALLFOUND)
               {
@@ -1129,21 +1218,23 @@ static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
 
         case USB_DESC_TYPE_ENDPOINT:
           {
-            FAR struct usb_epdesc_s *epdesc = (FAR struct usb_epdesc_s *)configdesc;
+            FAR struct usb_epdesc_s *epdesc =
+              (FAR struct usb_epdesc_s *)configdesc;
 
             uinfo("Endpoint descriptor\n");
             DEBUGASSERT(remaining >= USB_SIZEOF_EPDESC);
 
             /* Check for a interrupt endpoint. */
 
-            if ((epdesc->attr & USB_EP_ATTR_XFERTYPE_MASK) == USB_EP_ATTR_XFER_INT)
+            if ((epdesc->attr & USB_EP_ATTR_XFERTYPE_MASK) ==
+                USB_EP_ATTR_XFER_INT)
               {
                 /* Yes.. it is a interrupt endpoint.  IN or OUT? */
 
                 if (USB_ISEPOUT(epdesc->addr))
                   {
-                    /* It is an OUT interrupt endpoint.  There should be only one
-                     * interrupt OUT endpoint.
+                    /* It is an OUT interrupt endpoint.  There should be only
+                     * one interrupt OUT endpoint.
                      */
 
                     if ((found & USBHOST_EPOUTFOUND) != 0)
@@ -1160,18 +1251,21 @@ static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
                     /* Save the bulk OUT endpoint information */
 
                     epoutdesc.hport        = hport;
-                    epoutdesc.addr         = epdesc->addr & USB_EP_ADDR_NUMBER_MASK;
+                    epoutdesc.addr         = epdesc->addr &
+                                             USB_EP_ADDR_NUMBER_MASK;
                     epoutdesc.in           = false;
                     epoutdesc.xfrtype      = USB_EP_ATTR_XFER_INT;
                     epoutdesc.interval     = epdesc->interval;
-                    epoutdesc.mxpacketsize = usbhost_getle16(epdesc->mxpacketsize);
+                    epoutdesc.mxpacketsize =
+                      usbhost_getle16(epdesc->mxpacketsize);
+
                     uerr("Interrupt OUT EP addr:%d mxpacketsize:%d\n",
                           epoutdesc.addr, epoutdesc.mxpacketsize);
                   }
                 else
                   {
-                    /* It is an IN interrupt endpoint.  There should be only one
-                     * interrupt IN endpoint.
+                    /* It is an IN interrupt endpoint.  There should be only
+                     * one interrupt IN endpoint.
                      */
 
                     if ((found & USBHOST_EPINFOUND) != 0)
@@ -1188,11 +1282,14 @@ static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
                     /* Save the bulk IN endpoint information */
 
                     epindesc.hport        = hport;
-                    epindesc.addr         = epdesc->addr & USB_EP_ADDR_NUMBER_MASK;
+                    epindesc.addr         = epdesc->addr &
+                                            USB_EP_ADDR_NUMBER_MASK;
                     epindesc.in           = true;
                     epindesc.xfrtype      = USB_EP_ATTR_XFER_INT;
                     epindesc.interval     = epdesc->interval;
-                    epindesc.mxpacketsize = usbhost_getle16(epdesc->mxpacketsize);
+                    epindesc.mxpacketsize =
+                      usbhost_getle16(epdesc->mxpacketsize);
+
                     uerr("Interrupt IN EP addr:%d mxpacketsize:%d\n",
                           epindesc.addr, epindesc.mxpacketsize);
                   }
@@ -1293,23 +1390,30 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
   priv->crefs++;
   DEBUGASSERT(priv->crefs == 2);
 
-  /* Start a worker task to poll the USB device.  It would be nice to used the
-   * the NuttX worker thread to do this, but this task needs to wait for events
-   * and activities on the worker thread should not involve significant waiting.
-   * Having a dedicated thread is more efficient in this sense, but requires more
-   * memory resources, primarily for the dedicated stack (CONFIG_XBOXCONTROLLER_STACKSIZE).
+  /* Start a worker task to poll the USB device.  It would be nice to use
+   * the NuttX worker thread to do this, but this task needs to wait for
+   * events and activities on the worker thread should not involve
+   * significant waiting.  Having a dedicated thread is more efficient in
+   * this sense, but requires more memory resources, primarily for the
+   * dedicated stack (CONFIG_XBOXCONTROLLER_STACKSIZE).
    */
 
-  /* The inputs to a task started by kthread_create() are very awkward for this
-   * purpose.  They are really designed for command line tasks (argc/argv). So
-   * the following is kludge pass binary data when the controller poll task
-   * is started.
+  /* The inputs to a task started by kthread_create() are very awkward for
+   * this purpose.  They are really designed for command line tasks
+   * (argc/argv). So the following is kludge pass binary data when the
+   * controller poll task is started.
    *
-   * First, make sure we have exclusive access to g_priv (what is the likelihood
-   * of this being used?  About zero, but we protect it anyway).
+   * First, make sure we have exclusive access to g_priv (what is the
+   * likelihood of this being used?  About zero, but we protect it anyway).
    */
 
-  usbhost_takesem(&g_exclsem);
+  ret = usbhost_takesem(&g_exclsem);
+  if (ret < 0)
+    {
+      usbhost_tfree(priv);
+      goto errout;
+    }
+
   g_priv = priv;
 
   uinfo("Starting thread\n");
@@ -1319,7 +1423,9 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
                                  (FAR char * const *)NULL);
   if (priv->pollpid < 0)
     {
-      /* Failed to started the poll thread... probably due to memory resources */
+      /* Failed to started the poll thread... probably due to memory
+       * resources.
+       */
 
       usbhost_givesem(&g_exclsem);
       ret = priv->pollpid;
@@ -1328,7 +1434,7 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
 
   /* Now wait for the poll task to get properly initialized */
 
-  usbhost_takesem(&g_syncsem);
+  usbhost_forcetake(&g_syncsem);
   usbhost_givesem(&g_exclsem);
 
   /* Configure the device */
@@ -1341,11 +1447,11 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
 
   /* Check if we successfully initialized. We now have to be concerned
    * about asynchronous modification of crefs because the block
-   * driver has been registerd.
+   * driver has been registered.
    */
 
 errout:
-  usbhost_takesem(&priv->exclsem);
+  usbhost_forcetake(&priv->exclsem);
   priv->crefs--;
   usbhost_givesem(&priv->exclsem);
   return ret;
@@ -1410,7 +1516,8 @@ static inline uint32_t usbhost_getle32(const uint8_t *val)
 {
   /* Little endian means LS halfword first in byte stream */
 
-  return (uint32_t)usbhost_getle16(&val[2]) << 16 | (uint32_t)usbhost_getle16(val);
+  return (uint32_t)usbhost_getle16(&val[2]) << 16 |
+         (uint32_t)usbhost_getle16(val);
 }
 
 /****************************************************************************
@@ -1434,7 +1541,7 @@ static void usbhost_putle32(uint8_t *dest, uint32_t val)
   /* Little endian means LS halfword first in byte stream */
 
   usbhost_putle16(dest, (uint16_t)(val & 0xffff));
-  usbhost_putle16(dest+2, (uint16_t)(val >> 16));
+  usbhost_putle16(dest + 2, (uint16_t)(val >> 16));
 }
 #endif
 
@@ -1505,17 +1612,18 @@ static inline int usbhost_tfree(FAR struct usbhost_state_s *priv)
  * Name: usbhost_create
  *
  * Description:
- *   This function implements the create() method of struct usbhost_registry_s.
- *   The create() method is a callback into the class implementation.  It is
- *   used to (1) create a new instance of the USB host class state and to (2)
- *   bind a USB host driver "session" to the class instance.  Use of this
- *   create() method will support environments where there may be multiple
- *   USB ports and multiple USB devices simultaneously connected.
+ *   This function implements the create() method of struct
+ *   usbhost_registry_s.  The create() method is a callback into the class
+ *   implementation.  It is used to (1) create a new instance of the USB
+ *   host class state and to (2) bind a USB host driver "session" to the
+ *   class instance.  Use of this create() method will support environments
+ *   where there may be multiple USB ports and multiple USB devices
+ *   simultaneously connected.
  *
  * Input Parameters:
  *   hport - The hub hat manages the new class instance.
- *   id - In the case where the device supports multiple base classes,
- *     subclasses, or protocols, this specifies which to configure for.
+ *   id    - In the case where the device supports multiple base classes,
+ *           subclasses, or protocols, this specifies which to configure for.
  *
  * Returned Value:
  *   On success, this function will return a non-NULL instance of struct
@@ -1526,8 +1634,9 @@ static inline int usbhost_tfree(FAR struct usbhost_state_s *priv)
  *
  ****************************************************************************/
 
-static FAR struct usbhost_class_s *usbhost_create(FAR struct usbhost_hubport_s *hport,
-                                                  FAR const struct usbhost_id_s *id)
+static FAR struct usbhost_class_s *
+  usbhost_create(FAR struct usbhost_hubport_s *hport,
+                 FAR const struct usbhost_id_s *id)
 {
   FAR struct usbhost_state_s *priv;
 
@@ -1544,17 +1653,21 @@ static FAR struct usbhost_class_s *usbhost_create(FAR struct usbhost_hubport_s *
 
       if (usbhost_allocdevno(priv) == OK)
         {
-         /* Initialize class method function pointers */
+          /* Initialize class method function pointers */
 
           priv->usbclass.hport        = hport;
           priv->usbclass.connect      = usbhost_connect;
           priv->usbclass.disconnected = usbhost_disconnected;
 
-          /* The initial reference count is 1... One reference is held by the driver */
+          /* The initial reference count is 1... One reference is held by the
+           * driver.
+           */
 
           priv->crefs = 1;
 
-          /* Initialize semaphores (this works okay in the interrupt context) */
+          /* Initialize semaphores (this works okay in the interrupt
+           * context).
+           */
 
           nxsem_init(&priv->exclsem, 0, 1);
           nxsem_init(&priv->waitsem, 0, 0);
@@ -1563,7 +1676,7 @@ static FAR struct usbhost_class_s *usbhost_create(FAR struct usbhost_hubport_s *
            * not have priority inheritance enabled.
            */
 
-          nxsem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
+          nxsem_set_protocol(&priv->waitsem, SEM_PRIO_NONE);
 
           /* Return the instance of the USB class driver */
 
@@ -1584,6 +1697,7 @@ static FAR struct usbhost_class_s *usbhost_create(FAR struct usbhost_hubport_s *
 /****************************************************************************
  * struct usbhost_class_s methods
  ****************************************************************************/
+
 /****************************************************************************
  * Name: usbhost_connect
  *
@@ -1601,11 +1715,11 @@ static FAR struct usbhost_class_s *usbhost_create(FAR struct usbhost_hubport_s *
  *   desclen - The length in bytes of the configuration descriptor.
  *
  * Returned Value:
- *   On success, zero (OK) is returned. On a failure, a negated errno value is
- *   returned indicating the nature of the failure
+ *   On success, zero (OK) is returned. On a failure, a negated errno value
+ *   is returned indicating the nature of the failure
  *
- *   NOTE that the class instance remains valid upon return with a failure.  It is
- *   the responsibility of the higher level enumeration logic to call
+ *   NOTE that the class instance remains valid upon return with a failure.
+ *   It is the responsibility of the higher level enumeration logic to call
  *   CLASS_DISCONNECTED to free up the class driver resources.
  *
  * Assumptions:
@@ -1682,7 +1796,9 @@ static int usbhost_disconnected(struct usbhost_class_s *usbclass)
   priv->disconnected = true;
   uinfo("Disconnected\n");
 
-  /* Are there a thread(s) waiting for controller data that will never come? */
+  /* Are there a thread(s) waiting for controller data that will never
+   * come?
+   */
 
   for (i = 0; i < priv->nwaiters; i++)
     {
@@ -1693,11 +1809,12 @@ static int usbhost_disconnected(struct usbhost_class_s *usbclass)
 
   /* Possibilities:
    *
-   * - Failure occurred before the controller poll task was started successfully.
-   *   In this case, the disconnection will have to be handled on the worker
-   *   task.
-   * - Failure occurred after the controller poll task was started successfully.  In
-   *   this case, the disconnection can be performed on the mouse poll thread.
+   * - Failure occurred before the controller poll task was started
+   *   successfully.  In this case, the disconnection will have to be
+   *   handled on the worker task.
+   * - Failure occurred after the controller poll task was started
+   *   successfully.  In this case, the disconnection can be performed on
+   *   the mouse poll thread.
    */
 
   if (priv->polling)
@@ -1727,6 +1844,7 @@ static int usbhost_disconnected(struct usbhost_class_s *usbclass)
 /****************************************************************************
  * Character driver methods
  ****************************************************************************/
+
 /****************************************************************************
  * Name: usbhost_open
  *
@@ -1750,11 +1868,15 @@ static int usbhost_open(FAR struct file *filep)
   /* Make sure that we have exclusive access to the private data structure */
 
   DEBUGASSERT(priv && priv->crefs > 0 && priv->crefs < USBHOST_MAX_CREFS);
-  usbhost_takesem(&priv->exclsem);
+  ret = usbhost_takesem(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Check if the controller device is still connected.  We need to disable
-   * interrupts momentarily to assure that there are no asynchronous disconnect
-   * events.
+   * interrupts momentarily to assure that there are no asynchronous
+   * disconnect events.
    */
 
   flags = enter_critical_section();
@@ -1782,7 +1904,7 @@ static int usbhost_open(FAR struct file *filep)
 #ifdef NEVER
           priv->xlast = INVALID_POSITION_B16;
           priv->ylast = INVALID_POSITION_B16;
-#ifdef CONFIG_MOUSE_WHEEL
+#ifdef CONFIG_INPUT_MOUSE_WHEEL
           priv->wlast = INVALID_POSITION_B16;
 #endif
           /* Set the reported position to the center of the range */
@@ -1817,6 +1939,7 @@ static int usbhost_close(FAR struct file *filep)
   FAR struct inode *inode;
   FAR struct usbhost_state_s *priv;
   irqstate_t flags;
+  int ret;
 
   uinfo("Entry\n");
   DEBUGASSERT(filep && filep->f_inode);
@@ -1826,7 +1949,11 @@ static int usbhost_close(FAR struct file *filep)
   /* Decrement the reference count on the driver */
 
   DEBUGASSERT(priv->crefs >= 1);
-  usbhost_takesem(&priv->exclsem);
+  ret = usbhost_takesem(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* We need to disable interrupts momentarily to assure that there are no
    * asynchronous poll or disconnect events.
@@ -1847,9 +1974,9 @@ static int usbhost_close(FAR struct file *filep)
        *
        * 1) It might be zero meaning that the polling thread has already
        *    exited and decremented its count.
-       * 2) If might be one meaning either that (a) the polling thread is still
-       *    running and still holds a count, or (b) the polling thread has exited,
-       *    but there is still an outstanding open reference.
+       * 2) If might be one meaning either that (a) the polling thread is
+       *    still running and still holds a count, or (b) the polling thread
+       *    has exited, but there is still an outstanding open reference.
        */
 
       if (priv->crefs == 0 || (priv->crefs == 1 && priv->polling))
@@ -1902,7 +2029,8 @@ static int usbhost_close(FAR struct file *filep)
  *
  ****************************************************************************/
 
-static ssize_t usbhost_read(FAR struct file *filep, FAR char *buffer, size_t len)
+static ssize_t usbhost_read(FAR struct file *filep, FAR char *buffer,
+                            size_t len)
 {
   FAR struct inode                          *inode;
   FAR struct usbhost_state_s                *priv;
@@ -1916,17 +2044,22 @@ static ssize_t usbhost_read(FAR struct file *filep, FAR char *buffer, size_t len
   /* Make sure that we have exclusive access to the private data structure */
 
   DEBUGASSERT(priv && priv->crefs > 0 && priv->crefs < USBHOST_MAX_CREFS);
-  usbhost_takesem(&priv->exclsem);
+  ret = usbhost_takesem(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
-  /* Check if the controller is still connected.  We need to disable interrupts
-   * momentarily to assure that there are no asynchronous disconnect events.
+  /* Check if the controller is still connected.  We need to disable
+   * interrupts momentarily to assure that there are no asynchronous
+   * disconnect events.
    */
 
   if (priv->disconnected)
     {
       /* No... the driver is no longer bound to the class.  That means that
-       * the USB controller is no longer connected.  Refuse any further attempts
-       * to access the driver.
+       * the USB controller is no longer connected.  Refuse any further
+       * attempts to access the driver.
        */
 
       ret = -ENODEV;
@@ -2000,7 +2133,7 @@ static ssize_t usbhost_write(FAR struct file *filep, FAR const char *buffer,
  *
  ****************************************************************************/
 
-static int usbhost_ioctl(FAR struct file* filep, int cmd, unsigned long arg)
+static int usbhost_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   FAR struct inode            *inode;
   FAR struct usbhost_state_s  *priv;
@@ -2019,15 +2152,16 @@ static int usbhost_ioctl(FAR struct file* filep, int cmd, unsigned long arg)
   priv  = inode->i_private;
   hport = priv->usbclass.hport;
 
-  /* Check if the controller is still connected.  We need to disable interrupts
-   * momentarily to assure that there are no asynchronous disconnect events.
+  /* Check if the controller is still connected.  We need to disable
+   * interrupts momentarily to assure that there are no asynchronous
+   * disconnect events.
    */
 
   if (priv->disconnected)
     {
       /* No... the driver is no longer bound to the class.  That means that
-       * the USB controller is no longer connected.  Refuse any further attempts
-       * to access the driver.
+       * the USB controller is no longer connected.  Refuse any further
+       * attempts to access the driver.
        */
 
       ret = -ENODEV;
@@ -2038,7 +2172,6 @@ static int usbhost_ioctl(FAR struct file* filep, int cmd, unsigned long arg)
 
   switch (cmd)
     {
-
     case XBOX_CONTROLLER_IOCTL_RUMBLE:
 
       /* The least significant byte is the weak actuator strength.
@@ -2047,8 +2180,8 @@ static int usbhost_ioctl(FAR struct file* filep, int cmd, unsigned long arg)
 
       memcpy(priv->obuffer, rumble_cmd, sizeof(rumble_cmd));
       priv->obuffer[2] = priv->out_seq_num++;
-      priv->obuffer[8] = (arg >> 1) & 0xff; // Strong (left actuator)
-      priv->obuffer[9] = arg & 0xff; // Weak (right actuator)
+      priv->obuffer[8] = (arg >> 1) & 0xff; /* Strong (left actuator) */
+      priv->obuffer[9] = arg & 0xff;        /* Weak (right actuator)  */
 
       /* Perform the transfer. */
 
@@ -2066,7 +2199,7 @@ static int usbhost_ioctl(FAR struct file* filep, int cmd, unsigned long arg)
 
     default:
 
-      ret = -EINVAL;
+      ret = -ENOTTY;
       goto errout;
     }
 
@@ -2088,7 +2221,7 @@ static int usbhost_poll(FAR struct file *filep, FAR struct pollfd *fds,
 {
   FAR struct inode           *inode;
   FAR struct usbhost_state_s *priv;
-  int                         ret = OK;
+  int                         ret;
   int                         i;
 
   DEBUGASSERT(filep && filep->f_inode && fds);
@@ -2098,17 +2231,22 @@ static int usbhost_poll(FAR struct file *filep, FAR struct pollfd *fds,
   /* Make sure that we have exclusive access to the private data structure */
 
   DEBUGASSERT(priv);
-  usbhost_takesem(&priv->exclsem);
+  ret = usbhost_takesem(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
-  /* Check if the controller is still connected.  We need to disable interrupts
-   * momentarily to assure that there are no asynchronous disconnect events.
+  /* Check if the controller is still connected.  We need to disable
+   * interrupts momentarily to assure that there are no asynchronous
+   * disconnect events.
    */
 
   if (priv->disconnected)
     {
       /* No... the driver is no longer bound to the class.  That means that
-       * the USB controller is no longer connected.  Refuse any further attempts
-       * to access the driver.
+       * the USB controller is no longer connected.  Refuse any further
+       * attempts to access the driver.
        */
 
       ret = -ENODEV;
@@ -2190,7 +2328,6 @@ errout:
 
 int usbhost_xboxcontroller_init(void)
 {
-
   /* Perform any one-time initialization of the class implementation */
 
   nxsem_init(&g_exclsem, 0, 1);
@@ -2200,7 +2337,7 @@ int usbhost_xboxcontroller_init(void)
    * have priority inheritance enabled.
    */
 
-  nxsem_setprotocol(&g_syncsem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&g_syncsem, SEM_PRIO_NONE);
 
   /* Advertise our availability to support (certain) devices */
 

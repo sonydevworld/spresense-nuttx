@@ -3,6 +3,30 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
+# MMC/SD-related platform capabilities
+
+config ARCH_HAVE_SDIO
+	bool
+	default n
+
+config ARCH_HAVE_SDIOWAIT_WRCOMPLETE
+	bool
+	default n
+
+config ARCH_HAVE_SDIO_PREFLIGHT
+	bool
+	default n
+
+menuconfig MMCSD
+	bool "MMC/SD Driver Support"
+	default n
+	---help---
+		Support for MMC/SD block drivers.  MMC/SD block drivers based on
+		SPI and SDIO/MCI interfaces are supported.  See include/nuttx/mmcsd.h
+		and include/nuttx/sdio.h for further information.
+
+if MMCSD
+
 config MMCSD_NSLOTS
 	int "Number of MMC/SD slots"
 	default 1
@@ -64,6 +88,14 @@ config MMCSD_SPIMODE
 	---help---
 		Should be mode 0.  However, sometimes this is useful for experimenting.
 
+config MMCSD_IDMODE_CLOCK
+	int "MMC/SD ID Mode SPI clock"
+	default 400000
+	depends on MMCSD_SPI
+	---help---
+		SPI clock identify MMC/SD card.
+		Should be 400KHz or less.
+
 endif
 
 config SDIO_DMA
@@ -118,3 +150,5 @@ config SDIO_BLOCKSETUP
 		enables the block setup method in the SDIO vtable.
 
 endif
+
+endif # MMCSD

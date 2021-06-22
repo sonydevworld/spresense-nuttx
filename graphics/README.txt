@@ -27,7 +27,7 @@ at the present, but here is the longer term roadmap:
               without NxWidgets and is built on top of NX.
   NXFONTS   - A set of C graphics tools for presenting (bitmap) font images.
   NX        - The tiny NuttX windowing system.  This includes the small-footprint
-              multi-user implentation (NXMU as described below).  NX can be used
+              multi-user implementation (NXMU as described below).  NX can be used
               without NxWidgets and without NXTOOLKIT for raw access to window memory.
   NXGLIB    - Low level graphics utilities and direct framebuffer rendering logic.
               NX is built on top of NXGLIB.
@@ -55,13 +55,13 @@ Directories
 
   User callable functions must, instead, be part of a library that can be
   linked against user applications.  This user callable interfaces are
-  provided in sub-directories under nuttx/libnx.
+  provided in sub-directories under nuttx/libs/libnx.
 
-libnx/nx
+libs/libnx/nx
   Client application callable interfaces.
 
 graphics/nxglib
-libnx/nxglib
+libs/libnx/nxglib
   The NuttX tiny graphics library.  The directory contains generic utilities
   support operations on primitive graphics objects and logic to rasterize directly
   into a framebuffer.  It has no concept of windows (other than the one, framebuffer
@@ -75,7 +75,7 @@ graphics/nxbe
   end no longer exists).
 
 graphics/nxmu
-libnx/nxmu
+libs/libnx/nxmu
   This is the NX multi user "front end".  When combined with the generic
   "back-end" (nxbe), it implements a multi-threaded, multi-user windowing
   system.  The files in this directory present the window APIs described in
@@ -85,16 +85,16 @@ libnx/nxmu
   operations from many threads. The multi-user front-end is selected
   automatically.
 
-libnx/nxfonts
+libs/libnx/nxfonts
   This is where the NXFONTS implementation resides.  This is a relatively low-
   level set of charset set/glyph management APIs.  See include/nuttx/nx/nxfonts.h
 
-libnx/nxtk
+libs/libnx/nxtk
   This is where the NXTOOLKIT implementation resides.  This toolkit is built on
   top of NX and works with either the single-user or multi-user NX version. See
   include/nuttx/nx/nxtk.h
 
-nuttx/../NxWidgets
+apps/grahpics/nxwidgets
   The NxWidgets code is provided as a separate package located outside of the
   NuttX source tree (probably at this location).
 
@@ -105,7 +105,7 @@ graphics/vnc
 Installing New Fonts
 ^^^^^^^^^^^^^^^^^^^^
 
-  [Refer to nuttx/libnx/nxfonts/README.txt]
+  [Refer to nuttx/libs/libnx/nxfonts/README.txt]
 
 Configuration Settings
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -138,7 +138,7 @@ CONFIG_NX_XYINPUT
 CONFIG_NX_KBD
   Build in support of keypad/keyboard input.
 CONFIG_NXTK_BORDERWIDTH
-  Specifies with with of the border (in pixels) used with framed windows.
+  Specifies the width of the border (in pixels) used with framed windows.
   The default is 4.
 CONFIG_NXTK_BORDERCOLOR1, CONFIG_NXTK_BORDERCOLOR2, CONFIG_NXTK_BORDERCOLOR3
   Specify the colors of the border used with framed windows.
@@ -155,7 +155,7 @@ CONFIG_VNCSERVER and CONFIG_VNCCLIENT
 Font Selections
 ---------------
 
-  [Refer to nuttx/libnx/nxfonts/README.txt]
+  [Refer to nuttx/libs/libnx/nxfonts/README.txt]
 
 NxTerm Configuration Settings
 --------------------------------

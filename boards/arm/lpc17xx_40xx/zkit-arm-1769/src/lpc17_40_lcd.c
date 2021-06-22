@@ -55,8 +55,8 @@
 #include <nuttx/lcd/lcd.h>
 #include <nuttx/lcd/st7567.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "lpc17_40_gpio.h"
 #include "lpc17_40_ssp.h"
@@ -109,7 +109,7 @@ FAR struct lcd_dev_s *board_lcd_getdev(int lcddev)
   g_lcddev = st7567_initialize(g_spidev, lcddev);
   if (!g_lcddev)
     {
-      lcderr("ERROR: Failed to bind SSI port 0 to OLCD %d: %d\n", lcddev);
+      lcderr("ERROR: Failed to bind SSI port 0 to OLCD %d\n", lcddev);
     }
   else
     {

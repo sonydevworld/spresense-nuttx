@@ -1,10 +1,24 @@
-/********************************************************************************************
+/****************************************************************************
  * drivers/input/ads7843e.h
  *
- *   Copyright (C) 2011-2012, 2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References:
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/* References:
  *   "Touch Screen Controller, ADS7843," Burr-Brown Products from Texas
  *    Instruments, SBAS090B, September 2000, Revised May 2002"
  *
@@ -13,42 +27,14 @@
  *    from Texas Instruments, SBAS265F, October 2002, Revised August 2007."
  *
  *   "XPT2046 Data Sheet," Shenzhen XPTek Technology Co., Ltd, 2007
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ********************************************************************************************/
+ */
 
 #ifndef __DRIVERS_INPUT_ADS7843E_H
 #define __DRIVERS_INPUT_ADS7843E_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -62,15 +48,20 @@
 #include <nuttx/spi/spi.h>
 #include <nuttx/input/ads7843e.h>
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
-/* Configuration ****************************************************************************/
-/* Reference counting is partially implemented, but not needed in the current design. */
+ ****************************************************************************/
+
+/* Configuration ************************************************************/
+
+/* Reference counting is partially implemented, but not needed in the current
+ * design.
+ */
 
 #undef CONFIG_ADS7843E_REFCNT
 
-/* ADS7843E Interfaces *********************************************************************/
+/* ADS7843E Interfaces ******************************************************/
+
 /* ADS7843E command bit settings */
 
 #define ADS7843E_CMD_PD0          (1 << 0)  /* Bit 0: Power down mode select bit 0 */
@@ -90,7 +81,8 @@
 #define ADS7843_CMD_ENABPENIRQ \
   ((1 << ADS7843E_CMD_CHAN_SHIFT)| ADS7843E_CMD_START)
 
-/* Driver support **************************************************************************/
+/* Driver support ***********************************************************/
+
 /* This format is used to construct the /dev/input[n] device driver path.  It
  * defined here so that it will be used consistently in all places.
  */
@@ -102,9 +94,9 @@
 
 #define ADS7843E_WDOG_DELAY       MSEC2TICK(50)
 
-/********************************************************************************************
+/****************************************************************************
  * Public Types
- ********************************************************************************************/
+ ****************************************************************************/
 
 /* This describes the state of one contact */
 
@@ -149,7 +141,7 @@ struct ads7843e_dev_s
   FAR struct spi_dev_s *spi;            /* Saved SPI driver instance */
   struct work_s work;                   /* Supports the interrupt handling "bottom half" */
   struct ads7843e_sample_s sample;      /* Last sampled touch point data */
-  WDOG_ID wdog;                         /* Poll the position while the pen is down */
+  struct wdog_s wdog;                   /* Poll the position while the pen is down */
 
   /* The following is a list if poll structures of threads waiting for
    * driver events. The 'struct pollfd' reference for each open is also
@@ -159,13 +151,14 @@ struct ads7843e_dev_s
   struct pollfd *fds[CONFIG_ADS7843E_NPOLLWAITERS];
 };
 
-/********************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifdef __cplusplus
 #define EXTERN extern "C"
-extern "C" {
+extern "C"
+{
 #else
 #define EXTERN extern
 #endif

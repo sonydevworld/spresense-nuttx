@@ -78,18 +78,17 @@
  * Name: _up_assert
  ****************************************************************************/
 
-static void _up_assert(int errorcode) noreturn_function;
-static void _up_assert(int errorcode)
+static void _up_assert(void)
 {
   /* Flush any buffered SYSLOG data */
 
   syslog_flush();
 
-  /* Are we in an interrupt handler or the idle task? NOTE: You cannot use the
-   * PID to determine if this is an IDLE task.  In the SMP case, there may be
-   * multiple IDLE tasks with different PIDs.  The only consistent way to test
-   * for the IDLE task is to check it is at the end of the list (flink ==
-   * NULL)
+  /* Are we in an interrupt handler or the idle task? NOTE: You cannot use
+   * the PID to determine if this is an IDLE task.  In the SMP case, there
+   * may be multiple IDLE tasks with different PIDs.  The only consistent
+   * way to test for the IDLE task is to check it is at the end of the list
+   * (flink == NULL)
    */
 
   if (g_current_regs || running_task()->flink == NULL)
@@ -113,7 +112,6 @@ static void _up_assert(int errorcode)
 #if CONFIG_BOARD_RESET_ON_ASSERT >= 2
       board_reset(CONFIG_BOARD_ASSERT_RESET_VALUE);
 #endif
-      exit(errorcode);
     }
 }
 
@@ -125,14 +123,13 @@ static void _up_assert(int errorcode)
 static int usbtrace_syslog(FAR const char *fmt, ...)
 {
   va_list ap;
-  int ret;
 
-  /* Let nx_vsyslog do the real work */
+  /* Let vsyslog do the real work */
 
   va_start(ap, fmt);
-  ret = nx_vsyslog(LOG_EMERG, fmt, &ap);
+  vsyslog(LOG_EMERG, fmt, ap);
   va_end(ap);
-  return ret;
+  return OK;
 }
 
 static int assert_tracecallback(FAR struct usbtrace_s *trace, FAR void *arg)
@@ -150,7 +147,7 @@ static int assert_tracecallback(FAR struct usbtrace_s *trace, FAR void *arg)
  * Name: up_assert
  ****************************************************************************/
 
-void up_assert(const uint8_t * filename, int lineno)
+void up_assert(const char *filename, int lineno)
 {
 #if CONFIG_TASK_NAME_SIZE > 0 && defined(CONFIG_DEBUG_ALERT)
   struct tcb_s *rtcb = running_task();
@@ -182,8 +179,8 @@ void up_assert(const uint8_t * filename, int lineno)
   syslog_flush();
 
 #ifdef CONFIG_BOARD_CRASHDUMP
-  board_crashdump(up_getsp(), running_task(), filename, lineno);
+  board_crashdump(misoc_getsp(), running_task(), filename, lineno);
 #endif
 
-  _up_assert(EXIT_FAILURE);
+  _up_assert();
 }

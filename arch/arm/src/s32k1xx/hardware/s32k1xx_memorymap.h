@@ -1,50 +1,35 @@
-/************************************************************************************
- * arch/arm/src/s32k1xx/chip/s32k1xx_memorymap.h
+/****************************************************************************
+ * arch/arm/src/s32k1xx/hardware/s32k1xx_memorymap.h
  *
- *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_S32K1XX_HARDWARE_S32K1XX_MEMORYMAP_H
 #define __ARCH_ARM_SRC_S32K1XX_HARDWARE_S32K1XX_MEMORYMAP_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
+ ****************************************************************************/
 
 #define S32K1XX_AIPS_LITE_BASE   0x40000000  /* Peripheral bridge (AIPS-Lite) */
 #  define S32K1XX_FLASHCFG_BASE  0x40000400  /* FLASH Configuration bytes */
@@ -60,7 +45,7 @@
 #define S32K1XX_DMAMUX_BASE      0x40021000  /* DMA Channel Multiplexer  */
 #define S32K1XX_FLEXCAN0_BASE    0x40024000  /* FlexCAN 0 */
 #define S32K1XX_FLEXCAN1_BASE    0x40025000  /* FlexCAN 1 */
-#define S32K1XX_FLEXTIMER_BASE   0x40026000  /* FlexTimer */
+#define S32K1XX_FTM3_BASE        0x40026000  /* FlexTimer 3 */
 #define S32K1XX_ADC1_BASE        0x40027000  /* Analog-to-digital converter 1 */
 #define S32K1XX_FLEXCAN2_BASE    0x4002b000  /* FlexCAN 2 */
 #define S32K1XX_LPSPI0_BASE      0x4002c000  /* Low Power SPI 0 */
@@ -78,12 +63,14 @@
 #define S32K1XX_CMU1_BASE        0x4003f000  /* Clock Monitor Unit 1 */
 #define S32K1XX_LPTMR0_BASE      0x40040000  /* Low-power timer 0 */
 #define S32K1XX_SIM_BASE         0x40048000  /* System integration module */
+
 #define S32K1XX_PORT_BASE(n)     (0x40049000 + ((n) << 12)) /* Port n multiplexing control */
-#  define S32K1XX_PORTA_BASE     0x40049000  /* Port A multiplexing control */
-#  define S32K1XX_PORTB_BASE     0x4004a000  /* Port B multiplexing control */
-#  define S32K1XX_PORTC_BASE     0x4004b000  /* Port C multiplexing control */
-#  define S32K1XX_PORTD_BASE     0x4004c000  /* Port D multiplexing control */
-#  define S32K1XX_PORTE_BASE     0x4004d000  /* Port E multiplexing control */
+#  define S32K1XX_PORTA_BASE     0x40049000                 /* Port A multiplexing control */
+#  define S32K1XX_PORTB_BASE     0x4004a000                 /* Port B multiplexing control */
+#  define S32K1XX_PORTC_BASE     0x4004b000                 /* Port C multiplexing control */
+#  define S32K1XX_PORTD_BASE     0x4004c000                 /* Port D multiplexing control */
+#  define S32K1XX_PORTE_BASE     0x4004d000                 /* Port E multiplexing control */
+
 #define S32K1XX_WDOG_BASE        0x40052000  /* Software watchdog */
 #define S32K1XX_SAI0_BASE        0x40054000  /* Synchronous Audio Interface 0 */
 #define S32K1XX_SAI1_BASE        0x40055000  /* Synchronous Audio Interface 1 */
@@ -107,12 +94,13 @@
 #define S32K1XX_PMC_BASE         0x4007d000  /* Power management controller */
 #define S32K1XX_SMC_BASE         0x4007e000  /* System Mode controller */
 #define S32K1XX_RCM_BASE         0x4007f000  /* Reset Control Module */
+
 #define S32K1XX_GPIO_BASE(n)     (0x400ff000 +((n) << 6)) /* GPIO controller */
-#  define S32K1XX_GPIOA_BASE     0x400ff000  /* GPIOA controller */
-#  define S32K1XX_GPIOB_BASE     0x400ff040  /* GPIOB controller */
-#  define S32K1XX_GPIOC_BASE     0x400ff080  /* GPIOC controller */
-#  define S32K1XX_GPIOD_BASE     0x400ff0c0  /* GPIOD controller */
-#  define S32K1XX_GPIOE_BASE     0x400ff100  /* GPIOE controller */
+#  define S32K1XX_GPIOA_BASE     0x400ff000               /* GPIOA controller */
+#  define S32K1XX_GPIOB_BASE     0x400ff040               /* GPIOB controller */
+#  define S32K1XX_GPIOC_BASE     0x400ff080               /* GPIOC controller */
+#  define S32K1XX_GPIOD_BASE     0x400ff0c0               /* GPIOD controller */
+#  define S32K1XX_GPIOE_BASE     0x400ff100               /* GPIOE controller */
 
 #if defined(CONFIG_ARCH_CHIP_S32K14X)
 #  define S32K1XX_ITM_BASE       0xe0000000  /* Instrumentation Trace Macrocell */

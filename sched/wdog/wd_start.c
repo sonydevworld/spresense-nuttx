@@ -1,36 +1,20 @@
 /****************************************************************************
  * sched/wdog/wd_start.c
  *
- *   Copyright (C) 2007-2009, 2012, 2014, 2016, 2018-2019 Gregory Nutt.  All
- *     rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -42,7 +26,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdarg.h>
 #include <unistd.h>
 #include <sched.h>
 #include <assert.h>
@@ -76,7 +59,7 @@
  *
  * Description:
  *   Check if the timer for the watchdog at the head of list is ready to
- *   run.  If so, remove the watchdog from the list and execute it.
+ *   run. If so, remove the watchdog from the list and execute it.
  *
  * Input Parameters:
  *   None
@@ -121,25 +104,7 @@ static inline void wd_expiration(void)
           /* Execute the watchdog function */
 
           up_setpicbase(wdog->picbase);
-
-#if CONFIG_MAX_WDOGPARMS == 0
-          wdog->func(0);
-#elif CONFIG_MAX_WDOGPARMS == 1
-          wdog->func((int)wdog->argc,
-                     wdog->parm[0]);
-#elif CONFIG_MAX_WDOGPARMS == 2
-          wdog->func((int)wdog->argc,
-                     wdog->parm[0], wdog->parm[1]);
-#elif CONFIG_MAX_WDOGPARMS == 3
-          wdog->func((int)wdog->argc,
-                     wdog->parm[0], wdog->parm[1], wdog->parm[2]);
-#elif CONFIG_MAX_WDOGPARMS == 4
-          wdog->func((int)wdog->argc,
-                     wdog->parm[0], wdog->parm[1], wdog->parm[2],
-                     wdog->parm[3]);
-#else
-#  error Missing support
-#endif
+          wdog->func(wdog->arg);
         }
     }
 }
@@ -167,10 +132,12 @@ static inline void wd_expiration(void)
  *   on a given watchdog ID has any effect.
  *
  * Input Parameters:
- *   wdog     - watchdog ID
+ *   wdog     - Watchdog ID
  *   delay    - Delay count in clock ticks
- *   wdentry  - function to call on timeout
- *   parm1..4 - parameters to pass to wdentry
+ *   wdentry  - Function to call on timeout
+ *   arg      - Parameter to pass to wdentry
+ *
+ *   NOTE:  The parameter must be of type wdparm_t.
  *
  * Returned Value:
  *   Zero (OK) is returned on success; a negated errno value is return to
@@ -182,19 +149,18 @@ static inline void wd_expiration(void)
  *
  ****************************************************************************/
 
-int wd_start(WDOG_ID wdog, int32_t delay, wdentry_t wdentry,  int argc, ...)
+int wd_start(FAR struct wdog_s *wdog, int32_t delay,
+             wdentry_t wdentry, wdparm_t arg)
 {
-  va_list ap;
   FAR struct wdog_s *curr;
   FAR struct wdog_s *prev;
   FAR struct wdog_s *next;
   int32_t now;
   irqstate_t flags;
-  int i;
 
   /* Verify the wdog and setup parameters */
 
-  if (wdog == NULL || argc > CONFIG_MAX_WDOGPARMS || delay < 0)
+  if (wdog == NULL || delay < 0)
     {
       return -EINVAL;
     }
@@ -215,22 +181,7 @@ int wd_start(WDOG_ID wdog, int32_t delay, wdentry_t wdentry,  int argc, ...)
 
   wdog->func = wdentry;         /* Function to execute when delay expires */
   up_getpicbase(&wdog->picbase);
-  wdog->argc = argc;
-
-  va_start(ap, argc);
-  for (i = 0; i < argc; i++)
-    {
-      wdog->parm[i] = va_arg(ap, wdparm_t);
-    }
-
-#ifdef CONFIG_DEBUG_FEATURES
-  for (; i < CONFIG_MAX_WDOGPARMS; i++)
-    {
-      wdog->parm[i] = 0;
-    }
-#endif
-
-  va_end(ap);
+  wdog->arg = arg;
 
   /* Calculate delay+1, forcing the delay into a range that we can handle */
 
@@ -244,13 +195,13 @@ int wd_start(WDOG_ID wdog, int32_t delay, wdentry_t wdentry,  int argc, ...)
     }
 
 #ifdef CONFIG_SCHED_TICKLESS
-  /* Cancel the interval timer that drives the timing events.  This will cause
-   * wd_timer to be called which update the delay value for the first time
-   * at the head of the timer list (there is a possibility that it could even
-   * remove it).
+  /* Cancel the interval timer that drives the timing events.  This will
+   * cause wd_timer to be called which update the delay value for the first
+   * time at the head of the timer list (there is a possibility that it
+   * could even remove it).
    */
 
-  sched_timer_cancel();
+  nxsched_cancel_timer();
 #endif
 
   /* Do the easy case first -- when the watchdog timer queue is empty. */
@@ -260,7 +211,7 @@ int wd_start(WDOG_ID wdog, int32_t delay, wdentry_t wdentry,  int argc, ...)
 #ifdef CONFIG_SCHED_TICKLESS
       /* Update clock tickbase */
 
-      g_wdtickbase = clock_systimer();
+      g_wdtickbase = clock_systime_ticks();
 #endif
 
       /* Add the watchdog to the head == tail of the queue. */
@@ -354,7 +305,7 @@ int wd_start(WDOG_ID wdog, int32_t delay, wdentry_t wdentry,  int argc, ...)
    * new delay.
    */
 
-  sched_timer_resume();
+  nxsched_resume_timer();
 #endif
 
   leave_critical_section(flags);

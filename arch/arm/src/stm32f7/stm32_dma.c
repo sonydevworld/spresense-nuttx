@@ -1,36 +1,20 @@
 /****************************************************************************
  * arch/arm/src/stm32f7/stm32_dma.c
  *
- *   Copyright (C) 2015-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *            Bob Feretich <bob.feretich@rafresearch.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <debug.h>
@@ -50,9 +35,9 @@
 #include <nuttx/semaphore.h>
 #include <arch/stm32f7/chip.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
-#include "up_internal.h"
+#include "arm_internal.h"
 #include "sched/sched.h"
 #include "stm32_dma.h"
 
@@ -83,6 +68,7 @@
 /****************************************************************************
  * Private Types
  ****************************************************************************/
+
 /* This structure describes one DMA channel */
 
 struct stm32_dma_s
@@ -214,43 +200,47 @@ static struct stm32_dma_s g_dma[DMA_NSTREAMS] =
 
 /* Get non-channel register from DMA1 or DMA2 */
 
-static inline uint32_t dmabase_getreg(struct stm32_dma_s *dmast, uint32_t offset)
+static inline uint32_t dmabase_getreg(struct stm32_dma_s *dmast,
+                                      uint32_t offset)
 {
   return getreg32(DMA_BASE(dmast->base) + offset);
 }
 
 /* Write to non-channel register in DMA1 or DMA2 */
 
-static inline void dmabase_putreg(struct stm32_dma_s *dmast, uint32_t offset, uint32_t value)
+static inline void dmabase_putreg(struct stm32_dma_s *dmast, uint32_t offset,
+                                  uint32_t value)
 {
   putreg32(value, DMA_BASE(dmast->base) + offset);
 }
 
 /* Get channel register from DMA1 or DMA2 */
 
-static inline uint32_t dmast_getreg(struct stm32_dma_s *dmast, uint32_t offset)
+static inline uint32_t dmast_getreg(struct stm32_dma_s *dmast,
+                                    uint32_t offset)
 {
   return getreg32(dmast->base + offset);
 }
 
 /* Write to channel register in DMA1 or DMA2 */
 
-static inline void dmast_putreg(struct stm32_dma_s *dmast, uint32_t offset, uint32_t value)
+static inline void dmast_putreg(struct stm32_dma_s *dmast, uint32_t offset,
+                                uint32_t value)
 {
   putreg32(value, dmast->base + offset);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_dmatake() and stm32_dmagive()
  *
  * Description:
  *   Used to get exclusive access to a DMA channel.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-static void stm32_dmatake(FAR struct stm32_dma_s *dmast)
+static int stm32_dmatake(FAR struct stm32_dma_s *dmast)
 {
-  nxsem_wait_uninterruptible(&dmast->sem);
+  return nxsem_wait_uninterruptible(&dmast->sem);
 }
 
 static inline void stm32_dmagive(FAR struct stm32_dma_s *dmast)
@@ -258,23 +248,24 @@ static inline void stm32_dmagive(FAR struct stm32_dma_s *dmast)
   nxsem_post(&dmast->sem);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_dmastream
  *
  * Description:
- *   Get the g_dma table entry associated with a DMA controller and a stream number
+ *   Get the g_dma table entry associated with a DMA controller and a stream
+ *   number
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline FAR struct stm32_dma_s *stm32_dmastream(unsigned int stream,
-                                                      unsigned int controller)
+                                                    unsigned int controller)
 {
   int index;
 
   DEBUGASSERT(stream < DMA_NSTREAMS && controller < STM32F7_NDMA);
 
-  /* Convert the controller + stream based on the fact that there are 8 streams
-   * per controller.
+  /* Convert the controller + stream based on the fact that there are
+   * 8 streams per controller.
    */
 
 #if STM32F7_NDMA > 1
@@ -288,13 +279,13 @@ static inline FAR struct stm32_dma_s *stm32_dmastream(unsigned int stream,
   return &g_dma[index];
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_dmamap
  *
  * Description:
  *   Get the g_dma table entry associated with a bit-encoded DMA selection
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline FAR struct stm32_dma_s *stm32_dmamap(unsigned long dmamap)
 {
@@ -302,7 +293,7 @@ static inline FAR struct stm32_dma_s *stm32_dmamap(unsigned long dmamap)
 
   unsigned int controller = STM32_DMA_CONTROLLER(dmamap);
 
-  /* Extact the stream number from the bit encoded value */
+  /* Extract the stream number from the bit encoded value */
 
   unsigned int stream = STM32_DMA_STREAM(dmamap);
 
@@ -311,13 +302,13 @@ static inline FAR struct stm32_dma_s *stm32_dmamap(unsigned long dmamap)
   return stm32_dmastream(stream, controller);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_dmastreamdisable
  *
  * Description:
  *  Disable the DMA stream
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static void stm32_dmastreamdisable(struct stm32_dma_s *dmast)
 {
@@ -334,8 +325,8 @@ static void stm32_dmastreamdisable(struct stm32_dma_s *dmast)
   regval &= ~DMA_SCR_EN;
   dmast_putreg(dmast, STM32_DMA_SCR_OFFSET, regval);
 
-  /* Clear pending stream interrupts by setting bits in the upper or lower IFCR
-   * register
+  /* Clear pending stream interrupts by setting bits in the upper or lower
+   * IFCR register
    */
 
   if (dmast->stream < 4)
@@ -350,13 +341,13 @@ static void stm32_dmastreamdisable(struct stm32_dma_s *dmast)
   dmabase_putreg(dmast, regoffset, (DMA_STREAM_MASK << dmast->shift));
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_dmainterrupt
  *
  * Description:
  *  DMA interrupt handler
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32_dmainterrupt(int irq, void *context, FAR void *arg)
 {
@@ -415,10 +406,11 @@ static int stm32_dmainterrupt(int irq, void *context, FAR void *arg)
 
   /* Get the interrupt status for this stream */
 
-  status = (dmabase_getreg(dmast, regoffset) >> dmast->shift) & DMA_STREAM_MASK;
+  status = (dmabase_getreg(dmast, regoffset) >> dmast->shift) &
+            DMA_STREAM_MASK;
 
-  /* Clear fetched stream interrupts by setting bits in the upper or lower IFCR
-   * register
+  /* Clear fetched stream interrupts by setting bits in the upper or lower
+   * IFCR register
    */
 
   if (stream < 4)
@@ -457,7 +449,7 @@ static int stm32_dmainterrupt(int irq, void *context, FAR void *arg)
  *
  ****************************************************************************/
 
-void weak_function up_dma_initialize(void)
+void weak_function arm_dma_initialize(void)
 {
   struct stm32_dma_s *dmast;
   int stream;
@@ -509,7 +501,7 @@ void weak_function up_dma_initialize(void)
  *     in chip/stm32f7xxxxxxx_dma.h
  *
  * Returned Value:
- *   Provided that 'dmamap' is valid, this function ALWAYS returns a non-NULL,
+ *   Provided that 'dmamap' is valid, this function ALWAYS returns a non-NULL
  *   void* DMA channel handle.  (If 'dmamap' is invalid, the function will
  *   assert if debug is enabled or do something ignorant otherwise).
  *
@@ -523,6 +515,7 @@ void weak_function up_dma_initialize(void)
 DMA_HANDLE stm32_dmachannel(unsigned int dmamap)
 {
   FAR struct stm32_dma_s *dmast;
+  int ret;
 
   /* Get the stream index from the bit-encoded channel value */
 
@@ -533,7 +526,11 @@ DMA_HANDLE stm32_dmachannel(unsigned int dmamap)
    * is available if it is currently being used by another driver
    */
 
-  stm32_dmatake(dmast);
+  ret = stm32_dmatake(dmast);
+  if (ret < 0)
+    {
+      return NULL;
+    }
 
   /* The caller now has exclusive use of the DMA channel.  Assign the
    * channel to the stream and return an opaque reference to the stream
@@ -548,7 +545,7 @@ DMA_HANDLE stm32_dmachannel(unsigned int dmamap)
  * Name: stm32_dmafree
  *
  * Description:
- *   Release a DMA channel.  If another thread is waiting for this DMA channel
+ *   Release a DMA channel. If another thread is waiting for this DMA channel
  *   in a call to stm32_dmachannel, then this function will re-assign the
  *   DMA channel to that thread and wake it up.  NOTE:  The 'handle' used
  *   in this argument must NEVER be used again until stm32_dmachannel() is
@@ -589,7 +586,8 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
   uint32_t regoffset;
   uint32_t regval;
 
-  dmainfo("paddr: %08x maddr: %08x ntransfers: %d scr: %08x\n",
+  dmainfo("paddr: %08" PRIx32 " maddr: %08" PRIx32
+          " ntransfers: %zu scr: %08" PRIx32 "\n",
           paddr, maddr, ntransfers, scr);
 
 #ifdef CONFIG_STM32F7_DMACAPABLE
@@ -597,22 +595,23 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
 #endif
 
   /* "If the stream is enabled, disable it by resetting the EN bit in the
-   * DMA_SxCR register, then read this bit in order to confirm that there is no
-   * ongoing stream operation. Writing this bit to 0 is not immediately
-   * effective since it is actually written to 0 once all the current transfers
-   * have finished. When the EN bit is read as 0, this means that the stream is
-   * ready to be configured. It is therefore necessary to wait for the EN bit
-   * to be cleared before starting any stream configuration. ..."
+   * DMA_SxCR register, then read this bit in order to confirm that there
+   * is no ongoing stream operation. Writing this bit to 0 is not immediately
+   * effective since it is actually written to 0 once all the current
+   * transfers have finished. When the EN bit is read as 0, this means that
+   * the stream is ready to be configured. It is therefore necessary to wait
+   * for the EN bit to be cleared before starting any stream
+   * configuration..."
    */
 
   while ((dmast_getreg(dmast, STM32_DMA_SCR_OFFSET) & DMA_SCR_EN) != 0);
 
   /* "... All the stream dedicated bits set in the status register (DMA_LISR
-   * and DMA_HISR) from the previous data block DMA transfer should be cleared
-   * before the stream can be re-enabled."
+   * and DMA_HISR) from the previous data block DMA transfer should be
+   * cleared before the stream can be re-enabled."
    *
-   * Clear pending stream interrupts by setting bits in the upper or lower IFCR
-   * register
+   * Clear pending stream interrupts by setting bits in the upper or lower
+   * IFCR register
    */
 
   if (dmast->stream < 4)
@@ -636,8 +635,8 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
   /* "Set the memory address in the DMA_SM0ARx ... register. The data will be
    *  written to or read from this memory after the peripheral event."
    *
-   * Note that in double-buffered mode it is explicitly assumed that the second
-   * buffer immediately follows the first.
+   * Note that in double-buffered mode it is explicitly assumed that the
+   * second buffer immediately follows the first.
    */
 
   dmast_putreg(dmast, STM32_DMA_SM0AR_OFFSET, maddr);
@@ -650,15 +649,16 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
    *  DMA_SNDTRx register.  After each peripheral event, this value will be
    *  decremented."
    *
-   * "When the peripheral flow controller is used for a given stream, the value
-   *  written into the DMA_SxNDTR has no effect on the DMA transfer. Actually,
-   *  whatever the value written, it will be forced by hardware to 0xFFFF as soon
-   *  as the stream is enabled..."
+   * "When the peripheral flow controller is used for a given stream, the
+   *  value written into the DMA_SxNDTR has no effect on the DMA transfer.
+   *  Actually, whatever the value written, it will be forced by hardware
+   *  to 0xFFFF as soon as the stream is enabled..."
    */
 
   dmast_putreg(dmast, STM32_DMA_SNDTR_OFFSET, ntransfers);
 
-  /* "Select the DMA channel (request) using CHSEL[2:0] in the DMA_SxCR register."
+  /* "Select the DMA channel (request) using CHSEL[2:0] in the DMA_SxCR
+   *  register."
    *
    * "Configure the stream priority using the PL[1:0] bits in the DMA_SCRx"
    *  register."
@@ -670,30 +670,32 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
   regval |= (uint32_t)dmast->channel << DMA_SCR_CHSEL_SHIFT;
   dmast_putreg(dmast, STM32_DMA_SCR_OFFSET, regval);
 
-  /* "Configure the FIFO usage (enable or disable, threshold in transmission and
-   *  reception)"
+  /* "Configure the FIFO usage (enable or disable, threshold in transmission
+   *  and reception)"
    *
-   * "Caution is required when choosing the FIFO threshold (bits FTH[1:0] of the
-   *  DMA_SxFCR register) and the size of the memory burst (MBURST[1:0] of the
-   *  DMA_SxCR register): The content pointed by the FIFO threshold must exactly
-   *  match to an integer number of memory burst transfers. If this is not in the
-   *  case, a FIFO error (flag FEIFx of the DMA_HISR or DMA_LISR register) will be
-   *  generated when the stream is enabled, then the stream will be automatically
-   *  disabled."
+   * "Caution is required when choosing the FIFO threshold (bits FTH[1:0]
+   *  of the DMA_SxFCR register) and the size of the memory burst
+   *  (MBURST[1:0] of the DMA_SxCR register): The content pointed by the FIFO
+   *  threshold must exactly match to an integer number of memory burst
+   *  transfers. If this is not in the case, a FIFO error (flag FEIFx of the
+   *  DMA_HISR or DMA_LISR register) will be generated when the stream is
+   *  enabled, then the stream will be automatically disabled."
    *
    * The FIFO is disabled in circular mode when transferring data from a
-   * peripheral to memory, as in this case it is usually desirable to know that
-   * every byte from the peripheral is transferred immediately to memory.  It is
-   * not practical to flush the DMA FIFO, as this requires disabling the channel
-   * which triggers the transfer-complete interrupt.
+   * peripheral to memory, as in this case it is usually desirable to know
+   * that every byte from the peripheral is transferred immediately to
+   * memory.  It is not practical to flush the DMA FIFO, as this requires
+   * disabling the channel which triggers the transfer-complete interrupt.
    *
-   * NOTE: The FEIFx error interrupt is not enabled because the FEIFx seems to
-   * be reported spuriously causing good transfers to be marked as failures.
+   * NOTE: The FEIFx error interrupt is not enabled because the FEIFx seems
+   * to be reported spuriously causing good transfers to be marked as
+   * failures.
    */
 
   regval  = dmast_getreg(dmast, STM32_DMA_SFCR_OFFSET);
   regval &= ~(DMA_SFCR_FTH_MASK | DMA_SFCR_FS_MASK | DMA_SFCR_FEIE);
-  if (!((scr & (DMA_SCR_CIRC | DMA_SCR_DIR_MASK)) == (DMA_SCR_CIRC | DMA_SCR_DIR_P2M)))
+  if (!((scr & (DMA_SCR_CIRC | DMA_SCR_DIR_MASK)) ==
+        (DMA_SCR_CIRC | DMA_SCR_DIR_P2M)))
     {
       regval |= (DMA_SFCR_FTH_FULL | DMA_SFCR_DMDIS);
     }
@@ -708,13 +710,13 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
    */
 
   regval  = dmast_getreg(dmast, STM32_DMA_SCR_OFFSET);
-  regval &= ~(DMA_SCR_PFCTRL | DMA_SCR_DIR_MASK | DMA_SCR_PINC | DMA_SCR_MINC |
-              DMA_SCR_PSIZE_MASK | DMA_SCR_MSIZE_MASK | DMA_SCR_PINCOS |
-              DMA_SCR_CIRC | DMA_SCR_DBM | DMA_SCR_CT |
+  regval &= ~(DMA_SCR_PFCTRL | DMA_SCR_DIR_MASK | DMA_SCR_PINC |
+              DMA_SCR_MINC | DMA_SCR_PSIZE_MASK | DMA_SCR_MSIZE_MASK |
+              DMA_SCR_PINCOS | DMA_SCR_CIRC | DMA_SCR_DBM | DMA_SCR_CT |
               DMA_SCR_PBURST_MASK | DMA_SCR_MBURST_MASK);
-  scr    &=  (DMA_SCR_PFCTRL | DMA_SCR_DIR_MASK | DMA_SCR_PINC | DMA_SCR_MINC |
-              DMA_SCR_PSIZE_MASK | DMA_SCR_MSIZE_MASK | DMA_SCR_PINCOS |
-              DMA_SCR_DBM | DMA_SCR_CIRC |
+  scr    &=  (DMA_SCR_PFCTRL | DMA_SCR_DIR_MASK | DMA_SCR_PINC |
+              DMA_SCR_MINC | DMA_SCR_PSIZE_MASK | DMA_SCR_MSIZE_MASK |
+              DMA_SCR_PINCOS | DMA_SCR_DBM | DMA_SCR_CIRC |
               DMA_SCR_PBURST_MASK | DMA_SCR_MBURST_MASK);
   regval |= scr;
   dmast_putreg(dmast, STM32_DMA_SCR_OFFSET, regval);
@@ -732,7 +734,8 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
  *
  ****************************************************************************/
 
-void stm32_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg, bool half)
+void stm32_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg,
+                    bool half)
 {
   struct stm32_dma_s *dmast = (struct stm32_dma_s *)handle;
   uint32_t scr;
@@ -753,27 +756,29 @@ void stm32_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg, bool 
   scr |= DMA_SCR_EN;
 
   /* In normal mode, interrupt at either half or full completion. In circular
-   * and double-buffered modes, always interrupt on buffer wrap, and optionally
-   * interrupt at the halfway point.
+   * and double-buffered modes, always interrupt on buffer wrap, and
+   * optionally interrupt at the halfway point.
    */
 
   if ((scr & (DMA_SCR_DBM | DMA_SCR_CIRC)) == 0)
     {
-      /* Once half of the bytes are transferred, the half-transfer flag (HTIF) is
-       * set and an interrupt is generated if the Half-Transfer Interrupt Enable
-       * bit (HTIE) is set. At the end of the transfer, the Transfer Complete Flag
-       * (TCIF) is set and an interrupt is generated if the Transfer Complete
-       * Interrupt Enable bit (TCIE) is set.
+      /* Once half of the bytes are transferred, the half-transfer flag
+       * (HTIF) is set and an interrupt is generated if the Half-Transfer
+       * Interrupt Enable bit (HTIE) is set. At the end of the transfer,
+       * the Transfer Complete Flag (TCIF) is set and an interrupt is
+       * generated if the Transfer Complete Interrupt Enable bit (TCIE)
+       * is set.
        */
 
-      scr |= (half ? (DMA_SCR_HTIE | DMA_SCR_TEIE) : (DMA_SCR_TCIE | DMA_SCR_TEIE));
+      scr |= (half ?
+              (DMA_SCR_HTIE | DMA_SCR_TEIE) : (DMA_SCR_TCIE | DMA_SCR_TEIE));
     }
   else
     {
       /* In non-stop modes, when the transfer completes it immediately resets
        * and starts again.  The transfer-complete interrupt is thus always
        * enabled, and the half-complete interrupt can be used in circular
-       * mode to determine when the buffer is half-full, or in double-buffered
+       * mode to determine when the buffer is half-full or in double-buffered
        * mode to determine when one of the two buffers is full.
        */
 
@@ -856,12 +861,14 @@ size_t stm32_dmaresidual(DMA_HANDLE handle)
  ****************************************************************************/
 
 #ifdef CONFIG_STM32F7_DMACAPABLE
-bool stm32_dmacapable(uint32_t maddr, uint32_t count, uint32_t ccr)
+bool stm32_dmacapable(uintptr_t maddr, uint32_t count, uint32_t ccr)
 {
-  uint32_t transfer_size, burst_length;
+  uint32_t transfer_size;
+  uint32_t burst_length;
   uint32_t mend;
 
-  dmainfo("stm32_dmacapable: 0x%08x/%u 0x%08x\n", maddr, count, ccr);
+  dmainfo("stm32_dmacapable: 0x%08" PRIxPTR
+          "/%" PRIu32 " 0x%08" PRIx32 "\n", maddr, count, ccr);
 
   /* Verify that the address conforms to the memory transfer size.
    * Transfers to/from memory performed by the DMA controller are
@@ -910,12 +917,15 @@ bool stm32_dmacapable(uint32_t maddr, uint32_t count, uint32_t ccr)
    * ARMV7M_DCACHE_LINESIZE boundaries.
    */
 
-  if ((maddr & (ARMV7M_DCACHE_LINESIZE-1)) != 0 ||
-      ((mend + 1) & (ARMV7M_DCACHE_LINESIZE-1)) != 0)
+  if ((maddr & (ARMV7M_DCACHE_LINESIZE - 1)) != 0 ||
+      ((mend + 1) & (ARMV7M_DCACHE_LINESIZE - 1)) != 0)
     {
-      dmainfo("stm32_dmacapable: dcache unaligned maddr:0x%08x mend:0x%08x\n",
+      dmawarn("stm32_dmacapable:"
+              " dcache unaligned maddr:0x%08x mend:0x%08x\n",
               maddr, mend);
+#if !defined(CONFIG_STM32F7_DMACAPABLE_ASSUME_CACHE_ALIGNED)
       return false;
+#endif
     }
 #  endif
 
@@ -997,7 +1007,9 @@ bool stm32_dmacapable(uint32_t maddr, uint32_t count, uint32_t ccr)
 
         /* Everything else is unsupported by DMA */
 
-        dmainfo("stm32_dmacapable: transfer targets unknown/unsupported region\n");
+        dmainfo("stm32_dmacapable: transfer targets unknown/unsupported"
+                " region\n");
+
         return false;
     }
 
@@ -1017,7 +1029,7 @@ bool stm32_dmacapable(uint32_t maddr, uint32_t count, uint32_t ccr)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_DEBUG_DMA
+#ifdef CONFIG_DEBUG_DMA_INFO
 void stm32_dmasample(DMA_HANDLE handle, struct stm32_dmaregs_s *regs)
 {
   struct stm32_dma_s *dmast = (struct stm32_dma_s *)handle;
@@ -1055,14 +1067,22 @@ void stm32_dmadump(DMA_HANDLE handle, const struct stm32_dmaregs_s *regs,
   uint32_t dmabase = DMA_BASE(dmast->base);
 
   dmainfo("DMA Registers: %s\n", msg);
-  dmainfo("   LISR[%08x]: %08x\n", dmabase + STM32_DMA_LISR_OFFSET, regs->lisr);
-  dmainfo("   HISR[%08x]: %08x\n", dmabase + STM32_DMA_HISR_OFFSET, regs->hisr);
-  dmainfo("    SCR[%08x]: %08x\n", dmast->base + STM32_DMA_SCR_OFFSET, regs->scr);
-  dmainfo("  SNDTR[%08x]: %08x\n", dmast->base + STM32_DMA_SNDTR_OFFSET, regs->sndtr);
-  dmainfo("   SPAR[%08x]: %08x\n", dmast->base + STM32_DMA_SPAR_OFFSET, regs->spar);
-  dmainfo("  SM0AR[%08x]: %08x\n", dmast->base + STM32_DMA_SM0AR_OFFSET, regs->sm0ar);
-  dmainfo("  SM1AR[%08x]: %08x\n", dmast->base + STM32_DMA_SM1AR_OFFSET, regs->sm1ar);
-  dmainfo("   SFCR[%08x]: %08x\n", dmast->base + STM32_DMA_SFCR_OFFSET, regs->sfcr);
+  dmainfo("   LISR[%08x]: %08x\n",
+          dmabase + STM32_DMA_LISR_OFFSET, regs->lisr);
+  dmainfo("   HISR[%08x]: %08x\n",
+          dmabase + STM32_DMA_HISR_OFFSET, regs->hisr);
+  dmainfo("    SCR[%08x]: %08x\n",
+          dmast->base + STM32_DMA_SCR_OFFSET, regs->scr);
+  dmainfo("  SNDTR[%08x]: %08x\n",
+          dmast->base + STM32_DMA_SNDTR_OFFSET, regs->sndtr);
+  dmainfo("   SPAR[%08x]: %08x\n",
+          dmast->base + STM32_DMA_SPAR_OFFSET, regs->spar);
+  dmainfo("  SM0AR[%08x]: %08x\n",
+          dmast->base + STM32_DMA_SM0AR_OFFSET, regs->sm0ar);
+  dmainfo("  SM1AR[%08x]: %08x\n",
+          dmast->base + STM32_DMA_SM1AR_OFFSET, regs->sm1ar);
+  dmainfo("   SFCR[%08x]: %08x\n",
+          dmast->base + STM32_DMA_SFCR_OFFSET, regs->sfcr);
 }
 #endif
 

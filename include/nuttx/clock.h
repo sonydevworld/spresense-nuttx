@@ -1,36 +1,20 @@
 /****************************************************************************
  * include/nuttx/clock.h
  *
- *   Copyright (C) 2007-2009, 2011-2012, 2014, 2016-2018 Gregory Nutt.
-             All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -54,6 +38,7 @@
  ****************************************************************************/
 
 /* Configuration ************************************************************/
+
 /* Efficient, direct access to OS global timer variables will be supported
  * if the execution environment has direct access to kernel global data.
  * The code in this execution context can access the kernel global data
@@ -71,25 +56,20 @@
 
 #undef __HAVE_KERNEL_GLOBALS
 #if defined(CONFIG_SCHED_TICKLESS)
-   /* Case 1: There is no global timer data */
+  /* Case 1: There is no global timer data */
 
-#elif defined(CONFIG_BUILD_PROTECTED) && defined(__KERNEL__)
-   /* Case 3: Kernel mode of protected kernel build */
+#elif defined(__KERNEL__)
+  /* Case 3: Kernel mode of protected/kernel build */
 
-#    define __HAVE_KERNEL_GLOBALS 1
-
-#elif defined(CONFIG_BUILD_KERNEL) && defined(__KERNEL__)
-   /* Case 3: Kernel only build */
-
-#    define __HAVE_KERNEL_GLOBALS 1
+#  define __HAVE_KERNEL_GLOBALS 1
 
 #elif defined(CONFIG_LIB_SYSCALL)
-   /* Case 4: Building with SYSCALLs enabled, but not part of a kernel build */
+  /* Case 4: Building with SYSCALLs enabled, but not part of a kernel build */
 
 #else
-   /* Case 2: Un-protected, non-kernel build */
+  /* Case 2: Un-protected, non-kernel build */
 
-#    define __HAVE_KERNEL_GLOBALS 1
+#  define __HAVE_KERNEL_GLOBALS 1
 #endif
 
 /* If CONFIG_SYSTEM_TIME64 is selected and the CPU supports long long types,
@@ -126,15 +106,15 @@
 #define NSEC_PER_MIN           (NSEC_PER_SEC * SEC_PER_MIN)
 #define USEC_PER_MIN           (USEC_PER_SEC * SEC_PER_MIN)
 #define MSEC_PER_MIN           (MSEC_PER_SEC * SEC_PER_MIN)
-#define DSEC_PER_MIN           (HSEC_PER_SEC * SEC_PER_MIN)
+#define DSEC_PER_MIN           (DSEC_PER_SEC * SEC_PER_MIN)
 #define HSEC_PER_MIN           (HSEC_PER_SEC * SEC_PER_MIN)
 
 #define MIN_PER_HOUR                  60L
 #define NSEC_PER_HOUR          (NSEC_PER_MIN * MIN_PER_HOUR)
 #define USEC_PER_HOUR          (USEC_PER_MIN * MIN_PER_HOUR)
 #define MSEC_PER_HOUR          (MSEC_PER_MIN * MIN_PER_HOUR)
-#define DSEC_PER_HOUR          (HSEC_PER_SEC * MIN_PER_HOUR)
-#define HSEC_PER_HOUR          (DSEC_PER_MIN * MIN_PER_HOUR)
+#define DSEC_PER_HOUR          (DSEC_PER_MIN * MIN_PER_HOUR)
+#define HSEC_PER_HOUR          (HSEC_PER_MIN * MIN_PER_HOUR)
 #define SEC_PER_HOUR           (SEC_PER_MIN  * MIN_PER_HOUR)
 
 #define HOURS_PER_DAY                 24L
@@ -144,7 +124,7 @@
  * the system timer is given by USEC_PER_TICK.  This is the expected number
  * of microseconds between calls from the processor-specific logic to
  * nxsched_process_timer().  The default value of USEC_PER_TICK is 10000
- * microseconds (100KHz).  However, this default setting can be overridden
+ * microseconds (100 Hz).  However, this default setting can be overridden
  * by defining the interval in microseconds as CONFIG_USEC_PER_TICK in the
  * NuttX configuration file.
  *
@@ -252,6 +232,7 @@ extern "C"
 #endif
 
 /* Access to raw system clock ***********************************************/
+
 /* Direct access to the system timer/counter is supported only if (1) the
  * system timer counter is available (i.e., we are not configured to use
  * a hardware periodic timer), and (2) the execution environment has direct
@@ -262,13 +243,26 @@ extern "C"
 EXTERN volatile clock_t g_system_timer;
 
 #ifndef CONFIG_SYSTEM_TIME64
-#  define clock_systimer() g_system_timer
+#  define clock_systime_ticks() g_system_timer
 #endif
 #endif
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: clock_timespec_compare
+ *
+ * Description:
+ *    Return < 0 if time ts1 is before time ts2
+ *    Return > 0 if time ts2 is before time ts1
+ *    Return 0 if time ts1 is the same as time ts2
+ *
+ ****************************************************************************/
+
+int clock_timespec_compare(FAR const struct timespec *ts1,
+                           FAR const struct timespec *ts2);
 
 /****************************************************************************
  * Name:  clock_timespec_add
@@ -372,7 +366,7 @@ void clock_resynchronize(FAR struct timespec *rtc_diff);
 #endif
 
 /****************************************************************************
- * Name: clock_systimer
+ * Name: clock_systime_ticks
  *
  * Description:
  *   Return the current value of the 32/64-bit system timer counter.
@@ -397,11 +391,11 @@ void clock_resynchronize(FAR struct timespec *rtc_diff);
  ****************************************************************************/
 
 #if !defined(__HAVE_KERNEL_GLOBALS) || defined(CONFIG_SYSTEM_TIME64)
-clock_t clock_systimer(void);
+clock_t clock_systime_ticks(void);
 #endif
 
 /****************************************************************************
- * Name: clock_systimespec
+ * Name: clock_systime_timespec
  *
  * Description:
  *   Return the current value of the system timer counter as a struct
@@ -417,7 +411,7 @@ clock_t clock_systimer(void);
  *
  ****************************************************************************/
 
-int clock_systimespec(FAR struct timespec *ts);
+int clock_systime_timespec(FAR struct timespec *ts);
 
 /****************************************************************************
  * Name:  clock_cpuload
@@ -426,7 +420,7 @@ int clock_systimespec(FAR struct timespec *ts);
  *   Return load measurement data for the select PID.
  *
  * Input Parameters:
- *   pid - The task ID of the thread of interest.  pid == 0 is the IDLE thread.
+ *   pid - The task ID of the thread of interest. pid == 0 is IDLE thread.
  *   cpuload - The location to return the CPU load
  *
  * Returned Value:
@@ -443,11 +437,11 @@ int clock_cpuload(int pid, FAR struct cpuload_s *cpuload);
 #endif
 
 /****************************************************************************
- * Name:  sched_oneshot_extclk
+ * Name:  nxsched_oneshot_extclk
  *
  * Description:
  *   Configure to use a oneshot timer as described in
- *   include/nuttx/timers/oneshot.h to provid external clocking to assess
+ *   include/nuttx/timers/oneshot.h to provide external clocking to assess
  *   the CPU load.
  *
  * Input Parameters:
@@ -461,11 +455,11 @@ int clock_cpuload(int pid, FAR struct cpuload_s *cpuload);
 
 #ifdef CONFIG_CPULOAD_ONESHOT
 struct oneshot_lowerhalf_s;
-void sched_oneshot_extclk(FAR struct oneshot_lowerhalf_s *lower);
+void nxsched_oneshot_extclk(FAR struct oneshot_lowerhalf_s *lower);
 #endif
 
 /****************************************************************************
- * Name:  sched_period_extclk
+ * Name:  nxsched_period_extclk
  *
  * Description:
  *   Configure to use a period timer as described in
@@ -483,7 +477,7 @@ void sched_oneshot_extclk(FAR struct oneshot_lowerhalf_s *lower);
 
 #ifdef CONFIG_CPULOAD_PERIOD
 struct timer_lowerhalf_s;
-void sched_period_extclk(FAR struct timer_lowerhalf_s *lower);
+void nxsched_period_extclk(FAR struct timer_lowerhalf_s *lower);
 #endif
 
 #undef EXTERN

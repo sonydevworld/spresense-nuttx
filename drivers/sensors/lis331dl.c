@@ -1,36 +1,20 @@
 /****************************************************************************
  * drivers/sensors/lis331dl.c
  *
- *   Copyright (C) 2011 Uros Platise. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- *   Authors: Uros Platise <uros.platise@isotel.eu>
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -185,25 +169,25 @@ static int lis331dl_access(FAR struct lis331dl_dev_s *dev, uint8_t subaddr,
       subaddr |= 0x80;
     }
 
-    /* Create message and send */
+  /* Create message and send */
 
-    struct i2c_msg_s msgv[2] =
+  struct i2c_msg_s msgv[2] =
+  {
     {
-      {
-        .frequency = CONFIG_LIS331DL_I2C_FREQUENCY,
-        .addr      = dev->address,
-        .flags     = 0,
-        .buffer    = &subaddr,
-        .length    = 1
-      },
-      {
-        .frequency = CONFIG_LIS331DL_I2C_FREQUENCY,
-        .addr      = dev->address,
-        .flags     = flags,
-        .buffer    = buf,
-        .length    = length
-      }
-    };
+      .frequency = CONFIG_LIS331DL_I2C_FREQUENCY,
+      .addr      = dev->address,
+      .flags     = 0,
+      .buffer    = &subaddr,
+      .length    = 1
+    },
+    {
+      .frequency = CONFIG_LIS331DL_I2C_FREQUENCY,
+      .addr      = dev->address,
+      .flags     = flags,
+      .buffer    = buf,
+      .length    = length
+    }
+  };
 
   retval = I2C_TRANSFER(dev->i2c, msgv, 2);
   if (retval >= 0)
@@ -259,13 +243,15 @@ FAR struct lis331dl_dev_s *lis331dl_init(FAR struct i2c_master_s *i2c,
 
   if (lis331dl_access(dev, ST_LIS331DL_WHOAMI, &retval, 1) > 0)
     {
-      /* Check chip identification, in the future several more compatible parts
-       * may be added here.
+      /* Check chip identification, in the future several more compatible
+       * parts may be added here.
        */
 
       if (retval == ST_LIS331DL_WHOAMI_VALUE)
         {
-          /* Copy LIS331DL registers to our private structure and power-up device */
+          /* Copy LIS331DL registers to our private structure and power-up
+           * device
+           */
 
           if (lis331dl_readregs(dev) == OK && lis331dl_powerup(dev) == OK)
             {
@@ -326,9 +312,9 @@ int lis331dl_powerdown(FAR struct lis331dl_dev_s * dev)
   dev->cr3 = 0;
 
   if (lis331dl_access(dev, ST_LIS331DL_CTRL_REG1, &dev->cr1, -3) == 3)
-   {
-     return OK;
-   }
+    {
+      return OK;
+    }
 
   return ERROR;
 }
@@ -337,7 +323,8 @@ int lis331dl_powerdown(FAR struct lis331dl_dev_s * dev)
  * Name: lis331dl_setconversion
  ****************************************************************************/
 
-int lis331dl_setconversion(FAR struct lis331dl_dev_s * dev, bool full, bool fast)
+int lis331dl_setconversion(FAR struct lis331dl_dev_s * dev,
+                           bool full, bool fast)
 {
   dev->cr1 = ST_LIS331DL_CR1_PD |
     (full ? ST_LIS331DL_CR1_FS : 0) | (fast ? ST_LIS331DL_CR1_DR : 0) |
@@ -359,10 +346,10 @@ int lis331dl_getprecision(FAR struct lis331dl_dev_s * dev)
 {
   if (dev->cr1 & ST_LIS331DL_CR1_FS)
     {
-      return 9200/127;   /* typ. 9.2g full scale */
+      return 9200 / 127;   /* typ. 9.2g full scale */
     }
 
-  return 2300/127;       /* typ. 2.3g full scale */
+  return 2300 / 127;       /* typ. 2.3g full scale */
 }
 
 /****************************************************************************

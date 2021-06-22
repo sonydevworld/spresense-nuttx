@@ -1,37 +1,23 @@
 /****************************************************************************
  * include/nuttx/board.h
  *
- *   Copyright (C) 2015-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
+
 /* This header file contains function prototypes for the interfaces between
  * (1) the nuttx core-code, (2) the microprocessor specific logic that
  * resides under the arch/ sub-directory, and (3) the board-specific logic
@@ -50,8 +36,8 @@
  *    nuttx/include/arch.h
  *
  *    NOTE: up_ is supposed to stand for microprocessor; the u is like the
- *    Greek letter micron: µ. So it would be µP which is a common shortening
- *    of the word microprocessor.
+ *    Greek letter micron: µ. So it would be µP which is a common
+ *    shortening of the word microprocessor.
  *
  * 2. Microprocessor-Specific Interfaces.
  *
@@ -119,6 +105,14 @@
  *
  ****************************************************************************/
 
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
 /****************************************************************************
  * Name: board_early_initialize
  *
@@ -159,7 +153,7 @@ void board_early_initialize(void);
  *   specific device drivers for which board_early_initialize() is not
  *   suitable.
  *
- *   Waiting for events, use of I2C, SPI, etc are permissable in the context
+ *   Waiting for events, use of I2C, SPI, etc are permissible in the context
  *   of board_late_initialize().  That is because board_late_initialize()
  *   will run on a temporary, internal kernel thread.
  *
@@ -182,7 +176,7 @@ void board_late_initialize(void);
  *         implementation without modification.  The argument has no
  *         meaning to NuttX; the meaning of the argument is a contract
  *         between the board-specific initialization logic and the
- *         matching application logic.  The value cold be such things as a
+ *         matching application logic.  The value could be such things as a
  *         mode enumeration value, a set of DIP switch switch settings, a
  *         pointer to configuration data read from a file or serial FLASH,
  *         or whatever you would like to do with it.  Every implementation
@@ -282,7 +276,7 @@ int board_reset(int status);
  *     length.
  *
  * Returned Value:
- *   Zero (OK) is returned on success.  Otherwize a negated errno value is
+ *   Zero (OK) is returned on success.  Otherwise a negated errno value is
  *   returned indicating the nature of the failure.
  *
  ****************************************************************************/
@@ -541,16 +535,18 @@ void board_autoled_off(int led);
  *   If CONFIG_ARCH_LEDS is defined, then NuttX will control the on-board
  *   LEDs.  If CONFIG_ARCH_LEDS is not defined, then this interfaces may be
  *   available to control the LEDs directly from user board logic or
- *   indirectly user applications (via the common LED charater driver).
+ *   indirectly user applications (via the common LED character driver).
  *
- *   Most boards have only a few LEDs and in thoses cases all LEDs may be
+ *   Most boards have only a few LEDs and in those cases all LEDs may be
  *   used by the NuttX LED logic exclusively and may not be available for
  *   use by user logic if CONFIG_ARCH_LEDS=y.
+ *
+ *   NOTE: The LED number is returned.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_ARCH_HAVE_LEDS
-void board_userled_initialize(void);
+uint32_t board_userled_initialize(void);
 #endif
 
 /****************************************************************************
@@ -567,9 +563,9 @@ void board_userled_initialize(void);
  *   If CONFIG_ARCH_LEDS is defined, then NuttX will control the on-board
  *   LEDs.  If CONFIG_ARCH_LEDS is not defined, then this interfaces may be
  *   available to control the LEDs directly from user board logic or
- *   indirectly user applications (via the common LED charater driver).
+ *   indirectly user applications (via the common LED character driver).
  *
- *   Most boards have only a few LEDs and in thoses cases all LEDs may be
+ *   Most boards have only a few LEDs and in those cases all LEDs may be
  *   used by the NuttX LED logic exclusively and may not be available for
  *   use by user logic if CONFIG_ARCH_LEDS=y.
  *
@@ -593,16 +589,16 @@ void board_userled(int led, bool ledon);
  *   If CONFIG_ARCH_LEDS is defined, then NuttX will control the on-board
  *   LEDs.  If CONFIG_ARCH_LEDS is not defined, then this interfaces may be
  *   available to control the LEDs directly from user board logic or
- *   indirectly user applications (via the common LED charater driver).
+ *   indirectly user applications (via the common LED character driver).
  *
- *   Most boards have only a few LEDs and in thoses cases all LEDs may be
+ *   Most boards have only a few LEDs and in those cases all LEDs may be
  *   used by the NuttX LED logic exclusively and may not be available for
  *   use by user logic if CONFIG_ARCH_LEDS=y.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_ARCH_HAVE_LEDS
-void board_userled_all(uint8_t ledset);
+void board_userled_all(uint32_t ledset);
 #endif
 
 /****************************************************************************
@@ -610,18 +606,19 @@ void board_userled_all(uint8_t ledset);
  *
  * Description:
  *   board_button_initialize() must be called to initialize button resources.
- *   After that, board_buttons() may be called to collect the current state of
- *   all buttons or board_button_irq() may be called to register button interrupt
- *   handlers.
+ *   After that, board_buttons() may be called to collect the current state
+ *   of all buttons or board_button_irq() may be called to register button
+ *   interrupt handlers.
  *
  *   NOTE: This interface may or may not be supported by board-specific
- *   logic.  If the board supports button interfaces, then CONFIG_ARCH_BUTTONS
+ *   logic. If the board supports button interfaces, then CONFIG_ARCH_BUTTONS
  *   will be defined.
+ *   NOTE: The button number is returned.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_ARCH_BUTTONS
-void board_button_initialize(void);
+uint32_t board_button_initialize(void);
 #endif
 
 /****************************************************************************
@@ -669,14 +666,14 @@ int board_button_irq(int id, xcpt_t irqhandler, FAR void *arg);
  *
  * Description:
  *   If CONFIG_BOARD_CRASHDUMP is selected then up_asseert will call out to
- *   board_crashdump prior to calling exit in the case of an assertion failure.
- *   Or in the case of a hardfault looping indefinitely. board_crashdump then
- *   has a chance to save the state of the machine. The provided
- *   board_crashdump should save as much information as it can about the cause
- *   of the fault and then most likely reset the system.
+ *   board_crashdump prior to calling exit in the case of an assertion
+ *   failure. Or in the case of a hardfault looping indefinitely.
+ *   board_crashdump then has a chance to save the state of the machine.
+ *   The provided board_crashdump should save as much information as it can
+ *   about the cause of the fault and then most likely reset the system.
  *
  *   N.B. There are limited system resources that can be used by the provided
- *   board_crashdump function. The tems from the fact that most critical/fatal
+ *   board_crashdump. The tems from the fact that most critical/fatal
  *   crashes are because of a hard fault or during interrupt processing.
  *   In these cases, up_assert is running from the context of an interrupt
  *   handlerand it is impossible to use any device driver in this context.
@@ -691,7 +688,7 @@ int board_button_irq(int id, xcpt_t irqhandler, FAR void *arg);
 
 #ifdef CONFIG_BOARD_CRASHDUMP
 void board_crashdump(uintptr_t currentsp, FAR void *tcb,
-                     FAR const uint8_t *filename,
+                     FAR const char *filename,
                      int lineno);
 #endif
 
@@ -701,7 +698,7 @@ void board_crashdump(uintptr_t currentsp, FAR void *tcb,
  * Description:
  *   If CONFIG_BOARD_INITRNGSEED is selected then board_init_rngseed is
  *   called at up_randompool_initialize() to feed initial random seed
- *   to RNG. Implemenation of this functions should feed at least
+ *   to RNG. Implementation of this functions should feed at least
  *   MIN_SEED_NEW_ENTROPY_WORDS 32-bit random words to entropy-pool using
  *   up_rngaddentropy() or up_rngaddint().
  *
@@ -709,6 +706,11 @@ void board_crashdump(uintptr_t currentsp, FAR void *tcb,
 
 #ifdef CONFIG_BOARD_INITRNGSEED
 void board_init_rngseed(void);
+#endif
+
+#undef EXTERN
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* __INCLUDE_NUTTX_BOARD_H */

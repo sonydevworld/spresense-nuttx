@@ -1,35 +1,20 @@
 /****************************************************************************
- * arch/arm/src/tiva/tiva_hciuart.c
+ * arch/arm/src/tiva/common/tiva_hciuart.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,8 +38,8 @@
 #include <nuttx/wireless/bluetooth/bt_uart.h>
 #include <nuttx/power/pm.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "chip.h"
 #include "tiva_hciuart.h"
@@ -144,8 +129,8 @@ struct hciuart_config_s
  * Private Function Prototypes
  ****************************************************************************/
 
-static inline uint32_t hciuart_getreg32(const struct hciuart_config_s *config,
-              unsigned int offset);
+static inline uint32_t hciuart_getreg32(
+              const struct hciuart_config_s *config, unsigned int offset);
 static inline void hciuart_putreg32(const struct hciuart_config_s *config,
               unsigned int offset, uint32_t value);
 static void hciuart_enableints(const struct hciuart_config_s *config,
@@ -158,8 +143,9 @@ static inline bool hciuart_rxenabled(const struct hciuart_config_s *config);
 
 static uint16_t hciuart_rxinuse(const struct hciuart_config_s *config);
 static ssize_t hciuart_copytorxbuffer(const struct hciuart_config_s *config);
-static ssize_t hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
-              uint8_t *dest, size_t destlen);
+static ssize_t hciuart_copyfromrxbuffer(
+              const struct hciuart_config_s *config, uint8_t *dest,
+              size_t destlen);
 static ssize_t hciuart_copytotxfifo(const struct hciuart_config_s *config);
 static void hciuart_line_configure(const struct hciuart_config_s *config);
 static int  hciuart_configure(const struct hciuart_config_s *config);
@@ -603,8 +589,9 @@ static  struct pm_callback_s g_serialcb =
  * Name: hciuart_getreg32
  ****************************************************************************/
 
-static inline uint32_t hciuart_getreg32(const struct hciuart_config_s *config,
-                                        unsigned int offset)
+static inline uint32_t
+  hciuart_getreg32(const struct hciuart_config_s *config,
+                   unsigned int offset)
 {
   return getreg32(config->uartbase + offset);
 }
@@ -828,8 +815,9 @@ static ssize_t hciuart_copytorxbuffer(const struct hciuart_config_s *config)
  *
  ****************************************************************************/
 
-static ssize_t hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
-                                        uint8_t *dest, size_t destlen)
+static ssize_t
+  hciuart_copyfromrxbuffer(const struct hciuart_config_s *config,
+                           uint8_t *dest, size_t destlen)
 {
   struct hciuart_state_s *state;
   ssize_t nbytes;
@@ -907,10 +895,11 @@ static ssize_t hciuart_copytotxfifo(const struct hciuart_config_s *config)
     {
 #ifdef CONFIG_TIVA_HCIUART_SW_TXFLOW
       if (tiva_gpioread(config->cts_gpio))
-      {
+        {
           break;
-      }
+        }
 #endif
+
       /* Is the transmit data register empty?
        *
        * Transmit data register empty
@@ -918,7 +907,8 @@ static ssize_t hciuart_copytotxfifo(const struct hciuart_config_s *config)
        *   register has been transferred into the shift register.
        */
 
-      if ((hciuart_getreg32(config, TIVA_UART_FR_OFFSET) & UART_FR_TXFF) != 0)
+      if ((hciuart_getreg32(config, TIVA_UART_FR_OFFSET) &
+           UART_FR_TXFF) != 0)
         {
           break;
         }
@@ -950,7 +940,7 @@ static ssize_t hciuart_copytotxfifo(const struct hciuart_config_s *config)
  *
  *   Per "Specification of the Bluetooth System, Wireless connections made
  *   easy, Host Controller Interface [Transport Layer]", Volume 4, Revision
- *   1.2 or later, 1 January 2006, HCI UART tranport uses these settings:
+ *   1.2 or later, 1 January 2006, HCI UART transport uses these settings:
  *
  *     8 data bits, no parity, 1 stop, RTS/CTS flow control
  *
@@ -998,7 +988,7 @@ static void hciuart_line_configure(const struct hciuart_config_s *config)
  *
  *   Per "Specification of the Bluetooth System, Wireless connections made
  *   easy, Host Controller Interface [Transport Layer]", Volume 4, Revision
- *   1.2 or later, 1 January 2006, HCI UART tranport uses these settings:
+ *   1.2 or later, 1 January 2006, HCI UART transport uses these settings:
  *
  *     8 data bits, no parity, 1 stop, RTS/CTS flow control
  *
@@ -1050,7 +1040,7 @@ static int hciuart_configure(const struct hciuart_config_s *config)
   config->state->im = hciuart_getreg32(config, TIVA_UART_IM_OFFSET);
 
   hciuart_putreg32(config, TIVA_UART_IFLS_OFFSET,
-               UART_IFLS_TXIFLSEL_18th | UART_IFLS_RXIFLSEL_78th);
+                   UART_IFLS_TXIFLSEL_18TH | UART_IFLS_RXIFLSEL_78TH);
 
   hciuart_putreg32(config, TIVA_UART_IM_OFFSET, UART_IM_RXIM | UART_IM_RTIM);
 
@@ -1134,6 +1124,7 @@ static int hciuart_interrupt(int irq, void *context, void *arg)
               tiva_gpiowrite(config->rts_gpio, true);
             }
 #endif
+
           /* Received data ready... copy data from the Rx FIFO to the Rx
            * buffer.
            */
@@ -1149,6 +1140,7 @@ static int hciuart_interrupt(int irq, void *context, void *arg)
               tiva_gpiowrite(config->rts_gpio, false);
             }
 #endif
+
           /* Is there anything in the Rx buffer?  Has the user registered an
            * Rx callback function?
            */
@@ -1250,7 +1242,7 @@ static void hciuart_rxattach(const struct btuart_lowerhalf_s *lower,
 
   /* If the callback is NULL, then we are detaching */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   if (callback == NULL)
     {
       uint32_t intset;
@@ -1272,7 +1264,7 @@ static void hciuart_rxattach(const struct btuart_lowerhalf_s *lower,
       state->callback = callback;
     }
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -1300,7 +1292,7 @@ static void hciuart_rxenable(const struct btuart_lowerhalf_s *lower,
       uint32_t intset;
       irqstate_t flags;
 
-      flags = spin_lock_irqsave();
+      flags = spin_lock_irqsave(NULL);
       if (enable)
         {
           /* Receive an interrupt when their is anything in the Rx data
@@ -1316,7 +1308,7 @@ static void hciuart_rxenable(const struct btuart_lowerhalf_s *lower,
           hciuart_disableints(config, intset);
         }
 
-      spin_unlock_irqrestore(flags);
+      spin_unlock_irqrestore(NULL, flags);
     }
 }
 
@@ -1367,9 +1359,10 @@ static ssize_t hciuart_read(const struct btuart_lowerhalf_s *lower,
   struct hciuart_state_s *state;
   uint8_t *dest;
   size_t remaining;
-  size_t ntotal;
+  ssize_t ntotal;
   ssize_t nbytes;
   bool rxenable;
+  int ret;
 
   wlinfo("config %p buffer %p buflen %lu\n",
          config, buffer, (unsigned long)buflen);
@@ -1414,7 +1407,12 @@ static ssize_t hciuart_read(const struct btuart_lowerhalf_s *lower,
               state->rxwaiting = true;
               do
                 {
-                  nxsem_wait_uninterruptible(&state->rxwait);
+                  ret = nxsem_wait_uninterruptible(&state->rxwait);
+                  if (ret < 0)
+                    {
+                      ntotal = (ssize_t)ret;
+                      break;
+                    }
                 }
               while (state->rxwaiting);
             }
@@ -1483,8 +1481,9 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
   uint16_t txhead;
   uint16_t txtail;
   uint16_t txnext;
-  size_t remaining;
+  ssize_t ntotal;
   irqstate_t flags;
+  int ret;
 
   DEBUGASSERT(config != NULL && config->state != NULL);
   state = config->state;
@@ -1495,18 +1494,19 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
 
   /* Make sure that the Tx Interrupts are disabled. */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   hciuart_disableints(config, UART_IM_TXIM);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 
   /* Loop until all of the user data have been moved to the Tx buffer */
 
-  src       = buffer;
-  remaining = buflen;
+  src    = buffer;
+  ntotal = 0;
 
-  while (remaining > 0)
+  while (ntotal < (ssize_t)buflen)
     {
       /* Copy bytes to the tail of the Tx buffer */
+
       /* Get a copy of the rxhead and rxtail indices of the Tx buffer */
 
       txhead = state->txhead;
@@ -1522,7 +1522,7 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
        * copy?
        */
 
-      while (txhead != txnext && remaining > 0)
+      while (txhead != txnext && ntotal < (ssize_t)buflen)
         {
           /* Yes.. copy one byte to the Tx buffer */
 
@@ -1534,7 +1534,7 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
               txnext = 0;
             }
 
-          remaining--;
+          ntotal++;
         }
 
       /* Save the updated Tx buffer tail index */
@@ -1550,7 +1550,7 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
        * space in the Tx* buffer then try again.
        */
 
-      if (nbytes <= 0 && remaining > 0)
+      if (nbytes <= 0 && ntotal < buflen)
         {
           DEBUGASSERT(nbytes == 0);
 
@@ -1565,7 +1565,16 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
           state->txwaiting = true;
           do
             {
-              nxsem_wait_uninterruptible(&state->txwait);
+              ret = nxsem_wait_uninterruptible(&state->txwait);
+              if (ret < 0)
+                {
+                  if (ntotal == 0)
+                    {
+                      ntotal = (ssize_t)ret;
+                    }
+
+                  break;
+                }
             }
           while (state->txwaiting);
 
@@ -1576,16 +1585,18 @@ static ssize_t hciuart_write(const struct btuart_lowerhalf_s *lower,
         }
     }
 
-  /* If the Tx buffer is not empty, then exit with the Tx interrupts enabled. */
+  /* If the Tx buffer is not empty, then exit with the Tx interrupts
+   * enabled.
+   */
 
   if (state->txhead != state->txtail)
     {
-      flags = spin_lock_irqsave();
+      flags = spin_lock_irqsave(NULL);
       hciuart_enableints(config, UART_IM_TXIM);
-      spin_unlock_irqrestore(flags);
+      spin_unlock_irqrestore(NULL, flags);
     }
 
-  return buflen;
+  return ntotal;
 }
 
 /****************************************************************************
@@ -1674,32 +1685,29 @@ static void hciuart_pm_notify(struct pm_callback_s *cb, int domain,
       case(PM_NORMAL):
         {
           /* Logic for PM_NORMAL goes here */
-
         }
         break;
 
       case(PM_IDLE):
         {
           /* Logic for PM_IDLE goes here */
-
         }
         break;
 
       case(PM_STANDBY):
         {
           /* Logic for PM_STANDBY goes here */
-
         }
         break;
 
       case(PM_SLEEP):
         {
           /* Logic for PM_SLEEP goes here */
-
         }
         break;
 
       default:
+
         /* Should not get here */
 
         break;
@@ -1812,12 +1820,6 @@ hciuart_instantiate(enum hciuart_devno_e uart)
  *   Performs the low-level, one-time UART initialization.  This must be
  *   called before hciuart_instantiate.
  *
- * Input Paramters:
- *   None
- *
- * Returned Value:
- *   None
- *
  ****************************************************************************/
 
 void hciuart_initialize(void)
@@ -1829,7 +1831,7 @@ void hciuart_initialize(void)
 
   /* Configure all UARTs */
 
-  for (i = 0; i < sizeof(g_hciuarts)/sizeof(g_hciuarts[0]); i++)
+  for (i = 0; i < sizeof(g_hciuarts) / sizeof(g_hciuarts[0]); i++)
     {
       config = g_hciuarts[i];
       if (config != NULL)
@@ -1848,18 +1850,18 @@ void hciuart_initialize(void)
           /* Initialize signalling semaphores */
 
           nxsem_init(&state->rxwait, 0, 0);
-          nxsem_setprotocol(&state->rxwait, SEM_PRIO_NONE);
+          nxsem_set_protocol(&state->rxwait, SEM_PRIO_NONE);
 
           nxsem_init(&state->txwait, 0, 0);
-          nxsem_setprotocol(&state->txwait, SEM_PRIO_NONE);
+          nxsem_set_protocol(&state->txwait, SEM_PRIO_NONE);
 
           /* Attach and enable the HCI UART IRQ */
 
           ret = irq_attach(config->irq, hciuart_interrupt, (void *)config);
           if (ret == OK)
             {
-              /* Enable the interrupt (RX and TX interrupts are still disabled
-               * in the UART)
+              /* Enable the interrupt (RX and TX interrupts are still
+               * disabled in the UART)
                */
 
               up_enable_irq(config->irq);

@@ -2,35 +2,20 @@
 ############################################################################
 # tools/mkromfsimg.sh
 #
-#   Copyright (C) 2008, 2011, 2018 Gregory Nutt. All rights reserved.
-#   Author: Gregory Nutt <gnutt@nuttx.org>
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.  The
+# ASF licenses this file to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance with the
+# License.  You may obtain a copy of the License at
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
-# 3. Neither the name NuttX nor the names of its contributors may be
-#    used to endorse or promote products derived from this software
-#    without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
-# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
 ############################################################################
 
@@ -53,33 +38,32 @@ usage="USAGE: $0 [-nofat] <topdir>"
 # Verify if we have the optional "-nofat"
 
 if [ "$nofat" == "-nofat" ]; then
-    echo "We will not mount a FAT/RAMDISK!"
-    usefat=false
+  echo "We will not mount a FAT/RAMDISK!"
+  usefat=false
 else
-    topdir=$1
+  topdir=$1
 fi
 
 if [ -z "$topdir" -o ! -d "$topdir" ]; then
-    echo "The full path to the NuttX base directory must be provided on the command line"
-    echo $usage
-    exit 1
+  echo "The full path to the NuttX base directory must be provided on the command line"
+  echo $usage
+  exit 1
 fi
 
 # Extract all values from the .config in the $topdir that contains all of the NuttX
 # configuration settings.  The .config file was intended to be include-able by makefiles
-# and source-able by scripts.  Unfortunately,there are too many syntactic differents
+# and source-able by scripts.  Unfortunately,there are too many syntactic difference
 # to make that practical
 
 if [ ! -r $topdir/.config ]; then
-    echo "No readable file at $topdir/.config"
-    echo "Has NuttX been configured?"
-    exit 1
+  echo "No readable file at $topdir/.config"
+  echo "Has NuttX been configured?"
+  exit 1
 fi
 
 romfsetc=`grep CONFIG_NSH_ROMFSETC= $topdir/.config | cut -d'=' -f2`
 disablempt=`grep CONFIG_DISABLE_MOUNTPOINT= $topdir/.config | cut -d'=' -f2`
 disablescript=`grep CONFIG_NSH_DISABLESCRIPT= $topdir/.config | cut -d'=' -f2`
-ndescriptors=`grep CONFIG_NFILE_DESCRIPTORS= $topdir/.config | cut -d'=' -f2`
 devconsole=`grep CONFIG_DEV_CONSOLE= $topdir/.config | cut -d'=' -f2`
 romfs=`grep CONFIG_FS_ROMFS= $topdir/.config | cut -d'=' -f2`
 romfsmpt=`grep CONFIG_NSH_ROMFSMOUNTPT= $topdir/.config | cut -d'=' -f2`
@@ -102,42 +86,33 @@ fi
 # Mountpoint support must be enabled
 
 if [ "X$disablempt" = "Xy" ]; then
-    echo "Mountpoint support is required for this feature"
-    echo "Set CONFIG_DISABLE_MOUNTPOINT=n to continue"
-    exit 1
+  echo "Mountpoint support is required for this feature"
+  echo "Set CONFIG_DISABLE_MOUNTPOINT=n to continue"
+  exit 1
 fi
 
 # Scripting support must be enabled
 
 if [ "X$disablescript" = "Xy" ]; then
-    echo "NSH scripting support is required for this feature"
-    echo "Set CONFIG_NSH_DISABLESCRIPT=n to continue"
-    exit 1
-fi
-
-# We need at least 5 file descriptors:  One for the ROMFS mount and one for
-# FAT mount performed in rcS, plus three for stdio.
-
-if [ -z "$ndescriptors" -o "$ndescriptors" -lt 5 ]; then
-    echo "Insufficient file descriptors have been allocated"
-    echo "Set CONFIG_NFILE_DESCRIPTORS to value greater than 4"
-    exit 1
+  echo "NSH scripting support is required for this feature"
+  echo "Set CONFIG_NSH_DISABLESCRIPT=n to continue"
+  exit 1
 fi
 
 # ROMFS support is required, of course
 
 if [ "X$romfs" != "Xy" ]; then
-    echo "ROMFS support is disabled in the NuttX configuration"
-    echo "Set CONFIG_FS_ROMFS=y to continue"
-    exit 0
+  echo "ROMFS support is disabled in the NuttX configuration"
+  echo "Set CONFIG_FS_ROMFS=y to continue"
+  exit 0
 fi
 
 # If it is the default rcS.template, then it also requires FAT FS support
 
 if [ "$usefat" = true -a "X$fatfs" != "Xy" ]; then
-    echo "FAT FS support is disabled in the NuttX configuration"
-    echo "Set CONFIG_FS_FAT=y to continue"
-    exit 0
+  echo "FAT FS support is disabled in the NuttX configuration"
+  echo "Set CONFIG_FS_FAT=y to continue"
+  exit 0
 fi
 
 # Verify that genromfs has been installed
@@ -151,16 +126,16 @@ genromfs -h 1>/dev/null 2>&1 || { \
 # Supply defaults for all un-defined ROMFS settings
 
 if [ -z "$romfsmpt" ]; then
-    romfsmpt="/etc"
+  romfsmpt="/etc"
 fi
 if [ -z "$initscript" ]; then
-    initscript="init.d/rcS"
+  initscript="init.d/rcS"
 fi
 if [ -z "$romfsdevno" ]; then
-    romfsdevno=0
+  romfsdevno=0
 fi
 if [ -z "$romfssectsize" ]; then
-    romfssectsize=64
+  romfssectsize=64
 fi
 
 # If FAT FS is a requirement
@@ -170,16 +145,16 @@ if [ "$usefat" = true ]; then
   # Supply defaults for all un-defined FAT FS settings
 
   if [ -z "$fatdevno" ]; then
-      fatdevno=1
+    fatdevno=1
   fi
   if [ -z "$fatsectsize" ]; then
-      fatsectsize=512
+    fatsectsize=512
   fi
   if [ -z "$fatnsectors" ]; then
-      fatnsectors=1024
+    fatnsectors=1024
   fi
   if [ -z "$fatmpt" ]; then
-     fatmpt="/tmp"
+   fatmpt="/tmp"
   fi
 fi
 
@@ -187,50 +162,50 @@ fi
 # /., /./*, /.., or /../*
 
 if [ ${romfsmpt:0:1} != "\"" ]; then
-   echo "CONFIG_NSH_ROMFSMOUNTPT must be a string"
-   echo "Change it so that it is enclosed in quotes."
-   exit 1
+  echo "CONFIG_NSH_ROMFSMOUNTPT must be a string"
+  echo "Change it so that it is enclosed in quotes."
+  exit 1
 fi
 
 uromfsmpt=`echo $romfsmpt | sed -e "s/\"//g"`
 
 if [ ${uromfsmpt:0:1} != "/" ]; then
-   echo "CONFIG_NSH_ROMFSMOUNTPT must be an absolute path in the target FS"
-   echo "Change it so that it begins with the character '/'.  Eg. /etc"
-   exit 1
+  echo "CONFIG_NSH_ROMFSMOUNTPT must be an absolute path in the target FS"
+  echo "Change it so that it begins with the character '/'.  Eg. /etc"
+  exit 1
 fi
 
 tmpdir=$uromfsmpt
 while [ ${tmpdir:0:1} == "/" ]; do
-    tmpdir=${tmpdir:1}
+  tmpdir=${tmpdir:1}
 done
 
 if [ -z "$tmpdir" -o "X$tmpdir" = "Xdev" -o "X$tmpdir" = "." -o \
      ${tmpdir:0:2} = "./" -o "X$tmpdir" = ".." -o ${tmpdir:0:3} = "../" ]; then
-   echo "Invalid CONFIG_NSH_ROMFSMOUNTPT selection."
-   exit 1
+  echo "Invalid CONFIG_NSH_ROMFSMOUNTPT selection."
+  exit 1
 fi
 
 # Verify that the path to the init file is a relative path and not ., ./*, .., or ../*
 
 if [ ${initscript:0:1} != "\"" ]; then
-   echo "CONFIG_NSH_INITSCRIPT must be a string"
-   echo "Change it so that it is enclosed in quotes."
-   exit 1
+  echo "CONFIG_NSH_INITSCRIPT must be a string"
+  echo "Change it so that it is enclosed in quotes."
+  exit 1
 fi
 
 uinitscript=`echo $initscript | sed -e "s/\"//g"`
 
 if [ ${uinitscript:0:1} == "/" ]; then
-   echo "CONFIG_NSH_INITSCRIPT must be an relative path in under $romfsmpt"
-   echo "Change it so that it begins with the character '/'.  Eg. init.d/rcS. "
-   exit 1
+  echo "CONFIG_NSH_INITSCRIPT must be an relative path in under $romfsmpt"
+  echo "Change it so that it begins with the character '/'.  Eg. init.d/rcS. "
+  exit 1
 fi
 
 if [ "X$uinitscript" = "."  -o ${uinitscript:0:2} = "./" -o \
      "X$uinitscript" = ".." -o ${uinitscript:0:3} = "../" ]; then
-   echo "Invalid CONFIG_NSH_INITSCRIPT selection.  Must not begin with . or .."
-   exit 1
+  echo "Invalid CONFIG_NSH_INITSCRIPT selection.  Must not begin with . or .."
+  exit 1
 fi
 
 # Create a working directory
@@ -241,9 +216,9 @@ mkdir -p $workingdir || { echo "Failed to created the new $workingdir"; exit 1; 
 # Create the rcS file from the rcS.template
 
 if [ ! -r $rcstemplate ]; then
-    echo "$rcstemplate does not exist"
-    rmdir $workingdir
-    exit 1
+  echo "$rcstemplate does not exist"
+  rmdir $workingdir
+  exit 1
 fi
 
 # If we are using FAT FS with RAMDISK we need to setup it

@@ -41,7 +41,6 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
-#include <sys/statfs.h>
 #include <sys/stat.h>
 
 #include <stdint.h>
@@ -95,7 +94,6 @@ struct skel_level1_s
   /* Add context specific data types here for managing the directory
    * open / read / stat, etc.
    */
-
 };
 
 /****************************************************************************
@@ -337,7 +335,7 @@ static int skel_dup(FAR const struct file *oldp, FAR struct file *newp)
       return -ENOMEM;
     }
 
-  /* The copy the file attribtes from the old attributes to the new */
+  /* The copy the file attribute from the old attributes to the new */
 
   memcpy(newpriv, oldpriv, sizeof(struct skel_file_s));
 
@@ -377,7 +375,7 @@ static int skel_opendir(FAR const char *relpath, FAR struct fs_dirent_s *dir)
 
   /* TODO:  Initialize context specific data */
 
-  /* Initialze base structure components */
+  /* Initialize base structure components */
 
   level1->base.level    = 1;
   level1->base.nentries = 0;
@@ -445,7 +443,7 @@ static int skel_readdir(FAR struct fs_dirent_s *dir)
       ret = -ENOENT;
     }
 
-  /* We are tranversing a subdirectory of task attributes */
+  /* We are traversing a subdirectory of task attributes */
 
   else
     {
@@ -458,7 +456,7 @@ static int skel_readdir(FAR struct fs_dirent_s *dir)
       /* TODO:  Specify the type of entry */
 
       dir->fd_dir.d_type = DTYPE_FILE;
-      strncpy(dir->fd_dir.d_name, filename, NAME_MAX + 1);
+      strncpy(dir->fd_dir.d_name, filename, NAME_MAX);
 
       /* Set up the next directory entry offset.  NOTE that we could use the
        * standard f_pos instead of our own private index.

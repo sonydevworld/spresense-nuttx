@@ -131,7 +131,7 @@ Status
   Several fixes were needed mostly due to:  (1) The new version of
   this_task() that calls sched_lock() and sched_unlock(), and (2) to
   deferred setting g_cpu_irqlock().  That latter setting is now deferred
-  until sched_resume_scheduler() runs.  These commits were made:
+  until nxsched_resume_scheduler() runs.  These commits were made:
 
     commit 50ab5d638a37b539775d1e60085f182bf26be57f
       sched/task:  It is not appropriate for logic in nxtask_exit() to call
@@ -297,7 +297,7 @@ Using U-Boot to Run NuttX
 
 The MCIMX6Q-SDB comes with a 8GB SD card containing the U-Boot and Android.
 You simply put the SD card in the SD card slot SD3 (on the bottom of the
-board next to the HDMI connect) and Android will boot.
+board next to the HDMI connect) and Android 4.2.2.1 will boot.
 
 But we need some other way to boot NuttX.  Here are some things that I have
 experimented with.
@@ -308,35 +308,31 @@ Building U-Boot (Failed Attempt #1)
 I have been unsuccessful getting building a working version of u-boot from
 scratch.  It builds, but it does not run.  Here are the things I did:
 
-1. Get a copy of the u-boot i.MX6 code via:
+1. Get a copy of the u-boot i.MX6 code and Android GCC toolchain
 
-    https://github.com/boundarydevices/u-boot-imx6/tree/production
-
-  or
-
-    $ git clone git://git.denx.de/u-boot.git
+    $ git clone https://source.codeaurora.org/external/imx/uboot-imx.git -b nxp/imx_v2009.08
+    $ git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6
 
 2. Build U-Boot for the i.MX6Q Sabre using the following steps.  This
-   assumes that you have the path to your arm-none-eabi- toolchain at the
+   assumes that you have the path to the above toolchain at the
    beginning of your PATH variable:
 
-    $ cd u-boot
+    $ cd uboot-imx
     $ export ARCH=arm
-    $ export CROSS_COMPILE=arm-none-eabi-
-    $ make mx6qsabresd_config
+    $ export CROSS_COMPILE=arm-eabi-
+    $ make mx6q_sabresd_android_config
     $ make
 
-  This should create a number of files, including u-boot.imx
+  This should create a number of files, including u-boot.bin
 
 3. Format an SD card
 
   Create a FAT16 partition at an offset of about 1MB into the SD card.
   This is where we will put nuttx.bin.
 
-4. Put U-Boot on SD.  U-boot should reside at offset 1024B of your SD
-   card. To put it there, do:
+4. Put U-Boot on SD.
 
-    $ dd if=u-boot.imx of=/dev/<your-sd-card> bs=1k seek=1
+    $ dd if=u-boot.bin of=/dev/<your-sd-card> bs=1k
     $ sync
 
   Your SD card device is typically something in /dev/sd<X> or
@@ -362,7 +358,7 @@ Replace Boot SD Card (Successful Attempt #3)
 What if you remove the SD card after U-boot has booted, then then insert
 another SD card containing the nuttx.bin image?
 
-1. Build nuttx.bin and copy it only a FAT formated SD card.  Insert the SD
+1. Build nuttx.bin and copy it only a FAT formatted SD card.  Insert the SD
    card containing NuttX into the "other" SD card slot.  Insert the 8GB SD
    card with U-boot already on it in the normal, boot SD card slot.
 
@@ -437,6 +433,34 @@ of 1MB or so.
      MX6Q SABRESD U-Boot > go 0x10800040
 
 A little hokey, but not such a bad solution.
+
+TFTPBOOT (Successful Attempt #6)
+------------------------------------------
+
+If you can prepare tftp server, this approach would be easy
+
+1. Copy nuttx.bin to the tftp server (e.g. /var/lib/tftpboot/ )
+
+2. Load nuttx.bin from the server and boot
+
+     MX6Q SABRESD U-Boot > setenv ipaddr 192.168.10.103
+     MX6Q SABRESD U-Boot > setenv serverip 192.168.10.16
+     MX6Q SABRESD U-Boot > setenv image nuttx.bin
+     MX6Q SABRESD U-Boot > tftp ${loadaddr} ${image}
+     PHY indentify @ 0x1 = 0x004dd074
+     FEC: Link is Up 796d
+     Using FEC0 device
+     TFTP from server 192.168.10.16; our IP address is 192.168.10.103
+     Filename 'nuttx.bin'.
+     Load address: 0x10800000
+     Loading: ###############
+     done
+     Bytes transferred = 217856 (35300 hex)
+     MX6Q SABRESD U-Boot > go ${loadaddr}
+     ## Starting application at 0x10800000 ...
+
+     NuttShell (NSH) NuttX-10.0.1
+     nsh>
 
 Debugging with the Segger J-Link
 ================================
@@ -574,9 +598,9 @@ A: Yes with the following modifications to the procedure above.
        gdb> mon go
 
    That will restart U-Boot and you have to press ENTER in the terminal
-   window to stop U-Boot.  Restarting U-Boot is a necesary part of the
+   window to stop U-Boot.  Restarting U-Boot is a necessary part of the
    restart process because you need to put the hardware back in its initial
-   state before running NuttX
+   state before running NuttX.
 
    Then this will restart the debug session just as before:
 
@@ -585,6 +609,96 @@ A: Yes with the following modifications to the procedure above.
        gdb> file nuttx
        gdb> mon reg pc 0x10800040
        gdb> s
+
+
+Debugging with QEMU
+================================
+
+The nuttx ELF image can be debugged with QEMU.
+
+1. To debug the nuttx (ELF) with symbols, following change must
+   be applied to defconfig.
+
+diff --git a/boards/arm/imx6/sabre-6quad/configs/nsh/defconfig b/boards/arm/imx6/sabre-6quad/configs/nsh/defconfig
+index b15becbb51..3ad4d13ad7 100644
+--- a/boards/arm/imx6/sabre-6quad/configs/nsh/defconfig
++++ b/boards/arm/imx6/sabre-6quad/configs/nsh/defconfig
+@@ -21,11 +21,12 @@ CONFIG_ARCH_STACKDUMP=y
+ CONFIG_BOARD_LOOPSPERMSEC=99369
+ CONFIG_BOOT_RUNFROMSDRAM=y
+ CONFIG_BUILTIN=y
++CONFIG_DEBUG_FULLOPT=y
++CONFIG_DEBUG_SYMBOLS=y
+ CONFIG_DEV_ZERO=y
+
+2. Please note that QEMU does not report PL310 (L2CC) related
+   registers correctly, so if you enable CONFIG_DEBUG_ASSERTION
+   the nuttx will stop with DEBUGASSERT(). To avoid this,
+   comment out the following lines.
+
+--- a/arch/arm/src/armv7-a/arm_l2cc_pl310.c
++++ b/arch/arm/src/armv7-a/arm_l2cc_pl310.c
+@@ -333,7 +333,7 @@ void arm_l2ccinitialize(void)
+ #if defined(CONFIG_ARMV7A_ASSOCIATIVITY_8WAY)
+   DEBUGASSERT((getreg32(L2CC_ACR) & L2CC_ACR_ASS) == 0);
+ #elif defined(CONFIG_ARMV7A_ASSOCIATIVITY_16WAY)
+- DEBUGASSERT((getreg32(L2CC_ACR) & L2CC_ACR_ASS) == L2CC_ACR_ASS);
++ //DEBUGASSERT((getreg32(L2CC_ACR) & L2CC_ACR_ASS) == L2CC_ACR_ASS);
+ #else
+ # error No associativity selected
+ #endif
+@@ -345,8 +345,8 @@ void arm_l2ccinitialize(void)
+   DEBUGASSERT((getreg32(L2CC_ACR) & L2CC_ACR_WAYSIZE_MASK) ==
+               L2CC_ACR_WAYSIZE_32KB);
+ #elif defined(CONFIG_ARMV7A_WAYSIZE_64KB)
+- DEBUGASSERT((getreg32(L2CC_ACR) & L2CC_ACR_WAYSIZE_MASK) ==
+- L2CC_ACR_WAYSIZE_64KB);
++ // DEBUGASSERT((getreg32(L2CC_ACR) & L2CC_ACR_WAYSIZE_MASK) ==
++ // L2CC_ACR_WAYSIZE_64KB);
+ #elif defined(CONFIG_ARMV7A_WAYSIZE_128KB)
+   DEBUGASSERT((getreg32(L2CC_ACR) & L2CC_ACR_WAYSIZE_MASK) ==
+               L2CC_ACR_WAYSIZE_128KB);
+
+3. Run QEMU
+
+   Run qemu with following options, these options do not load nuttx.
+   Instead, just stops the emulated CPU like "reset halt" with OpenOCD.
+
+   $ qemu-system-arm -M sabrelite -smp 4 -nographic -s -S
+
+   NOTE: -smp 4 option should be used for both nsh configuration
+   (non-SMP) and smp configuration (regardless of CONFIG_SMP_NCPUS)
+
+   To quit QEMU, type Ctrl-A + X
+
+3. Run gdb, connect to QEMU, load nuttx and continue
+
+   $ arm-none-eabi-gdb ./nuttx
+   (gdb) target  extended-remote :1234
+   Remote debugging using :1234
+   0x00000000 in ?? ()
+   (gdb) load nuttx
+   Loading section .text, size 0x17f6b lma 0x10800000
+   Loading section .ARM.exidx, size 0x8 lma 0x10817f6c
+   Loading section .data, size 0x98 lma 0x10817f74
+   Start address 0x10800040, load size 98315
+   Transfer rate: 8728 KB/sec, 1927 bytes/write.
+   (gdb) c
+   Continuing.
+   ^C
+   Thread 1 received signal SIGINT, Interrupt.
+   up_idle () at common/up_idle.c:78
+   78	}
+   (gdb) where
+   #0  up_idle () at common/up_idle.c:78
+   #1  0x10801ba4 in nx_start () at init/nx_start.c:874
+   #2  0x00000000 in ?? ()
+   (gdb) info threads
+     Id   Target Id         Frame
+   * 1    Thread 1 (CPU#0 [halted ]) up_idle () at common/up_idle.c:78
+     2    Thread 2 (CPU#1 [halted ]) 0x00000000 in ?? ()
+     3    Thread 3 (CPU#2 [halted ]) 0x00000000 in ?? ()
+     4    Thread 4 (CPU#3 [halted ]) 0x00000000 in ?? ()
 
 SMP
 ===
@@ -607,62 +721,11 @@ Open Issues:
    critical sections in interrupt handlers of other CPUs.
 
    When the critical section is used to lock a resource that is also used by
-   interupt handling, the interrupt handling logic must also take the spinlock.
+   interrupt handling, the interrupt handling logic must also take the spinlock.
    This will cause the interrupt handlers on other CPUs to spin until
    leave_critical_section() is called.  More verification is needed.
 
-2. Cache Concurrency.  Cache coherency in SMP configurations is managed by the
-   MPCore snoop control unit (SCU).  But I don't think I have the set up
-   correctly yet.
-
-   Currently cache inconsistencies appear to be the root cause of all current SMP
-   issues.  SMP works as expected if the caches are disabled, but otherwise there
-   are problems (usually hangs):
-
-   This will disable the caches:
-
-diff --git a/arch/arm/src/armv7-a/arm_head.S b/arch/arm/src/armv7-a/arm_head.S
-index 27c2a5b..2a6274c 100644
---- a/arch/arm/src/armv7-a/arm_head.S
-+++ b/arch/arm/src/armv7-a/arm_head.S
-@@ -454,6 +454,7 @@ __start:
-         * after SMP cache coherency has been setup.
-         */
-
-+#if 0 // REMOVE ME
- #if !defined(CPU_DCACHE_DISABLE) && !defined(CONFIG_SMP)
-        /* Dcache enable
-         *
-@@ -471,6 +472,7 @@ __start:
-
-        orr             r0, r0, #(SCTLR_I)
- #endif
-+#endif // REMOVE ME
-
- #ifdef CPU_ALIGNMENT_TRAP
-        /* Alignment abort enable
-diff --git a/arch/arm/src/armv7-a/arm_scu.c b/arch/arm/src/armv7-a/arm_scu.c
-index eedf179..1db2092 100644
---- a/arch/arm/src/armv7-a/arm_scu.c
-+++ b/arch/arm/src/armv7-a/arm_scu.c
-@@ -156,6 +156,7 @@ static inline void arm_set_actlr(uint32_t actlr)
-
- void arm_enable_smp(int cpu)
- {
-+#if 0 // REMOVE ME
-   uint32_t regval;
-
-   /* Handle actions unique to CPU0 which comes up first */
-@@ -222,6 +223,7 @@ void arm_enable_smp(int cpu)
-   regval  = arm_get_sctlr();
-   regval |= SCTLR_C;
-   arm_set_sctlr(regval);
-+#endif // REMOVE ME
- }
-
- #endif
-
-3. Recent redesigns to SMP of another ARMv7-M platform have made changes to the OS
+2. Recent redesigns to SMP of another ARMv7-M platform have made changes to the OS
    SMP support.  There are no known problem but the changes have not been verified
    fully (see STATUS above for 2019-02-06).
 

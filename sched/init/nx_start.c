@@ -1,35 +1,20 @@
 /****************************************************************************
  * sched/init/nx_start.c
  *
- *   Copyright (C) 2007-2014, 2016, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,6 +36,7 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/net/net.h>
 #include <nuttx/lib/lib.h>
+#include <nuttx/mm/iob.h>
 #include <nuttx/mm/mm.h>
 #include <nuttx/mm/shm.h>
 #include <nuttx/kmalloc.h>
@@ -65,9 +51,6 @@
 #include "semaphore/semaphore.h"
 #ifndef CONFIG_DISABLE_MQUEUE
 #  include "mqueue/mqueue.h"
-#endif
-#ifndef CONFIG_DISABLE_PTHREAD
-#  include "pthread/pthread.h"
 #endif
 #include "clock/clock.h"
 #include "timer/timer.h"
@@ -192,7 +175,9 @@ volatile dq_queue_t g_waitingforfill;
 #endif
 
 #ifdef CONFIG_SIG_SIGSTOP_ACTION
-/* This is the list of all tasks that have been stopped via SIGSTOP or SIGSTP */
+/* This is the list of all tasks that have been stopped
+ * via SIGSTOP or SIGTSTP
+ */
 
 volatile dq_queue_t g_stoppedtasks;
 #endif
@@ -202,29 +187,6 @@ volatile dq_queue_t g_stoppedtasks;
  */
 
 volatile dq_queue_t g_inactivetasks;
-
-#if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && \
-     defined(CONFIG_MM_KERNEL_HEAP)
-/* These are lists of delayed memory deallocations that need to be handled
- * within the IDLE loop or worker thread.  These deallocations get queued
- * by sched_kufree and sched_kfree() if the OS needs to deallocate memory
- * while it is within an interrupt handler.
- */
-
-volatile sq_queue_t g_delayed_kfree;
-#endif
-
-#ifndef CONFIG_BUILD_KERNEL
-/* REVISIT:  It is not safe to defer user allocation in the kernel mode
- * build.  Why?  Because the correct user context will not be in place
- * when these deferred de-allocations are performed.  In order to make this
- * work, we would need to do something like:  (1) move g_delayed_kufree
- * into the group structure, then traverse the groups to collect garbage
- * on a group-by-group basis.
- */
-
-volatile sq_queue_t g_delayed_kufree;
-#endif
 
 /* This is the value of the last process ID assigned to a task */
 
@@ -389,11 +351,7 @@ static FAR char *g_idleargv[1][2];
 
 void nx_start(void)
 {
-#ifdef CONFIG_SMP
-  int cpu;
-#else
-# define cpu 0
-#endif
+  int cpu = 0;
   int i;
 
   sinfo("Entry\n");
@@ -421,13 +379,6 @@ void nx_start(void)
   dq_init(&g_stoppedtasks);
 #endif
   dq_init(&g_inactivetasks);
-#if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && \
-     defined(CONFIG_MM_KERNEL_HEAP)
-  sq_init(&g_delayed_kfree);
-#endif
-#ifndef CONFIG_BUILD_KERNEL
-  sq_init(&g_delayed_kufree);
-#endif
 
 #ifdef CONFIG_SMP
   for (i = 0; i < CONFIG_SMP_NCPUS; i++)
@@ -473,7 +424,7 @@ void nx_start(void)
 
       /* Set the entry point.  This is only for debug purposes.  NOTE: that
        * the start_t entry point is not saved.  That is acceptable, however,
-       * becaue it can be used only for restarting a task: The IDLE task
+       * because it can be used only for restarting a task: The IDLE task
        * cannot be restarted.
        */
 
@@ -481,12 +432,12 @@ void nx_start(void)
       if (cpu > 0)
         {
           g_idletcb[cpu].cmn.start      = nx_idle_trampoline;
-          g_idletcb[cpu].cmn.entry.main = nx_idle_task;
+          g_idletcb[cpu].cmn.entry.main = (main_t)nx_idle_trampoline;
         }
       else
 #endif
         {
-          g_idletcb[cpu].cmn.start      = (start_t)nx_start;
+          g_idletcb[cpu].cmn.start      = nx_start;
           g_idletcb[cpu].cmn.entry.main = (main_t)nx_start;
         }
 
@@ -559,9 +510,14 @@ void nx_start(void)
 
       g_running_tasks[cpu] = &g_idletcb[cpu].cmn;
 
-      /* Initialize the processor-specific portion of the TCB */
+      /* Initialize the 1st processor-specific portion of the TCB
+       * Note: other idle thread get initialized in nx_smpstart
+       */
 
-      up_initial_state(&g_idletcb[cpu].cmn);
+      if (cpu == 0)
+        {
+          up_initial_state(&g_idletcb[cpu].cmn);
+        }
     }
 
   /* Task lists are initialized */
@@ -580,38 +536,48 @@ void nx_start(void)
     defined(CONFIG_MM_PGALLOC)
   /* Initialize the memory manager */
 
-  {
-    FAR void *heap_start;
-    size_t heap_size;
+    {
+      FAR void *heap_start;
+      size_t heap_size;
 
 #ifdef MM_KERNEL_USRHEAP_INIT
-    /* Get the user-mode heap from the platform specific code and configure
-     * the user-mode memory allocator.
-     */
+      /* Get the user-mode heap from the platform specific code and configure
+       * the user-mode memory allocator.
+       */
 
-    up_allocate_heap(&heap_start, &heap_size);
-    kumm_initialize(heap_start, heap_size);
+      up_allocate_heap(&heap_start, &heap_size);
+      kumm_initialize(heap_start, heap_size);
 #endif
 
 #ifdef CONFIG_MM_KERNEL_HEAP
-    /* Get the kernel-mode heap from the platform specific code and configure
-     * the kernel-mode memory allocator.
-     */
+      /* Get the kernel-mode heap from the platform specific code and
+       * configure the kernel-mode memory allocator.
+       */
 
-    up_allocate_kheap(&heap_start, &heap_size);
-    kmm_initialize(heap_start, heap_size);
+      up_allocate_kheap(&heap_start, &heap_size);
+      kmm_initialize(heap_start, heap_size);
 #endif
 
 #ifdef CONFIG_MM_PGALLOC
-    /* If there is a page allocator in the configuration, then get the page
-     * heap information from the platform-specific code and configure the
-     * page allocator.
-     */
+      /* If there is a page allocator in the configuration, then get the page
+       * heap information from the platform-specific code and configure the
+       * page allocator.
+       */
 
-    up_allocate_pgheap(&heap_start, &heap_size);
-    mm_pginitialize(heap_start, heap_size);
+      up_allocate_pgheap(&heap_start, &heap_size);
+      mm_pginitialize(heap_start, heap_size);
 #endif
-  }
+    }
+#endif
+
+#ifdef CONFIG_ARCH_USE_MODULE_TEXT
+  up_module_text_init();
+#endif
+
+#ifdef CONFIG_MM_IOB
+  /* Initialize IO buffering */
+
+  iob_initialize();
 #endif
 
   /* The memory manager is available */
@@ -628,6 +594,10 @@ void nx_start(void)
       task_initialize();
     }
 #endif
+
+  /* Initialize the file system (needed to support device drivers) */
+
+  fs_initialize();
 
   /* Initialize the interrupt handling subsystem (if included) */
 
@@ -684,21 +654,6 @@ void nx_start(void)
       nxmq_initialize();
     }
 #endif
-
-#ifndef CONFIG_DISABLE_PTHREAD
-  /* Initialize the thread-specific data facility (if in link) */
-
-#ifdef CONFIG_HAVE_WEAKFUNCTIONS
-  if (pthread_initialize != NULL)
-#endif
-    {
-      pthread_initialize();
-    }
-#endif
-
-  /* Initialize the file system (needed to support device drivers) */
-
-  fs_initialize();
 
 #ifdef CONFIG_NET
   /* Initialize the networking system */
@@ -798,7 +753,7 @@ void nx_start(void)
    * depend on having IDLE task file structures setup.
    */
 
-  syslog_initialize(SYSLOG_INIT_LATE);
+  syslog_initialize();
 
 #ifdef CONFIG_SMP
   /* Start all CPUs *********************************************************/
@@ -806,12 +761,6 @@ void nx_start(void)
   /* A few basic sanity checks */
 
   DEBUGASSERT(this_cpu() == 0 && CONFIG_MAX_TASKS > CONFIG_SMP_NCPUS);
-
-  /* Take the memory manager semaphore on this CPU so that it will not be
-   * available on the other CPUs until we have finished initialization.
-   */
-
-  DEBUGVERIFY(kmm_trysemaphore());
 
   /* Then start the other CPUs */
 
@@ -829,13 +778,6 @@ void nx_start(void)
 
   DEBUGVERIFY(nx_bringup());
 
-#ifdef CONFIG_SMP
-  /* Let other threads have access to the memory manager */
-
-  kmm_givesemaphore();
-
-#endif /* CONFIG_SMP */
-
   /* The IDLE Loop **********************************************************/
 
   /* When control is return to this point, the system is idle. */
@@ -843,29 +785,14 @@ void nx_start(void)
   sinfo("CPU0: Beginning Idle Loop\n");
   for (; ; )
     {
-      /* Perform garbage collection (if it is not being done by the worker
-       * thread).  This cleans-up memory de-allocations that were queued
-       * because they could not be freed in that execution context (for
-       * example, if the memory was freed from an interrupt handler).
-       */
+      /* Check heap & stack in idle thread */
 
-#ifndef CONFIG_SCHED_WORKQUEUE
-      /* We must have exclusive access to the memory manager to do this
-       * BUT the idle task cannot wait on a semaphore.  So we only do
-       * the cleanup now if we can get the semaphore -- this should be
-       * possible because if the IDLE thread is running, no other task is!
-       *
-       * WARNING: This logic could have undesirable side-effects if priority
-       * inheritance is enabled.  Imagine the possible issues if the
-       * priority of the IDLE thread were to get boosted!  Moral: If you
-       * use priority inheritance, then you should also enable the work
-       * queue so that is done in a safer context.
-       */
+      kmm_checkcorruption();
 
-      if (sched_have_garbage() && kmm_trysemaphore() == 0)
+#if defined(CONFIG_STACK_COLORATION) && defined(CONFIG_DEBUG_MM)
+      for (i = 0; i < CONFIG_MAX_TASKS && g_pidhash[i].tcb; i++)
         {
-          sched_garbage_collection();
-          kmm_givesemaphore();
+          assert(up_check_tcbstack_remain(g_pidhash[i].tcb) > 0);
         }
 #endif
 

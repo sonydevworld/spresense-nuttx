@@ -47,7 +47,7 @@ General instructions.
   make oldconfig
   make
 
-6. Build Nuttx:
+6. Build NuttX:
 
   cd <directory>nuttx
   make
@@ -73,4 +73,3 @@ General instructions.
 
 What will run is an a simple OS test that will verify many of the
 features of the OS.  (this is nutts/examples/ostest).
-

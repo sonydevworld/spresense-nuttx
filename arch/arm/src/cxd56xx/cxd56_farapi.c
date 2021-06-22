@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_farapi.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -42,13 +27,14 @@
 #include <nuttx/arch.h>
 #include <nuttx/sched.h>
 #include <nuttx/irq.h>
+#include <nuttx/signal.h>
 #include <debug.h>
 #include <errno.h>
 
 #include <arch/chip/pm.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 #include "chip.h"
 #include "cxd56_icc.h"
 #include "cxd56_config.h"
@@ -120,7 +106,7 @@ struct farmsg_s
  * Public Data
  ****************************************************************************/
 
-extern char Image$$MODLIST$$Base[];
+extern char _image_modlist_base[];
 
 /****************************************************************************
  * Private Data
@@ -128,7 +114,8 @@ extern char Image$$MODLIST$$Base[];
 
 static sem_t g_farwait;
 static sem_t g_farlock;
-static struct pm_cpu_wakelock_s g_wlock = {
+static struct pm_cpu_wakelock_s g_wlock =
+{
   .count = 0,
   .info  = PM_CPUWAKELOCK_TAG('R', 'M', 0),
 };
@@ -200,6 +187,30 @@ void farapi_main(int id, void *arg, struct modulelist_s *mlist)
   struct farmsg_s msg;
   struct apimsg_s *api;
   int ret;
+
+#ifdef CONFIG_SMP
+  int cpu = up_cpu_index();
+  static cpu_set_t cpuset0;
+
+  if (0 != cpu)
+    {
+      /* Save the current cpuset */
+
+      sched_getaffinity(getpid(), sizeof(cpu_set_t), &cpuset0);
+
+      /* Assign the current task to cpu0 */
+
+      cpu_set_t cpuset1;
+      CPU_ZERO(&cpuset1);
+      CPU_SET(0, &cpuset1);
+      sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset1);
+
+      /* NOTE: a workaround to finish rescheduling */
+
+      nxsig_usleep(10 * 1000);
+    }
+#endif
+
 #ifdef CONFIG_CXD56_GNSS_HOT_SLEEP
   uint32_t gnscken;
 
@@ -219,7 +230,7 @@ void farapi_main(int id, void *arg, struct modulelist_s *mlist)
   api = &msg.u.api;
 
   msg.cpuid      = getreg32(CPU_ID);
-  msg.modid      = mlist - (struct modulelist_s *)&Image$$MODLIST$$Base;
+  msg.modid      = mlist - (struct modulelist_s *)&_image_modlist_base;
 
   api->id        = id;
   api->arg       = arg;
@@ -255,6 +266,19 @@ void farapi_main(int id, void *arg, struct modulelist_s *mlist)
 
 err:
   nxsem_post(&g_farlock);
+
+#ifdef CONFIG_SMP
+  if (0 != cpu)
+    {
+      /* Restore the cpu affinity */
+
+      sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset0);
+
+      /* NOTE: a workaround to finish rescheduling */
+
+      nxsig_usleep(10 * 1000);
+    }
+#endif
 }
 
 void cxd56_farapiinitialize(void)
@@ -269,10 +293,11 @@ void cxd56_farapiinitialize(void)
       PANIC();
 #  endif
     }
+
 #endif
   nxsem_init(&g_farlock, 0, 1);
   nxsem_init(&g_farwait, 0, 0);
-  nxsem_setprotocol(&g_farwait, SEM_PRIO_NONE);
+  nxsem_set_protocol(&g_farwait, SEM_PRIO_NONE);
 
   cxd56_iccinit(CXD56_PROTO_MBX);
   cxd56_iccinit(CXD56_PROTO_FLG);

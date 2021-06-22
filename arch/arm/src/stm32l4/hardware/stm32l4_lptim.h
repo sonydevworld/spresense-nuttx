@@ -1,5 +1,5 @@
-/****************************************************************************************************
- * arch/arm/src/stm32l4/stm32l4_lptim.h
+/****************************************************************************
+ * arch/arm/src/stm32l4/hardware/stm32l4_lptim.h
  *
  *   Copyright (C) 2016 Motorola Mobility, LLC. All rights reserved.
  *   Copyright (C) 2009, 2011-2012, 2017 Gregory Nutt. All rights reserved.
@@ -32,16 +32,16 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_STM32L4_HARDWARE_STM32L4_LPTIM_H
 #define __ARCH_ARM_SRC_STM32L4_HARDWARE_STM32L4_LPTIM_H
 
-/****************************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ****************************************************************************************************/
+ ****************************************************************************/
 
-/* Register Offsets *********************************************************************************/
+/* Register Offsets *********************************************************/
 
 /* Basic Timers - TIM6 and TIM7 */
 
@@ -54,7 +54,7 @@
 #define STM32L4_LPTIM_ARR_OFFSET  0x0018  /* Autoreload Register */
 #define STM32L4_LPTIM_CNT_OFFSET  0x001c  /* Counter Register */
 
-/* Register Addresses *******************************************************************************/
+/* Register Addresses *******************************************************/
 
 /* Low-Power Timers - LPTIM1 and LPTIM2 */
 
@@ -76,11 +76,20 @@
 #define STM32L4_LPTIM2_ARR        (STM32L4_LPTIM2_BASE+STM32L4_LPTIM_ARR_OFFSET)
 #define STM32L4_LPTIM2_CNT        (STM32L4_LPTIM2_BASE+STM32L4_LPTIM_CNT_OFFSET)
 
-/* Register Bitfield Definitions ********************************************************************/
+/* Register Bitfield Definitions ********************************************/
 
 #define LPTIM_CFGR_CKSEL          (1 << 0)   /* Bit   0: Clock selector */
-#define LPTIM_CFGR_CKPOL_SHIFT    (1)        /* Bits 2-1: Clock Polarity */
-#define LPTIM_CFGR_CKPOL_MASK     (3 << LPTIM_CFGR_CKPOL_SHIFT)
+#define LPTIM_CFGR_CKSEL_SHIFT    (0)
+#define LPTIM_CFGR_CKSEL_MASK     (1)
+#  define LPTIM_CFGR_CKSEL_INTCLK (0)        /* 0: Internal clock */
+#  define LPTIM_CFGR_CKSEL_EXTCLK (1)        /* 1: External clock */
+
+#define LPTIM_CFGR_CKPOL_SHIFT     (1)        /* Bits 2-1: Clock Polarity */
+#define LPTIM_CFGR_CKPOL_MASK      (3 << LPTIM_CFGR_CKPOL_SHIFT)
+#  define LPTIM_CFGR_CKPOL_RISING  (0 << LPTIM_CFGR_CKPOL_SHIFT) /* 00: Rising Edge */
+#  define LPTIM_CFGR_CKPOL_FALLING (1 << LPTIM_CFGR_CKPOL_SHIFT) /* 01: Falling Edge */
+#  define LPTIM_CFGR_CKPOL_BOTH    (2 << LPTIM_CFGR_CKPOL_SHIFT) /* 00: Both Edges */
+
 #define LPTIM_CFGR_CKFLT_SHIFT    (3)        /* Bits 4-3: Digital filter for external clock */
 #define LPTIM_CFGR_CKFLTN_MASK    (3 << LPTIM_CFGR_CKFLT_SHIFT)
                                              /* Bit  5: reserved */
@@ -97,6 +106,7 @@
 #  define LPTIM_CFGR_PRESCd32     (5 << LPTIM_CFGR_PRESC_SHIFT) /* 101: divide by 32 */
 #  define LPTIM_CFGR_PRESCd64     (6 << LPTIM_CFGR_PRESC_SHIFT) /* 110: divide by 64 */
 #  define LPTIM_CFGR_PRESCd128    (7 << LPTIM_CFGR_PRESC_SHIFT) /* 111: divide by 128 */
+
                                              /* Bit  12: reserved */
 #define LPTIM_CFGR_TRIGSEL_SHIFT  (13)       /* Bits 15-13: Trigger selector */
 #define LPTIM_CFGR_TRIGSEL_MASK   (7 << LPTIM_CFGR_TRIGSEL_SHIFT)

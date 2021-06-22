@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/video/isx012.c
  *
- *   Copyright 2018, 2020, 2021 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -45,14 +30,15 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/signal.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/i2c/i2c_master.h>
 #include <arch/board/board.h>
 #include <arch/irq.h>
 
 #include <nuttx/video/isx012.h>
-#include <nuttx/video/isx012_reg.h>
-#include <nuttx/video/isx012_range.h>
+#include "isx012_reg.h"
+#include "isx012_range.h"
 #include <nuttx/video/imgsensor.h>
 
 /****************************************************************************
@@ -759,7 +745,7 @@ static int isx012_chk_int_state(isx012_dev_t *priv,
   volatile uint8_t data;
   uint32_t time = 0;
 
-  usleep(delay_time * 1000);
+  nxsig_usleep(delay_time * 1000);
   while (time < timeout)
     {
       data = isx012_getreg(priv, INTSTS0, sizeof(data));
@@ -770,7 +756,7 @@ static int isx012_chk_int_state(isx012_dev_t *priv,
           return ret;
         }
 
-      usleep(wait_time * 1000);
+      nxsig_usleep(wait_time * 1000);
       time += wait_time;
     }
 
@@ -846,7 +832,6 @@ static int isx012_set_mode_param(isx012_dev_t *priv,
   int ret = 0;
   int fmt_val = isx012_replace_fmt_to_regval(nr_fmt, fmt);
   int fps_val = isx012_replace_frameinterval_to_regval(interval);
-
   uint16_t fps_addr;
   uint16_t fmt_addr;
   uint16_t mode_addr;
@@ -1179,10 +1164,10 @@ int init_isx012(FAR struct isx012_dev_s *priv)
 #ifdef ISX012_NOT_USE_NSTBY
   board_isx012_release_sleep();
   board_isx012_release_reset();
-  usleep(6000);
+  nxsig_usleep(6000);
 #else
   board_isx012_release_reset();
-  usleep(6000);
+  nxsig_usleep(6000);
 #endif
 
 #ifdef ISX012_CHECK_IN_DETAIL

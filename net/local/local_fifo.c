@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/local/local_fifo.c
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,6 +28,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -54,7 +40,7 @@
 #include "local/local.h"
 
 /****************************************************************************
- * Private Functions
+ * Pre-processor Definitions
  ****************************************************************************/
 
 #define LOCAL_CS_SUFFIX    "CS"  /* Name of the client-to-server FIFO */
@@ -82,12 +68,14 @@ static inline void local_cs_name(FAR struct local_conn_s *conn,
 {
   if (conn->lc_instance_id < 0)
     {
-      snprintf(path, LOCAL_FULLPATH_LEN - 1, "%s" LOCAL_CS_SUFFIX,
+      snprintf(path, LOCAL_FULLPATH_LEN - 1,
+               CONFIG_NET_LOCAL_PATH_PREFIX "%s" LOCAL_CS_SUFFIX,
                conn->lc_path);
     }
   else
     {
-      snprintf(path, LOCAL_FULLPATH_LEN - 1, "%s" LOCAL_CS_SUFFIX "%x",
+      snprintf(path, LOCAL_FULLPATH_LEN - 1,
+               CONFIG_NET_LOCAL_PATH_PREFIX "%s" LOCAL_CS_SUFFIX "%" PRIx32,
                conn->lc_path, conn->lc_instance_id);
     }
 
@@ -109,12 +97,14 @@ static inline void local_sc_name(FAR struct local_conn_s *conn,
 {
   if (conn->lc_instance_id < 0)
     {
-      snprintf(path, LOCAL_FULLPATH_LEN - 1, "%s" LOCAL_SC_SUFFIX,
+      snprintf(path, LOCAL_FULLPATH_LEN - 1,
+               CONFIG_NET_LOCAL_PATH_PREFIX "%s" LOCAL_SC_SUFFIX,
                conn->lc_path);
     }
   else
     {
-      snprintf(path, LOCAL_FULLPATH_LEN - 1, "%s" LOCAL_SC_SUFFIX "%x",
+      snprintf(path, LOCAL_FULLPATH_LEN - 1,
+               CONFIG_NET_LOCAL_PATH_PREFIX "%s" LOCAL_SC_SUFFIX "%" PRIx32,
                conn->lc_path, conn->lc_instance_id);
     }
 
@@ -133,8 +123,8 @@ static inline void local_sc_name(FAR struct local_conn_s *conn,
 #ifdef CONFIG_NET_LOCAL_DGRAM
 static inline void local_hd_name(FAR const char *inpath, FAR char *outpath)
 {
-  snprintf(outpath, LOCAL_FULLPATH_LEN - 1, "%s" LOCAL_HD_SUFFIX,
-          inpath);
+  snprintf(outpath, LOCAL_FULLPATH_LEN - 1,
+           CONFIG_NET_LOCAL_PATH_PREFIX "%s" LOCAL_HD_SUFFIX, inpath);
   outpath[LOCAL_FULLPATH_LEN - 1] = '\0';
 }
 #endif /* CONFIG_NET_LOCAL_DGRAM */
@@ -154,7 +144,7 @@ static bool local_fifo_exists(FAR const char *path)
 
   /* Create the client-to-server FIFO */
 
-  ret = stat(path, &buf);
+  ret = nx_stat(path, &buf, 1);
   if (ret < 0)
     {
       return false;
@@ -184,14 +174,11 @@ static int local_create_fifo(FAR const char *path)
 
   if (!local_fifo_exists(path))
     {
-      ret = mkfifo(path, 0644);
+      ret = nx_mkfifo(path, 0644, CONFIG_DEV_FIFO_SIZE);
       if (ret < 0)
         {
-          int errcode = get_errno();
-          DEBUGASSERT(errcode > 0);
-
-          nerr("ERROR: Failed to create FIFO %s: %d\n", path, errcode);
-          return -errcode;
+          nerr("ERROR: Failed to create FIFO %s: %d\n", path, ret);
+          return ret;
         }
     }
 
@@ -225,14 +212,11 @@ static int local_release_fifo(FAR const char *path)
        * by the device instance will also be freed.
        */
 
-      ret = unlink(path);
+      ret = nx_unlink(path);
       if (ret < 0)
         {
-          int errcode = get_errno();
-          DEBUGASSERT(errcode > 0);
-
-          nerr("ERROR: Failed to unlink FIFO %s: %d\n", path, errcode);
-          return -errcode;
+          nerr("ERROR: Failed to unlink FIFO %s: %d\n", path, ret);
+          return ret;
         }
     }
 
@@ -379,7 +363,8 @@ int local_create_fifos(FAR struct local_conn_s *conn)
  ****************************************************************************/
 
 #ifdef CONFIG_NET_LOCAL_DGRAM
-int local_create_halfduplex(FAR struct local_conn_s *conn, FAR const char *path)
+int local_create_halfduplex(FAR struct local_conn_s *conn,
+                            FAR const char *path)
 {
   char fullpath[LOCAL_FULLPATH_LEN];
 
@@ -437,7 +422,7 @@ int local_release_halfduplex(FAR struct local_conn_s *conn)
    * oriented Unix domain socket, we don't really know the best time to
    * release the FIFO resource.  It would be extremely inefficient to create
    * and destroy the FIFO on each packet. But, on the other hand, failing
-   * to destory the FIFO will leave the FIFO resources in place after the
+   * to destroy the FIFO will leave the FIFO resources in place after the
    * communications have completed.
    *
    * I am thinking that there should be something like a timer.  The timer

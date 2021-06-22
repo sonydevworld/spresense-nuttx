@@ -1,40 +1,20 @@
 /****************************************************************************
  * include/nuttx/timers/rtc.h
  *
- *   Copyright(C) 2011 Uros Platise. All rights reserved.
- *   Author: Uros Platise <uros.platise@isotel.eu>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * With extensions, modifications by:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Copyright (C) 2011-2012, 2015-2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES(INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -60,7 +40,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* CONFIG_RTC - Enables general support for a hardware RTC.  Specific
  *   architectures may require other specific settings.
  *
@@ -92,8 +74,8 @@
  *   alarm.  A callback function will be executed when the alarm goes off
  *
  * CONFIG_RTC_PERIODIC - Enable if the RTC hardware supports setting a
- *  periodic wakeup. A callback function will be executed when the wakeup happens.
- *  This is an experimental feature.
+ *  periodic wakeup. A callback function will be executed when the wakeup
+ *  happens. This is an experimental feature.
  *
  * CONFIG_RTC_DRIVER - Enable building the upper-half RTC driver
  */
@@ -125,6 +107,7 @@
 #ifdef CONFIG_RTC_DRIVER
 
 /* IOCTL Commands ***********************************************************/
+
 /* RTC driver IOCTL commands.  These are Linux compatible command names, not
  * all of these commands are supported by all RTC drivers, however.
  */
@@ -145,11 +128,10 @@
 
 #define RTC_SET_TIME       _RTCIOC(0x0002)
 
-
 /* RTC_HAVE_SET_TIME checks if RTC's time had been set
  *
- * Argument: A writable reference to a bool to receive true/false return value
- *           of the check.
+ * Argument: A writable reference to a bool to receive true/false return
+ *           value of the check.
  */
 
 #define RTC_HAVE_SET_TIME  _RTCIOC(0x0003)
@@ -164,8 +146,8 @@
 
 /* RTC_SET_RELATIVE sets the alarm time relative to the current time.
  *
- * Argument: A read-only reference to a struct rtc_setrelative_s containing the
- *           new relative alarm time to be set.
+ * Argument: A read-only reference to a struct rtc_setrelative_s containing
+ *           the new relative alarm time to be set.
  */
 
 #define RTC_SET_RELATIVE   _RTCIOC(0x0005)
@@ -186,8 +168,8 @@
 
 /* RTC_SET_PERIODIC set a periodic wakeup.
  *
- * Argument: A read-only reference to a struct rtc_setperiodic_s containing the
- *           new wakeup period to be set.
+ * Argument: A read-only reference to a struct rtc_setperiodic_s containing
+ *           the new wakeup period to be set.
  */
 
 #define RTC_SET_PERIODIC     _RTCIOC(0x0008)
@@ -212,30 +194,31 @@
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
 /* IOCTL data structures */
 
 /* Broken-out time representation used with RTC IOCTL commands:
  *
  * The fields in this structure have the same meaning and ranges as for the
  * tm structure described in gmtime().  Further, it is REQUIRED that the
- * structure be cast compatible with struct tm!  They must be interchangeable.
+ * structure be cast compatible with struct tm! They must be interchangeable.
  */
 
 struct rtc_time
 {
-  int tm_sec;     /* Seconds (0-61, allows for leap seconds) */
-  int tm_min;     /* Minutes (0-59) */
-  int tm_hour;    /* Hours (0-23) */
-  int tm_mday;    /* Day of the month (1-31) */
-  int tm_mon;     /* Month (0-11) */
-  int tm_year;    /* Years since 1900 */
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
-  int tm_wday;    /* Day of the week (0-6) (unused) */
-  int tm_yday;    /* Day of the year (0-365) (unused) */
-  int tm_isdst;   /* Non-0 if daylight savings time is in effect (unused) */
-#endif
+  int tm_sec;          /* Seconds (0-61, allows for leap seconds) */
+  int tm_min;          /* Minutes (0-59) */
+  int tm_hour;         /* Hours (0-23) */
+  int tm_mday;         /* Day of the month (1-31) */
+  int tm_mon;          /* Month (0-11) */
+  int tm_year;         /* Years since 1900 */
+  int tm_wday;         /* Day of the week (0-6) (unused) */
+  int tm_yday;         /* Day of the year (0-365) (unused) */
+  int tm_isdst;        /* Non-0 if daylight savings time is in effect (unused) */
+  long tm_gmtoff;      /* Offset from UTC in seconds */
+  const char *tm_zone; /* Timezone abbreviation. */
 #if defined(CONFIG_RTC_HIRES) || defined(CONFIG_ARCH_HAVE_RTC_SUBSECONDS)
-  long tm_nsec;   /* Nanosecond (0-999999999) */
+  long tm_nsec;        /* Nanosecond (0-999999999) */
 #endif
 };
 
@@ -246,29 +229,29 @@ struct rtc_time
 
 struct rtc_rdalarm_s
 {
-  uint8_t id;               /* Indicates the alarm being queried */
-  bool active;              /* Alarm actively timing or disabled */
-  struct rtc_time time;     /* Current RTC time (if enabled) */
+  uint8_t id;                /* Indicates the alarm being queried */
+  bool active;               /* Alarm actively timing or disabled */
+  struct rtc_time time;      /* Current RTC time (if enabled) */
 };
 
 /* Structure used with the RTC_SET_ALARM IOCTL command. */
 
 struct rtc_setalarm_s
 {
-  uint8_t id;               /* Indicates the alarm to be set */
-  pid_t pid;                /* Identifies task to be notified (0=caller) */
-  struct sigevent event;    /* Describe the way a task is to be notified */
-  struct rtc_time time;     /* Alarm time */
+  uint8_t id;                /* Indicates the alarm to be set */
+  pid_t pid;                 /* Identifies task to be notified (0=caller) */
+  struct sigevent event;     /* Describe the way a task is to be notified */
+  struct rtc_time time;      /* Alarm time */
 };
 
 /* Structure used with the RTC_SET_RELATIVE IOCTL command. */
 
 struct rtc_setrelative_s
 {
-  uint8_t id;               /* Indicates the alarm to be set */
-  pid_t pid;                /* Identifies task to be notified (0=caller) */
-  struct sigevent event;    /* Describe the way a task is to be notified */
-  time_t reltime;           /* Relative time in seconds */
+  uint8_t id;                /* Indicates the alarm to be set */
+  pid_t pid;                 /* Identifies task to be notified (0=caller) */
+  struct sigevent event;     /* Describe the way a task is to be notified */
+  time_t reltime;            /* Relative time in seconds */
 };
 
 /* Callback type used by the RTC hardware to notify the RTC driver when the
@@ -281,29 +264,29 @@ typedef CODE void (*rtc_alarm_callback_t)(FAR void *priv, int alarmid);
 
 struct lower_setalarm_s
 {
-  uint8_t id;               /* Indicates the alarm to be set */
-  rtc_alarm_callback_t cb;  /* Callback when the alarm expires */
-  FAR void *priv;           /* Private argument to accompany callback */
-  struct rtc_time time;     /* Alarm time */
+  uint8_t id;                /* Indicates the alarm to be set */
+  rtc_alarm_callback_t cb;   /* Callback when the alarm expires */
+  FAR void *priv;            /* Private argument to accompany callback */
+  struct rtc_time time;      /* Alarm time */
 };
 
 /* Structure used with the setrelative method */
 
 struct lower_setrelative_s
 {
-  uint8_t id;               /* Indicates the alarm to be set */
-  rtc_alarm_callback_t cb;  /* Callback when the alarm expires */
-  FAR void *priv;           /* Private argument to accompany callback */
-  time_t reltime;           /* Relative time in seconds */
+  uint8_t id;                /* Indicates the alarm to be set */
+  rtc_alarm_callback_t cb;   /* Callback when the alarm expires */
+  FAR void *priv;            /* Private argument to accompany callback */
+  time_t reltime;            /* Relative time in seconds */
 };
 
 /* Structure used with the rdalarm method */
 
 struct lower_rdalarm_s
 {
-  uint8_t id;               /* Indicates the alarm to be set */
-  FAR void *priv;           /* Private argument to accompany callback */
-  FAR struct rtc_time *time;/* Queried RTC time pointer */
+  uint8_t id;                /* Indicates the alarm to be set */
+  FAR void *priv;            /* Private argument to accompany callback */
+  FAR struct rtc_time *time; /* Queried RTC time pointer */
 };
 #endif
 
@@ -313,10 +296,10 @@ struct lower_rdalarm_s
 
 struct rtc_setperiodic_s
 {
-  uint8_t id;               /* Indicates the alarm to be set */
-  pid_t pid;                /* Identifies task to be notified (0=caller) */
-  struct sigevent event;    /* Describe the way a task is to be notified */
-  struct timespec period;   /* Period between wakeups */
+  uint8_t id;                /* Indicates the alarm to be set */
+  pid_t pid;                 /* Identifies task to be notified (0=caller) */
+  struct sigevent event;     /* Describe the way a task is to be notified */
+  struct timespec period;    /* Period between wakeups */
 };
 
 /* Callback type used by the RTC hardware to notify the RTC driver when the
@@ -399,16 +382,16 @@ struct rtc_ops_s
 #endif
 
 #ifdef CONFIG_RTC_IOCTL
-   /* Support for architecture-specific RTC operations */
+  /* Support for architecture-specific RTC operations */
 
   CODE int (*ioctl)(FAR struct rtc_lowerhalf_s *lower, int cmd,
                     unsigned long arg);
 #endif
 
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-   /* The driver has been unlinked and there are no further open references
-    * to the driver.
-    */
+  /* The driver has been unlinked and there are no further open references
+   * to the driver.
+   */
 
   CODE int (*destroy)(FAR struct rtc_lowerhalf_s *lower);
 #endif
@@ -447,7 +430,7 @@ extern "C"
 #endif
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************

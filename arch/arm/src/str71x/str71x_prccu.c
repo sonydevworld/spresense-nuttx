@@ -1,41 +1,26 @@
-/********************************************************************************
+/****************************************************************************
  * arch/arm/src/str71x/str71x_prccu.c
  *
- *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ********************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -47,12 +32,12 @@
 #include <nuttx/arch.h>
 
 #include "chip.h"
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "str71x.h"
 
-/********************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************/
+ ****************************************************************************/
 
 /* Select set of peripherals to be enabled */
 
@@ -233,7 +218,6 @@
    APB2EN_ADC12 | APB2EN_CKOUT | APB2EN_TIM0  | APB2EN_TIM1  | \
    APB2EN_TIM2  | APB2EN_TIM3  | APB2EN_RTC   | APB2EN_EIC)
 
-
 #if STR71X_PLL1OUT_MUL == 12
 #  define PLL1MUL STR71X_RCCUPLL1CR_MUL12
 #elif STR71X_PLL1OUT_MUL == 16
@@ -243,7 +227,7 @@
 #elif STR71X_PLL1OUT_MUL == 24
 #  define PLL1MUL STR71X_RCCUPLL1CR_MUL24
 #else
-#  error "Unsupporetd value for STR71X_PLL1OUT_MUL"
+#  error "Unsupported value for STR71X_PLL1OUT_MUL"
 #endif
 
 #if STR71X_PLL1OUT_DIV == 1
@@ -309,7 +293,7 @@
 #elif STR71X_PLL2OUT_MUL == 28
 #  define PLL2MUL STR71X_PCUPPL2CR_MUL28
 #else
-#  error "Unsupporetd value for STR71X_PLL2OUT_MUL"
+#  error "Unsupported value for STR71X_PLL2OUT_MUL"
 #endif
 
 #if STR71X_PLL2OUT_DIV == 1
@@ -330,42 +314,42 @@
 #  error "Unsupported value for STR71X_PLL2OUT_DIV"
 #endif
 
-/********************************************************************************
+/****************************************************************************
  * Private Types
- ********************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************
+/****************************************************************************
  * Public Data
- ********************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************
+/****************************************************************************
  * Private Data
- ********************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************
+/****************************************************************************
  * Private Functions
- ********************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************
+/****************************************************************************
  * Public Funstions
- ********************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************
+/****************************************************************************
  * Name: str71x_prccuinit
  *
  * Description:
- *   Initialize the PCU/RCCU based on the NuttX configuration and the board-specific
- *   settings in board.h
+ *   Initialize the PCU/RCCU based on the NuttX configuration and the
+ *   board-specific settings in board.h
  *
- ********************************************************************************/
+ ****************************************************************************/
 
 void str71x_prccuinit(void)
 {
   uint32_t reg32;
   uint16_t reg16;
 
-  /* Divide RCLK to obtain PCLK1 & 2 clock for the APB1 & 2 peripherals.  The divider
-   * values are provided in board.h
+  /* Divide RCLK to obtain PCLK1 & 2 clock for the APB1 & 2 peripherals.
+   *  The divider values are provided in board.h
    */
 
   reg16  = getreg16(STR71X_PCU_PDIVR);
@@ -453,7 +437,9 @@ void str71x_prccuinit(void)
   putreg16(reg16, STR71X_PCU_PLL2CR);
 
   /* Wait for PLL2 to lock in */
-  // while ((getreg16(STR71X_PCU_PLL2CR) & STR71X_PCUPPL2CR_LOCK) == 0);
+
+  /* while ((getreg16(STR71X_PCU_PLL2CR) & STR71X_PCUPPL2CR_LOCK) == 0); */
+
 #endif
 
   /* Select the USB clock source */
@@ -472,5 +458,3 @@ void str71x_prccuinit(void)
   putreg16(reg16, STR71X_PCU_PLL2CR);
 #endif
 }
-
-

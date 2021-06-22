@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/wireless/bcm43xxx/ieee80211/mmc_sdio.h
+ * drivers/wireless/ieee80211/bcm43xxx/mmc_sdio.c
  *
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author: Simon Piriou <spiriou31@gmail.com>
@@ -40,6 +40,8 @@
 #include <nuttx/wireless/ieee80211/mmc_sdio.h>
 #include <debug.h>
 #include <errno.h>
+#include <inttypes.h>
+#include <string.h>
 
 #include <nuttx/compiler.h>
 #include <nuttx/arch.h>
@@ -76,7 +78,7 @@ begin_packed_struct struct sdio_cmd53
   uint32_t rw_flag          : 1;
 } end_packed_struct;
 
-begin_packed_struct struct sdio_resp_R5
+begin_packed_struct struct sdio_resp_r5
 {
   uint32_t data             : 8;
   struct
@@ -117,8 +119,9 @@ int sdio_sendcmdpoll(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t arg)
       ret = SDIO_WAITRESPONSE(dev, cmd);
       if (ret != OK)
         {
-          wlerr("ERROR: Wait for response to cmd: %08x failed: %d\n",
-               cmd, ret);
+          wlerr("ERROR: Wait for response to cmd: %08" PRIx32
+                " failed: %d\n",
+                cmd, ret);
         }
     }
 
@@ -130,7 +133,8 @@ int sdio_io_rw_direct(FAR struct sdio_dev_s *dev, bool write,
                       uint8_t inb, uint8_t *outb)
 {
   union sdio_cmd5x arg;
-  struct sdio_resp_R5 resp;
+  struct sdio_resp_r5 resp;
+  uint32_t data;
   int ret;
 
   /* Setup CMD52 argument */
@@ -154,13 +158,15 @@ int sdio_io_rw_direct(FAR struct sdio_dev_s *dev, bool write,
   /* Send CMD52 command */
 
   sdio_sendcmdpoll(dev, SD_ACMD52, arg.value);
-  ret = SDIO_RECVR5(dev, SD_ACMD52, (uint32_t *)&resp);
+  ret = SDIO_RECVR5(dev, SD_ACMD52, &data);
 
   if (ret != OK)
     {
       wlerr("ERROR: SDIO_RECVR5 failed %d\n", ret);
       return ret;
     }
+
+  memcpy(&resp, &data, sizeof(resp));
 
   /* Check for errors */
 
@@ -190,7 +196,8 @@ int sdio_io_rw_extended(FAR struct sdio_dev_s *dev, bool write,
                         unsigned int blocklen, unsigned int nblocks)
 {
   union sdio_cmd5x arg;
-  struct sdio_resp_R5 resp;
+  struct sdio_resp_r5 resp;
+  uint32_t data;
   int ret;
   sdio_eventset_t wkupevent;
 
@@ -222,7 +229,8 @@ int sdio_io_rw_extended(FAR struct sdio_dev_s *dev, bool write,
 
   SDIO_BLOCKSETUP(dev, blocklen, nblocks);
   SDIO_WAITENABLE(dev,
-                  SDIOWAIT_TRANSFERDONE | SDIOWAIT_TIMEOUT | SDIOWAIT_ERROR);
+                  SDIOWAIT_TRANSFERDONE | SDIOWAIT_TIMEOUT | SDIOWAIT_ERROR,
+                  SDIO_CMD53_TIMEOUT_MS);
 
   if (write)
     {
@@ -233,28 +241,28 @@ int sdio_io_rw_extended(FAR struct sdio_dev_s *dev, bool write,
       if ((SDIO_CAPABILITIES(dev) & SDIO_CAPS_DMABEFOREWRITE) != 0)
         {
           SDIO_DMASENDSETUP(dev, buf, blocklen * nblocks);
-          SDIO_SENDCMD(dev, SD_ACMD53, (uint32_t)arg.value);
+          SDIO_SENDCMD(dev, SD_ACMD53, arg.value);
 
-          wkupevent = SDIO_EVENTWAIT(dev, SDIO_CMD53_TIMEOUT_MS);
-          ret = SDIO_RECVR5(dev, SD_ACMD53, (uint32_t *)&resp);
+          wkupevent = SDIO_EVENTWAIT(dev);
+          ret = SDIO_RECVR5(dev, SD_ACMD53, &data);
         }
       else
         {
-          sdio_sendcmdpoll(dev, SD_ACMD53, (uint32_t)arg.value);
-          ret = SDIO_RECVR5(dev, SD_ACMD53, (uint32_t *)&resp);
+          sdio_sendcmdpoll(dev, SD_ACMD53, arg.value);
+          ret = SDIO_RECVR5(dev, SD_ACMD53, &data);
 
           SDIO_DMASENDSETUP(dev, buf, blocklen * nblocks);
-          wkupevent = SDIO_EVENTWAIT(dev, SDIO_CMD53_TIMEOUT_MS);
+          wkupevent = SDIO_EVENTWAIT(dev);
         }
     }
   else
     {
       wlinfo("prep read %d\n", blocklen * nblocks);
       SDIO_DMARECVSETUP(dev, buf, blocklen * nblocks);
-      SDIO_SENDCMD(dev, SD_ACMD53, (uint32_t)arg.value);
+      SDIO_SENDCMD(dev, SD_ACMD53, arg.value);
 
-      wkupevent = SDIO_EVENTWAIT(dev, SDIO_CMD53_TIMEOUT_MS);
-      ret = SDIO_RECVR5(dev, SD_ACMD53, (uint32_t *)&resp);
+      wkupevent = SDIO_EVENTWAIT(dev);
+      ret = SDIO_RECVR5(dev, SD_ACMD53, &data);
     }
 
   wlinfo("Transaction ends\n");
@@ -262,13 +270,15 @@ int sdio_io_rw_extended(FAR struct sdio_dev_s *dev, bool write,
 
   /* There may not be a response to this, so don't look for one */
 
-  SDIO_RECVR1(dev, SD_ACMD52ABRT, (uint32_t *)&resp);
+  SDIO_RECVR1(dev, SD_ACMD52ABRT, &data);
 
   if (ret != OK)
     {
       wlerr("ERROR: SDIO_RECVR5 failed %d\n", ret);
       return ret;
     }
+
+  memcpy(&resp, &data, sizeof(resp));
 
   /* Check for errors */
 
@@ -367,7 +377,7 @@ int sdio_probe(FAR struct sdio_dev_s *dev)
       return ret;
     }
 
-  wlinfo("rca is %x\n", data >> 16);
+  wlinfo("rca is %" PRIx32 "\n", data >> 16);
 
   /* Send CMD7 with the argument == RCA in order to select the card
    * and put it in Transfer State.
@@ -387,7 +397,7 @@ int sdio_probe(FAR struct sdio_dev_s *dev)
       return ret;
     }
 
-  /*  Configure 4 bits bus width */
+  /* Configure 4 bits bus width */
 
   ret = sdio_set_wide_bus(dev);
   if (ret != OK)

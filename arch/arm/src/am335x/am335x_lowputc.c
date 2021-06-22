@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/am335x/am335x_lowputc.c
  *
- *   Copyright (C) 2018 Petro Karashchenko. All rights reserved.
- *   Author: Petro Karashchenko <petro.karashchneko@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -44,17 +29,17 @@
 #include <arch/irq.h>
 #include <arch/board/board.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "am335x_config.h"
 #include "am335x_gpio.h"
 #include "am335x_pinmux.h"
 #include "hardware/am335x_uart.h"
 
-/**************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- **************************************************************************/
+ ****************************************************************************/
 
 /* Select UART parameters for the selected console */
 
@@ -148,8 +133,8 @@
 
 #define AM335X_SCLK 48000000
 
-/* The output baud rate is equal to the serial clock (SCLK) frequency divided
- * by sixteen times the value of the baud rate divisor, as follows:
+/* The output baud rate is equal to the serial clock (SCLK) frequency
+ * divided by sixteen times the value of the baud rate divisor, as follows:
  *
  * baud rate = Fsclk / (16 * divisor).
  */
@@ -161,24 +146,30 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_lowputc
+ * Name: arm_lowputc
  *
  * Description:
  *   Output one byte on the serial console
  *
  ****************************************************************************/
 
-void up_lowputc(char ch)
+void arm_lowputc(char ch)
 {
 #if defined(HAVE_UART_DEVICE) && defined(HAVE_SERIAL_CONSOLE)
   /* Wait for the transmitter to be available */
 
-  while ((getreg32(CONSOLE_BASE+AM335X_UART_LSR_OFFSET) & UART_LSR_THRE) == 0);
+  while ((getreg32(CONSOLE_BASE + AM335X_UART_LSR_OFFSET) &
+          UART_LSR_THRE) == 0)
+    {
+    }
 
   /* Send the character */
 
-  putreg32((uint32_t)ch, CONSOLE_BASE+AM335X_UART_THR_OFFSET);
-  while ((getreg32(CONSOLE_BASE+AM335X_UART_LSR_OFFSET) & UART_LSR_THRE) == 0);
+  putreg32((uint32_t)ch, CONSOLE_BASE + AM335X_UART_THR_OFFSET);
+  while ((getreg32(CONSOLE_BASE + AM335X_UART_LSR_OFFSET) &
+          UART_LSR_THRE) == 0)
+    {
+    }
 #endif
 }
 
@@ -196,6 +187,7 @@ void am335x_lowsetup(void)
 {
 #ifdef HAVE_UART_DEVICE
   /* Enable power and clocking to the UART peripheral */
+
 #warning Missing logic
 
   /* Configure UART pins for the selected CONSOLE.  If there are multiple
@@ -223,17 +215,20 @@ void am335x_lowsetup(void)
   am335x_gpio_config(GPIO_UART5_RXD);
 #endif
 
-  /* Configure the console (only) */
 #if defined(HAVE_SERIAL_CONSOLE) && !defined(CONFIG_SUPPRESS_UART_CONFIG)
+  /* Configure the console (only) */
 
 #if 0
   /* Performing Software Reset of the module. */
 
-  putreg32(UART_SYSC_SRESET | getreg32(CONSOLE_BASE + AM335X_UART_SYSC_OFFSET),
+  putreg32(UART_SYSC_SRESET | getreg32(CONSOLE_BASE +
+           AM335X_UART_SYSC_OFFSET),
           CONSOLE_BASE + AM335X_UART_SYSC_OFFSET);
 
   /* Wait until the process of Module Reset is complete. */
-  while (!(getreg32(CONSOLE_BASE + AM335X_UART_SYSS_OFFSET) & UART_SYSS_RESET_DONE))
+
+  while (!(getreg32(CONSOLE_BASE + AM335X_UART_SYSS_OFFSET) &
+           UART_SYSS_RESET_DONE))
     {
     }
 #endif
@@ -261,7 +256,8 @@ void am335x_lowsetup(void)
 
   /* Clear FIFOs */
 
-  putreg32(UART_FCR_RFIFO_CLEAR | UART_FCR_TFIFO_CLEAR, CONSOLE_BASE + AM335X_UART_FCR_OFFSET);
+  putreg32(UART_FCR_RFIFO_CLEAR | UART_FCR_TFIFO_CLEAR,
+           CONSOLE_BASE + AM335X_UART_FCR_OFFSET);
 
   /* Configure the FIFOs */
 
@@ -269,8 +265,10 @@ void am335x_lowsetup(void)
 
   /* Set the BAUD divisor */
 
-  putreg32((CONSOLE_DL >> 8) & UART_DLH_MASK, CONSOLE_BASE + AM335X_UART_DLH_OFFSET);
-  putreg32(CONSOLE_DL & UART_DLL_MASK, CONSOLE_BASE + AM335X_UART_DLL_OFFSET);
+  putreg32((CONSOLE_DL >> 8) & UART_DLH_MASK,
+            CONSOLE_BASE + AM335X_UART_DLH_OFFSET);
+  putreg32(CONSOLE_DL & UART_DLL_MASK,
+           CONSOLE_BASE + AM335X_UART_DLL_OFFSET);
 
   /* Clear DLAB */
 
@@ -282,7 +280,7 @@ void am335x_lowsetup(void)
 #  warning Missing logic
 #endif
 
-  putreg32(UART_MDR1_MODE_16x, CONSOLE_BASE + AM335X_UART_MDR1_OFFSET);
+  putreg32(UART_MDR1_MODE_16X, CONSOLE_BASE + AM335X_UART_MDR1_OFFSET);
 #endif
 #endif /* HAVE_UART_DEVICE */
 }

@@ -1,4 +1,4 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/nrf52/nrf52_start.h
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
@@ -31,14 +31,14 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_NRF52_NRF52_START_H
 #define __ARCH_ARM_SRC_NRF52_NRF52_START_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 #include <nuttx/compiler.h>
@@ -47,40 +47,25 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "up_internal.h"
+#include "arm_internal.h"
 #include "chip.h"
-
-/************************************************************************************
- * Public Data
- ************************************************************************************/
 
 #ifndef __ASSEMBLY__
 
-/* g_idle_topstack: _sbss is the start of the BSS region as defined by the linker
- * script. _ebss lies at the end of the BSS region. The idle task stack starts at
- * the end of BSS and is of size CONFIG_IDLETHREAD_STACKSIZE.  The IDLE thread is
- * the thread that the system boots on and, eventually, becomes the IDLE, do
- * nothing task that runs only when there is nothing else to run.  The heap
- * continues from there until the end of memory.  g_idle_topstack is a read-only
- * variable the provides this computed address.
- */
-
-extern const uintptr_t g_idle_topstack;
-
-/************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: nrf52_board_initialize
  *
  * Description:
- *   All NRF52xxx architectures must provide the following entry point.  This entry
- *   point is called early in the initialization -- after clocking and memory have
- *   been configured but before caches have been enabled and before any devices have
- *   been initialized.
+ *   All NRF52xxx architectures must provide the following entry point.
+ *   This entry point is called early in the initialization -- after clocking
+ *   and memory have been configured but before caches have been enabled and
+ *   before any devices have been initialized.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 void nrf52_board_initialize(void);
 

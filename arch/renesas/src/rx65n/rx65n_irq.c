@@ -1,36 +1,20 @@
 /****************************************************************************
  * arch/renesas/src/rx65n/rx65n_irq.c
  *
- *   Copyright (C) 2008-2019 Gregory Nutt. All rights reserved.
- *   Author: Anjana <anjana@tataelxsi.co.in> 
- *          Surya <surya.prakash@tataelxsi.co.in>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,7 +27,7 @@
 #include <stdint.h>
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
-#include "rx65n/iodefine.h"
+#include "arch/rx65n/iodefine.h"
 
 #include "up_internal.h"
 
@@ -174,6 +158,7 @@ void up_disable_irq(int irq)
        ICU.GENBL0.BIT.EN4 = 0;
     }
 #endif
+
 #ifdef CONFIG_RX65N_SCI3
   if (irq == RX65N_RXI3_IRQ)
     {
@@ -245,6 +230,7 @@ void up_disable_irq(int irq)
        ICU.GENBL0.BIT.EN10 = 0;
     }
 #endif
+
 #ifdef CONFIG_RX65N_SCI6
   if (irq == RX65N_RXI6_IRQ)
     {
@@ -420,6 +406,165 @@ void up_disable_irq(int irq)
        ICU.GENAL1.BIT.EN4 = 0;
     }
 #endif
+
+#ifdef CONFIG_RX65N_RTC
+  if (irq == RX65N_ALM_IRQ)
+    {
+       ICU.IER[0x0b].BIT.IEN4 = 0;
+    }
+
+  if (irq == RX65N_PRD_IRQ)
+    {
+       ICU.IER[0x0b].BIT.IEN5 = 0;
+    }
+
+#ifdef CONFIG_RX65N_PERIB
+  if (irq == RX65N_INTB176_IRQ)
+    {
+       ICU.IER[16].BIT.IEN0 = 0;
+    }
+
+#endif
+#endif
+
+#ifdef CONFIG_RX65N_RSPI0
+  if (irq == RX65N_SPRI0_IRQ)
+    {
+      ICU.IER[0x04].BIT.IEN6 = 0;
+    }
+
+  if (irq == RX65N_SPTI0_IRQ)
+    {
+      ICU.IER[0x04].BIT.IEN7 = 0;
+    }
+
+  if (irq == RX65N_SPEI0_IRQ)
+    {
+      ICU.GENAL0.BIT.EN17 = 0;
+    }
+
+  if (irq == RX65N_SPII0_IRQ)
+    {
+      ICU.GENAL0.BIT.EN16 = 0;
+    }
+#endif
+
+#ifdef CONFIG_RX65N_RSPI1
+  if (irq == RX65N_SPRI1_IRQ)
+    {
+      ICU.IER[0x05].BIT.IEN0 = 0;
+    }
+
+  if (irq == RX65N_SPTI1_IRQ)
+    {
+      ICU.IER[0x05].BIT.IEN1 = 0;
+    }
+
+  if (irq == RX65N_SPEI1_IRQ)
+    {
+      ICU.GENAL0.BIT.EN19 = 0;
+    }
+
+  if (irq == RX65N_SPII1_IRQ)
+    {
+      ICU.GENAL0.BIT.EN18 = 0;
+    }
+#endif
+
+#ifdef CONFIG_RX65N_RSPI2
+  if (irq == RX65N_SPRI2_IRQ)
+    {
+      ICU.IER[13].BIT.IEN4 = 0;
+    }
+
+  if (irq == RX65N_SPTI2_IRQ)
+    {
+      ICU.IER[13].BIT.IEN5 = 0;
+    }
+
+  if (irq == RX65N_SPEI2_IRQ)
+    {
+      ICU.GENAL0.BIT.EN21 = 0;
+    }
+
+  if (irq == RX65N_SPII2_IRQ)
+    {
+      ICU.GENAL0.BIT.EN20 = 0;
+    }
+
+#endif
+
+#ifdef CONFIG_RX65N_RIIC0
+  if (irq == RX65N_RIIC0_RXI0_IRQ)
+    {
+      ICU.IER[6].BIT.IEN4 = 0;
+    }
+
+  if (irq == RX65N_RIIC0_TXI0_IRQ)
+    {
+      ICU.IER[6].BIT.IEN5 = 0;
+    }
+
+  if (irq == RX65N_RIIC0_TEI0_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS13 = 0;
+      ICU.GENBL1.BIT.EN13 = 0;
+    }
+
+  if (irq == RX65N_RIIC0_EEI0_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS14 = 0;
+      ICU.GENBL1.BIT.EN14 = 0;
+    }
+#endif
+
+#ifdef CONFIG_RX65N_RIIC1
+  if (irq == RX65N_RIIC1_RXI1_IRQ)
+    {
+      ICU.IER[6].BIT.IEN2 = 0;
+    }
+
+  if (irq == RX65N_RIIC1_TXI1_IRQ)
+    {
+      ICU.IER[6].BIT.IEN3 = 0;
+    }
+
+  if (irq == RX65N_RIIC1_TEI1_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS28 = 0;
+      ICU.GENBL1.BIT.EN28 = 0;
+    }
+
+  if (irq == RX65N_RIIC1_EEI1_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS29 = 0;
+      ICU.GENBL1.BIT.EN29 = 0;
+    }
+#endif
+
+#ifdef CONFIG_RX65N_RIIC2
+  if (irq == RX65N_RIIC2_RXI2_IRQ)
+    {
+      ICU.IER[6].BIT.IEN6 = 0;
+    }
+
+  if (irq == RX65N_RIIC2_TXI2_IRQ)
+    {
+      ICU.IER[6].BIT.IEN7 = 0;
+    }
+
+  if (irq == RX65N_RIIC2_TEI2_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS15 = 0;
+      ICU.GENBL1.BIT.EN15 = 0;
+    }
+
+  if (irq == RX65N_RIIC2_EEI2_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS16 = 0;
+      ICU.GENBL1.BIT.EN16 = 0;
+    }
+#endif
 }
 
 /****************************************************************************
@@ -511,6 +656,7 @@ void up_enable_irq(int irq)
       ICU.GENBL0.BIT.EN4 = 1;
     }
 #endif
+
 #ifdef CONFIG_RX65N_SCI3
   if (irq == RX65N_RXI3_IRQ)
     {
@@ -582,6 +728,7 @@ void up_enable_irq(int irq)
       ICU.GENBL0.BIT.EN10 = 1;
     }
 #endif
+
 #ifdef CONFIG_RX65N_SCI6
   if (irq == RX65N_RXI6_IRQ)
     {
@@ -755,6 +902,165 @@ void up_enable_irq(int irq)
     {
       ICU.GRPAL1.BIT.IS4 = 1;
       ICU.GENAL1.BIT.EN4 = 1;
+    }
+#endif
+
+#ifdef CONFIG_RX65N_RTC
+  if (irq == RX65N_ALM_IRQ)
+    {
+       ICU.IER[0x0b].BIT.IEN4 = 1;
+    }
+
+  if (irq == RX65N_PRD_IRQ)
+    {
+       ICU.IER[0x0b].BIT.IEN5 = 1;
+    }
+
+#ifdef CONFIG_RX65N_PERIB
+  if (irq == RX65N_INTB185_IRQ)
+    {
+       ICU.IER[0x17].BIT.IEN1 = 1;
+    }
+
+#endif
+#endif
+
+#ifdef CONFIG_RX65N_RSPI0
+  if (irq == RX65N_SPRI0_IRQ)
+    {
+      ICU.IER[0x04].BIT.IEN6 = 1;
+    }
+
+  if (irq == RX65N_SPTI0_IRQ)
+    {
+      ICU.IER[0x04].BIT.IEN7 = 1;
+    }
+
+  if (irq == RX65N_SPEI0_IRQ)
+    {
+      ICU.GENAL0.BIT.EN17 = 1;
+    }
+
+  if (irq == RX65N_SPII0_IRQ)
+    {
+      ICU.GENAL0.BIT.EN16 = 1;
+    }
+#endif
+
+#ifdef CONFIG_RX65N_RSPI1
+  if (irq == RX65N_SPRI1_IRQ)
+    {
+      ICU.IER[0x05].BIT.IEN0 = 1;
+    }
+
+  if (irq == RX65N_SPTI1_IRQ)
+    {
+      ICU.IER[0x05].BIT.IEN1 = 1;
+    }
+
+  if (irq == RX65N_SPEI1_IRQ)
+    {
+      ICU.GENAL0.BIT.EN19 = 1;
+    }
+
+  if (irq == RX65N_SPII1_IRQ)
+    {
+      ICU.GENAL0.BIT.EN18 = 1;
+    }
+#endif
+
+#ifdef CONFIG_RX65N_RSPI2
+  if (irq == RX65N_SPRI2_IRQ)
+    {
+      ICU.IER[13].BIT.IEN4 = 1;
+    }
+
+  if (irq == RX65N_SPTI2_IRQ)
+    {
+      ICU.IER[13].BIT.IEN5 = 1;
+    }
+
+  if (irq == RX65N_SPEI2_IRQ)
+    {
+      ICU.GENAL0.BIT.EN21 = 1;
+    }
+
+  if (irq == RX65N_SPII2_IRQ)
+    {
+      ICU.GENAL0.BIT.EN20 = 1;
+    }
+
+#endif
+
+#ifdef CONFIG_RX65N_RIIC0
+  if (irq == RX65N_RIIC0_RXI0_IRQ)
+    {
+      ICU.IER[6].BIT.IEN4 = 1;
+    }
+
+  if (irq == RX65N_RIIC0_TXI0_IRQ)
+    {
+      ICU.IER[6].BIT.IEN5 = 1;
+    }
+
+  if (irq == RX65N_RIIC0_TEI0_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS13 = 1;
+      ICU.GENBL1.BIT.EN13 = 1;
+    }
+
+  if (irq == RX65N_RIIC0_EEI0_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS14 = 1;
+      ICU.GENBL1.BIT.EN14 = 1;
+    }
+#endif
+
+#ifdef CONFIG_RX65N_RIIC1
+  if (irq == RX65N_RIIC1_RXI1_IRQ)
+    {
+      ICU.IER[6].BIT.IEN2 = 1;
+    }
+
+  if (irq == RX65N_RIIC1_TXI1_IRQ)
+    {
+      ICU.IER[6].BIT.IEN3 = 1;
+    }
+
+  if (irq == RX65N_RIIC1_TEI1_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS28 = 1;
+      ICU.GENBL1.BIT.EN28 = 1;
+    }
+
+  if (irq == RX65N_RIIC1_EEI1_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS29 = 1;
+      ICU.GENBL1.BIT.EN29 = 1;
+    }
+#endif
+
+#ifdef CONFIG_RX65N_RIIC2
+  if (irq == RX65N_RIIC2_RXI2_IRQ)
+    {
+      ICU.IER[6].BIT.IEN6 = 1;
+    }
+
+  if (irq == RX65N_RIIC2_TXI2_IRQ)
+    {
+      ICU.IER[6].BIT.IEN7 = 1;
+    }
+
+  if (irq == RX65N_RIIC2_TEI2_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS15 = 1;
+      ICU.GENBL1.BIT.EN15 = 1;
+    }
+
+  if (irq == RX65N_RIIC2_EEI2_IRQ)
+    {
+      ICU.GRPBL1.BIT.IS16 = 1;
+      ICU.GENBL1.BIT.EN16 = 1;
     }
 #endif
 }

@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/leds/pca9635pw.c
  *
- *   Copyright (C) 2015 DS-Automotion GmbH. All rights reserved.
- *   Author: Alexander Entinger <a.entinger@ds-automotion.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -71,7 +56,8 @@ static int pca9635pw_set_led_mode(FAR struct pca9635pw_dev_s *priv,
 
 static int pca9635pw_open(FAR struct file *filep);
 static int pca9635pw_close(FAR struct file *filep);
-static int pca9635pw_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
+static int pca9635pw_ioctl(FAR struct file *filep, int cmd,
+                           unsigned long arg);
 
 /****************************************************************************
  * Private Data
@@ -123,8 +109,8 @@ static int pca9635pw_i2c_write_byte(FAR struct pca9635pw_dev_s *priv,
 
   /* Write the register address followed by the data (no RESTART) */
 
-  lcdinfo("i2c addr: 0x%02X reg addr: 0x%02X value: 0x%02X\n", priv->i2c_addr,
-          buffer[0], buffer[1]);
+  lcdinfo("i2c addr: 0x%02X reg addr: 0x%02X value: 0x%02X\n",
+          priv->i2c_addr, buffer[0], buffer[1]);
 
   ret = i2c_write(priv->i2c, &config, buffer, BUFFER_SIZE);
   if (ret < 0)
@@ -140,7 +126,8 @@ static int pca9635pw_i2c_write_byte(FAR struct pca9635pw_dev_s *priv,
  * Name: pca9635pw_set_led_mode
  *
  * Description:
- *   Set the led output mode (see PCA9635PW_LED_OUT_x register value definitions)
+ *   Set the led output mode (see PCA9635PW_LED_OUT_x register value
+ *   definitions)
  *
  ****************************************************************************/
 
@@ -210,21 +197,21 @@ static int pca9635pw_open(FAR struct file *filep)
     }
 
   /* A delay of 500 us is necessary since this is the maximum time which the
-   * oscillator of the PCA9635PW needs to be up and running once sleep mode was
-   * left.
+   * oscillator of the PCA9635PW needs to be up and running once sleep mode
+   * was left.
    */
 
   nxsig_usleep(500);
 
   /* Turn all led drivers to mode 2 in which the led brightness is controlled
-   * by the indiviual pwm registers.
+   * by the individual pwm registers.
    */
 
-  ret = pca9635pw_set_led_mode(priv, PCA9635PW_LED_OUT_x_MODE_2);
+  ret = pca9635pw_set_led_mode(priv, PCA9635PW_LED_OUT_X_MODE_2);
   if (ret < 0)
     {
-      lcderr("ERROR: Could not set led driver outputs to MODE2 (LED's brightness are "
-             "controlled by pwm registers)\n");
+      lcderr("ERROR: Could not set led driver outputs to MODE2"
+             " (LED's brightness are controlled by pwm registers)\n");
       return ret;
     }
 
@@ -247,10 +234,11 @@ static int pca9635pw_close(FAR struct file *filep)
 
   /* Turn all led drivers off */
 
-  ret = pca9635pw_set_led_mode(priv, PCA9635PW_LED_OUT_x_MODE_0);
+  ret = pca9635pw_set_led_mode(priv, PCA9635PW_LED_OUT_X_MODE_0);
   if (ret < 0)
     {
-      lcderr("ERROR: Could not set led driver outputs to MODE0 (LED's are off)\n");
+      lcderr("ERROR: Could not set led driver outputs to MODE0"
+             " (LED's are off)\n");
       return ret;
     }
 
@@ -258,7 +246,7 @@ static int pca9635pw_close(FAR struct file *filep)
 
   uint8_t const PCA9635PW_MODE_1_FINAL_VALUE = PCA9635PW_MODE_1_SLEEP;
 
-  ret =pca9635pw_i2c_write_byte(priv, PCA9635PW_MODE_1,
+  ret = pca9635pw_i2c_write_byte(priv, PCA9635PW_MODE_1,
                                 PCA9635PW_MODE_1_FINAL_VALUE);
   if (ret < 0)
     {
@@ -272,11 +260,13 @@ static int pca9635pw_close(FAR struct file *filep)
  * Name: pca9635pw_close
  *
  * Description:
- *   This function is called whenever an ioctl call to a PCA9635PW is performed.
+ *   This function is called whenever an ioctl call to a PCA9635PW is
+ *   performed.
  *
  ****************************************************************************/
 
-static int pca9635pw_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
+static int pca9635pw_ioctl(FAR struct file *filep, int cmd,
+                           unsigned long arg)
 {
   FAR struct inode *inode = filep->f_inode;
   FAR struct pca9635pw_dev_s *priv = inode->i_private;
@@ -286,16 +276,16 @@ static int pca9635pw_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   switch (cmd)
     {
-      /* Set the brightness of an indivual LED. Arg: pca9635pw_led_brightness_s
-       * pointer.
+      /* Set the brightness of an individual LED.
+       * Arg: pca9635pw_brightness_s pointer.
        */
 
     case PWMIOC_SETLED_BRIGHTNESS:
       {
         /* Retrieve the information handed over as argument for this ioctl */
 
-        FAR const struct pca9635pw_setled_brightness_arg_s *ptr =
-          (FAR const struct pca9635pw_setled_brightness_arg_s *)((uintptr_t)arg);
+        FAR const struct pca9635pw_brightness_s *ptr =
+          (FAR const struct pca9635pw_brightness_s *)((uintptr_t)arg);
 
         DEBUGASSERT(ptr != NULL);
 
@@ -363,7 +353,7 @@ int pca9635pw_register(FAR const char *devpath, FAR struct i2c_master_s *i2c,
 
   /* Register the character driver */
 
-  int const ret = register_driver(devpath, &g_pca9635pw_fileops, 666, priv);
+  int const ret = register_driver(devpath, &g_pca9635pw_fileops, 0666, priv);
   if (ret != OK)
     {
       lcderr("ERROR: Failed to register driver: %d\n", ret);

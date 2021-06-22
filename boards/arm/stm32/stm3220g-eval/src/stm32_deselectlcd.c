@@ -42,7 +42,7 @@
 
 #include <debug.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "stm32.h"
 #include "stm3220g-eval.h"
 
@@ -92,6 +92,3 @@ void stm32_deselectlcd(void)
 }
 
 #endif /* CONFIG_STM32_FSMC */
-
-
-

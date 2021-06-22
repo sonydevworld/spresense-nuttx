@@ -1,36 +1,20 @@
 /****************************************************************************
  * arch/arm/src/lpc17xx_40xx/lpc17_40_clockconfig.c
- * arch/arm/src/chip/lpc17_40_clockconfig.c
  *
- *   Copyright (C) 2010, 2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -41,24 +25,24 @@
 #include <nuttx/config.h>
 
 /* This file is only a thin shell that includes the correct clock
- * configuration logic for the selected LPC17xx/LPC40xx family.  The correct file
- * cannot be selected by the make system because it needs the intelligence
- * that only exists in chip.h that can associate an LPC17xx/LPC40xx part number with
- * an LPC17xx/LPC40xx family.
+ * configuration logic for the selected LPC17xx/LPC40xx family.  The correct
+ * file cannot be selected by the make system because it needs the
+ * intelligence that only exists in chip.h that can associate an
+ * LPC17xx/LPC40xx part number with an LPC17xx/LPC40xx family.
  *
- * The LPC176x and LPC178x_40xx system control block is *nearly* identical but
- * we have found that the LPC178x_40xx is more sensitive to the ordering of
- * certain operations.  So, although the hardware seems very similar, the
- * safer thing to do is to separate the LPC176x and LPC178x_40xx into separate
- * files.
+ * The LPC176x and LPC178x_40xx system control block is *nearly* identical
+ * but we have found that the LPC178x_40xx is more sensitive to the ordering
+ * of certain operations.  So, although the hardware seems very similar, the
+ * safer thing to do is to separate the LPC176x and LPC178x_40xx into
+ * separate files.
  */
 
 #include <arch/lpc17xx_40xx/chip.h>
 
 #if defined(LPC176x)
-#  include "chip/lpc176x_clockconfig.c"
+#  include "lpc176x_clockconfig.c"
 #elif defined(LPC178x_40xx)
-#  include "chip/lpc178x_40xx_clockconfig.c"
+#  include "lpc178x_40xx_clockconfig.c"
 #else
 #  error "Unrecognized LPC17xx/LPC40xx family"
 #endif

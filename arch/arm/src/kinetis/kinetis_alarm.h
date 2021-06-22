@@ -74,7 +74,7 @@ enum alm_id_e
   RTC_ALARM_LAST
 };
 
-/* Structure used to pass parmaters to set an alarm */
+/* Structure used to pass parameters to set an alarm */
 
 struct alm_setalarm_s
 {
@@ -85,7 +85,7 @@ struct alm_setalarm_s
 };
 
 /****************************************************************************
- * Public Functions
+ * Public Functions Prototypes
  ****************************************************************************/
 
 #undef EXTERN
@@ -114,7 +114,7 @@ extern "C"
 
 int kinetis_rtc_setalarm(FAR const struct timespec *tp, alarmcb_t callback);
 
-/************************************************************************************
+/****************************************************************************
  * Name: kinetis_rtc_rdalarm
  *
  * Description:
@@ -126,7 +126,7 @@ int kinetis_rtc_setalarm(FAR const struct timespec *tp, alarmcb_t callback);
  * Returned Value:
  *   Zero (OK) on success; a negated errno on failure
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 int kinetis_rtc_rdalarm(FAR struct timespec *tp);
 

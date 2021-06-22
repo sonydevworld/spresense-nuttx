@@ -1,36 +1,25 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_sysctl.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
@@ -48,13 +37,34 @@
 #include "cxd56_icc.h"
 #include "cxd56_sysctl.h"
 
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
 #ifdef CONFIG_CXD56_SYSCTL_TIMEOUT
 #  define SYSCTL_TIMEOUT CONFIG_CXD56_SYSCTL_TIMEOUT
 #else
 #  define SYSCTL_TIMEOUT 5000
 #endif
 
-static int sysctl_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+/****************************************************************************
+ * Private Function Prototypes
+ ****************************************************************************/
+
+static int  sysctl_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
+static int  sysctl_semtake(sem_t *semid);
+static void sysctl_semgive(sem_t *semid);
+static int  sysctl_rxhandler(int cpuid, int protoid,
+                             uint32_t pdata, uint32_t data,
+                             FAR void *userdata);
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
 
 static sem_t g_exc;
 static sem_t g_sync;
@@ -65,6 +75,10 @@ static const struct file_operations g_sysctlfops =
   .ioctl = sysctl_ioctl,
 };
 
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
 static int sysctl_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   int ret = OK;
@@ -73,21 +87,17 @@ static int sysctl_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     {
       default:
         {
-          _err("cmd %x(%x)\n", cmd, arg);
+          _err("cmd %x(%lx)\n", cmd, arg);
           ret = cxd56_sysctlcmd(cmd & 0xff, arg);
-          if (ret)
-            {
-              set_errno(ret);
-            }
         }
     }
 
   return ret;
 }
 
-static void sysctl_semtake(sem_t *semid)
+static int sysctl_semtake(sem_t *semid)
 {
-  nxsem_wait_uninterruptible(semid);
+  return nxsem_wait_uninterruptible(semid);
 }
 
 static void sysctl_semgive(sem_t *semid)
@@ -109,6 +119,10 @@ static int sysctl_rxhandler(int cpuid, int protoid,
   return OK;
 }
 
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
 int cxd56_sysctlcmd(uint8_t id, uint32_t data)
 {
   iccmsg_t msg;
@@ -116,7 +130,11 @@ int cxd56_sysctlcmd(uint8_t id, uint32_t data)
 
   /* Get exclusive access */
 
-  sysctl_semtake(&g_exc);
+  ret = sysctl_semtake(&g_exc);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   msg.cpuid = 0;
   msg.msgid = id;
@@ -127,13 +145,19 @@ int cxd56_sysctlcmd(uint8_t id, uint32_t data)
   ret = cxd56_iccsend(CXD56_PROTO_SYSCTL, &msg, SYSCTL_TIMEOUT);
   if (ret < 0)
     {
+      sysctl_semgive(&g_exc);
       _err("Timeout.\n");
       return ret;
     }
 
   /* Wait for reply message from system CPU */
 
-  sysctl_semtake(&g_sync);
+  ret = sysctl_semtake(&g_sync);
+  if (ret < 0)
+    {
+      sysctl_semgive(&g_exc);
+      return ret;
+    }
 
   /* Get the error code returned from system cpu */
 
@@ -150,7 +174,7 @@ void cxd56_sysctlinitialize(void)
 
   nxsem_init(&g_exc, 0, 1);
   nxsem_init(&g_sync, 0, 0);
-  nxsem_setprotocol(&g_sync, SEM_PRIO_NONE);
+  nxsem_set_protocol(&g_sync, SEM_PRIO_NONE);
 
   cxd56_iccregisterhandler(CXD56_PROTO_SYSCTL, sysctl_rxhandler, NULL);
 

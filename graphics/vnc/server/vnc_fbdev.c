@@ -1,35 +1,20 @@
 /****************************************************************************
  * graphics/vnc/server/vnc_fbdev.c
  *
- *   Copyright (C) 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -77,7 +62,7 @@
 
 struct vnc_fbinfo_s
 {
-  /* The publically visible frame buffer interface.  This must appear first
+  /* The publicly visible frame buffer interface.  This must appear first
    * so that struct vnc_fbinfo_s is cast compatible with struct fb_vtable_s.
    */
 
@@ -121,8 +106,13 @@ static int up_putcmap(FAR struct fb_vtable_s *vtable,
 static int up_getcursor(FAR struct fb_vtable_s *vtable,
                         FAR struct fb_cursorattrib_s *attrib);
 static int up_setcursor(FAR struct fb_vtable_s *vtable,
-                        FAR struct fb_setcursor_s *setttings);
+                        FAR struct fb_setcursor_s *settings);
 #endif
+
+/* Update the host window when there is a change to the framebuffer */
+
+static int up_updateearea(FAR struct fb_vtable_s *vtable,
+                          FAR const struct fb_area_s *area);
 
 /****************************************************************************
  * Private Data
@@ -174,7 +164,8 @@ static int up_getvideoinfo(FAR struct fb_vtable_s *vtable,
   DEBUGASSERT(fbinfo != NULL && vinfo != NULL);
   if (fbinfo != NULL && vinfo != NULL)
     {
-      DEBUGASSERT(fbinfo->display >= 0 && fbinfo->display < RFB_MAX_DISPLAYS);
+      DEBUGASSERT(fbinfo->display >= 0 &&
+                  fbinfo->display < RFB_MAX_DISPLAYS);
       session = g_vnc_sessions[fbinfo->display];
 
       if (session == NULL || session->state != VNCSERVER_RUNNING)
@@ -215,7 +206,8 @@ static int up_getplaneinfo(FAR struct fb_vtable_s *vtable, int planeno,
   DEBUGASSERT(fbinfo != NULL && pinfo != NULL && planeno == 0);
   if (fbinfo != NULL && pinfo != NULL && planeno == 0)
     {
-      DEBUGASSERT(fbinfo->display >= 0 && fbinfo->display < RFB_MAX_DISPLAYS);
+      DEBUGASSERT(fbinfo->display >= 0 &&
+                  fbinfo->display < RFB_MAX_DISPLAYS);
       session = g_vnc_sessions[fbinfo->display];
 
       if (session == NULL || session->state != VNCSERVER_RUNNING)
@@ -262,7 +254,8 @@ static int up_getcmap(FAR struct fb_vtable_s *vtable,
 
   if (fbinfo != NULL && cmap != NULL)
     {
-      DEBUGASSERT(fbinfo->display >= 0 && fbinfo->display < RFB_MAX_DISPLAYS);
+      DEBUGASSERT(fbinfo->display >= 0 &&
+                  fbinfo->display < RFB_MAX_DISPLAYS);
       session = g_vnc_sessions[fbinfo->display];
 
       if (session == NULL || session->state != VNCSERVER_RUNNING)
@@ -287,7 +280,8 @@ static int up_getcmap(FAR struct fb_vtable_s *vtable,
  ****************************************************************************/
 
 #ifdef CONFIG_FB_CMAP
-static int up_putcmap(FAR struct fb_vtable_s *vtable, FAR const struct fb_cmap_s *cmap)
+static int up_putcmap(FAR struct fb_vtable_s *vtable,
+                      FAR const struct fb_cmap_s *cmap)
 {
   FAR struct vnc_fbinfo_s *fbinfo = (FAR struct vnc_fbinfo_s *)vtable;
   FAR struct vnc_session_s *session;
@@ -299,7 +293,8 @@ static int up_putcmap(FAR struct fb_vtable_s *vtable, FAR const struct fb_cmap_s
 
   if (fbinfo != NULL && cmap != NULL)
     {
-      DEBUGASSERT(fbinfo->display >= 0 && fbinfo->display < RFB_MAX_DISPLAYS);
+      DEBUGASSERT(fbinfo->display >= 0 &&
+                  fbinfo->display < RFB_MAX_DISPLAYS);
       session = g_vnc_sessions[fbinfo->display];
 
       if (session == NULL || session->state != VNCSERVER_RUNNING)
@@ -337,7 +332,8 @@ static int up_getcursor(FAR struct fb_vtable_s *vtable,
 
   if (fbinfo != NULL && attrib != NULL)
     {
-      DEBUGASSERT(fbinfo->display >= 0 && fbinfo->display < RFB_MAX_DISPLAYS);
+      DEBUGASSERT(fbinfo->display >= 0 &&
+                  fbinfo->display < RFB_MAX_DISPLAYS);
       session = g_vnc_sessions[fbinfo->display];
 
       if (session == NULL || session->state != VNCSERVER_RUNNING)
@@ -374,7 +370,8 @@ static int up_setcursor(FAR struct fb_vtable_s *vtable,
 
   if (fbinfo != NULL && settings != NULL)
     {
-      DEBUGASSERT(fbinfo->display >= 0 && fbinfo->display < RFB_MAX_DISPLAYS);
+      DEBUGASSERT(fbinfo->display >= 0 &&
+                  fbinfo->display < RFB_MAX_DISPLAYS);
       session = g_vnc_sessions[fbinfo->display];
 
       if (session == NULL || session->state != VNCSERVER_RUNNING)
@@ -395,12 +392,14 @@ static int up_setcursor(FAR struct fb_vtable_s *vtable,
 #warning Missing logic
         }
 #endif
+
 #ifdef CONFIG_FB_HWCURSORIMAGE
       if ((settings->flags & FB_CUR_SETIMAGE) != 0)
         {
 #warning Missing logic
         }
 #endif
+
       return OK;
     }
 
@@ -408,6 +407,44 @@ static int up_setcursor(FAR struct fb_vtable_s *vtable,
   return -EINVAL;
 }
 #endif
+
+/****************************************************************************
+ * Name: up_updateearea
+ ****************************************************************************/
+
+static int up_updateearea(FAR struct fb_vtable_s *vtable,
+                          FAR const struct fb_area_s *area)
+{
+  FAR struct vnc_fbinfo_s *fbinfo = (FAR struct vnc_fbinfo_s *)vtable;
+  FAR struct vnc_session_s *session;
+  struct nxgl_rect_s rect;
+  int ret = OK;
+
+  DEBUGASSERT(fbinfo != NULL && area != NULL);
+
+  /* Recover the session information from the display number in the planeinfo
+   * structure.
+   */
+
+  DEBUGASSERT(fbinfo->display >= 0 && fbinfo->display < RFB_MAX_DISPLAYS);
+  session = g_vnc_sessions[fbinfo->display];
+
+  /* Verify that the session is still valid */
+
+  if (session != NULL && session->state == VNCSERVER_RUNNING)
+    {
+      /* Queue the rectangular update */
+
+      nxgl_area2rect(&rect, area);
+      ret = vnc_update_rectangle(session, &rect, true);
+      if (ret < 0)
+        {
+          gerr("ERROR: vnc_update_rectangle failed: %d\n", ret);
+        }
+    }
+
+  return ret;
+}
 
 /****************************************************************************
  * Name: vnc_start_server
@@ -485,17 +522,19 @@ static int vnc_start_server(int display)
 
 static inline int vnc_wait_start(int display)
 {
+  int ret;
+
   /* Check if there has been a session allocated yet.  This is one of the
    * first things that the VNC server will do with the kernel thread is
    * started.  But we might be here before the thread has gotten that far.
    *
    * If it has been allocated, then wait until it is in the INIITIALIZED
-   * state.  The INITIAILIZED states indicates tht the session structure
+   * state.  The INITIAILIZED states indicates that the session structure
    * has been allocated and fully initialized.
    */
 
- while (g_vnc_sessions[display] == NULL ||
-        g_vnc_sessions[display]->state == VNCSERVER_UNINITIALIZED)
+  while (g_vnc_sessions[display] == NULL ||
+         g_vnc_sessions[display]->state == VNCSERVER_UNINITIALIZED)
     {
       /* The server is not yet running.  Wait for the server to post the FB
        * semaphore.  In certain error situations, the server may post the
@@ -503,7 +542,11 @@ static inline int vnc_wait_start(int display)
        * conditions here, but I think none that are fatal.
        */
 
-      nxsem_wait_uninterruptible(&g_fbstartup[display].fbinit);
+      ret = nxsem_wait_uninterruptible(&g_fbstartup[display].fbinit);
+      if (ret < 0)
+        {
+          return ret;
+        }
     }
 
   return OK;
@@ -542,8 +585,8 @@ static inline int vnc_wait_connect(int display)
    * messages and to perform remote framebuffer updates.
    */
 
- while (g_vnc_sessions[display] == NULL ||
-        g_vnc_sessions[display]->state != VNCSERVER_RUNNING)
+  while (g_vnc_sessions[display] == NULL ||
+         g_vnc_sessions[display]->state != VNCSERVER_RUNNING)
     {
       /* The server is not yet running.  Wait for the server to post the FB
        * semaphore.  In certain error situations, the server may post the
@@ -574,9 +617,11 @@ static inline int vnc_wait_connect(int display)
           else
             {
               DEBUGASSERT(g_vnc_sessions[display] != NULL &&
-                          g_vnc_sessions[display]->state == VNCSERVER_RUNNING);
+                          g_vnc_sessions[display]->state ==
+                          VNCSERVER_RUNNING);
             }
 #endif
+
           return ret;
         }
     }
@@ -636,7 +681,7 @@ int up_fbinitialize(int display)
  * Description:
  *   Initialize the VNC frame buffer driver.  The VNC frame buffer driver
  *   supports two initialization interfaces:  The standard up_fbinitialize()
- *   that will be called from the graphics layer and this speical
+ *   that will be called from the graphics layer and this special
  *   initialization function that can be used only by VNC aware OS logic.
  *
  *   The two initialization functions may be called separated or together in
@@ -726,7 +771,8 @@ int vnc_fbinitialize(int display, vnc_kbdout_t kbdout,
  *
  * Description:
  *   Return a a reference to the framebuffer object for the specified video
- *   plane of the specified plane.  Many OSDs support multiple planes of video.
+ *   plane of the specified plane.  Many OSDs support multiple planes of
+ *   video.
  *
  * Input Parameters:
  *   display - In the case of hardware with multiple displays, this
@@ -771,6 +817,7 @@ FAR struct fb_vtable_s *up_fbgetvplane(int display, int vplane)
           fbinfo->vtable.getcursor    = up_getcursor,
           fbinfo->vtable.setcursor    = up_setcursor,
 #endif
+          fbinfo->vtable.updatearea   = up_updateearea,
           fbinfo->display             = display;
           fbinfo->initialized         = true;
         }
@@ -818,55 +865,3 @@ void up_fbuninitialize(int display)
     }
 #endif
 }
-
-/****************************************************************************
- * Name: nx_notify_rectangle
- *
- * Description:
- *   When CONFIG_NX_UPDATE=y, then the graphics system will callout to
- *   inform some external module that the display has been updated.  This
- *   would be useful in a couple for cases.
- *
- *   - When a serial LCD is used, but a framebuffer is used to access the
- *     LCD.  In this case, the update callout can be used to refresh the
- *     affected region of the display.
- *
- *   - When VNC is enabled.  This is case, this callout is necessary to
- *     update the remote frame buffer to match the local framebuffer.
- *
- * When this feature is enabled, some external logic must provide this
- * interface.  This is the function that will handle the notification.  It
- * receives the rectangular region that was updated on the provided plane.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_NX_UPDATE
-void nx_notify_rectangle(FAR NX_PLANEINFOTYPE *pinfo,
-                         FAR const struct nxgl_rect_s *rect)
-{
-  FAR struct vnc_session_s *session;
-  int ret;
-
-  DEBUGASSERT(pinfo != NULL && rect != NULL);
-
-  /* Recover the session information from the display number in the planeinfo
-   * structure.
-   */
-
-  DEBUGASSERT(pinfo->display >= 0 && pinfo->display < RFB_MAX_DISPLAYS);
-  session = g_vnc_sessions[pinfo->display];
-
-  /* Verify that the session is still valid */
-
-  if (session != NULL && session->state == VNCSERVER_RUNNING)
-    {
-      /* Queue the rectangular update */
-
-      ret = vnc_update_rectangle(session, rect, true);
-      if (ret < 0)
-        {
-          gerr("ERROR: vnc_update_rectangle failed: %d\n", ret);
-        }
-    }
-}
-#endif

@@ -1,36 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32/stm32f4discovery/src/stm32f4discovery.h
  *
- *   Copyright (C) 2011-2012, 2015-2016, 2018-2019 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,11 +35,6 @@
  ****************************************************************************/
 
 /* Configuration ************************************************************/
-
-/* Define what timer and channel to use as XEN1210 CLK */
-
-#define XEN1210_PWMTIMER   1
-#define XEN1210_PWMCHANNEL 1
 
 /* How many SPI modules does this chip support? */
 
@@ -89,14 +68,12 @@
 #ifndef CONFIG_STM32_OTGFS
 #  undef HAVE_USBDEV
 #  undef HAVE_USBHOST
-#  undef HAVE_USBMONITOR
 #endif
 
-/* Can't support USB device monitor if USB device is not enabled */
+/* Can't support USB device if USB device is not enabled */
 
 #ifndef CONFIG_USBDEV
 #  undef HAVE_USBDEV
-#  undef HAVE_USBMONITOR
 #endif
 
 /* Can't support USB host is USB host is not enabled */
@@ -107,12 +84,24 @@
 
 /* Check if we should enable the USB monitor before starting NSH */
 
-#if !defined(CONFIG_USBDEV_TRACE) || !defined(CONFIG_USBMONITOR)
+#ifndef CONFIG_USBMONITOR
 #  undef HAVE_USBMONITOR
 #endif
 
-/* Can't support MMC/SD features if mountpoints are disabled or if SDIO support
- * is not enabled.
+#ifndef HAVE_USBDEV
+#  undef CONFIG_USBDEV_TRACE
+#endif
+
+#ifndef HAVE_USBHOST
+#  undef CONFIG_USBHOST_TRACE
+#endif
+
+#if !defined(CONFIG_USBDEV_TRACE) && !defined(CONFIG_USBHOST_TRACE)
+#  undef HAVE_USBMONITOR
+#endif
+
+/* Can't support MMC/SD features if mountpoints are disabled or if SDIO
+ * support is not enabled.
  */
 
 #if defined(CONFIG_DISABLE_MOUNTPOINT) || !defined(CONFIG_STM32_SDIO)
@@ -195,7 +184,7 @@
 #  endif
 #endif
 
-/* Check if we have the prequisites for an HCI UART */
+/* Check if we have the prerequisites for an HCI UART */
 
 #if !defined(CONFIG_STM32_HCIUART) || !defined(CONFIG_BLUETOOTH_UART)
 #  undef HAVE_HCIUART
@@ -236,16 +225,19 @@
 
 #define GPIO_BTN_USER   (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTA|GPIO_PIN0)
 
-/* ZERO CROSS pin definition */
-
-#define GPIO_ZEROCROSS  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTD|GPIO_PIN0)
-
 #define GPIO_CS43L22_RESET  (GPIO_OUTPUT|GPIO_SPEED_50MHz|GPIO_PORTD|GPIO_PIN4)
+
+/* LoRa SX127x */
+
+#define GPIO_SX127X_DIO0    (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTD|GPIO_PIN0)
+
+#define GPIO_SX127X_RESET   (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_OUTPUT_CLEAR|\
+                             GPIO_SPEED_50MHz|GPIO_PORTD|GPIO_PIN4)
 
 /* PWM
  *
- * The STM32F4 Discovery has no real on-board PWM devices, but the board can be
- * configured to output a pulse train using TIM4 CH2 on PD13.
+ * The STM32F4 Discovery has no real on-board PWM devices, but the board can
+ * be configured to output a pulse train using TIM4 CH2 on PD13.
  */
 
 #define STM32F4DISCOVERY_PWMTIMER   4
@@ -262,19 +254,23 @@
 #define GPIO_MAX6675_CS   (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|\
                            GPIO_OUTPUT_SET|GPIO_PORTD|GPIO_PIN8)
 
+#define GPIO_SX127X_CS    (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|\
+                           GPIO_OUTPUT_SET|GPIO_PORTD|GPIO_PIN8)
+
 #define GPIO_MAX7219_CS   (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|\
                            GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN3)
 
 #define GPIO_GS2200M_CS   (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|\
                            GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN5)
 
-/* XEN1210 magnetic sensor */
+#define GPIO_ENC28J60_CS    (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|\
+                             GPIO_OUTPUT_SET|GPIO_PORTA|GPIO_PIN4)
 
-#define GPIO_XEN1210_INT  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|\
-                           GPIO_OPENDRAIN|GPIO_PORTA|GPIO_PIN5)
+#define GPIO_ENC28J60_RESET (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|\
+                             GPIO_OUTPUT_CLEAR|GPIO_PORTE|GPIO_PIN1)
 
-#define GPIO_CS_XEN1210   (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|\
-                           GPIO_OUTPUT_SET|GPIO_PORTA|GPIO_PIN4)
+#define GPIO_ENC28J60_INTR  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|\
+                             GPIO_OPENDRAIN|GPIO_PORTE|GPIO_PIN4)
 
 /* USB OTG FS
  *
@@ -310,8 +306,8 @@
  * 7  A0|D/C     | 9 A0|D/C  | P2 PB8 (Arbitrary selection)
  * 9  LED+ (N/C) | -----     | -----
  * 2  5V Vcc     | 1,2 Vcc   | P2 5V
- * 4  DI         | 18 D1/SI  | P1 PA7 (GPIO_SPI1_MOSI == GPIO_SPI1_MOSI_1 (1))
- * 6  SCLK       | 19 D0/SCL | P1 PA5 (GPIO_SPI1_SCK == GPIO_SPI1_SCK_1 (1))
+ * 4  DI         | 18 D1/SI  | P1 PA7 (GPIO_SPI1_MOSI == GPIO_SPI1_MOSI_1(1))
+ * 6  SCLK       | 19 D0/SCL | P1 PA5 (GPIO_SPI1_SCK == GPIO_SPI1_SCK_1(1))
  * 8  LED- (N/C) | -----     | ------
  * 10 GND        | 20 GND    | P2 GND
  * --------------+-----------+----------------------------------------------
@@ -391,13 +387,13 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Public data
+ * Public Data
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
@@ -436,7 +432,7 @@ void weak_function stm32_spidev_initialize(void);
  *
  ****************************************************************************/
 
-FAR struct i2s_dev_s *stm32_i2sdev_initialize(int port);
+void weak_function stm32_i2sdev_initialize(void);
 
 /****************************************************************************
  * Name: stm32_bh1750initialize
@@ -452,29 +448,14 @@ int stm32_bh1750initialize(FAR const char *devpath);
 #endif
 
 /****************************************************************************
- * Name: stm32_bmp180initialize
+ * Name: stm32_lpwaninitialize
  *
  * Description:
- *   Called to configure an I2C and to register BMP180 for the
- *   stm32f4discovery board.
- *
+ *   Initialize SX127X LPWAN interaface.
  ****************************************************************************/
 
-#ifdef CONFIG_SENSORS_BMP180
-int stm32_bmp180initialize(FAR const char *devpath);
-#endif
-
-/****************************************************************************
- * Name: stm32_lis3dshinitialize
- *
- * Description:
- *   Called to configure SPI 1, and to register LIS3DSH and its external
- *   interrupt for the stm32f4discovery board.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_STM32F4DISCO_LIS3DSH
-int stm32_lis3dshinitialize(FAR const char *devpath);
+#ifdef CONFIG_LPWAN_SX127X
+int stm32_lpwaninitialize(void);
 #endif
 
 /****************************************************************************
@@ -674,18 +655,6 @@ void weak_function stm32_netinitialize(void);
 #endif
 
 /****************************************************************************
- * Name: stm32_qencoder_initialize
- *
- * Description:
- *   Initialize and register a qencoder
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_QENCODER
-int stm32_qencoder_initialize(FAR const char *devpath, int timer);
-#endif
-
-/****************************************************************************
  * Name: stm32_zerocross_initialize
  *
  * Description:
@@ -722,8 +691,8 @@ int stm32_max31855initialize(FAR const char *devpath, int bus,
  * Name: stm32_mlx90614init
  *
  * Description:
- *   Called to configure an I2C and to register MLX90614 for the stm32f103-minimum
- *   board.
+ *   Called to configure an I2C and to register MLX90614 for the
+ *   stm32f103-minimum board.
  *
  ****************************************************************************/
 

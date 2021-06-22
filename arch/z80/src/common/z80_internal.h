@@ -1,36 +1,20 @@
 /****************************************************************************
  * arch/z80/src/common/z80_internal.h
  *
- *   Copyright (C) 2007-2009, 2015, 2017-2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -57,27 +41,10 @@
  * assumed.
  */
 
-#if defined(CONFIG_DEV_LOWCONSOLE)
-#  undef USE_SERIALDRIVER
-#  ifdef CONFIG_HAVE_LOWSERIALINIT
-#    define USE_LOWSERIALINIT 1
-#  else
-#    undef USE_LOWSERIALINIT
-#  endif
-#elif !defined(CONFIG_DEV_CONSOLE)
+#if !defined(CONFIG_DEV_CONSOLE)
 #  undef  USE_SERIALDRIVER
-#  undef  USE_LOWSERIALINIT
-#  undef  CONFIG_DEV_LOWCONSOLE
-#  undef  CONFIG_RAMLOG_CONSOLE
 #else
-#  undef  USE_LOWSERIALINIT
-#  if defined(CONFIG_RAMLOG_CONSOLE)
-#    undef  USE_SERIALDRIVER
-#    undef  CONFIG_DEV_LOWCONSOLE
-#  elif defined(CONFIG_CONSOLE_SYSLOG)
-#    undef  USE_SERIALDRIVER
-#    undef  CONFIG_DEV_LOWCONSOLE
-#  elif defined(CONFIG_DEV_LOWCONSOLE)
+#  if defined(CONFIG_CONSOLE_SYSLOG)
 #    undef  USE_SERIALDRIVER
 #  else
 #    define USE_SERIALDRIVER 1
@@ -104,18 +71,6 @@ extern "C"
 {
 #endif
 
-/* Supplied by chip- or board-specific logic */
-
-void z80_irq_initialize(void);
-
-#ifdef CONFIG_RTC_ALARM
-void z80_rtc_irqinitialize(void);
-#endif
-
-#ifdef USE_LOWSERIALINIT
-void z80_lowserial_initialize(void);
-#endif
-
 /* Defined in xyz_doirq.c */
 
 FAR chipreg_t *z80_doirq(uint8_t irq, FAR chipreg_t *regs);
@@ -135,7 +90,7 @@ int z80_mmu_initialize(void);
 #ifdef USE_SERIALDRIVER
 void z80_serial_initialize(void);
 #else
-# define z80_serial_initialize()
+#  define z80_serial_initialize()
 #endif
 
 #ifdef CONFIG_RPMSG_UART
@@ -144,37 +99,9 @@ void rpmsg_serialinit(void);
 #  define rpmsg_serialinit()
 #endif
 
-/* Defined in drivers/lowconsole.c */
-
-#ifdef CONFIG_DEV_LOWCONSOLE
-void lowconsole_init(void);
-#else
-# define lowconsole_init()
-#endif
-
-/* Defined in drivers/syslog_console.c */
-
-#ifdef CONFIG_CONSOLE_SYSLOG
-void syslog_console_init();
-#else
-# define syslog_console_init()
-#endif
-
-/* Defined in drivers/ramlog.c */
-
-#ifdef CONFIG_RAMLOG_CONSOLE
-void ramlog_consoleinit(void);
-#else
-# define ramlog_consoleinit()
-#endif
-
 /* Low level string output */
 
 void up_puts(const char *str);
-
-/* Defined in xyz_timerisr.c */
-
-void z80_timer_initialize(void);
 
 /* Architecture specific hook into the timer interrupt handler */
 
@@ -188,7 +115,8 @@ void up_timerhook(void);
 int  up_netinitialize(void);
 void up_netuninitialize(void);
 # ifdef CONFIG_ARCH_MCFILTER
-int up_multicastfilter(FAR struct net_driver_s *dev, FAR uint8_t *mac, bool enable);
+int up_multicastfilter(FAR struct net_driver_s *dev, FAR uint8_t *mac,
+                       bool enable);
 # else
 #   define up_multicastfilter(dev, mac, enable)
 # endif
@@ -217,4 +145,4 @@ void up_stackdump(void);
 #endif
 #endif
 
-#endif  /* __ARCH_Z80_SRC_COMMON_Z80_INTERNAL_H */
+#endif /* __ARCH_Z80_SRC_COMMON_Z80_INTERNAL_H */

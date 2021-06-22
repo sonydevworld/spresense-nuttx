@@ -34,6 +34,10 @@
  *
  ****************************************************************************/
 
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
 #include <stdio.h>
 #include <stdint.h>
 #include <nuttx/irq.h>
@@ -41,10 +45,10 @@
 #include <arch/board/board.h>
 
 #include "arm.h"
-#include "up_arch.h"
+#include "arm_arch.h"
 
 /****************************************************************************
- * {re-processor Definitions
+ * Pre-processor Definitions
  ****************************************************************************/
 
 #define TM1_ADDR  0x98400000
@@ -59,7 +63,7 @@ enum timer_reg
   CNTL_TIMER       = 0x30,
   LOAD_TIMER       = 0x04,
   MATCH1_TIMER     = 0x08,
-  MATCH2_TIMER     = 0x0C,
+  MATCH2_TIMER     = 0x0c,
   INTR_STATE_TIMER = 0x34,
   INTR_MASK_TIMER  = 0x38,
 };
@@ -121,7 +125,7 @@ static int moxart_timerisr(int irq, uint32_t *regs, void *arg)
  ****************************************************************************/
 
 /****************************************************************************
- * Function:  arm_timer_initialize
+ * Function:  up_timer_initialize
  *
  * Description:
  *   Setup MoxaRT timer 0 to cause system ticks.
@@ -131,11 +135,12 @@ static int moxart_timerisr(int irq, uint32_t *regs, void *arg)
  *
  ****************************************************************************/
 
-void arm_timer_initialize(void)
+void up_timer_initialize(void)
 {
   uint32_t tmp;
 
-//  up_disable_irq(IRQ_SYSTIMER);
+  /* up_disable_irq(IRQ_SYSTIMER); */
+
   putreg32(0, TM1_ADDR + CNTL_TIMER);
   putreg32(0, TM1_ADDR + INTR_STATE_TIMER);
   putreg32(0x1ff, TM1_ADDR + INTR_MASK_TIMER);

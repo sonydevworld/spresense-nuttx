@@ -1,35 +1,20 @@
 /****************************************************************************
  * include/nuttx/input/djoystick.h
  *
- *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -63,13 +48,15 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
 
-#ifndef CONFIG_DJOYSTICK_NPOLLWAITERS
-#  define CONFIG_DJOYSTICK_NPOLLWAITERS 2
+#ifndef CONFIG_INPUT_DJOYSTICK_NPOLLWAITERS
+#  define CONFIG_INPUT_DJOYSTICK_NPOLLWAITERS 2
 #endif
 
 /* Joystick Interface *******************************************************/
+
 /* These definitions provide the meaning of all of the bits that may be
  * reported in the djoy_buttonset_t bitset.
  */
@@ -114,8 +101,8 @@
  * seek() methods.  The remaining driver methods behave as follows:
  *
  * 1) The read() method will always return a single value of size
- *    djoy_buttonset_t represent the current state of the joystick buttons.
- *    read() never blocks.
+ *    djoy_buttonset_t that represents the current state of the joystick
+ *    buttons.  read() never blocks.
  * 2) The poll() method can be used to notify a client if there is a change
  *    in any of the joystick discrete inputs.  This feature, of course,
  *    depends upon interrupt GPIO support from the platform.  NOTE: that
@@ -140,7 +127,8 @@
  * Description: Specify the set of button events that can cause a poll()
  *              to awaken.  The default is all button depressions and all
  *              button releases (all supported buttons);
- * Argument:    A read-only pointer to an instance of struct djoy_pollevents_s
+ * Argument:    A read-only pointer to an instance of struct
+ *              djoy_pollevents_s
  * Return:      Zero (OK) on success.  Minus one will be returned on failure
  *              with the errno value set appropriately.
  */
@@ -162,15 +150,16 @@
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
 /* This type is a bit set that contains the state of all discrete joystick
  * buttons.
  */
 
 typedef uint8_t djoy_buttonset_t;
 
-/* A reference to this structure is provided with the DJOYIOC_POLLEVENTS IOCTL
- * command and describes the conditions under which the client would like
- * to receive notification.
+/* A reference to this structure is provided with the DJOYIOC_POLLEVENTS
+ * IOCTL command and describes the conditions under which the client would
+ * like to receive notification.
  */
 
 struct djoy_pollevents_s
@@ -216,19 +205,27 @@ struct djoy_lowerhalf_s
 {
   /* Return the set of buttons supported on the discrete joystick device */
 
-  CODE djoy_buttonset_t (*dl_supported)(FAR const struct djoy_lowerhalf_s *lower);
+  CODE djoy_buttonset_t (*dl_supported)
+    (FAR const struct djoy_lowerhalf_s *lower);
 
   /* Return the current state of all discrete joystick buttons */
 
-  CODE djoy_buttonset_t (*dl_sample)(FAR const struct djoy_lowerhalf_s *lower);
+  CODE djoy_buttonset_t (*dl_sample)
+    (FAR const struct djoy_lowerhalf_s *lower);
 
-  /* Enable interrupts on the selected set of joystick buttons.  And empty
+  /* Enable interrupts on the selected set of joystick buttons.  An empty
    * set will disable all interrupts.
    */
 
   CODE void (*dl_enable)(FAR const struct djoy_lowerhalf_s *lower,
                          djoy_buttonset_t press, djoy_buttonset_t release,
                          djoy_interrupt_t handler, FAR void *arg);
+
+  /* Allow for storing implementation specific data to support cases where
+   * their may be more than one joystick
+   */
+
+  FAR void *config;
 };
 
 /****************************************************************************

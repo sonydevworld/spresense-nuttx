@@ -1,35 +1,20 @@
 /****************************************************************************
  * include/nuttx/tls.h
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -44,38 +29,36 @@
 
 #include <sys/types.h>
 
-#ifdef CONFIG_TLS
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
 
-#ifndef CONFIG_TLS_LOG2_MAXSTACK
-#  error CONFIG_TLS_LOG2_MAXSTACK is not defined
+#ifdef CONFIG_TLS_ALIGNED
+#  ifndef CONFIG_TLS_LOG2_MAXSTACK
+#    error CONFIG_TLS_LOG2_MAXSTACK is not defined
+#  endif
 #endif
 
 #ifndef CONFIG_TLS_NELEM
 #  warning CONFIG_TLS_NELEM is not defined
-#  define CONFIG_TLS_NELEM 1
-#endif
-
-#if CONFIG_TLS_NELEM < 1
-#  error CONFIG_TLS_NELEM must be at least one
-#  undef CONFIG_TLS_NELEM
-#  define CONFIG_TLS_NELEM 1
+#  define CONFIG_TLS_NELEM 0
 #endif
 
 /* TLS Definitions **********************************************************/
 
-#define TLS_STACK_ALIGN   (1L << CONFIG_TLS_LOG2_MAXSTACK)
-#define TLS_STACK_MASK    (TLS_STACK_ALIGN - 1)
-#define TLS_MAXSTACK      (TLS_STACK_ALIGN)
-#define TLS_INFO(sp)      ((FAR struct tls_info_s *)((sp) & ~TLS_STACK_MASK))
+#ifdef CONFIG_TLS_ALIGNED
+#  define TLS_STACK_ALIGN  (1L << CONFIG_TLS_LOG2_MAXSTACK)
+#  define TLS_STACK_MASK   (TLS_STACK_ALIGN - 1)
+#  define TLS_MAXSTACK     (TLS_STACK_ALIGN)
+#  define TLS_INFO(sp)     ((FAR struct tls_info_s *)((sp) & ~TLS_STACK_MASK))
+#endif
 
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
 /* When TLS is enabled, up_createstack() will align allocated stacks to the
  * TLS_STACK_ALIGN value.  An instance of the following structure will be
  * implicitly positioned at the "lower" end of the stack.  Assuming a
@@ -92,7 +75,11 @@
 
 struct tls_info_s
 {
+#if CONFIG_TLS_NELEM > 0
   uintptr_t tl_elem[CONFIG_TLS_NELEM]; /* TLS elements */
+#endif
+  FAR struct libvars_s *tl_libvars;    /* Task-specific C library data */
+  int tl_errno;                        /* Per-thread error number */
 };
 
 /****************************************************************************
@@ -100,41 +87,106 @@ struct tls_info_s
  ****************************************************************************/
 
 /****************************************************************************
- * Name: tls_get_element
+ * Name: tls_alloc
  *
  * Description:
- *   Return an the TLS element associated with the 'elem' index
+ *   Allocate a group-unique TLS data index
  *
  * Input Parameters:
- *   elem - Index of TLS element to return
+ *   None
  *
  * Returned Value:
- *   The value of TLS element associated with 'elem'. Errors are not reported.
- *   Aero is returned in the event of an error, but zero may also be valid
- *   value and returned when there is no error.  The only possible error would
- *   be if elemn < 0 or elem >=CONFIG_TLS_NELEM.
+ *   A TLS index that is unique for use within this task group.
  *
  ****************************************************************************/
 
-uintptr_t tls_get_element(int elem);
+#if CONFIG_TLS_NELEM > 0
+int tls_alloc(void);
+#endif
 
 /****************************************************************************
- * Name: tls_get_element
+ * Name: tls_free
  *
  * Description:
- *   Set the TLS element associated with the 'elem' index to 'value'
+ *   Release a group-unique TLS data index previous obtained by tls_alloc()
  *
  * Input Parameters:
- *   elem  - Index of TLS element to set
- *   value - The new value of the TLS element
+ *   tlsindex - The previously allocated TLS index to be freed
  *
  * Returned Value:
- *   None.  Errors are not reported.  The only possible error would be if
- *   elem < 0 or elem >=CONFIG_TLS_NELEM.
+ *   OK is returned on success; a negated errno value will be returned on
+ *   failure:
+ *
+ *     -EINVAL - the index to be freed is out of range.
  *
  ****************************************************************************/
 
-void tls_set_element(int elem, uintptr_t value);
+#if CONFIG_TLS_NELEM > 0
+int tls_free(int tlsindex);
+#endif
 
-#endif /* CONFIG_TLS */
+/****************************************************************************
+ * Name: tls_get_value
+ *
+ * Description:
+ *   Return an the TLS data value associated with the 'tlsindx'
+ *
+ * Input Parameters:
+ *   tlsindex - Index of TLS data element to return
+ *
+ * Returned Value:
+ *   The value of TLS element associated with 'tlsindex'. Errors are not
+ *   reported.  Zero is returned in the event of an error, but zero may also
+ *   be valid value and returned when there is no error.  The only possible
+ *   error would be if tlsindex < 0 or tlsindex >=CONFIG_TLS_NELEM.
+ *
+ ****************************************************************************/
+
+#if CONFIG_TLS_NELEM > 0
+uintptr_t tls_get_value(int tlsindex);
+#endif
+
+/****************************************************************************
+ * Name: tls_set_value
+ *
+ * Description:
+ *   Set the TLS element associated with the 'tlsindex' to 'tlsvalue'
+ *
+ * Input Parameters:
+ *   tlsindex - Index of TLS data element to set
+ *   tlsvalue - The new value of the TLS data element
+ *
+ * Returned Value:
+ *   Zero is returned on success, a negated errno value is return on
+ *   failure:
+ *
+ *     EINVAL - tlsindex is not in range.
+ *
+ ****************************************************************************/
+
+#if CONFIG_TLS_NELEM > 0
+int tls_set_value(int tlsindex, uintptr_t tlsvalue);
+#endif
+
+/****************************************************************************
+ * Name: tls_get_info
+ *
+ * Description:
+ *   Return a reference to the tls_info_s structure.  This is used as part
+ *   of the internal implementation of tls_get/set_elem() and ONLY for the
+ *   where CONFIG_TLS_ALIGNED is *not* defined
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   A reference to the thread-specific tls_info_s structure is return on
+ *   success.  NULL would be returned in the event of any failure.
+ *
+ ****************************************************************************/
+
+#ifndef CONFIG_TLS_ALIGNED
+FAR struct tls_info_s *tls_get_info(void);
+#endif
+
 #endif /* __INCLUDE_NUTTX_TLS_H */

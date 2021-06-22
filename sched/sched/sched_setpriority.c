@@ -1,36 +1,20 @@
 /****************************************************************************
  * sched/sched/sched_setpriority.c
  *
- *   Copyright (C) 2009, 2013, 2016, 2018-2019 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -84,7 +68,7 @@ static FAR struct tcb_s *nxsched_nexttcb(FAR struct tcb_s *tcb)
    * then use the 'nxttcb' which will probably be the IDLE thread.
    */
 
-  if (!sched_islocked_global() && !irq_cpu_locked(cpu))
+  if (!nxsched_islocked_global() && !irq_cpu_locked(cpu))
     {
       /* Search for the highest priority task that can run on this CPU. */
 
@@ -197,13 +181,14 @@ static void nxsched_readytorun_setpriority(FAR struct tcb_s *tcb,
   int cpu;
 
   /* CASE 2a. The task is ready-to-run (but not running) but not assigned to
-   * a CPU. An increase in priority could cause a context switch may be caused
-   * by the re-prioritization.  The task is not assigned and may run on any CPU.
+   * a CPU. An increase in priority could cause a context switch may be
+   * caused by the re-prioritization.  The task is not assigned and may run
+   * on any CPU.
    */
 
   if (tcb->task_state == TSTATE_TASK_READYTORUN)
     {
-      cpu = sched_cpu_select(tcb->affinity);
+      cpu = nxsched_select_cpu(tcb->affinity);
     }
 
   /* CASE 2b.  The task is ready to run, and assigned to a CPU.  An increase
@@ -251,7 +236,7 @@ static void nxsched_readytorun_setpriority(FAR struct tcb_s *tcb,
        * It should not be at the head of the list.
        */
 
-      bool check = sched_removereadytorun(tcb);
+      bool check = nxsched_remove_readytorun(tcb);
       DEBUGASSERT(check == false);
       UNUSED(check);
 
@@ -263,7 +248,7 @@ static void nxsched_readytorun_setpriority(FAR struct tcb_s *tcb,
        * end up at the head of the list.
        */
 
-      check = sched_addreadytorun(tcb);
+      check = nxsched_add_readytorun(tcb);
       DEBUGASSERT(check == false);
       UNUSED(check);
     }
@@ -306,7 +291,7 @@ static inline void nxsched_blocked_setpriority(FAR struct tcb_s *tcb,
 
       /* Put it back into the prioritized list at the correct position. */
 
-      sched_addprioritized(tcb, tasklist);
+      nxsched_add_prioritized(tcb, tasklist);
     }
 
   /* CASE 3b. The task resides in a non-prioritized list. */
@@ -324,7 +309,7 @@ static inline void nxsched_blocked_setpriority(FAR struct tcb_s *tcb,
  ****************************************************************************/
 
 /****************************************************************************
- * Name:  nxsched_setpriority
+ * Name:  nxsched_set_priority
  *
  * Description:
  *   This function sets the priority of a specified task.
@@ -338,7 +323,7 @@ static inline void nxsched_blocked_setpriority(FAR struct tcb_s *tcb,
  *   sched_priority - The new task priority
  *
  * Returned Value:
- *   On success, nxsched_setpriority() returns 0 (OK). On error, a negated
+ *   On success, nxsched_set_priority() returns 0 (OK). On error, a negated
  *   errno value is returned.
  *
  *  EINVAL The parameter 'param' is invalid or does not make sense for the
@@ -348,7 +333,7 @@ static inline void nxsched_blocked_setpriority(FAR struct tcb_s *tcb,
  *
  ****************************************************************************/
 
-int nxsched_setpriority(FAR struct tcb_s *tcb, int sched_priority)
+int nxsched_set_priority(FAR struct tcb_s *tcb, int sched_priority)
 {
   irqstate_t flags;
 

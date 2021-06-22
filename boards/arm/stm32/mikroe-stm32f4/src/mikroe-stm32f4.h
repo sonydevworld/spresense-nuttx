@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32/mikroe-stm32f4/src/mikroe-stm32f4.h
  *
- *   Copyright (C) 2011-2013, 2016, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,7 +32,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-/* Configuration ****************************************************************************/
+
+/* Configuration ************************************************************/
+
 /* How many SPI modules does this chip support? */
 
 #if STM32_NSPI < 1
@@ -61,13 +48,15 @@
 #  undef CONFIG_STM32_SPI3
 #endif
 
-/* Mikroe STM32F4 GPIOs **************************************************************************/
-/* LEDs - There are no user LEDs on this board unless you add some manually. */
+/* Mikroe STM32F4 GPIOs *****************************************************/
+
+/* LEDs - There are no user LEDs on this board unless you add some manually */
 
 #define GPIO_LED1       (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|\
                          GPIO_OUTPUT_CLEAR|GPIO_PORTD|GPIO_PIN12)
 
 /* BUTTONS -- NOTE that all have EXTI interrupts configured */
+
 /* There are no user buttons on this board unless you add some externally. */
 
 #define MIN_IRQBUTTON   BUTTON_USER
@@ -195,20 +184,21 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Public data
+ * Public Data
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
  * Name: stm32_spidev_initialize
  *
  * Description:
- *   Called to configure SPI chip select GPIO pins for the mikroe-stm32f4 board.
+ *   Called to configure SPI chip select GPIO pins for the mikroe-stm32f4
+ *   board.
  *
  ****************************************************************************/
 
@@ -218,8 +208,8 @@ void weak_function stm32_spidev_initialize(void);
  * Name: stm32_usbinitialize
  *
  * Description:
- *   Called from stm32_usbinitialize very early in initialization to setup USB-related
- *   GPIO pins for the Mikroe-stm32f4 board.
+ *   Called from stm32_usbinitialize very early in initialization to setup
+ *   USB-related GPIO pins for the Mikroe-stm32f4 board.
  *
  ****************************************************************************/
 
@@ -243,8 +233,9 @@ int stm32_pwm_setup(void);
  * Name: stm32_usbhost_initialize
  *
  * Description:
- *   Called at application startup time to initialize the USB host functionality. This function will
- *   start a thread that will monitor for device connection/disconnection events.
+ *   Called at application startup time to initialize the USB host
+ *   functionality. This function will start a thread that will monitor
+ *   for device connection/disconnection events.
  *
  ****************************************************************************/
 
@@ -253,23 +244,12 @@ int stm32_pwm_setup(void);
 #endif
 
 /****************************************************************************
- * Name: stm32_qencoder_initialize
- *
- * Description:
- *   Initialize and register a qencoder
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_QENCODER
-int stm32_qencoder_initialize(FAR const char *devpath, int timer);
-#endif
-
-/****************************************************************************
  * Name: stm32_lcdinitialize
  *
  * Description:
- *   Initialize the LCD.  This function should be called early in the boot sequendce -- Even if the
- *   LCD is not enabled.  In that case we should at a minimum at least disable the LCD backlight.
+ *   Initialize the LCD.  This function should be called early in the boot
+ *   sequendce -- Even if the LCD is not enabled.  In that case we should at
+ *   a minimum at least disable the LCD backlight.
  *
  ****************************************************************************/
 
@@ -281,15 +261,16 @@ void stm32_lcdinitialize(void);
  * Name: stm32_tsc_setup
  *
  * Description:
- *   This function is called by board-bringup logic to configure the touchscreen device.  This
- *   function will register the driver as /dev/inputN where N is the minor device number.
+ *   This function is called by board-bringup logic to configure the
+ *   touchscreen device.  This function will register the driver as
+ *   /dev/inputN where N is the minor device number.
  *
  * Input Parameters:
  *   minor - The input device minor number
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is returned to indicate the
- *   nature of the failure.
+ *   Zero is returned on success.  Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
  ****************************************************************************/
 

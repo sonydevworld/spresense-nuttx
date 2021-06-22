@@ -1,35 +1,20 @@
 /****************************************************************************
- * drivers/modem/altmdm/altmdm_sys.c
+ * drivers/modem/altair/altmdm_sys.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -41,6 +26,8 @@
 #include <debug.h>
 #include <nuttx/irq.h>
 #include <signal.h>
+
+#include <nuttx/signal.h>
 
 #include "altmdm_dev.h"
 #include "altmdm_sys.h"
@@ -151,7 +138,7 @@ int altmdm_sys_lock(FAR struct altmdm_sys_lock_s *handle)
  * Name: altmdm_sys_unlock
  *
  * Description:
- *   Relese lock.
+ *   Release lock.
  *
  ****************************************************************************/
 
@@ -319,12 +306,12 @@ int altmdm_sys_getcsemvalue(FAR struct altmdm_sys_csem_s *handle,
       return ERROR;
     }
 
-  ret = nxsem_getvalue(&handle->sem, value);
+  ret = nxsem_get_value(&handle->sem, value);
 
 #ifdef CONFIG_MODEM_ALTMDM_DEBUG
   if (ret < 0)
     {
-      m_err("nxsem_getvalue() failed:%d\n", ret);
+      m_err("nxsem_get_value() failed:%d\n", ret);
     }
 #endif
 
@@ -443,7 +430,8 @@ int altmdm_sys_waitflag(FAR struct altmdm_sys_flag_s *handle,
         }
 
       abs_time.tv_sec = timeout_ms / 1000;
-      abs_time.tv_nsec = (timeout_ms - (abs_time.tv_sec * 1000)) * 1000 * 1000;
+      abs_time.tv_nsec = (timeout_ms - (abs_time.tv_sec * 1000)) *
+                          1000 * 1000;
 
       abs_time.tv_sec += curr_time.tv_sec;
       abs_time.tv_nsec += curr_time.tv_nsec;
@@ -557,7 +545,8 @@ int altmdm_sys_waitflag(FAR struct altmdm_sys_flag_s *handle,
  *
  ****************************************************************************/
 
-int altmdm_sys_setflag(FAR struct altmdm_sys_flag_s *handle, uint32_t pattern)
+int altmdm_sys_setflag(FAR struct altmdm_sys_flag_s *handle,
+                       uint32_t pattern)
 {
   int ret;
   irqstate_t flags;
@@ -665,24 +654,24 @@ timer_t altmdm_sys_starttimer(int first_ms, int interval_ms,
     }
 
   sigemptyset(&mask);
-  sigaddset(&mask, MY_TIMER_SIGNAL);
+  nxsig_addset(&mask, MY_TIMER_SIGNAL);
 
-  ret = sigprocmask(SIG_UNBLOCK, &mask, NULL);
+  ret = nxsig_procmask(SIG_UNBLOCK, &mask, NULL);
   if (ret != OK)
     {
-      m_err("sigprocmask() failed:%d\n", ret);
+      m_err("nxsig_procmask() failed:%d\n", ret);
       return NULL;
     }
 
   sa.sa_sigaction = handler;
   sa.sa_flags = SA_SIGINFO;
   sigfillset(&sa.sa_mask);
-  sigdelset(&sa.sa_mask, MY_TIMER_SIGNAL);
+  nxsig_delset(&sa.sa_mask, MY_TIMER_SIGNAL);
 
-  ret = sigaction(MY_TIMER_SIGNAL, &sa, NULL);
+  ret = nxsig_action(MY_TIMER_SIGNAL, &sa, NULL, false);
   if (ret != OK)
     {
-      m_err("sigaction() failed:%d\n", ret);
+      m_err("nxsig_action() failed:%d\n", ret);
       return NULL;
     }
 
@@ -756,7 +745,7 @@ void altmdm_sys_stoptimer(timer_t timerid)
   timer_delete(timerid);
 
   sigfillset(&mask);
-  sigprocmask(SIG_SETMASK, &mask, NULL);
+  nxsig_procmask(SIG_SETMASK, &mask, NULL);
 }
 
 #endif

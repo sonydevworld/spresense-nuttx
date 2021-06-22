@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/usbhost/usbhost_enumerate.c
  *
- *   Copyright (C) 2011-2012, 2015, 2017 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -125,7 +110,7 @@ static inline int usbhost_devdesc(FAR const struct usb_devdesc_s *devdesc,
   id->subclass = devdesc->subclass;
   id->proto    = devdesc->protocol;
 
-  /* Pick off the VID and PID as well (for vendor specfic devices) */
+  /* Pick off the VID and PID as well (for vendor specific devices) */
 
   id->vid = usbhost_getle16(devdesc->vendor);
   id->pid = usbhost_getle16(devdesc->product);
@@ -178,7 +163,8 @@ static inline int usbhost_configdesc(const uint8_t *configdesc, int cfglen,
       ifdesc = (struct usb_ifdesc_s *)configdesc;
       if (ifdesc->type == USB_DESC_TYPE_INTERFACE)
         {
-          /* Yes, extract the class information from the interface descriptor.
+          /* Yes, extract the class information from the interface
+           * descriptor.
            * Typically these values are zero meaning that the "real" ID
            * information resides in the device descriptor.
            */
@@ -192,7 +178,7 @@ static inline int usbhost_configdesc(const uint8_t *configdesc, int cfglen,
           return OK;
         }
 
-     /* Increment the address of the next descriptor */
+      /* Increment the address of the next descriptor */
 
       configdesc += ifdesc->len;
       remaining  -= ifdesc->len;
@@ -281,8 +267,8 @@ static inline int usbhost_classbind(FAR struct usbhost_hubport_s *hport,
  *      into this caller-provided memory location.
  *
  * Returned Value:
- *   On success, zero (OK) is returned. On a failure, a negated errno value is
- *   returned indicating the nature of the failure
+ *   On success, zero (OK) is returned. On a failure, a negated errno value
+ *   is returned indicating the nature of the failure
  *
  * Assumptions:
  *   - Only a single class bound to a single device is supported.
@@ -430,11 +416,11 @@ int usbhost_enumerate(FAR struct usbhost_hubport_s *hport,
   ret = DRVR_CTRLOUT(hport->drvr, hport->ep0, ctrlreq, NULL);
   if (ret < 0)
     {
-      uerr("ERROR: Failed to set address: %d\n");
+      uerr("ERROR: Failed to set address: %d\n", ret);
       goto errout;
     }
 
-  nxsig_usleep(2*1000);
+  nxsig_usleep(2 * 1000);
 
   /* Assign the function address to the port */
 
@@ -459,7 +445,7 @@ int usbhost_enumerate(FAR struct usbhost_hubport_s *hport,
 
   ret = DRVR_CTRLIN(hport->drvr, hport->ep0, ctrlreq, buffer);
   if (ret < 0)
-   {
+    {
       uerr("ERROR: Failed to get configuration descriptor, length=%d: %d\n",
            USB_SIZEOF_CFGDESC, ret);
       goto errout;
@@ -467,12 +453,14 @@ int usbhost_enumerate(FAR struct usbhost_hubport_s *hport,
 
   /* Extract the full size of the configuration data */
 
-  cfglen = (unsigned int)usbhost_getle16(((struct usb_cfgdesc_s *)buffer)->totallen);
+  cfglen = (unsigned int)
+           usbhost_getle16(((struct usb_cfgdesc_s *)buffer)->totallen);
   uinfo("sizeof config data: %d\n", cfglen);
 
   if (cfglen > maxlen)
     {
-      uerr("ERROR: Configuration doesn't fit in buffer, length=%d, maxlen=%d\n",
+      uerr("ERROR: Configuration doesn't fit in buffer, "
+           "length=%d, maxlen=%d\n",
            cfglen, maxlen);
       ret = -E2BIG;
       goto errout;
@@ -532,7 +520,7 @@ int usbhost_enumerate(FAR struct usbhost_hubport_s *hport,
 
   /* Some devices may require some delay before initialization */
 
-  nxsig_usleep(100*1000);
+  nxsig_usleep(100 * 1000);
 
 #ifdef CONFIG_USBHOST_COMPOSITE
   /* Check if the device attached to the downstream port if a USB composite

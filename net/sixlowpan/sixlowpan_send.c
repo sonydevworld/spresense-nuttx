@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/sixlowpan/sixlowpan_send.c
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,7 +28,6 @@
 #include <errno.h>
 #include <debug.h>
 
-#include <nuttx/clock.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/radiodev.h>
@@ -77,61 +61,21 @@
 
 struct sixlowpan_send_s
 {
-  FAR struct devif_callback_s *s_cb;      /* Reference to callback instance */
-  sem_t                        s_waitsem; /* Supports waiting for driver events */
-  int                          s_result;  /* The result of the transfer */
-  uint16_t                     s_timeout; /* Send timeout in deciseconds */
-  clock_t                      s_time;    /* Last send time for determining timeout */
-  FAR const struct ipv6_hdr_s *s_ipv6hdr; /* IPv6 header, followed by UDP or ICMP header. */
+  FAR struct devif_callback_s *s_cb;            /* Reference to callback
+                                                 * instance */
+  sem_t                        s_waitsem;       /* Supports waiting for
+                                                 * driver events */
+  int                          s_result;        /* The result of the transfer */
+  FAR const struct ipv6_hdr_s *s_ipv6hdr;       /* IPv6 header, followed by
+                                                 * UDP or ICMP header. */
   FAR const struct netdev_varaddr_s *s_destmac; /* Destination MAC address */
-  FAR const void              *s_buf;     /* Data to send */
-  size_t                       s_len;     /* Length of data in buf */
+  FAR const void              *s_buf;           /* Data to send */
+  size_t                       s_len;           /* Length of data in buf */
 };
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Name: send_timeout
- *
- * Description:
- *   Check for send timeout.
- *
- * Input Parameters:
- *   sinfo - Send state structure reference
- *
- * Returned Value:
- *   TRUE:timeout FALSE:no timeout
- *
- * Assumptions:
- *   The network is locked
- *
- ****************************************************************************/
-
-static inline bool send_timeout(FAR struct sixlowpan_send_s *sinfo)
-{
-  /* Check for a timeout.  Zero means none and, in that case, we will let
-   * the send wait forever.
-   */
-
-  if (sinfo->s_timeout != 0)
-    {
-      /* Check if the configured timeout has elapsed */
-
-      clock_t timeo_ticks =  DSEC2TICK(sinfo->s_timeout);
-      clock_t elapsed     =  clock_systimer() - sinfo->s_time;
-
-      if (elapsed >= timeo_ticks)
-        {
-          return true;
-        }
-    }
-
-  /* No timeout */
-
-  return false;
-}
 
 /****************************************************************************
  * Name: send_eventhandler
@@ -159,7 +103,7 @@ static uint16_t send_eventhandler(FAR struct net_driver_s *dev,
 {
   FAR struct sixlowpan_send_s *sinfo = (FAR struct sixlowpan_send_s *)pvpriv;
 
-  ninfo("flags: %04x: %d\n", flags);
+  ninfo("flags: %04x\n", flags);
 
   /* Verify that this is a compatible network driver. */
 
@@ -202,18 +146,6 @@ static uint16_t send_eventhandler(FAR struct net_driver_s *dev,
       goto end_wait;
     }
 
-  /* Check for a timeout. */
-
-  if (send_timeout(sinfo))
-    {
-      /* Yes.. report the timeout */
-
-      nwarn("WARNING: SEND timeout\n");
-      sinfo->s_result = -ETIMEDOUT;
-      neighbor_notreachable(dev);
-      goto end_wait;
-    }
-
   /* Continue waiting */
 
   return flags;
@@ -240,9 +172,9 @@ end_wait:
  * Name: sixlowpan_send
  *
  * Description:
- *   Process an outgoing UDP or ICMPv6 packet.  Takes an IP packet and formats
- *   it to be sent on an 802.15.4 network using 6lowpan.  Called from common
- *   UDP/ICMPv6 send logic.
+ *   Process an outgoing UDP or ICMPv6 packet.  Takes an IP packet and
+ *   formats it to be sent on an 802.15.4 network using 6lowpan.  Called
+ *   from common UDP/ICMPv6 send logic.
  *
  *   The payload data is in the caller 'buf' and is of length 'buflen'.
  *   Compressed headers will be added and if necessary the packet is
@@ -256,10 +188,10 @@ end_wait:
  *   buf     - Data to send
  *   len     - Length of data to send
  *   destmac - The IEEE802.15.4 MAC address of the destination
- *   timeout - Send timeout in deciseconds
+ *   timeout - Send timeout in milliseconds
  *
  * Returned Value:
- *   Ok is returned on success; Othewise a negated errno value is returned.
+ *   Ok is returned on success; Otherwise a negated errno value is returned.
  *   This function is expected to fail if the driver is not an IEEE802.15.4
  *   MAC network driver.  In that case, the logic will fall back to normal
  *   IPv4/IPv6 formatting.
@@ -273,7 +205,7 @@ int sixlowpan_send(FAR struct net_driver_s *dev,
                    FAR struct devif_callback_s **list,
                    FAR const struct ipv6_hdr_s *ipv6hdr, FAR const void *buf,
                    size_t len, FAR const struct netdev_varaddr_s *destmac,
-                   uint16_t timeout)
+                   unsigned int timeout)
 {
   struct sixlowpan_send_s sinfo;
 
@@ -282,11 +214,9 @@ int sixlowpan_send(FAR struct net_driver_s *dev,
   /* Initialize the send state structure */
 
   nxsem_init(&sinfo.s_waitsem, 0, 0);
-  nxsem_setprotocol(&sinfo.s_waitsem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&sinfo.s_waitsem, SEM_PRIO_NONE);
 
   sinfo.s_result  = -EBUSY;
-  sinfo.s_timeout = timeout;
-  sinfo.s_time    = clock_systimer();
   sinfo.s_ipv6hdr = ipv6hdr;
   sinfo.s_destmac = destmac;
   sinfo.s_buf     = buf;
@@ -317,14 +247,19 @@ int sixlowpan_send(FAR struct net_driver_s *dev,
           netdev_txnotify_dev(dev);
 
           /* Wait for the send to complete or an error to occur.
-           * net_lockedwait will also terminate if a signal is received.
+           * net_timedwait will also terminate if a signal is received.
            */
 
           ninfo("Wait for send complete\n");
 
-          ret = net_lockedwait(&sinfo.s_waitsem);
+          ret = net_timedwait(&sinfo.s_waitsem, timeout);
           if (ret < 0)
             {
+              if (ret == -ETIMEDOUT)
+                {
+                  neighbor_notreachable(dev);
+                }
+
               sinfo.s_result = ret;
             }
 

@@ -1,10 +1,11 @@
-/********************************************************************************************************************
+/****************************************************************************
  * arch/arm/src/tiva/hardware/cc13x2_cc26x2/cc13x2_cc26x2_aon_batmon.h
  *
  *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *
- * Technical content derives from a TI header file that has a compatible BSD license:
+ * Technical content derives from a TI header file that has a
+ * compatible BSD license:
  *
  *   Copyright (c) 2015-2017, Texas Instruments Incorporated
  *   All rights reserved.
@@ -36,23 +37,23 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ********************************************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_TIVA_HARDWARE_CC13X2_CC26X2_CC13X2_CC26X2_AON_BATMON_H
 #define __ARCH_ARM_SRC_TIVA_HARDWARE_CC13X2_CC26X2_CC13X2_CC26X2_AON_BATMON_H
 
-/********************************************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 #include "hardware/tiva_memorymap.h"
 
-/********************************************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************************************/
+ ****************************************************************************/
 
-/* AON BATMON Register Offsets **************************************************************************************/
+/* AON BATMON Register Offsets **********************************************/
 
 #define TIVA_AON_BATMON_CTL_OFFSET                      0x0000
 #define TIVA_AON_BATMON_MEASCFG_OFFSET                  0x0004
@@ -74,7 +75,7 @@
 #define TIVA_AON_BATMON_TEMPUL_OFFSET                   0x0058  /* Temperature Upper Limit */
 #define TIVA_AON_BATMON_TEMPLL_OFFSET                   0x005c  /* Temperature Lower Limit */
 
-/* AON BATMON Register Addresses ************************************************************************************/
+/* AON BATMON Register Addresses ********************************************/
 
 #define TIVA_AON_BATMON_CTL                             (TIVA_AON_BATMON_BASE + TIVA_AON_BATMON_CTL_OFFSET)
 #define TIVA_AON_BATMON_MEASCFG                         (TIVA_AON_BATMON_BASE + TIVA_AON_BATMON_MEASCFG_OFFSET)
@@ -96,7 +97,7 @@
 #define TIVA_AON_BATMON_TEMPUL                          (TIVA_AON_BATMON_BASE + TIVA_AON_BATMON_TEMPUL_OFFSET)
 #define TIVA_AON_BATMON_TEMPLL                          (TIVA_AON_BATMON_BASE + TIVA_AON_BATMON_TEMPLL_OFFSET)
 
-/* AON BATMON Register Bitfield Definitions *************************************************************************/
+/* AON BATMON Register Bitfield Definitions *********************************/
 
 /* AON_BATMON_CTL */
 
@@ -193,13 +194,13 @@
 
 /* AON_BATMON_EVENTMASK */
 
-#define AON_BATMON_EVENTMASK_BATT_OVER_UL               (1 << 0)  /* Bit 0:  EVENT.BATT_OVER_UL does not 
+#define AON_BATMON_EVENTMASK_BATT_OVER_UL               (1 << 0)  /* Bit 0:  EVENT.BATT_OVER_UL does not
                                                                    * contribute to combined event from
                                                                    * BATMON */
-#define AON_BATMON_EVENTMASK_BATT_BELOW_LL              (1 << 1)  /* Bit 1:  EVENT.BATT_BELOW_LL does not 
+#define AON_BATMON_EVENTMASK_BATT_BELOW_LL              (1 << 1)  /* Bit 1:  EVENT.BATT_BELOW_LL does not
                                                                    * contribute to combined event from
                                                                    * BATMON */
-#define AON_BATMON_EVENTMASK_TEMP_OVER_UL               (1 << 2)  /* Bit 2:  EVENT.TEMP_OVER_UL does not 
+#define AON_BATMON_EVENTMASK_TEMP_OVER_UL               (1 << 2)  /* Bit 2:  EVENT.TEMP_OVER_UL does not
                                                                    * contribute to combined event from
                                                                    * BATMON */
 #define AON_BATMON_EVENTMASK_TEMP_BELOW_LL              (1 << 3)  /* Bit 3:  EVENT.TEMP_BELOW_LL does not
@@ -247,7 +248,7 @@
 #define AON_BATMON_TEMPUL_FRAC_MASK                     (3 << AON_BATMON_TEMPUL_FRAC_SHIFT)
 #  define AON_BATMON_TEMPUL_FRAC(n)                     ((uint32_t)(n) << AON_BATMON_TEMPUL_FRAC_SHIFT)
 #define AON_BATMON_TEMPUL_INT_SHIFT                     (8)       /* Bits 8-16:  Signed integer part
-                                                                   * of tempature upper limit */
+                                                                   * of temperature upper limit */
 #define AON_BATMON_TEMPUL_INT_MASK                      (0x1ff << AON_BATMON_TEMPUL_INT_SHIFT)
 #  define AON_BATMON_TEMPUL_INT(n)                      ((uint32_t)(n) << AON_BATMON_TEMPUL_INT_SHIFT)
 
@@ -258,7 +259,7 @@
 #define AON_BATMON_TEMPLL_FRAC_MASK                     (3 << AON_BATMON_TEMPLL_FRAC_SHIFT)
 #  define AON_BATMON_TEMPLL_FRAC(n)                     ((uint32_t)(n) << AON_BATMON_TEMPLL_FRAC_SHIFT)
 #define AON_BATMON_TEMPLL_INT_SHIFT                     (8)       /* Bits 8-16:  Signed integer part
-                                                                   * of tempature lower limit */
+                                                                   * of temperature lower limit */
 #define AON_BATMON_TEMPLL_INT_MASK                      (0x1ff << AON_BATMON_TEMPLL_INT_SHIFT)
 #  define AON_BATMON_TEMPLL_INT(n)                      ((uint32_t)(n) << AON_BATMON_TEMPLL_INT_SHIFT)
 

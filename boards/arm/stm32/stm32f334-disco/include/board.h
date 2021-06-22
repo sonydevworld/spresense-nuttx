@@ -1,36 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32/stm32f334-disco/include/board.h
- * include/arch/board/board.h
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Author: Mateusz Szafoni <raiden00@railab.me>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -71,7 +55,9 @@
 #define STM32_HSE_FREQUENCY     STM32_BOARD_XTAL
 #define STM32_LSE_FREQUENCY     32768            /* X2 on board */
 
-/* PLL source is HSE/1, PLL multipler is 9: PLL frequency is 8MHz (XTAL) x 9 = 72MHz */
+/* PLL source is HSE/1, PLL multipler is 9:
+ *   PLL frequency is 8MHz (XTAL) x 9 = 72MHz
+ */
 
 #define STM32_CFGR_PLLSRC       RCC_CFGR_PLLSRC
 #define STM32_CFGR_PLLXTPRE     0
@@ -88,7 +74,6 @@
 
 #define STM32_RCC_CFGR_HPRE     RCC_CFGR_HPRE_SYSCLK
 #define STM32_HCLK_FREQUENCY    STM32_PLL_FREQUENCY
-#define STM32_BOARD_HCLK        STM32_HCLK_FREQUENCY
 
 /* APB2 clock (PCLK2) is HCLK (72MHz) */
 
@@ -152,8 +137,9 @@
 #define BOARD_LED3_BIT   (1 << BOARD_LED3)
 #define BOARD_LED4_BIT   (1 << BOARD_LED4)
 
-/* If CONFIG_ARCH_LEDs is defined, then NuttX will control the 4 LEDs on board the
- * stm32f334-disco.  The following definitions describe how NuttX controls the LEDs:
+/* If CONFIG_ARCH_LEDs is defined, then NuttX will control the 4 LEDs on
+ * board the stm32f334-disco.  The following definitions describe how NuttX
+ * controls the LEDs:
  */
 
 #define LED_STARTED       0  /* LED1 */
@@ -166,6 +152,7 @@
 #define LED_PANIC         7  /* N/C  + N/C  + N/C + LED4 */
 
 /* Button definitions *******************************************************/
+
 /* The STM32F334-DISCO supports two buttons; only one button is controllable
  * by software:
  *
@@ -180,6 +167,7 @@
 #define BUTTON_USER_BIT  (1 << BUTTON_USER)
 
 /* Alternate function pin selections ****************************************/
+
 /* CAN */
 
 #define GPIO_CAN1_RX GPIO_CAN_RX_2
@@ -255,7 +243,7 @@
 
 #define DAC1CH1_DMA_CHAN     DMACHAN_HRTIM1_C
 
-#endif  /* CONFIG_EXAMPLES_POWERLED */
+#endif /* CONFIG_EXAMPLES_POWERLED */
 
 /* Board configuration for SMPS example:
  *   PA8  - HRTIM_CHA1
@@ -314,6 +302,6 @@
 
 /* DMA channels *************************************************************/
 
-#endif  /* CONFIG_EXAMPLES_SMPS */
+#endif /* CONFIG_EXAMPLES_SMPS */
 
 #endif /* __BOARDS_ARM_STM32_STM32F334_DISCO_INCLUDE_BOARD_H */

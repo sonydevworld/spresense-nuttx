@@ -1,37 +1,20 @@
 /****************************************************************************
  * drivers/audio/audio_null.c
  *
- * A do-nothinig audio device driver to simplify testing of audio decoders.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- *   Copyright (C) 2014, 2017 Gregory Nutt. All rights reserved.
- *   Author:  Gregory Nutt <gnutt@nuttx.org>
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -46,6 +29,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
@@ -70,7 +54,8 @@
 struct null_dev_s
 {
   struct audio_lowerhalf_s dev; /* Audio lower half (this device) */
-  mqd_t         mq;             /* Message queue for receiving messages */
+  uint32_t      scaler;         /* Data bytes to sec scaler (bytes per sec) */
+  struct file   mq;             /* Message queue for receiving messages */
   char          mqname[16];     /* Our message queue name */
   pthread_t     threadid;       /* ID of our thread */
 #ifndef CONFIG_AUDIO_EXCLUDE_STOP
@@ -136,6 +121,8 @@ static int      null_release(FAR struct audio_lowerhalf_s *dev,
 #else
 static int      null_release(FAR struct audio_lowerhalf_s *dev);
 #endif
+static int      null_sleep(FAR struct audio_lowerhalf_s *dev,
+                           FAR struct ap_buffer_s *apb);
 
 /****************************************************************************
  * Private Data
@@ -168,6 +155,47 @@ static const struct audio_ops_s g_audioops =
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: null_sleep
+ *
+ * Description: Consume audio buffer in queue
+ *
+ ****************************************************************************/
+
+static int null_sleep(FAR struct audio_lowerhalf_s *dev,
+                      FAR struct ap_buffer_s *apb)
+{
+  FAR struct null_dev_s *priv = (struct null_dev_s *)dev;
+  uint64_t sleep_time;
+
+  sleep_time = USEC_PER_SEC * (uint64_t)apb->nbytes / priv->scaler;
+  usleep(sleep_time);
+#ifdef CONFIG_AUDIO_MULTI_SESSION
+  priv->dev.upper(priv->dev.priv, AUDIO_CALLBACK_DEQUEUE,
+                  apb, OK, NULL);
+#else
+  priv->dev.upper(priv->dev.priv, AUDIO_CALLBACK_DEQUEUE,
+                  apb, OK);
+#endif
+  if ((apb->flags & AUDIO_APB_FINAL) != 0)
+    {
+#ifdef CONFIG_AUDIO_MULTI_SESSION
+      priv->dev.upper(priv->dev.priv,
+                      AUDIO_CALLBACK_COMPLETE,
+                      NULL,
+                      OK,
+                      NULL);
+#else
+      priv->dev.upper(priv->dev.priv,
+                      AUDIO_CALLBACK_COMPLETE,
+                      NULL,
+                      OK);
+#endif
+    }
+
+  return OK;
+}
 
 /****************************************************************************
  * Name: null_getcaps
@@ -211,12 +239,14 @@ static int null_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
 
               /* The types of audio units we implement */
 
-              caps->ac_controls.b[0] = AUDIO_TYPE_OUTPUT | AUDIO_TYPE_FEATURE |
+              caps->ac_controls.b[0] = AUDIO_TYPE_OUTPUT |
+                                       AUDIO_TYPE_FEATURE |
                                        AUDIO_TYPE_PROCESSING;
 
               break;
 
             case AUDIO_FMT_MIDI:
+
               /* We only support Format 0 */
 
               caps->ac_controls.b[0] = AUDIO_SUBFMT_END;
@@ -241,9 +271,12 @@ static int null_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
 
               /* Report the Sample rates we support */
 
-              caps->ac_controls.b[0] = AUDIO_SAMP_RATE_8K | AUDIO_SAMP_RATE_11K |
-                                       AUDIO_SAMP_RATE_16K | AUDIO_SAMP_RATE_22K |
-                                       AUDIO_SAMP_RATE_32K | AUDIO_SAMP_RATE_44K |
+              caps->ac_controls.b[0] = AUDIO_SAMP_RATE_8K |
+                                       AUDIO_SAMP_RATE_11K |
+                                       AUDIO_SAMP_RATE_16K |
+                                       AUDIO_SAMP_RATE_22K |
+                                       AUDIO_SAMP_RATE_32K |
+                                       AUDIO_SAMP_RATE_44K |
                                        AUDIO_SAMP_RATE_48K;
               break;
 
@@ -262,19 +295,25 @@ static int null_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
 
       case AUDIO_TYPE_FEATURE:
 
-        /* If the sub-type is UNDEF, then report the Feature Units we support */
+        /* If the sub-type is UNDEF,
+         * then report the Feature Units we support
+         */
 
         if (caps->ac_subtype == AUDIO_FU_UNDEF)
           {
-            /* Fill in the ac_controls section with the Feature Units we have */
+            /* Fill in the ac_controls section with
+             * the Feature Units we have
+             */
 
-            caps->ac_controls.b[0] = AUDIO_FU_VOLUME | AUDIO_FU_BASS | AUDIO_FU_TREBLE;
+            caps->ac_controls.b[0] = AUDIO_FU_VOLUME |
+                                     AUDIO_FU_BASS |
+                                     AUDIO_FU_TREBLE;
             caps->ac_controls.b[1] = AUDIO_FU_BALANCE >> 8;
           }
         else
           {
-            /* TODO:  Do we need to provide specific info for the Feature Units,
-             * such as volume setting ranges, etc.?
+            /* TODO:  Do we need to provide specific info for the
+             * Feature Units, such as volume setting ranges, etc.?
              */
           }
 
@@ -297,7 +336,8 @@ static int null_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
 
               /* Provide capabilities of our Stereo Extender */
 
-              caps->ac_controls.b[0] = AUDIO_STEXT_ENABLE | AUDIO_STEXT_WIDTH;
+              caps->ac_controls.b[0] = AUDIO_STEXT_ENABLE |
+                                       AUDIO_STEXT_WIDTH;
               break;
 
             default:
@@ -346,6 +386,7 @@ static int null_configure(FAR struct audio_lowerhalf_s *dev,
                           FAR const struct audio_caps_s *caps)
 #endif
 {
+  FAR struct null_dev_s *priv = (FAR struct null_dev_s *)dev;
   audinfo("ac_type: %d\n", caps->ac_type);
 
   /* Process the configure operation */
@@ -363,7 +404,7 @@ static int null_configure(FAR struct audio_lowerhalf_s *dev,
         case AUDIO_FU_VOLUME:
           audinfo("    Volume: %d\n", caps->ac_controls.hw[0]);
           break;
-#endif  /* CONFIG_AUDIO_EXCLUDE_VOLUME */
+#endif /* CONFIG_AUDIO_EXCLUDE_VOLUME */
 
 #ifndef CONFIG_AUDIO_EXCLUDE_TONE
         case AUDIO_FU_BASS:
@@ -373,7 +414,7 @@ static int null_configure(FAR struct audio_lowerhalf_s *dev,
         case AUDIO_FU_TREBLE:
           audinfo("    Treble: %d\n", caps->ac_controls.b[0]);
           break;
-#endif  /* CONFIG_AUDIO_EXCLUDE_TONE */
+#endif /* CONFIG_AUDIO_EXCLUDE_TONE */
 
         default:
           auderr("    ERROR: Unrecognized feature unit\n");
@@ -382,6 +423,9 @@ static int null_configure(FAR struct audio_lowerhalf_s *dev,
       break;
 
     case AUDIO_TYPE_OUTPUT:
+      priv->scaler = caps->ac_channels
+                   * caps->ac_controls.hw[0]
+                   * caps->ac_controls.b[2] / 8;
       audinfo("  AUDIO_TYPE_OUTPUT:\n");
       audinfo("    Number of channels: %u\n", caps->ac_channels);
       audinfo("    Sample rate:        %u\n", caps->ac_controls.hw[0]);
@@ -421,7 +465,7 @@ static int null_shutdown(FAR struct audio_lowerhalf_s *dev)
 
 static void *null_workerthread(pthread_addr_t pvarg)
 {
-  FAR struct null_dev_s *priv = (struct null_dev_s *) pvarg;
+  FAR struct null_dev_s *priv = (FAR struct null_dev_s *) pvarg;
   struct audio_msg_s msg;
   int msglen;
   unsigned int prio;
@@ -438,7 +482,8 @@ static void *null_workerthread(pthread_addr_t pvarg)
     {
       /* Wait for messages from our message queue */
 
-      msglen = nxmq_receive(priv->mq, (FAR char *)&msg, sizeof(msg), &prio);
+      msglen = file_mq_receive(&priv->mq, (FAR char *)&msg,
+                               sizeof(msg), &prio);
 
       /* Handle the case when we return with no message */
 
@@ -450,7 +495,7 @@ static void *null_workerthread(pthread_addr_t pvarg)
 
       /* Process the message */
 
-      switch (msg.msgId)
+      switch (msg.msg_id)
         {
           case AUDIO_MSG_DATA_REQUEST:
             break;
@@ -462,22 +507,23 @@ static void *null_workerthread(pthread_addr_t pvarg)
 #endif
 
           case AUDIO_MSG_ENQUEUE:
+            null_sleep(&priv->dev, (FAR struct ap_buffer_s *)msg.u.ptr);
             break;
 
           case AUDIO_MSG_COMPLETE:
             break;
 
           default:
-            auderr("ERROR: Ignoring message ID %d\n", msg.msgId);
+            auderr("ERROR: Ignoring message ID %d\n", msg.msg_id);
             break;
         }
     }
 
   /* Close the message queue */
 
-  mq_close(priv->mq);
-  mq_unlink(priv->mqname);
-  priv->mq = NULL;
+  file_mq_close(&priv->mq);
+  file_mq_unlink(priv->mqname);
+  priv->terminate = false;
 
   /* Send an AUDIO_MSG_COMPLETE message to the client */
 
@@ -516,20 +562,22 @@ static int null_start(FAR struct audio_lowerhalf_s *dev)
 
   /* Create a message queue for the worker thread */
 
-  snprintf(priv->mqname, sizeof(priv->mqname), "/tmp/%X", priv);
+  snprintf(priv->mqname, sizeof(priv->mqname), "/tmp/%" PRIXPTR,
+           (uintptr_t)priv);
 
   attr.mq_maxmsg  = 16;
   attr.mq_msgsize = sizeof(struct audio_msg_s);
   attr.mq_curmsgs = 0;
   attr.mq_flags   = 0;
 
-  priv->mq = mq_open(priv->mqname, O_RDWR | O_CREAT, 0644, &attr);
-  if (priv->mq == NULL)
+  ret = file_mq_open(&priv->mq, priv->mqname,
+                     O_RDWR | O_CREAT, 0644, &attr);
+  if (ret < 0)
     {
       /* Error creating message queue! */
 
       auderr("ERROR: Couldn't allocate message queue\n");
-      return -ENOMEM;
+      return ret;
     }
 
   /* Join any old worker thread we had created to prevent a memory leak */
@@ -584,14 +632,15 @@ static int null_stop(FAR struct audio_lowerhalf_s *dev)
   FAR void *value;
 
   /* Send a message to stop all audio streaming */
-  /* REVISIT: There should be a check to see if the worker thread is still
-   * running.
+
+  /* REVISIT:
+   * There should be a check to see if the worker thread is still  running.
    */
 
-  term_msg.msgId = AUDIO_MSG_STOP;
+  term_msg.msg_id = AUDIO_MSG_STOP;
   term_msg.u.data = 0;
-  nxmq_send(priv->mq, (FAR const char *)&term_msg, sizeof(term_msg),
-            CONFIG_AUDIO_NULL_MSG_PRIO);
+  file_mq_send(&priv->mq, (FAR const char *)&term_msg, sizeof(term_msg),
+               CONFIG_AUDIO_NULL_MSG_PRIO);
 
   /* Join the worker thread */
 
@@ -652,43 +701,25 @@ static int null_enqueuebuffer(FAR struct audio_lowerhalf_s *dev,
                                 FAR struct ap_buffer_s *apb)
 {
   FAR struct null_dev_s *priv = (FAR struct null_dev_s *)dev;
-  bool done;
+  struct audio_msg_s msg;
+  int ret;
 
   DEBUGASSERT(priv && apb && priv->dev.upper);
 
   audinfo("apb=%p curbyte=%d nbytes=%d\n", apb, apb->curbyte, apb->nbytes);
 
-  /* Say that we consumed all of the data */
+  msg.msg_id = AUDIO_MSG_ENQUEUE;
+  msg.u.ptr = apb;
 
-  apb->curbyte = apb->nbytes;
-
-  /* Check if this was the last buffer in the stream */
-
-  done = ((apb->flags & AUDIO_APB_FINAL) != 0);
-
-  /* The buffer belongs to an upper level.  Just forward the event to the
-   * next level up.
-   */
-
-#ifdef CONFIG_AUDIO_MULTI_SESSION
-  priv->dev.upper(priv->dev.priv, AUDIO_CALLBACK_DEQUEUE, apb, OK, NULL);
-#else
-  priv->dev.upper(priv->dev.priv, AUDIO_CALLBACK_DEQUEUE, apb, OK);
-#endif
-
-  /* Say we are done playing if this was the last buffer in the stream */
-
-  if (done)
+  ret = file_mq_send(&priv->mq, (FAR const char *)&msg,
+                     sizeof(msg), CONFIG_AUDIO_NULL_MSG_PRIO);
+  if (ret < 0)
     {
-#ifdef CONFIG_AUDIO_MULTI_SESSION
-      priv->dev.upper(priv->dev.priv, AUDIO_CALLBACK_COMPLETE, NULL, OK, NULL);
-#else
-      priv->dev.upper(priv->dev.priv, AUDIO_CALLBACK_COMPLETE, NULL, OK);
-#endif
+      auderr("ERROR: file_mq_send failed: %d\n", ret);
     }
 
   audinfo("Return OK\n");
-  return OK;
+  return ret;
 }
 
 /****************************************************************************
@@ -717,11 +748,12 @@ static int null_cancelbuffer(FAR struct audio_lowerhalf_s *dev,
 static int null_ioctl(FAR struct audio_lowerhalf_s *dev, int cmd,
                         unsigned long arg)
 {
+  int ret = OK;
 #ifdef CONFIG_AUDIO_DRIVER_SPECIFIC_BUFFERS
   FAR struct ap_buffer_info_s *bufinfo;
 #endif
 
-  audinfo("cmd=%d arg=%ld\n");
+  audinfo("cmd=%d arg=%ld\n", cmd, arg);
 
   /* Deal with ioctls passed from the upper-half driver */
 
@@ -751,11 +783,12 @@ static int null_ioctl(FAR struct audio_lowerhalf_s *dev, int cmd,
 #endif
 
       default:
+        ret = -ENOTTY;
         break;
     }
 
   audinfo("Return OK\n");
-  return OK;
+  return ret;
 }
 
 /****************************************************************************
@@ -834,8 +867,9 @@ FAR struct audio_lowerhalf_s *audio_null_initialize(void)
   priv = (FAR struct null_dev_s *)kmm_zalloc(sizeof(struct null_dev_s));
   if (priv)
     {
-      /* Initialize the null audio device structure.  Since we used kmm_zalloc,
-       * only the non-zero elements of the structure need to be initialized.
+      /* Initialize the null audio device structure.
+       * Since we used kmm_zalloc, only the non-zero elements
+       * of the structure need to be initialized.
        */
 
       priv->dev.ops = &g_audioops;

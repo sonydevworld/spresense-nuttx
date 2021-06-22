@@ -1,37 +1,20 @@
 /****************************************************************************
  * arch/arm/src/stm32h7/stm32_ethernet.c
  *
- *   Copyright (C) 2015-2017 Gregory Nutt. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *   Author: Jukka Laitinen <jukka.laitinen@iki.fi>
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -41,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
@@ -58,13 +42,14 @@
 #include <nuttx/net/mii.h>
 #include <nuttx/net/arp.h>
 #include <nuttx/net/netdev.h>
+#include <crc64.h>
 
 #if defined(CONFIG_NET_PKT)
 #  include <nuttx/net/pkt.h>
 #endif
 
 #include <nuttx/cache.h>
-#include "up_internal.h"
+#include "arm_internal.h"
 #include "barriers.h"
 
 #include "hardware/stm32_syscfg.h"
@@ -72,6 +57,7 @@
 #include "stm32_gpio.h"
 #include "stm32_rcc.h"
 #include "stm32_ethernet.h"
+#include "stm32_uid.h"
 
 #include <arch/board/board.h>
 
@@ -216,7 +202,7 @@
 #endif
 
 #if ETH_BUFSIZE != OPTIMAL_ETH_BUFSIZE
-#  warning "You using an incomplete/untested configuration"
+#  warning "You are using an incomplete/untested configuration"
 #endif
 
 #ifndef CONFIG_STM32H7_ETH_NRXDESC
@@ -226,11 +212,15 @@
 #  define CONFIG_STM32H7_ETH_NTXDESC 4
 #endif
 
+#ifndef min
+#  define min(a,b) ((a) < (b) ? (a) : (b))
+#endif
+
 /* We need at least one more free buffer than transmit buffers */
 
 #define STM32_ETH_NFREEBUFFERS (CONFIG_STM32H7_ETH_NTXDESC+1)
 
-/* Buffers use fro DMA access must begin on an address aligned with the
+/* Buffers used for DMA access must begin on an address aligned with the
  * D-Cache line and must be an even multiple of the D-Cache line size.
  * These size/alignment requirements are necessary so that D-Cache flush
  * and invalidate operations will not have any additional effects.
@@ -275,16 +265,18 @@
 #  define ETH_MACMDIOAR_CR ETH_MACMDIOAR_CR_DIV42
 #elif STM32_HCLK_FREQUENCY >= 100000000 && STM32_HCLK_FREQUENCY < 150000000
 #  define ETH_MACMDIOAR_CR ETH_MACMDIOAR_CR_DIV62
-#elif STM32_HCLK_FREQUENCY >= 150000000 && STM32_HCLK_FREQUENCY <= 216000000
+#elif STM32_HCLK_FREQUENCY >= 150000000 && STM32_HCLK_FREQUENCY <= 250000000
 #  define ETH_MACMDIOAR_CR ETH_MACMDIOAR_CR_DIV102
+#elif STM32_HCLK_FREQUENCY >= 250000000 && STM32_HCLK_FREQUENCY <= 300000000
+#  define ETH_MACMDIOAR_CR ETH_MACMDIOAR_CR_DIV124
 #else
 #  error "STM32_HCLK_FREQUENCY not supportable"
 #endif
 
 /* Timing *******************************************************************/
 
-/* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per
- * second
+/* TX poll delay = 1 seconds.
+ * CLK_TCK is the number of clock ticks per second
  */
 
 #define STM32_WDDELAY     (1*CLK_TCK)
@@ -350,7 +342,8 @@
  * ETH_MACCR_BL    Back-off limit                 0 (10)
  * ETH_MACCR_ACS   Automatic pad/CRC stripping    0 (disabled)
  * ETH_MACCR_DR    Retry disable                  1 (disabled)
- * ETH_MACCR_IPC   IPv4 checksum offload          Depends on CONFIG_STM32H7_ETH_HWCHECKSUM
+ * ETH_MACCR_IPC   IPv4 checksum offload
+ *                 Depends on CONFIG_STM32H7_ETH_HWCHECKSUM
  * ETH_MACCR_LM    Loopback mode                  0 (disabled)
  * ETH_MACCR_DO    Receive own disable            0 (enabled)
  * ETH_MACCR_DCRS  Carrier sense disable          0 (enabled)
@@ -373,9 +366,9 @@
   (ETH_MACCR_BL_10 | ETH_MACCR_DR | ETH_MACCR_IPG(96))
 #endif
 
-/* Clear the MACPFR bits that will be setup during MAC initialization (or that
- * are cleared unconditionally).  Per the reference manual, all reserved bits
- * must be retained at their reset value.
+/* Clear the MACPFR bits that will be setup during MAC initialization (or
+ * that are cleared unconditionally).  Per the reference manual, all reserved
+ * bits must be retained at their reset value.
  *
  * ETH_MACPFR_PR    Bit 0: Promiscuous mode
  * ETH_MACPFR_HUC   Bit 1: Hash unicast
@@ -402,15 +395,20 @@
 /* The following bits are set or left zero unconditionally in all modes.
  *
  * ETH_MACPFR_PR    Promiscuous mode                       0 (disabled)
- * ETH_MACPFR_HUC   Hash unicast                           0 (perfect dest filtering)
- * ETH_MACPFR_HMC   Hash multicast                         0 (perfect dest filtering)
+ * ETH_MACPFR_HUC   Hash unicast                           0 (perfect
+ *                                                            dest filtering)
+ * ETH_MACPFR_HMC   Hash multicast                         0 (perfect
+ *                                                            dest filtering)
  * ETH_MACPFR_DAIF  Destination address inverse filtering  0 (normal)
- * ETH_MACPFR_PM    Pass all multicast                     0 (Depends on HMC bit)
+ * ETH_MACPFR_PM    Pass all multicast                     0 (Depends on HMC
+ *                                                            bit)
  * ETH_MACPFR_DBF   Broadcast frames disable               0 (enabled)
- * ETH_MACPFR_PCF   Pass control frames                    1 (block all but PAUSE)
+ * ETH_MACPFR_PCF   Pass control frames                    1 (block all but
+ *                                                            PAUSE)
  * ETH_MACPFR_SAIF  Source address inverse filtering       0 (not used)
  * ETH_MACPFR_SAF   Source address filter                  0 (disabled)
- * ETH_MACPFR_HPF   Hash or perfect filter                 0 (Only matching frames passed)
+ * ETH_MACPFR_HPF   Hash or perfect filter                 0 (Only matching
+ *                                                            frames passed)
  * ETH_MACPFR_RA    Receive all                            0 (disabled)
  */
 
@@ -440,21 +438,27 @@
 
 /* The following bits are set or left zero unconditionally in all modes.
  *
- * ETH_MACQTXFCR_FCB_BPA Flow control busy/back pressure activate   0 (no pause control frame)
- * ETH_MACQTXFCR_TFE     Transmit flow control enable               0 (disabled)
- * ETH_MACQTXFCR_PLT     Pause low threshold                        0 (pause time - 4)
- * ETH_MACQTXFCR_DZPQ    Zero-quanta pause disable                  1 (disabled)
+ * ETH_MACQTXFCR_FCB_BPA Flow control busy/back pressure activate   0
+ *   (no pause control frame)
+ * ETH_MACQTXFCR_TFE     Transmit flow control enable               0
+ *   (disabled)
+ * ETH_MACQTXFCR_PLT     Pause low threshold                        0
+ *   (pause time - 4)
+ * ETH_MACQTXFCR_DZPQ    Zero-quanta pause disable                  1
+ *   (disabled)
  * ETH_MACQTXFCR_PT      Pause time                                 0
- * ETH_MACRXFCR_RFE      Receive flow control enable                0 (disabled)
- * ETH_MACRXFCR_UP       Unicast pause frame detect                 0 (disabled)
+ * ETH_MACRXFCR_RFE      Receive flow control enable                0
+ *   (disabled)
+ * ETH_MACRXFCR_UP       Unicast pause frame detect                 0
+ *   (disabled)
  */
 
 #define MACQTXFCR_SET_MASK (ETH_MACQTXFCR_PLT_M4 | ETH_MACQTXFCR_DZPQ)
 #define MACRXFCR_SET_MASK (0)
 
-/* Clear the MTLTXQOMR bits that will be setup during MAC initialization (or that
- * are cleared unconditionally).  Per the reference manual, all reserved bits
- * must be retained at their reset value.
+/* Clear the MTLTXQOMR bits that will be setup during MAC initialization
+ * (or that are cleared unconditionally).  Per the reference manual, all
+ * reserved bits must be retained at their reset value.
  * ETH_MTLTXQOMR_FTQ      Bit 0: Flush Transmit Queue
  * ETH_MTLTXQOMR_TSF      Bit 1: Transmit Store and Forward
  * ETH_MTLTXQOMR_TXQEN    Bits 2-3: Transmit Queue Enable
@@ -467,18 +471,20 @@
    ETH_MTLTXQOMR_TXQEN_MASK | ETH_MTLTXQOMR_TTC_MASK |  \
    ETH_MTLTXQOMR_TQS_MASK)
 
-/* Clear the MTLRXQOMR bits that will be setup during MAC initialization (or that
- * are cleared unconditionally).  Per the reference manual, all reserved bits
- * must be retained at their reset value.
+/* Clear the MTLRXQOMR bits that will be setup during MAC initialization
+ * (or that are cleared unconditionally).  Per the reference manual, all
+ * reserved bits must be retained at their reset value.
  *
  * ETH_MTLRXQOMR_RTC_MASK    Bits 0-1: Receive Queue Threshold Control
  * ETH_MTLRXQOMR_FUP         Bit 3: Forward Undersized Good Packets
  * ETH_MTLRXQOMR_FEP         Bit 4: Forward Error Packets
  * ETH_MTLRXQOMR_RSF         Bit 5: Receive Queue Store and Forward
- * ETH_MTLRXQOMR_DIS_TCP_EF  Bit 6: Disable Dropping of TCP/IP Checksum Error Packets
+ * ETH_MTLRXQOMR_DIS_TCP_EF  Bit 6: Disable Dropping of TCP/IP Checksum Error
+ *                                  Packets
  * ETH_MTLRXQOMR_EHFC        Bit 7: Enable Hardware Flow Control
  * ETH_MTLRXQOMR_RFA_MASK    Bits 8-10: Threshold for Activating Flow Control
- * ETH_MTLRXQOMR_RFD_MASK    Bits 14-16: Threshold for Deactivating Flow Control
+ * ETH_MTLRXQOMR_RFD_MASK    Bits 14-16: Threshold for Deactivating Flow
+ *                                       Control
  * ETH_MTLRXQOMR_RQS_MASK    Bits 20-22: Receive Queue Size
  */
 
@@ -600,8 +606,8 @@ union stm32_desc_u
   struct eth_desc_s   desc;
 };
 
-/* The stm32_ethmac_s encapsulates all state information for a single hardware
- * interface
+/* The stm32_ethmac_s encapsulates all state information for a single
+ * hardware interface
  */
 
 struct stm32_ethmac_s
@@ -610,8 +616,8 @@ struct stm32_ethmac_s
   uint8_t              mbps100 : 1; /* 100MBps operation (vs 10 MBps) */
   uint8_t              fduplex : 1; /* Full (vs. half) duplex */
   uint8_t              intf;        /* Ethernet interface number */
-  WDOG_ID              txpoll;      /* TX poll timer */
-  WDOG_ID              txtimeout;   /* TX timeout timer */
+  struct wdog_s        txpoll;      /* TX poll timer */
+  struct wdog_s        txtimeout;   /* TX timeout timer */
   struct work_s        irqwork;     /* For deferring interrupt work to the work queue */
   struct work_s        pollwork;    /* For deferring poll work to the work queue */
 
@@ -717,10 +723,10 @@ static int  stm32_interrupt(int irq, void *context, FAR void *arg);
 /* Watchdog timer expirations */
 
 static void stm32_txtimeout_work(void *arg);
-static void stm32_txtimeout_expiry(int argc, uint32_t arg, ...);
+static void stm32_txtimeout_expiry(wdparm_t arg);
 
 static void stm32_poll_work(void *arg);
-static void stm32_poll_expiry(int argc, uint32_t arg, ...);
+static void stm32_poll_expiry(wdparm_t arg);
 
 /* NuttX callback functions */
 
@@ -786,6 +792,7 @@ static int  stm32_ethconfig(struct stm32_ethmac_s *priv);
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
 /****************************************************************************
  * Name: stm32_getreg
  *
@@ -834,14 +841,14 @@ static uint32_t stm32_getreg(uint32_t addr)
 
   else
     {
-        /* Did we print "..." for the previous value? */
+      /* Did we print "..." for the previous value? */
 
-        if (count > 3)
-          {
-            /* Yes.. then show how many times the value repeated */
+      if (count > 3)
+        {
+          /* Yes.. then show how many times the value repeated */
 
-            ninfo("[repeats %d more times]\n", count - 3);
-          }
+          ninfo("[repeats %d more times]\n", count - 3);
+        }
 
       /* Save the new address, value, and count */
 
@@ -1038,6 +1045,7 @@ static inline bool stm32_isfreebuffer(struct stm32_ethmac_s *priv)
  *   pointer to the next tx descriptor for the current interface
  *
  ****************************************************************************/
+
 static struct eth_desc_s *stm32_get_next_txdesc(struct stm32_ethmac_s *priv,
                                                 struct eth_desc_s * curr)
 {
@@ -1081,8 +1089,8 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
   struct eth_desc_s *txdesc;
   struct eth_desc_s *txfirst;
 
-  /* The internal (optimal) network buffer size may be configured to be larger
-   * than the Ethernet buffer size.
+  /* The internal (optimal) network buffer size may be configured to be
+   * larger than the Ethernet buffer size.
    */
 
 #if OPTIMAL_ETH_BUFSIZE > ALIGNED_BUFSIZE
@@ -1100,10 +1108,10 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
   txdesc  = priv->txhead;
   txfirst = txdesc;
 
-  ninfo("d_len: %d d_buf: %p txhead: %p tdes3: %08x\n",
+  ninfo("d_len: %d d_buf: %p txhead: %p tdes3: %08" PRIx32 "\n",
         priv->dev.d_len, priv->dev.d_buf, txdesc, txdesc->des3);
 
-  DEBUGASSERT(txdesc && (txdesc->des3 & ETH_TDES3_RD_OWN) == 0);
+  DEBUGASSERT(txdesc);
 
   /* Flush the contents of the TX buffer into physical memory */
 
@@ -1116,26 +1124,24 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
 
 #if OPTIMAL_ETH_BUFSIZE > ALIGNED_BUFSIZE
   if (priv->dev.d_len > ALIGNED_BUFSIZE)
-  {
-    /* Yes... how many buffers will be need to send the packet? */
+    {
+      /* Yes... how many buffers will be need to send the packet? */
 
-    bufcount = (priv->dev.d_len + (ALIGNED_BUFSIZE - 1)) / ALIGNED_BUFSIZE;
-    lastsize = priv->dev.d_len - (bufcount - 1) * ALIGNED_BUFSIZE;
+      bufcount = (priv->dev.d_len + (ALIGNED_BUFSIZE - 1)) / ALIGNED_BUFSIZE;
+      lastsize = priv->dev.d_len - (bufcount - 1) * ALIGNED_BUFSIZE;
 
-    ninfo("bufcount: %d lastsize: %d\n", bufcount, lastsize);
+      ninfo("bufcount: %d lastsize: %d\n", bufcount, lastsize);
 
-    /* Set the first segment bit in the first TX descriptor */
+      /* Set the first segment bit in the first TX descriptor */
 
-    txdesc->des3 = ETH_TDES3_RD_FD;
+      txdesc->des3 = ETH_TDES3_RD_FD;
 
-    /* Set up all but the last TX descriptor */
+      /* Set up all but the last TX descriptor */
 
-    buffer = priv->dev.d_buf;
+      buffer = priv->dev.d_buf;
 
-    for (i = 0; i < bufcount; i++)
-      {
-          /* This could be a normal event but the design does not handle it */
-
+      for (i = 0; i < bufcount; i++)
+        {
           DEBUGASSERT((txdesc->des3 & ETH_TDES3_RD_OWN) == 0);
 
           /* Set the Buffer1 address pointer */
@@ -1156,7 +1162,7 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
 
               txdesc->des3 |= ETH_TDES3_RD_LD;
 
-              /* This segement is, most likely, of fractional buffersize */
+              /* This segment is, most likely, of fractional buffersize */
 
               /* ask for an interrupt when this segment transfer completes. */
 
@@ -1171,7 +1177,7 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
 
               /* The size of the transfer is the whole buffer */
 
-              txdesc->des2  = ALIGNED_BUFSIZE | ETH_TDES2_RD_IOC;
+              txdesc->des2  = ALIGNED_BUFSIZE;
               buffer        += ALIGNED_BUFSIZE;
             }
 
@@ -1194,6 +1200,8 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
   else
 #endif
     {
+      DEBUGASSERT((txdesc->des3 & ETH_TDES3_RD_OWN) == 0);
+
       /* Set the Buffer1 address pointer */
 
       txdesc->des0 = (uint32_t)priv->dev.d_buf;
@@ -1222,7 +1230,7 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
        */
 
       up_clean_dcache((uintptr_t)txdesc,
-                        (uintptr_t)txdesc + sizeof(struct eth_desc_s));
+                      (uintptr_t)txdesc + sizeof(struct eth_desc_s));
 
       /* Point to the next available TX descriptor */
 
@@ -1267,8 +1275,6 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
       stm32_disableint(priv, ETH_DMACIER_RIE);
     }
 
-  /* Check if the TX Buffer unavailable flag is set */
-
   MEMORY_SYNC();
 
   /* Enable TX interrupts */
@@ -1277,8 +1283,8 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
 
   /* Setup the TX timeout watchdog (perhaps restarting the timer) */
 
-  wd_start(priv->txtimeout, STM32_TXTIMEOUT, stm32_txtimeout_expiry,
-           1, (uint32_t)priv);
+  wd_start(&priv->txtimeout, STM32_TXTIMEOUT,
+           stm32_txtimeout_expiry, (wdparm_t)priv);
 
   /* Update the tx descriptor tail pointer register to start the DMA */
 
@@ -1355,8 +1361,8 @@ static int stm32_txpoll(struct net_driver_s *dev)
        * CPU.  We cannot perform the TX poll if we are unable to accept
        * another packet for transmission.
        *
-       * In a race condition, ETH_TDES3_OWN may be cleared BUT still not
-       * available because stm32_freeframe() has not yet run.  If
+       * In a race condition, ETH_TDES3_OWN may be cleared BUT still
+       * not available because stm32_freeframe() has not yet run. If
        * stm32_freeframe() has run, the buffer1 pointer (tdes2) will be
        * nullified (and inflight should be < CONFIG_STM32H7_ETH_NTXDESC).
        */
@@ -1367,6 +1373,8 @@ static int stm32_txpoll(struct net_driver_s *dev)
           /* We have to terminate the poll if we have no more descriptors
            * available for another transfer.
            */
+
+          nerr("No tx descriptors available");
 
           return -EBUSY;
         }
@@ -1383,12 +1391,14 @@ static int stm32_txpoll(struct net_driver_s *dev)
         {
           /* Terminate the poll. */
 
+          nerr("No tx buffer available");
+
           return -ENOMEM;
         }
     }
 
-  /* If zero is returned, the polling will continue until all connections have
-   * been examined.
+  /* If zero is returned, the polling will continue until all connections
+   * have been examined.
    */
 
   return 0;
@@ -1425,8 +1435,8 @@ static void stm32_dopoll(struct stm32_ethmac_s *priv)
    * CPU.  We cannot perform the TX poll if we are unable to accept
    * another packet for transmission.
    *
-   * In a race condition, ETH_TDES3_RD_OWN may be cleared BUT still not
-   * available because stm32_freeframe() has not yet run.  If
+   * In a race condition, ETH_TDES3_RD_OWN may be cleared BUT still
+   * not available because stm32_freeframe() has not yet run. If
    * stm32_freeframe() has run, the buffer1 pointer (des0) will be
    * nullified (and inflight should be < CONFIG_STM32H7_ETH_NTXDESC).
    */
@@ -1445,7 +1455,7 @@ static void stm32_dopoll(struct stm32_ethmac_s *priv)
 
       if (dev->d_buf)
         {
-          devif_poll(dev, stm32_txpoll);
+          devif_timer(dev, 0, stm32_txpoll);
 
           /* We will, most likely end up with a buffer to be freed.  But it
            * might not be the same one that we allocated above.
@@ -1458,6 +1468,14 @@ static void stm32_dopoll(struct stm32_ethmac_s *priv)
               dev->d_buf = NULL;
             }
         }
+      else
+        {
+          nerr("No tx buffers");
+        }
+    }
+  else
+    {
+      nerr("No tx descriptors\n");
     }
 }
 
@@ -1541,6 +1559,7 @@ static void stm32_disableint(struct stm32_ethmac_s *priv, uint32_t ierbit)
  *   pointer to the next rx descriptor for the current interface
  *
  ****************************************************************************/
+
 static struct eth_desc_s *stm32_get_next_rxdesc(struct stm32_ethmac_s *priv,
                                                 struct eth_desc_s * curr)
 {
@@ -1592,7 +1611,8 @@ static void stm32_freesegment(struct stm32_ethmac_s *priv,
     {
       /* Set OWN bit in RX descriptors.  This gives the buffers back to DMA */
 
-      rxdesc->des3 = ETH_RDES3_RD_OWN | ETH_RDES3_RD_IOC | ETH_RDES3_RD_BUF1V;
+      rxdesc->des3 = ETH_RDES3_RD_OWN | ETH_RDES3_RD_IOC |
+                     ETH_RDES3_RD_BUF1V;
 
       /* Make sure that the modified RX descriptor is written to physical
        * memory.
@@ -1601,15 +1621,13 @@ static void stm32_freesegment(struct stm32_ethmac_s *priv,
       up_clean_dcache((uintptr_t)rxdesc,
                       (uintptr_t)rxdesc + sizeof(struct eth_desc_s));
 
+      /* Get the next RX descriptor in the chain */
+
+      rxdesc = stm32_get_next_rxdesc(priv, rxdesc);
+
       /* Update the tail pointer */
 
       stm32_putreg((uintptr_t)rxdesc, STM32_ETH_DMACRXDTPR);
-
-      /* Get the next RX descriptor in the chain (cache coherency should not
-       * be an issue because the link address is constant.
-       */
-
-      rxdesc = stm32_get_next_rxdesc(priv, rxdesc);
     }
 
   /* Reset the segment management logic */
@@ -1621,7 +1639,9 @@ static void stm32_freesegment(struct stm32_ethmac_s *priv,
 
   if ((stm32_getreg(STM32_ETH_DMACSR) & ETH_DMACSR_RBU) != 0)
     {
-      /* TODO: This is probably not needed at all? */
+      /* Clear the RBU flag */
+
+      stm32_putreg(ETH_DMACSR_RBU, STM32_ETH_DMACSR);
 
       nerr("ETH_DMACSR_RBU\n");
 
@@ -1660,7 +1680,7 @@ static void stm32_freesegment(struct stm32_ethmac_s *priv,
 static int stm32_recvframe(struct stm32_ethmac_s *priv)
 {
   struct eth_desc_s *rxdesc;
-  struct eth_desc_s *rxcurr;
+  struct eth_desc_s *rxcurr = NULL;
   uint8_t *buffer;
   int i;
 
@@ -1694,7 +1714,7 @@ static int stm32_recvframe(struct stm32_ethmac_s *priv)
   /* Forces the first RX descriptor to be re-read from physical memory */
 
   up_invalidate_dcache((uintptr_t)rxdesc,
-                         (uintptr_t)rxdesc + sizeof(struct eth_desc_s));
+                       (uintptr_t)rxdesc + sizeof(struct eth_desc_s));
 
   for (i = 0;
        (rxdesc->des3 & ETH_RDES3_WB_OWN) == 0 &&
@@ -1756,50 +1776,65 @@ static int stm32_recvframe(struct stm32_ethmac_s *priv)
                   dev->d_len = ((rxdesc->des3 & ETH_RDES3_WB_PL_MASK) >>
                                ETH_RDES3_WB_PL_SHIFT) - 4;
 
-                  /* Get a buffer from the free list.  We don't even check if
-                   * this is successful because we already assure the free
-                   * list is not empty above.
-                   */
+                  if (priv->segments > 1 ||
+                      dev->d_len > ALIGNED_BUFSIZE)
+                    {
+                      /* The Frame is to big, it spans segments */
 
-                  buffer = stm32_allocbuffer(priv);
+                      nerr("ERROR: Dropped, RX descriptor Too big: %d in %d "
+                          "segments\n", dev->d_len, priv->segments);
 
-                  /* Take the buffer from the RX descriptor of the first free
-                   * segment, put it into the network device structure, then
-                   * replace the buffer in the RX descriptor with the newly
-                   * allocated buffer.
-                   */
+                      stm32_freesegment(priv, rxcurr, priv->segments);
+                    }
+                  else
+                    {
+                      /* Get a buffer from the free list.  We don't even
+                       * check if this is successful because we already
+                       * assure the free list is not empty above.
+                       */
 
-                  DEBUGASSERT(dev->d_buf == NULL);
-                  dev->d_buf    = (uint8_t *)rxcurr->des0;
-                  rxcurr->des0 = (uint32_t)buffer;
+                      buffer = stm32_allocbuffer(priv);
 
-                  /* Make sure that the modified RX descriptor is written to
-                   * physical memory.
-                   */
+                      /* Take the buffer from the RX descriptor of the first
+                       * free segment, put it into the network device
+                       * structure, then replace the buffer in the RX
+                       * descriptor with the newly allocated buffer.
+                       */
 
-                  up_clean_dcache((uintptr_t)rxcurr,
-                                  (uintptr_t)rxdesc + sizeof(struct eth_desc_s));
+                      DEBUGASSERT(dev->d_buf == NULL);
+                      dev->d_buf    = (uint8_t *)rxcurr->des0;
+                      rxcurr->des0 = (uint32_t)buffer;
 
-                  /* Remember where we should re-start scanning and reset the
-                   * segment scanning logic
-                   */
+                      /* Make sure that the modified RX descriptor is written
+                       * to physical memory.
+                       */
 
-                  priv->rxhead   = stm32_get_next_rxdesc(priv, rxdesc);
-                  stm32_freesegment(priv, rxcurr, priv->segments);
+                      up_clean_dcache((uintptr_t)rxcurr,
+                                      (uintptr_t)rxdesc +
+                                      sizeof(struct eth_desc_s));
 
-                  /* Force the completed RX DMA buffer to be re-read from
-                   * physical memory.
-                   */
+                      /* Remember where we should re-start scanning and reset
+                       * the segment scanning logic
+                       */
 
-                  up_invalidate_dcache((uintptr_t)dev->d_buf,
-                                       (uintptr_t)dev->d_buf + dev->d_len);
+                      priv->rxhead   = stm32_get_next_rxdesc(priv, rxdesc);
+                      stm32_freesegment(priv, rxcurr, priv->segments);
 
-                  ninfo("rxhead: %p d_buf: %p d_len: %d\n",
-                        priv->rxhead, dev->d_buf, dev->d_len);
+                      /* Force the completed RX DMA buffer to be re-read from
+                       * physical memory.
+                       */
 
-                  /* Return success */
+                      up_invalidate_dcache((uintptr_t)dev->d_buf,
+                                           (uintptr_t)dev->d_buf +
+                                           min(dev->d_len, ALIGNED_BUFSIZE));
 
-                  return OK;
+                      ninfo("rxhead: %p d_buf: %p d_len: %d\n",
+                            priv->rxhead, dev->d_buf, dev->d_len);
+
+                      /* Return success */
+
+                      return OK;
+                    }
                 }
               else
                 {
@@ -1808,7 +1843,8 @@ static int stm32_recvframe(struct stm32_ethmac_s *priv)
                    * next frame.
                    */
 
-                  nwarn("WARNING: DROPPED RX descriptor errors: %08x\n",
+                  nwarn("WARNING: DROPPED RX descriptor errors: "
+                        "%08" PRIx32 "\n",
                         rxdesc->des3);
                   stm32_freesegment(priv, rxcurr, priv->segments);
                 }
@@ -1818,6 +1854,7 @@ static int stm32_recvframe(struct stm32_ethmac_s *priv)
         {
           /* Drop the context descriptors, we are not interested */
 
+          DEBUGASSERT(rxcurr != NULL);
           stm32_freesegment(priv, rxcurr, 1);
         }
 
@@ -1832,8 +1869,8 @@ static int stm32_recvframe(struct stm32_ethmac_s *priv)
     }
 
   /* We get here after all of the descriptors have been scanned or when
-   * rxdesc points to the first descriptor owned by the DMA.  Remember where
-   * we left off.
+   * rxdesc points to the first descriptor owned by the DMA. Remember
+   * where we left off.
    */
 
   priv->rxhead = rxdesc;
@@ -1872,9 +1909,11 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
   while (stm32_recvframe(priv) == OK)
     {
 #ifdef CONFIG_NET_PKT
-      /* When packet sockets are enabled, feed the frame into the packet tap */
+      /* When packet sockets are enabled, feed the frame into the packet
+       * tap
+       */
 
-      pkt_input(&priv->dev);
+     pkt_input(&priv->dev);
 #endif
 
       /* Check if the packet is a valid size for the network buffer
@@ -1943,7 +1982,7 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
 #ifdef CONFIG_NET_IPv6
       if (BUF->type == HTONS(ETHTYPE_IP6))
         {
-          ninfo("Iv6 frame\n");
+          ninfo("IPv6 frame\n");
 
           /* Give the IPv6 packet to the network layer */
 
@@ -2023,7 +2062,8 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
  * Function: stm32_freeframe
  *
  * Description:
- *   Scans the TX descriptors and frees the buffers of completed TX transfers.
+ *   Scans the TX descriptors and frees the buffers of completed TX
+ *   transfers.
  *
  * Parameters:
  *   priv  - Reference to the driver state structure
@@ -2063,19 +2103,15 @@ static void stm32_freeframe(struct stm32_ethmac_s *priv)
            * TX descriptors.
            */
 
-          ninfo("txtail: %p des0: %08x des2: %08x des3: %08x\n",
+          ninfo("txtail: %p des0: %08" PRIx32
+                " des2: %08" PRIx32 " des3: %08" PRIx32 "\n",
                 txdesc, txdesc->des0, txdesc->des2, txdesc->des3);
 
           DEBUGASSERT(txdesc->des0 != 0);
 
-          /* Check if this is the first segment of a TX frame. */
+          /* Yes.. Free the buffer */
 
-          if ((txdesc->des3 & ETH_TDES3_RD_FD) != 0)
-            {
-              /* Yes.. Free the buffer */
-
-              stm32_freebuffer(priv, (uint8_t *)txdesc->des0);
-            }
+          stm32_freebuffer(priv, (uint8_t *)txdesc->des0);
 
           /* In any event, make sure that des0-3 are nullified. */
 
@@ -2100,9 +2136,9 @@ static void stm32_freeframe(struct stm32_ethmac_s *priv)
 
               priv->inflight--;
 
-              /* If all of the TX descriptors were in-flight, then RX
-               * interruptsmay have been disabled... we can re-enable them
-               * now.
+              /* If all of the TX descriptors were in-flight,
+               * then RX interrupts may have been disabled...
+               * we can re-enable them now.
                */
 
               stm32_enableint(priv, ETH_DMACIER_RIE);
@@ -2124,7 +2160,8 @@ static void stm32_freeframe(struct stm32_ethmac_s *priv)
           /* Force re-reading of the TX descriptor for physical memory */
 
           up_invalidate_dcache((uintptr_t)txdesc,
-                               (uintptr_t)txdesc + sizeof(struct eth_desc_s));
+                               (uintptr_t)txdesc +
+                               sizeof(struct eth_desc_s));
         }
 
       /* We get here if (1) there are still frames "in-flight". Remember
@@ -2169,7 +2206,7 @@ static void stm32_txdone(struct stm32_ethmac_s *priv)
     {
       /* Cancel the TX timeout */
 
-      wd_cancel(priv->txtimeout);
+      wd_cancel(&priv->txtimeout);
 
       /* And disable further TX interrupts. */
 
@@ -2330,7 +2367,7 @@ static int stm32_interrupt(int irq, void *context, FAR void *arg)
            * expiration and the deferred interrupt processing.
            */
 
-          wd_cancel(priv->txtimeout);
+          wd_cancel(&priv->txtimeout);
         }
 
       DEBUGASSERT(work_available(&priv->irqwork));
@@ -2384,8 +2421,7 @@ static void stm32_txtimeout_work(void *arg)
  *   The last TX never completed.  Reset the hardware and start again.
  *
  * Parameters:
- *   argc - The number of available arguments
- *   arg  - The first argument
+ *   arg  - The argument
  *
  * Returned Value:
  *   None
@@ -2395,7 +2431,7 @@ static void stm32_txtimeout_work(void *arg)
  *
  ****************************************************************************/
 
-static void stm32_txtimeout_expiry(int argc, uint32_t arg, ...)
+static void stm32_txtimeout_expiry(wdparm_t arg)
 {
   struct stm32_ethmac_s *priv = (struct stm32_ethmac_s *)arg;
 
@@ -2439,15 +2475,16 @@ static void stm32_poll_work(void *arg)
   struct stm32_ethmac_s *priv = (struct stm32_ethmac_s *)arg;
   struct net_driver_s *dev  = &priv->dev;
 
-  /* Check if the next TX descriptor is owned by the Ethernet DMA or CPU.  We
-   * cannot perform the timer poll if we are unable to accept another packet
-   * for transmission.  Hmmm.. might be bug here.  Does this mean if there is
-   * a transmit in progress, we will miss TCP time state updates?
+  /* Check if the next TX descriptor is owned by the Ethernet DMA or
+   * CPU. We cannot perform the timer poll if we are unable to accept
+   * another packet for transmission.  Hmmm.. might be bug here.
+   * Does this mean if there is a transmit in progress, we will miss
+   * TCP time state updates?
    *
-   * In a race condition, ETH_TDES3_OWN may be cleared BUT still not available
-   * because stm32_freeframe() has not yet run.  If stm32_freeframe() has run,
-   * the buffer1 pointer (des2) will be nullified (and inflight should be <
-   * CONFIG_STM32H7_ETH_NTXDESC).
+   * In a race condition, ETH_TDES3_OWN may be cleared BUT still
+   * not available because stm32_freeframe() has not yet run. If
+   * stm32_freeframe() has run, the buffer1 pointer (des2) will be
+   * nullified (and inflight should be < CONFIG_STM32H7_ETH_NTXDESC).
    */
 
   net_lock();
@@ -2486,7 +2523,8 @@ static void stm32_poll_work(void *arg)
 
   /* Setup the watchdog poll timer again */
 
-  wd_start(priv->txpoll, STM32_WDDELAY, stm32_poll_expiry, 1, priv);
+  wd_start(&priv->txpoll, STM32_WDDELAY,
+           stm32_poll_expiry, (wdparm_t)priv);
   net_unlock();
 }
 
@@ -2497,8 +2535,7 @@ static void stm32_poll_work(void *arg)
  *   Periodic timer handler.  Called from the timer interrupt handler.
  *
  * Parameters:
- *   argc - The number of available arguments
- *   arg  - The first argument
+ *   arg  - The argument
  *
  * Returned Value:
  *   None
@@ -2508,7 +2545,7 @@ static void stm32_poll_work(void *arg)
  *
  ****************************************************************************/
 
-static void stm32_poll_expiry(int argc, uint32_t arg, ...)
+static void stm32_poll_expiry(wdparm_t arg)
 {
   struct stm32_ethmac_s *priv = (struct stm32_ethmac_s *)arg;
 
@@ -2520,7 +2557,8 @@ static void stm32_poll_expiry(int argc, uint32_t arg, ...)
     }
   else
     {
-      wd_start(priv->txpoll, STM32_WDDELAY, stm32_poll_expiry, 1, priv);
+      wd_start(&priv->txpoll, STM32_WDDELAY,
+               stm32_poll_expiry, (wdparm_t)priv);
     }
 }
 
@@ -2548,8 +2586,8 @@ static int stm32_ifup(struct net_driver_s *dev)
 
 #ifdef CONFIG_NET_IPv4
   ninfo("Bringing up: %d.%d.%d.%d\n",
-        dev->d_ipaddr & 0xff, (dev->d_ipaddr >> 8) & 0xff,
-        (dev->d_ipaddr >> 16) & 0xff, dev->d_ipaddr >> 24);
+        (int)(dev->d_ipaddr & 0xff), (int)((dev->d_ipaddr >> 8) & 0xff),
+        (int)((dev->d_ipaddr >> 16) & 0xff), (int)(dev->d_ipaddr >> 24));
 #endif
 #ifdef CONFIG_NET_IPv6
   ninfo("Bringing up: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
@@ -2568,8 +2606,8 @@ static int stm32_ifup(struct net_driver_s *dev)
 
   /* Set and activate a timer process */
 
-  wd_start(priv->txpoll, STM32_WDDELAY, stm32_poll_expiry, 1,
-           (uint32_t)priv);
+  wd_start(&priv->txpoll, STM32_WDDELAY,
+           stm32_poll_expiry, (wdparm_t)priv);
 
   /* Enable the Ethernet interrupt */
 
@@ -2610,8 +2648,8 @@ static int stm32_ifdown(struct net_driver_s *dev)
 
   /* Cancel the TX poll timer and TX timeout timers */
 
-  wd_cancel(priv->txpoll);
-  wd_cancel(priv->txtimeout);
+  wd_cancel(&priv->txpoll);
+  wd_cancel(&priv->txtimeout);
 
   /* Put the EMAC in its reset, non-operational state.  This should be
    * a known configuration that will guarantee the stm32_ifup() always
@@ -2783,12 +2821,12 @@ static int stm32_addmac(struct net_driver_s *dev, const uint8_t *mac)
 
   if (hashindex > 31)
     {
-      registeraddress = STM32_ETH_MACHT0R;
+      registeraddress = STM32_ETH_MACHT1R;
       hashindex -= 32;
     }
   else
     {
-      registeraddress = STM32_ETH_MACHT1R;
+      registeraddress = STM32_ETH_MACHT0R;
     }
 
   temp  = stm32_getreg(registeraddress);
@@ -2886,7 +2924,6 @@ static int stm32_rmmac(struct net_driver_s *dev, const uint8_t *mac)
 
 static void stm32_txdescinit(struct stm32_ethmac_s *priv,
                              union stm32_desc_u *txtable)
-
 {
   struct eth_desc_s *txdesc;
   int i;
@@ -3186,7 +3223,9 @@ static int stm32_phyread(uint16_t phydevaddr, uint16_t phyregaddr,
   volatile uint32_t timeout;
   uint32_t regval;
 
-  /* Configure the MACMDIOAR register, preserving CSR Clock Range CR[3:0] bits */
+  /* Configure the MACMDIOAR register, preserving CSR Clock Range CR[3:0]
+   * bits
+   */
 
   regval  = stm32_getreg(STM32_ETH_MACMDIOAR);
   regval &= ETH_MACMDIOAR_CR_MASK;
@@ -3245,7 +3284,9 @@ static int stm32_phywrite(uint16_t phydevaddr, uint16_t phyregaddr,
   uint32_t regval;
   uint16_t value;
 
-  /* Configure the MACMDIOAR register, preserving CSR Clock Range CR[3:0] bits */
+  /* Configure the MACMDIOAR register, preserving CSR Clock Range CR[3:0]
+   * bits
+   */
 
   regval  = stm32_getreg(STM32_ETH_MACMDIOAR);
   regval &= ETH_MACMDIOAR_CR_MASK;
@@ -3294,8 +3335,8 @@ static int stm32_phywrite(uint16_t phydevaddr, uint16_t phyregaddr,
         }
     }
 
-  ninfo("MII transfer timed out: phydevaddr: %04x phyregaddr: %04x value: %04x\n",
-        phydevaddr, phyregaddr, value);
+  ninfo("MII transfer timed out: phydevaddr: %04x phyregaddr: %04x value: "
+        "%04x\n", phydevaddr, phyregaddr, value);
 
   return -ETIMEDOUT;
 }
@@ -3335,7 +3376,9 @@ static inline int stm32_dm9161(struct stm32_ethmac_s *priv)
       return ret;
     }
 
-  /* If we failed to read the PHY ID1 register, the reset the MCU to recover */
+  /* If we failed to read the PHY ID1 register, the reset the MCU to
+   * recover
+   */
 
   else if (phyval == 0xffff)
     {
@@ -3344,7 +3387,9 @@ static inline int stm32_dm9161(struct stm32_ethmac_s *priv)
 
   ninfo("PHY ID1: 0x%04X\n", phyval);
 
-  /* Now check the "DAVICOM Specified Configuration Register (DSCR)", Register 16 */
+  /* Now check the "DAVICOM Specified Configuration Register (DSCR)",
+   * Register 16
+   */
 
   ret = stm32_phyread(CONFIG_STM32H7_PHYADDR, 16, &phyval);
   if (ret < 0)
@@ -3433,7 +3478,7 @@ static int stm32_phyinit(struct stm32_ethmac_s *priv)
   priv->mbps100 = 0;
   priv->fduplex = 0;
 
-  /* Setup up PHY clocking by setting the CR field in the MACMDIOAR register */
+  /* Setup up PHY clocking by setting the CR field in the MACMDIOAR reg */
 
   regval  = stm32_getreg(STM32_ETH_MACMDIOAR);
   regval &= ~ETH_MACMDIOAR_CR_MASK;
@@ -3471,17 +3516,6 @@ static int stm32_phyinit(struct stm32_ethmac_s *priv)
 
 #ifdef CONFIG_STM32H7_ETHMAC_REGDEBUG
   stm32_phyregdump();
-#endif
-
-  /* Perform any necessary, board-specific PHY initialization */
-
-#ifdef CONFIG_STM32H7_PHYINIT
-  ret = stm32_phy_boardinitialize(0);
-  if (ret < 0)
-    {
-      nerr("ERROR: Failed to initialize the PHY: %d\n", ret);
-      return ret;
-    }
 #endif
 
   /* Special workaround for the Davicom DM9161 PHY is required. */
@@ -3606,7 +3640,8 @@ static int stm32_phyinit(struct stm32_ethmac_s *priv)
    */
 
 #else
-  if ((phyval & CONFIG_STM32H7_PHYSR_MODE) == CONFIG_STM32H7_PHYSR_FULLDUPLEX)
+  if ((phyval & CONFIG_STM32H7_PHYSR_MODE) ==
+      CONFIG_STM32H7_PHYSR_FULLDUPLEX)
     {
       priv->fduplex = 1;
     }
@@ -3617,7 +3652,7 @@ static int stm32_phyinit(struct stm32_ethmac_s *priv)
     }
 #endif
 
-#else /* Auto-negotion not selected */
+#else /* Auto-negotiation not selected */
 
   phyval = 0;
 #ifdef CONFIG_STM32H7_ETHFD
@@ -3657,7 +3692,7 @@ static int stm32_phyinit(struct stm32_ethmac_s *priv)
  * Name: stm32_selectmii
  *
  * Description:
- *   Selects the MII inteface.
+ *   Selects the MII interface.
  *
  * Input Parameters:
  *   None
@@ -3683,7 +3718,7 @@ static inline void stm32_selectmii(void)
  * Name: stm32_selectrmii
  *
  * Description:
- *   Selects the RMII inteface.
+ *   Selects the RMII interface.
  *
  * Input Parameters:
  *   None
@@ -3740,8 +3775,8 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
 
   /* Provide clocking via MCO, MCO1 or MCO2:
    *
-   * "MCO1 (microcontroller clock output), used to output HSI, LSE, HSE or PLL
-   *  clock (through a configurable prescaler) on PA8 pin."
+   * "MCO1 (microcontroller clock output), used to output HSI, LSE, HSE or
+   *  PLL clock (through a configurable prescaler) on PA8 pin."
    *
    * "MCO2 (microcontroller clock output), used to output HSE, PLL, SYSCLK or
    *  PLLI2S clock (through a configurable prescaler) on PC9 pin."
@@ -3772,8 +3807,8 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
 
   /* MII interface pins (17):
    *
-   * MII_TX_CLK, MII_TXD[3:0], MII_TX_EN, MII_RX_CLK, MII_RXD[3:0], MII_RX_ER,
-   * MII_RX_DV, MII_CRS, MII_COL, MDC, MDIO
+   * MII_TX_CLK, MII_TXD[3:0], MII_TX_EN, MII_RX_CLK, MII_RXD[3:0],
+   * MII_RX_ER, MII_RX_DV, MII_CRS, MII_COL, MDC, MDIO
    */
 
   stm32_configgpio(GPIO_ETH_MII_COL);
@@ -3802,8 +3837,8 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
 
   /* Provide clocking via MCO, MCO1 or MCO2:
    *
-   * "MCO1 (microcontroller clock output), used to output HSI, LSE, HSE or PLL
-   *  clock (through a configurable prescaler) on PA8 pin."
+   * "MCO1 (microcontroller clock output), used to output HSI, LSE, HSE or
+   *  PLL clock (through a configurable prescaler) on PA8 pin."
    *
    * "MCO2 (microcontroller clock output), used to output HSE, PLL, SYSCLK or
    *  PLLI2S clock (through a configurable prescaler) on PC9 pin."
@@ -3893,13 +3928,14 @@ static void stm32_ethreset(struct stm32_ethmac_s *priv)
   regval |= ETH_DMAMR_SWR;
   stm32_putreg(regval, STM32_ETH_DMAMR);
 
-  /* Wait for software reset to complete. The SR bit is cleared automatically
-   * after the reset operation has completed in all of the core clock domains.
+  /* Wait for software reset to complete. The SR bit is cleared
+   * automatically after the reset operation has completed in all of the
+   * core clock domains.
    */
 
   while ((stm32_getreg(STM32_ETH_DMAMR) & ETH_DMAMR_SWR) != 0);
 
-  /* Acording to the spec, these need to be done before creating
+  /* According to the spec, these need to be done before creating
    * the descriptor lists, so initialize these already here
    */
 
@@ -4260,6 +4296,17 @@ static int stm32_ethconfig(struct stm32_ethmac_s *priv)
    * sequence in stm32_rcc.c.
    */
 
+#ifdef CONFIG_STM32H7_PHYINIT
+  /* Perform any necessary, board-specific PHY initialization */
+
+  ret = stm32_phy_boardinitialize(0);
+  if (ret < 0)
+    {
+      nerr("ERROR: Failed to initialize the PHY: %d\n", ret);
+      return ret;
+    }
+#endif
+
   /* Initialize the free buffer list */
 
   stm32_initbuffer(priv, &g_txbuffer[priv->intf * TXBUFFER_SIZE]);
@@ -4285,18 +4332,18 @@ static int stm32_ethconfig(struct stm32_ethmac_s *priv)
   ninfo("Initialize the PHY\n");
   ret = stm32_phyinit(priv);
   if (ret < 0)
-  {
-    return ret;
-  }
+    {
+      return ret;
+    }
 
   /* Initialize the MAC and DMA */
 
   ninfo("Initialize the MAC and DMA\n");
   ret = stm32_macconfig(priv);
   if (ret < 0)
-  {
-    return ret;
-  }
+    {
+      return ret;
+    }
 
   /* Enable normal MAC operation */
 
@@ -4314,7 +4361,7 @@ static int stm32_ethconfig(struct stm32_ethmac_s *priv)
  * Description:
  *   Initialize the Ethernet driver for one interface.  If the STM32 chip
  *   supports multiple Ethernet controllers, then board specific logic
- *   must implement up_netinitialize() and call this function to initialize
+ *   must implement arm_netinitialize() and call this function to initialize
  *   the desired interfaces.
  *
  * Parameters:
@@ -4328,13 +4375,16 @@ static int stm32_ethconfig(struct stm32_ethmac_s *priv)
  *
  ****************************************************************************/
 
-#if STM32H7_NETHERNET == 1 || defined(CONFIG_NETDEV_LATEINIT)
-static inline
-#endif
-
+#if STM32H7_NETHERNET > 1 || defined(CONFIG_NETDEV_LATEINIT)
 int stm32_ethinitialize(int intf)
+#else
+static inline int stm32_ethinitialize(int intf)
+#endif
 {
   struct stm32_ethmac_s *priv;
+  uint8_t uid[12];
+  uint64_t crc;
+  int ret = OK;
 
   ninfo("intf: %d\n", intf);
 
@@ -4356,13 +4406,22 @@ int stm32_ethinitialize(int intf)
 #ifdef CONFIG_NETDEV_PHY_IOCTL
   priv->dev.d_ioctl   = stm32_ioctl;    /* Support PHY ioctl() calls */
 #endif
-  priv->dev.d_private = (void *)g_stm32ethmac; /* Used to recover private state from dev */
+  priv->dev.d_private = g_stm32ethmac;  /* Used to recover private state */
   priv->intf          = intf;           /* Remember the interface number */
 
-  /* Create a watchdog for timing polling for and timing of transmissions */
+  stm32_get_uniqueid(uid);
+  crc = crc64(uid, 12);
 
-  priv->txpoll       = wd_create();     /* Create periodic poll timer */
-  priv->txtimeout    = wd_create();     /* Create TX timeout timer */
+  /* Specify as localy administrated address */
+
+  priv->dev.d_mac.ether.ether_addr_octet[0]  = (crc >> 0) | 0x02;
+  priv->dev.d_mac.ether.ether_addr_octet[0] &= ~0x1;
+
+  priv->dev.d_mac.ether.ether_addr_octet[1]  = crc >> 8;
+  priv->dev.d_mac.ether.ether_addr_octet[2]  = crc >> 16;
+  priv->dev.d_mac.ether.ether_addr_octet[3]  = crc >> 24;
+  priv->dev.d_mac.ether.ether_addr_octet[4]  = crc >> 32;
+  priv->dev.d_mac.ether.ether_addr_octet[5]  = crc >> 40;
 
   /* Configure GPIO pins to support Ethernet */
 
@@ -4371,11 +4430,22 @@ int stm32_ethinitialize(int intf)
   /* Attach the IRQ to the driver */
 
   if (irq_attach(STM32_IRQ_ETH, stm32_interrupt, NULL))
-  {
-    /* We could not attach the ISR to the interrupt */
+    {
+      /* We could not attach the ISR to the interrupt */
 
-    return -EAGAIN;
-  }
+      return -EAGAIN;
+    }
+
+#ifdef CONFIG_STM32H7_PHYINIT
+  /* Perform any necessary, board-specific PHY initialization */
+
+  ret = stm32_phy_boardinitialize(0);
+  if (ret < 0)
+    {
+      nerr("ERROR: Failed to initialize the PHY: %d\n", ret);
+      return ret;
+    }
+#endif
 
   /* Put the interface in the down state. */
 
@@ -4384,17 +4454,17 @@ int stm32_ethinitialize(int intf)
   /* Register the device with the OS so that socket IOCTLs can be performed */
 
   netdev_register(&priv->dev, NET_LL_ETHERNET);
-  return OK;
+  return ret;
 }
 
 /****************************************************************************
- * Function: up_netinitialize
+ * Function: arm_netinitialize
  *
  * Description:
  *   This is the "standard" network initialization logic called from the
- *   low-level initialization logic in up_initialize.c.  If STM32H7_NETHERNET
+ *   low-level initialization logic in arm_initialize.c. If STM32H7_NETHERNET
  *   greater than one, then board specific logic will have to supply a
- *   version of up_netinitialize() that calls stm32_ethinitialize() with
+ *   version of arm_netinitialize() that calls stm32_ethinitialize() with
  *   the appropriate interface number.
  *
  * Parameters:
@@ -4408,7 +4478,7 @@ int stm32_ethinitialize(int intf)
  ****************************************************************************/
 
 #if STM32H7_NETHERNET == 1 && !defined(CONFIG_NETDEV_LATEINIT)
-void up_netinitialize(void)
+void arm_netinitialize(void)
 {
   stm32_ethinitialize(0);
 }

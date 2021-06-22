@@ -1,35 +1,20 @@
 /****************************************************************************
- *  wireless/ieee802154/ieee802154_primitive.c
+ * wireless/ieee802154/ieee802154_primitive.c
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,9 +36,10 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* NOTE:  The CONFIG_IEEE802154_PRIMITIVE_IRQRESERVE options is marked as marked
- * 'experimental' and with the default 0 zero because there are no interrupt
- * level allocations performed by the current IEEE 802.15.4 MAC code.
+/* NOTE:  The CONFIG_IEEE802154_PRIMITIVE_IRQRESERVE options is marked as
+ * marked 'experimental' and with the default 0 zero because there are no
+ * interrupt level allocations performed by the current IEEE 802.15.4 MAC
+ * code.
  */
 
 #if !defined(CONFIG_IEEE802154_PRIMITIVE_PREALLOC) || \
@@ -101,8 +87,8 @@ struct ieee802154_priv_primitive_s
 #if CONFIG_IEEE802154_PRIMITIVE_PREALLOC > 0
 #if CONFIG_IEEE802154_PRIMITIVE_PREALLOC > CONFIG_IEEE802154_PRIMITIVE_IRQRESERVE
 /* The g_primfree is a list of primitive structures that are available for
- * general use.  The number of messages in this list is a system configuration
- * item.
+ * general use.  The number of messages in this list is a system
+ * configuration item.
  */
 
 static struct ieee802154_priv_primitive_s *g_primfree;
@@ -118,7 +104,8 @@ static struct ieee802154_priv_primitive_s *g_primfree_irq;
 
 /* Pool of pre-allocated primitive structures */
 
-static struct ieee802154_priv_primitive_s g_primpool[CONFIG_IEEE802154_PRIMITIVE_PREALLOC];
+static struct ieee802154_priv_primitive_s
+                g_primpool[CONFIG_IEEE802154_PRIMITIVE_PREALLOC];
 #endif /* CONFIG_IEEE802154_PRIMITIVE_PREALLOC > 0 */
 
 static bool g_poolinit = false;
@@ -159,8 +146,8 @@ void ieee802154_primitivepool_initialize(void)
   int remaining = CONFIG_IEEE802154_PRIMITIVE_PREALLOC;
 
 #if CONFIG_IEEE802154_PRIMITIVE_PREALLOC > CONFIG_IEEE802154_PRIMITIVE_IRQRESERVE
-  /* Initialize g_primfree, the list of primitive structures that are available
-   * for general use.
+  /* Initialize g_primfree, the list of primitive structures that are
+   * available for general use.
    */
 
   g_primfree = NULL;
@@ -228,9 +215,9 @@ void ieee802154_primitivepool_initialize(void)
  *   None
  *
  * Returned Value:
- *   A reference to the allocated primitive structure.  All user fields in this
- *   structure have been zeroed.  On a failure to allocate, NULL is
- *   returned.
+ *   A reference to the allocated primitive structure.
+ *   All user fields in this structure have been zeroed.
+ *   On a failure to allocate, NULL is returned.
  *
  ****************************************************************************/
 
@@ -300,7 +287,7 @@ FAR struct ieee802154_primitive_s *ieee802154_primitive_allocate(void)
 #endif
         {
           /* If we cannot a primitive structure from the free list, then we
-           * will have to allocate one from the kernal memory pool.
+           * will have to allocate one from the kernel memory pool.
            */
 
           leave_critical_section(flags);
@@ -317,7 +304,9 @@ FAR struct ieee802154_primitive_s *ieee802154_primitive_allocate(void)
               return NULL;
             }
 
-          /* Remember that this primitive structure was dynamically allocated */
+          /* Remember that this primitive structure
+           * was dynamically allocated
+           */
 
           pool = POOL_PRIMITIVE_DYNAMIC;
         }
@@ -341,8 +330,8 @@ FAR struct ieee802154_primitive_s *ieee802154_primitive_allocate(void)
  * Name: ieee802154_primitive_free
  *
  * Description:
- *   The ieee802154_primitive_free function will return a primitive structure to
- *   the free pool of  messages if it was a pre-allocated primitive
+ *   The ieee802154_primitive_free function will return a primitive structure
+ *   to the free pool of  messages if it was a pre-allocated primitive
  *   structure. If the primitive structure was allocated dynamically it will
  *   be deallocated.
  *
@@ -409,7 +398,7 @@ void ieee802154_primitive_free(FAR struct ieee802154_primitive_s *prim)
       /* Otherwise, deallocate it. */
 
       DEBUGASSERT(priv->pool == POOL_PRIMITIVE_DYNAMIC);
-      sched_kfree(priv);
+      kmm_free(priv);
     }
 #endif
 

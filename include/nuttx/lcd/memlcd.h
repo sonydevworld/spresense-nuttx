@@ -2,35 +2,20 @@
  * include/nuttx/lcd/memlcd.h
  * Common definitions for the Sharp Memory LCD driver
  *
- *   Copyright (C) 2010 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -52,16 +37,12 @@ extern "C"
 #endif
 
 /****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/****************************************************************************
  * Public Types
  ****************************************************************************/
 
-/* A reference to a structure of this type must be passed to the initialization
- * method. It provides some board-specific hooks used by driver to manage the
- * timer and gpio (IRQ and DISP).
+/* A reference to a structure of this type must be passed to the
+ * initialization method. It provides some board-specific hooks used by
+ * driver to manage the timer and gpio (IRQ and DISP).
  *
  * Memory for this structure is provided by the caller.  It is not copied
  * by the driver and is presumed to persist while the driver is active.
@@ -73,11 +54,11 @@ struct memlcd_priv_s
    * callbacks to isolate the Memory LCD driver from differences in GPIO
    * interrupt handling by varying boards and MCUs.
    *
-   * irqattach   - Attach the driver interrupt handler to the GPIO interrupt
+   * attachirq   - Attach the driver interrupt handler to the GPIO interrupt
    *               If isr is NULL, detach and disable it.
    * dispcontrol - Enable or disable the DISP pin and EXTCOMIN interrupt.
-   * setpolarity - Board specified method to set EXTCOMIN.
-   *               Needed only when CONFIG_MEMLCD_EXTCOMIN_MODE_HW is not set.
+   * setpolarity - Board specified method to set EXTCOMIN.  Needed only when
+   *               CONFIG_MEMLCD_EXTCOMIN_MODE_HW is not set.
    * setvcomfreq - Set timer frequency for EXTCOMIN.
    */
 
@@ -88,10 +69,6 @@ struct memlcd_priv_s
 #endif
   void (*setvcomfreq) (unsigned int freq);
 };
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
 
 /****************************************************************************
  * Public Function Prototypes
@@ -105,9 +82,9 @@ struct memlcd_priv_s
  * Input Parameters:
  *
  *   spi - A reference to the SPI driver instance.
- *   devno - A value in the range of 0 throuh CONFIG_MEMLCD_NINTERFACES-1.
+ *   priv - Board specific structure
+ *   devno - A value in the range of 0 through CONFIG_MEMLCD_NINTERFACES-1.
  *   This allows support for multiple devices.
- *   memlcd_priv_s - Board specific structure
  *
  * Returned Value:
  *

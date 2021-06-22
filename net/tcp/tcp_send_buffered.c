@@ -1,7 +1,7 @@
 /****************************************************************************
  * net/tcp/tcp_send_buffered.c
  *
- *   Copyright (C) 2007-2014, 2016-2018 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2014, 2016-2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *           Jason Jiang  <jasonj@live.cn>
  *
@@ -53,6 +53,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -62,7 +63,6 @@
 #include <debug.h>
 
 #include <arch/irq.h>
-#include <nuttx/clock.h>
 #include <nuttx/net/net.h>
 #include <nuttx/mm/iob.h>
 #include <nuttx/net/netdev.h>
@@ -84,6 +84,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* If both IPv4 and IPv6 support are both enabled, then we will need to build
  * in some additional domain selection support.
  */
@@ -173,7 +174,7 @@ static void psock_insert_segment(FAR struct tcp_wrbuffer_s *wrb,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_TCP_NOTIFIER
+#ifdef CONFIG_NET_TCP_NOTIFIER
 static void psock_writebuffer_notify(FAR struct tcp_conn_s *conn)
 {
   /* Check if all write buffers have been sent and ACKed */
@@ -205,7 +206,8 @@ static void psock_writebuffer_notify(FAR struct tcp_conn_s *conn)
  ****************************************************************************/
 
 static inline void psock_lost_connection(FAR struct socket *psock,
-                                         FAR struct tcp_conn_s *conn)
+                                         FAR struct tcp_conn_s *conn,
+                                         bool abort)
 {
   FAR sq_entry_t *entry;
   FAR sq_entry_t *next;
@@ -245,6 +247,14 @@ static inline void psock_lost_connection(FAR struct socket *psock,
 
       conn->sent       = 0;
       conn->sndseq_max = 0;
+
+      /* Force abort the connection. */
+
+      if (abort)
+        {
+          conn->tx_unacked = 0;
+          conn->tcpstateflags = TCP_CLOSED;
+        }
     }
 }
 
@@ -317,6 +327,31 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
 {
   FAR struct tcp_conn_s *conn = (FAR struct tcp_conn_s *)pvconn;
   FAR struct socket *psock = (FAR struct socket *)pvpriv;
+  bool rexmit = false;
+
+  /* Check for a loss of connection */
+
+  if ((flags & TCP_DISCONN_EVENTS) != 0)
+    {
+      ninfo("Lost connection: %04x\n", flags);
+
+      /* We could get here recursively through the callback actions of
+       * tcp_lost_connection().  So don't repeat that action if we have
+       * already been disconnected.
+       */
+
+      if (psock->s_conn != NULL && _SS_ISCONNECTED(psock->s_flags))
+        {
+          /* Report not connected */
+
+          tcp_lost_connection(psock, psock->s_sndcb, flags);
+        }
+
+      /* Free write buffers and terminate polling */
+
+      psock_lost_connection(psock, psock->s_conn, !!(flags & NETDEV_DOWN));
+      return flags;
+    }
 
   /* The TCP socket is connected and, hence, should be bound to a device.
    * Make sure that the polling device is the one that we are bound to.
@@ -367,7 +402,7 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
       /* Get the ACK number from the TCP header */
 
       ackno = tcp_getsequence(tcp->ackno);
-      ninfo("ACK: ackno=%u flags=%04x\n", ackno, flags);
+      ninfo("ACK: ackno=%" PRIu32 " flags=%04x\n", ackno, flags);
 
       /* Look at every write buffer in the unacked_q.  The unacked_q
        * holds write buffers that have been entirely sent, but which
@@ -393,7 +428,8 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
               /* Get the sequence number at the end of the data */
 
               lastseq = TCP_WBSEQNO(wrb) + TCP_WBPKTLEN(wrb);
-              ninfo("ACK: wrb=%p seqno=%u lastseq=%u pktlen=%u ackno=%u\n",
+              ninfo("ACK: wrb=%p seqno=%" PRIu32
+                    " lastseq=%" PRIu32 " pktlen=%u ackno=%" PRIu32 "\n",
                     wrb, TCP_WBSEQNO(wrb), lastseq, TCP_WBPKTLEN(wrb),
                     ackno);
 
@@ -407,7 +443,9 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
 
                   sq_rem(entry, &conn->unacked_q);
 
-                  /* And return the write buffer to the pool of free buffers */
+                  /* And return the write buffer to the pool of free
+                   * buffers
+                   */
 
                   tcp_wrbuffer_release(wrb);
 
@@ -443,8 +481,28 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
 
                   /* Set the new sequence number for what remains */
 
-                  ninfo("ACK: wrb=%p seqno=%u pktlen=%u\n",
-                          wrb, TCP_WBSEQNO(wrb), TCP_WBPKTLEN(wrb));
+                  ninfo("ACK: wrb=%p seqno=%" PRIu32 " pktlen=%u\n",
+                        wrb, TCP_WBSEQNO(wrb), TCP_WBPKTLEN(wrb));
+                }
+            }
+          else if (ackno == TCP_WBSEQNO(wrb))
+            {
+              /* Duplicate ACK? Retransmit data if need */
+
+              if (++TCP_WBNACK(wrb) ==
+                  CONFIG_NET_TCP_FAST_RETRANSMIT_WATERMARK)
+                {
+                  /* Do fast retransmit */
+
+                  rexmit = true;
+                }
+              else if ((TCP_WBNACK(wrb) >
+                       CONFIG_NET_TCP_FAST_RETRANSMIT_WATERMARK) &&
+                       TCP_WBNACK(wrb) == sq_count(&conn->unacked_q) - 1)
+                {
+                  /* Reset the duplicate ack counter */
+
+                  TCP_WBNACK(wrb) = 0;
                 }
             }
         }
@@ -469,7 +527,8 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
               nacked = TCP_WBSENT(wrb);
             }
 
-          ninfo("ACK: wrb=%p seqno=%u nacked=%u sent=%u ackno=%u\n",
+          ninfo("ACK: wrb=%p seqno=%" PRIu32
+                " nacked=%" PRIu32 " sent=%u ackno=%" PRIu32 "\n",
                 wrb, TCP_WBSEQNO(wrb), nacked, TCP_WBSENT(wrb), ackno);
 
           /* Trim the ACKed bytes from the beginning of the write buffer. */
@@ -478,38 +537,19 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
           TCP_WBSEQNO(wrb) = ackno;
           TCP_WBSENT(wrb) -= nacked;
 
-          ninfo("ACK: wrb=%p seqno=%u pktlen=%u sent=%u\n",
+          ninfo("ACK: wrb=%p seqno=%" PRIu32 " pktlen=%u sent=%u\n",
                 wrb, TCP_WBSEQNO(wrb), TCP_WBPKTLEN(wrb), TCP_WBSENT(wrb));
         }
-    }
-
-  /* Check for a loss of connection */
-
-  else if ((flags & TCP_DISCONN_EVENTS) != 0)
-    {
-      ninfo("Lost connection: %04x\n", flags);
-
-      /* We could get here recursively through the callback actions of
-       * tcp_lost_connection().  So don't repeat that action if we have
-       * already been disconnected.
-       */
-
-      if (psock->s_conn != NULL && _SS_ISCONNECTED(psock->s_flags))
-        {
-          /* Report not connected */
-
-          tcp_lost_connection(psock, psock->s_sndcb, flags);
-        }
-
-      /* Free write buffers and terminate polling */
-
-      psock_lost_connection(psock, conn);
-      return flags;
     }
 
   /* Check if we are being asked to retransmit data */
 
   else if ((flags & TCP_REXMIT) != 0)
+    {
+      rexmit = true;
+    }
+
+  if (rexmit)
     {
       FAR struct tcp_wrbuffer_s *wrb;
       FAR sq_entry_t *entry;
@@ -528,16 +568,18 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
           FAR struct tcp_wrbuffer_s *tmp;
           uint16_t sent;
 
-          /* Yes.. Reset the number of bytes sent sent from the write buffer */
+          /* Yes.. Reset the number of bytes sent sent from
+           * the write buffer
+           */
 
           sent = TCP_WBSENT(wrb);
-          if (conn->unacked > sent)
+          if (conn->tx_unacked > sent)
             {
-              conn->unacked -= sent;
+              conn->tx_unacked -= sent;
             }
           else
             {
-              conn->unacked = 0;
+              conn->tx_unacked = 0;
             }
 
           if (conn->sent > sent)
@@ -550,8 +592,9 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
             }
 
           TCP_WBSENT(wrb) = 0;
-          ninfo("REXMIT: wrb=%p sent=%u, conn unacked=%d sent=%d\n",
-                wrb, TCP_WBSENT(wrb), conn->unacked, conn->sent);
+          ninfo("REXMIT: wrb=%p sent=%u, "
+                "conn tx_unacked=%" PRId32 " sent=%" PRId32 "\n",
+                wrb, TCP_WBSENT(wrb), conn->tx_unacked, conn->sent);
 
           /* Increment the retransmit count on this write buffer. */
 
@@ -603,13 +646,13 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
           /* Reset the number of bytes sent sent from the write buffer */
 
           sent = TCP_WBSENT(wrb);
-          if (conn->unacked > sent)
+          if (conn->tx_unacked > sent)
             {
-              conn->unacked -= sent;
+              conn->tx_unacked -= sent;
             }
           else
             {
-              conn->unacked = 0;
+              conn->tx_unacked = 0;
             }
 
           if (conn->sent > sent)
@@ -622,8 +665,9 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
             }
 
           TCP_WBSENT(wrb) = 0;
-          ninfo("REXMIT: wrb=%p sent=%u, conn unacked=%d sent=%d\n",
-                wrb, TCP_WBSENT(wrb), conn->unacked, conn->sent);
+          ninfo("REXMIT: wrb=%p sent=%u, "
+                "conn tx_unacked=%" PRId32 " sent=%" PRId32 "\n",
+                wrb, TCP_WBSENT(wrb), conn->tx_unacked, conn->sent);
 
           /* Free any write buffers that have exceed the retry count */
 
@@ -690,7 +734,7 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
   if ((conn->tcpstateflags & TCP_ESTABLISHED) &&
       (flags & (TCP_POLL | TCP_REXMIT)) &&
       !(sq_empty(&conn->write_q)) &&
-      conn->winsize > 0)
+      conn->snd_wnd > 0)
     {
       FAR struct tcp_wrbuffer_s *wrb;
       uint32_t predicted_seqno;
@@ -716,15 +760,15 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
           sndlen = conn->mss;
         }
 
-      if (sndlen > conn->winsize)
+      if (sndlen > conn->snd_wnd)
         {
-          sndlen = conn->winsize;
+          sndlen = conn->snd_wnd;
         }
 
-      ninfo("SEND: wrb=%p pktlen=%u sent=%u sndlen=%u mss=%u "
-            "winsize=%u\n",
+      ninfo("SEND: wrb=%p pktlen=%u sent=%u sndlen=%zu mss=%u "
+            "snd_wnd=%u\n",
             wrb, TCP_WBPKTLEN(wrb), TCP_WBSENT(wrb), sndlen, conn->mss,
-            conn->winsize);
+            conn->snd_wnd);
 
       /* Set the sequence number for this segment.  If we are
        * retransmitting, then the sequence number will already
@@ -767,10 +811,12 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
        * number calculations.
        */
 
-      conn->unacked += sndlen;
-      conn->sent    += sndlen;
+      conn->tx_unacked += sndlen;
+      conn->sent       += sndlen;
 
-      /* Below prediction will become true, unless retransmission occurrence */
+      /* Below prediction will become true,
+       * unless retransmission occurrence
+       */
 
       predicted_seqno = tcp_getsequence(conn->sndseq) + sndlen;
 
@@ -780,8 +826,8 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
            conn->sndseq_max = predicted_seqno;
         }
 
-      ninfo("SEND: wrb=%p nrtx=%u unacked=%u sent=%u\n",
-            wrb, TCP_WBNRTX(wrb), conn->unacked, conn->sent);
+      ninfo("SEND: wrb=%p nrtx=%u tx_unacked=%" PRIu32 " sent=%" PRIu32 "\n",
+            wrb, TCP_WBNRTX(wrb), conn->tx_unacked, conn->sent);
 
       /* Increment the count of bytes sent from this write buffer */
 
@@ -872,6 +918,44 @@ static inline void send_txnotify(FAR struct socket *psock,
 }
 
 /****************************************************************************
+ * Name: tcp_max_wrb_size
+ *
+ * Description:
+ *   Calculate the desired amount of data for a single
+ *   struct tcp_wrbuffer_s.
+ *
+ ****************************************************************************/
+
+static uint32_t tcp_max_wrb_size(FAR struct tcp_conn_s *conn)
+{
+  const uint32_t mss = conn->mss;
+  uint32_t size;
+
+  /* a few segments should be fine */
+
+  size = 4 * mss;
+
+  /* but it should not hog too many IOB buffers */
+
+  if (size > CONFIG_IOB_NBUFFERS * CONFIG_IOB_BUFSIZE / 2)
+    {
+      size = CONFIG_IOB_NBUFFERS * CONFIG_IOB_BUFSIZE / 2;
+    }
+
+  /* also, we prefer a multiple of mss */
+
+  if (size > mss)
+    {
+      const uint32_t odd = size % mss;
+      size -= odd;
+    }
+
+  DEBUGASSERT(size > 0);
+  ninfo("tcp_max_wrb_size = %" PRIu32 " for conn %p\n", size, conn);
+  return size;
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -886,6 +970,7 @@ static inline void send_txnotify(FAR struct socket *psock,
  *   psock    An instance of the internal socket structure.
  *   buf      Data to send
  *   len      Length of data to send
+ *   flags    Send flags
  *
  * Returned Value:
  *   On success, returns the number of characters sent.  On  error,
@@ -931,14 +1016,16 @@ static inline void send_txnotify(FAR struct socket *psock,
  ****************************************************************************/
 
 ssize_t psock_tcp_send(FAR struct socket *psock, FAR const void *buf,
-                       size_t len)
+                       size_t len, int flags)
 {
   FAR struct tcp_conn_s *conn;
   FAR struct tcp_wrbuffer_s *wrb;
+  FAR const uint8_t *cp;
   ssize_t    result = 0;
+  bool       nonblock;
   int        ret = OK;
 
-  if (psock == NULL || psock->s_crefs <= 0)
+  if (psock == NULL || psock->s_conn == NULL)
     {
       nerr("ERROR: Invalid socket\n");
       ret = -EBADF;
@@ -955,7 +1042,6 @@ ssize_t psock_tcp_send(FAR struct socket *psock, FAR const void *buf,
   /* Make sure that we have the IP address mapping */
 
   conn = (FAR struct tcp_conn_s *)psock->s_conn;
-  DEBUGASSERT(conn);
 
 #if defined(CONFIG_NET_ARP_SEND) || defined(CONFIG_NET_ICMPv6_NEIGHBOR)
 #ifdef CONFIG_NET_ARP_SEND
@@ -990,38 +1076,21 @@ ssize_t psock_tcp_send(FAR struct socket *psock, FAR const void *buf,
     }
 #endif /* CONFIG_NET_ARP_SEND || CONFIG_NET_ICMPv6_NEIGHBOR */
 
+  nonblock = _SS_ISNONBLOCK(psock->s_flags) || (flags & MSG_DONTWAIT) != 0;
+
   /* Dump the incoming buffer */
 
   BUF_DUMP("psock_tcp_send", buf, len);
 
-  /* Set the socket state to sending */
-
-  psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_SEND);
-
-  if (len > 0)
+  cp = buf;
+  while (len > 0)
     {
-      /* Allocate a write buffer.  Careful, the network will be momentarily
-       * unlocked here.
-       */
+      uint32_t max_wrb_size;
+      unsigned int off;
+      size_t chunk_len = len;
+      ssize_t chunk_result;
 
       net_lock();
-      if (_SS_ISNONBLOCK(psock->s_flags))
-        {
-          wrb = tcp_wrbuffer_tryalloc();
-        }
-      else
-        {
-          wrb = tcp_wrbuffer_alloc();
-        }
-
-      if (wrb == NULL)
-        {
-          /* A buffer allocation error occurred */
-
-          nerr("ERROR: Failed to allocate write buffer\n");
-          ret = _SS_ISNONBLOCK(psock->s_flags) ? -EAGAIN : -ENOMEM;
-          goto errout_with_lock;
-        }
 
       /* Allocate resources to receive a callback */
 
@@ -1037,8 +1106,8 @@ ssize_t psock_tcp_send(FAR struct socket *psock, FAR const void *buf,
           /* A buffer allocation error occurred */
 
           nerr("ERROR: Failed to allocate callback\n");
-          ret = _SS_ISNONBLOCK(psock->s_flags) ? -EAGAIN : -ENOMEM;
-          goto errout_with_wrb;
+          ret = nonblock ? -EAGAIN : -ENOMEM;
+          goto errout_with_lock;
         }
 
       /* Set up the callback in the connection */
@@ -1048,16 +1117,68 @@ ssize_t psock_tcp_send(FAR struct socket *psock, FAR const void *buf,
       psock->s_sndcb->priv  = (FAR void *)psock;
       psock->s_sndcb->event = psock_send_eventhandler;
 
+      /* Allocate a write buffer.  Careful, the network will be momentarily
+       * unlocked here.
+       */
+
+      /* Try to coalesce into the last wrb.
+       *
+       * But only when it might yield larger segments.
+       * (REVISIT: It might make sense to lift this condition.
+       * IOB boundaries and segment boundaries usually do not match.
+       * It makes sense to save the number of IOBs.)
+       *
+       * Also, for simplicity, do it only when we haven't sent anything
+       * from the the wrb yet.
+       */
+
+      max_wrb_size = tcp_max_wrb_size(conn);
+      wrb = (FAR struct tcp_wrbuffer_s *)sq_tail(&conn->write_q);
+      if (wrb != NULL && TCP_WBSENT(wrb) == 0 && TCP_WBNRTX(wrb) == 0 &&
+          TCP_WBPKTLEN(wrb) < max_wrb_size &&
+          (TCP_WBPKTLEN(wrb) % conn->mss) != 0)
+        {
+          wrb = (FAR struct tcp_wrbuffer_s *)sq_remlast(&conn->write_q);
+          ninfo("coalesce %zu bytes to wrb %p (%" PRIu16 ")\n", len, wrb,
+                TCP_WBPKTLEN(wrb));
+          DEBUGASSERT(TCP_WBPKTLEN(wrb) > 0);
+        }
+      else if (nonblock)
+        {
+          wrb = tcp_wrbuffer_tryalloc();
+          ninfo("new wrb %p (non blocking)\n", wrb);
+        }
+      else
+        {
+          wrb = tcp_wrbuffer_alloc();
+          ninfo("new wrb %p\n", wrb);
+        }
+
+      if (wrb == NULL)
+        {
+          /* A buffer allocation error occurred */
+
+          nerr("ERROR: Failed to allocate write buffer\n");
+          ret = nonblock ? -EAGAIN : -ENOMEM;
+          goto errout_with_lock;
+        }
+
       /* Initialize the write buffer */
 
       TCP_WBSEQNO(wrb) = (unsigned)-1;
       TCP_WBNRTX(wrb)  = 0;
 
+      off = TCP_WBPKTLEN(wrb);
+      if (off + chunk_len > max_wrb_size)
+        {
+          chunk_len = max_wrb_size - off;
+        }
+
       /* Copy the user data into the write buffer.  We cannot wait for
        * buffer space if the socket was opened non-blocking.
        */
 
-      if (_SS_ISNONBLOCK(psock->s_flags))
+      if (nonblock)
         {
           /* The return value from TCP_WBTRYCOPYIN is either OK or
            * -ENOMEM if less than the entire data chunk could be allocated.
@@ -1067,24 +1188,34 @@ ssize_t psock_tcp_send(FAR struct socket *psock, FAR const void *buf,
            * remaining data.
            */
 
-          result = TCP_WBTRYCOPYIN(wrb, (FAR uint8_t *)buf, len);
-          if (result == -ENOMEM)
+          chunk_result = TCP_WBTRYCOPYIN(wrb, cp, chunk_len, off);
+          if (chunk_result == -ENOMEM)
             {
               if (TCP_WBPKTLEN(wrb) > 0)
                 {
-                  ninfo("INFO: Allocated part of the requested data\n");
-                  result = TCP_WBPKTLEN(wrb);
+                  DEBUGASSERT(TCP_WBPKTLEN(wrb) >= off);
+                  chunk_result = TCP_WBPKTLEN(wrb) - off;
+                  ninfo("INFO: Allocated part of the requested data "
+                        "%zd/%zu\n",
+                        chunk_result, chunk_len);
+
+                  /* Note: chunk_result here can be 0 if we are trying
+                   * to coalesce into the existing buffer and we failed
+                   * to add anything.
+                   */
+
+                  DEBUGASSERT(chunk_result >= 0);
                 }
               else
                 {
-                  nerr("ERROR: Failed to add data to the I/O buffer chain\n");
+                  nerr("ERROR: Failed to add data to the I/O chain\n");
                   ret = -EWOULDBLOCK;
                   goto errout_with_wrb;
                 }
             }
           else
             {
-              result = len;
+              DEBUGASSERT(chunk_result == chunk_len);
             }
         }
       else
@@ -1093,12 +1224,14 @@ ssize_t psock_tcp_send(FAR struct socket *psock, FAR const void *buf,
           int blresult;
 
           /* iob_copyin might wait for buffers to be freed, but if network is
-           * locked this might never happen, since network driver is also locked,
-           * therefore we need to break the lock
+           * locked this might never happen, since network driver is also
+           * locked, therefore we need to break the lock
            */
 
           blresult = net_breaklock(&count);
-          result = TCP_WBCOPYIN(wrb, (FAR uint8_t *)buf, len);
+          ninfo("starting copyin to wrb %p\n", wrb);
+          chunk_result = TCP_WBCOPYIN(wrb, cp, chunk_len, off);
+          ninfo("finished copyin to wrb %p\n", wrb);
           if (blresult >= 0)
             {
               net_restorelock(count);
@@ -1122,11 +1255,35 @@ ssize_t psock_tcp_send(FAR struct socket *psock, FAR const void *buf,
 
       send_txnotify(psock, conn);
       net_unlock();
+
+      if (chunk_result == 0)
+        {
+          DEBUGASSERT(nonblock);
+          if (result == 0)
+            {
+              result = -EAGAIN;
+            }
+
+          break;
+        }
+
+      if (chunk_result < 0)
+        {
+          if (result == 0)
+            {
+              result = chunk_result;
+            }
+
+          break;
+        }
+
+      DEBUGASSERT(chunk_result <= len);
+      DEBUGASSERT(chunk_result <= chunk_len);
+      DEBUGASSERT(result >= 0);
+      cp += chunk_result;
+      len -= chunk_result;
+      result += chunk_result;
     }
-
-  /* Set the socket state to idle */
-
-  psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_IDLE);
 
   /* Check for errors.  Errors are signaled by negative errno values
    * for the send length
@@ -1135,11 +1292,6 @@ ssize_t psock_tcp_send(FAR struct socket *psock, FAR const void *buf,
   if (result < 0)
     {
       ret = result;
-      goto errout;
-    }
-
-  if (ret < 0)
-    {
       goto errout;
     }
 
@@ -1154,6 +1306,11 @@ errout_with_lock:
   net_unlock();
 
 errout:
+  if (result > 0)
+    {
+      return result;
+    }
+
   return ret;
 }
 
@@ -1185,7 +1342,7 @@ int psock_tcp_cansend(FAR struct socket *psock)
 {
   /* Verify that we received a valid socket */
 
-  if (!psock || psock->s_crefs <= 0)
+  if (!psock || !psock->s_conn)
     {
       nerr("ERROR: Invalid socket\n");
       return -EBADF;
@@ -1203,9 +1360,10 @@ int psock_tcp_cansend(FAR struct socket *psock)
    * buffer head and at least one free IOB to initialize the write buffer
    * head.
    *
-   * REVISIT:  The send will still block if we are unable to buffer the entire
-   * user-provided buffer which may be quite large.  We will almost certainly
-   * need to have more than one free IOB, but we don't know how many more.
+   * REVISIT:  The send will still block if we are unable to buffer
+   * the entire user-provided buffer which may be quite large.
+   * We will almost certainly need to have more than one free IOB,
+   * but we don't know how many more.
    */
 
   if (tcp_wrbuffer_test() < 0 || iob_navail(false) <= 0)

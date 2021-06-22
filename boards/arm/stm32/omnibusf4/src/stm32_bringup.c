@@ -41,11 +41,12 @@
 
 #include <nuttx/config.h>
 
-#include <sys/mount.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <debug.h>
 #include <errno.h>
+
+#include <nuttx/fs/fs.h>
 
 #ifdef CONFIG_USBMONITOR
 #  include <nuttx/usb/usbmonitor.h>
@@ -76,22 +77,6 @@
 #ifdef HAVE_RTC_DRIVER
 #  include <nuttx/timers/rtc.h>
 #  include "stm32_rtc.h"
-#endif
-
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_MPU60X0
-/* Initialize the MPU6000 device. */
-
-int stm32_mpu6000_initialize(void);
-#endif
-
-#ifdef CONFIG_VIDEO_MAX7456
-/* Initialize the MAX7456 OSD device. */
-
-int stm32_max7456_initialize(void);
 #endif
 
 /****************************************************************************
@@ -249,7 +234,6 @@ int stm32_bringup(void)
     }
 #endif
 
-
 #ifdef CONFIG_USERLED
   /* Register the LED driver */
 
@@ -287,7 +271,7 @@ int stm32_bringup(void)
 #ifdef CONFIG_FS_PROCFS
   /* Mount the procfs file system */
 
-  ret = mount(NULL, STM32_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
+  ret = nx_mount(NULL, STM32_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
   if (ret < 0)
     {
       serr("ERROR: Failed to mount procfs at %s: %d\n",

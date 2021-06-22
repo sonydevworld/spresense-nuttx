@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/udp/udp_setsockopt.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -39,16 +24,16 @@
 
 #include <nuttx/config.h>
 
-#include <sys/time.h>
 #include <stdint.h>
 #include <errno.h>
 #include <assert.h>
 #include <debug.h>
 
+#include <net/if.h>
 #include <netinet/udp.h>
 
-#include <nuttx/clock.h>
 #include <nuttx/net/net.h>
+#include <nuttx/net/netdev.h>
 #include <nuttx/net/udp.h>
 
 #include "socket/socket.h"
@@ -122,38 +107,81 @@ int udp_setsockopt(FAR struct socket *psock, int option,
        * but this option only makes sense for UDP sockets trying to broadcast
        * while their local address is not set, eg, with DHCP requests.
        * The problem is that we are not able to determine the interface to be
-       * used for sending packets when multiple interfaces do not have a local
-       * address yet. This option can be used to "force" the interface used to
-       * send the UDP traffic in this connection. Note that it does NOT only
-       * apply to broadcast packets.
+       * used for sending packets when multiple interfaces do not have a
+       * local address yet. This option can be used to "force" the interface
+       * used to send the UDP traffic in this connection. Note that it does
+       * NOT only apply to broadcast packets.
        */
 
       case UDP_BINDTODEVICE:  /* Bind socket to a specific network device */
-        if (value == NULL || value_len == 0 ||
-           (value_len > 0 && ((FAR char *)value)[0] == 0))
-          {
-            conn->boundto = 0;  /* This interface is no longer bound */
-            ret = OK;
-          }
-        else
-          {
-            int ifindex;
+        {
+          FAR struct net_driver_s *dev;
 
-            /* Get the interface index corresponding to the interface name */
+          /* Check if we are are unbinding the socket */
 
-            ifindex = netdev_nametoindex(value);
-            if (ifindex >= 0)
-              {
-                DEBUGASSERT(ifindex > 0 && ifindex <= MAX_IFINDEX);
-                conn->boundto = ifindex;
-                ret = OK;
-              }
-            else
-              {
-                ret = ifindex;
-              }
-          }
+          if (value == NULL || value_len == 0 ||
+             (value_len > 0 && ((FAR char *)value)[0] == 0))
+            {
+              /* Just report success if the socket is not bound to an
+               * interface.
+               */
 
+              if (conn->boundto != 0)
+                {
+                  /* Get the interface that we are bound do.  NULL would
+                   * indicate that the interface no longer exists for some
+                   * reason.
+                   */
+
+                  dev = netdev_findbyindex(conn->boundto);
+                  if (dev != NULL)
+                    {
+                      /* Clear the interface flag to unbind the device from
+                       * the socket.
+                       */
+
+                      IFF_CLR_BOUND(dev->d_flags);
+                    }
+
+                  conn->boundto = 0;  /* This interface is no longer bound */
+                }
+
+              ret = OK;
+            }
+
+          /* No, we are binding a socket to the interface. */
+
+          else
+            {
+              /* Find the interface device with this name */
+
+              dev = netdev_findbyname(value);
+              if (dev == NULL)
+                {
+                  ret = -ENODEV;
+                }
+
+              /* An interface may be bound only to one socket. */
+
+              else if (IFF_IS_BOUND(dev->d_flags))
+                {
+                  ret = -EBUSY;
+                }
+              else
+                {
+                  /* Bind the interface to a socket */
+
+                  IFF_SET_BOUND(dev->d_flags);
+
+                  /* Bind the socket to the interface */
+
+                  DEBUGASSERT(dev->d_ifindex > 0 &&
+                              dev->d_ifindex <= MAX_IFINDEX);
+                  conn->boundto = dev->d_ifindex;
+                  ret = OK;
+                }
+            }
+        }
         break;
 #endif
 
@@ -170,4 +198,3 @@ int udp_setsockopt(FAR struct socket *psock, int option,
 }
 
 #endif /* CONFIG_NET_UDPPROTO_OPTIONS */
-

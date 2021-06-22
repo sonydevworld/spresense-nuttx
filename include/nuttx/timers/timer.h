@@ -56,6 +56,7 @@
  ****************************************************************************/
 
 /* IOCTL Commands ***********************************************************/
+
 /* The timer driver uses a standard character driver framework.  However,
  * since the timer driver is a device control interface and not a data
  * transfer interface, the majority of the functionality is implemented in
@@ -68,24 +69,21 @@
  * TCIOC_STOP         - Stop the timer
  *                      Argument: Ignored
  * TCIOC_GETSTATUS    - Get the status of the timer.
- *                      Argument:  A writeable pointer to struct timer_status_s.
+ *                      Argument:  A writeable pointer to struct
+ *                      timer_status_s.
  * TCIOC_SETTIMEOUT   - Reset the timer timeout to this value
  *                      Argument: A 32-bit timeout value in microseconds.
  * TCIOC_NOTIFICATION - Set up to notify an application via a signal when
  *                      the timer expires.
  *                      Argument: A read-only pointer to an instance of
- *                      stuct timer_notify_s.
+ *                      struct timer_notify_s.
  * TCIOC_MAXTIMEOUT   - Get the maximum supported timeout value
  *                      Argument: A 32-bit timeout value in microseconds.
  *
  * WARNING: May change TCIOC_SETTIMEOUT to pass pointer to 64bit nanoseconds
  * or timespec structure.
  *
- * NOTE: The TCIOC_SETHANDLER ioctl cannot be supported in the kernel build
- * mode. In that case direct callbacks from kernel space into user space is
- * forbidden.
- *
- * NOTE: _TCIOC(0x0001) througn _TCIOC(0x001f) are reserved for use by the
+ * NOTE: _TCIOC(0x0001) through _TCIOC(0x001f) are reserved for use by the
  * timer driver to assure that the values are unique.  Other timer drivers,
  * such as the oneshot timer, must not use IOCTL commands in this numeric
  * range.
@@ -99,6 +97,7 @@
 #define TCIOC_MAXTIMEOUT   _TCIOC(0x0006)
 
 /* Bit Settings *************************************************************/
+
 /* Bit settings for the struct timer_status_s flags field */
 
 #define TCFLAGS_ACTIVE     (1 << 0) /* 1=The timer is running */
@@ -142,7 +141,8 @@ struct timer_notify_s
 struct timer_lowerhalf_s;
 struct timer_ops_s
 {
-  /* Required methods ********************************************************/
+  /* Required methods *******************************************************/
+
   /* Start the timer, resetting the time to the current timeout */
 
   CODE int (*start)(FAR struct timer_lowerhalf_s *lower);
@@ -218,6 +218,7 @@ extern "C"
 /****************************************************************************
  * "Upper-Half" Timer Driver Interfaces
  ****************************************************************************/
+
 /****************************************************************************
  * Name: timer_register
  *
@@ -234,7 +235,7 @@ extern "C"
  *   initialization.
  *
  * Input Parameters:
- *   dev path - The full path to the driver to be registers in the NuttX
+ *   dev path - The full path to the driver to be registered in the NuttX
  *     pseudo-filesystem.  The recommended convention is to name all timer
  *     drivers as "/dev/timer0", "/dev/timer1", etc.  where the driver
  *     path differs only in the "minor" number at the end of the device name.
@@ -269,7 +270,7 @@ FAR void *timer_register(FAR const char *path,
 void timer_unregister(FAR void *handle);
 
 /****************************************************************************
- * Kernal internal interfaces.  Thse may not be used by application logic
+ * Kernel internal interfaces.  Thse may not be used by application logic
  ****************************************************************************/
 
 /****************************************************************************
@@ -278,7 +279,7 @@ void timer_unregister(FAR void *handle);
  * Description:
  *   This function can be called to add a callback into driver-related code
  *   to handle timer expirations.  This is a strictly OS internal interface
- *   and may NOT be used by appliction code.
+ *   and may NOT be used by application code.
  *
  * Input Parameters:
  *   handle   - This is the handle that was returned by timer_register()
@@ -286,13 +287,12 @@ void timer_unregister(FAR void *handle);
  *   arg      - Argument provided when the callback is called.
  *
  * Returned Value:
- *   None
+ *   Zero (OK), if the callback was successfully set, or -ENOSYS if the lower
+ *   half driver does not support the operation.
  *
  ****************************************************************************/
 
-#ifdef __KERNEL__
 int timer_setcallback(FAR void *handle, tccb_t callback, FAR void *arg);
-#endif
 
 /****************************************************************************
  * Platform-Independent "Lower-Half" Timer Driver Interfaces
@@ -308,4 +308,4 @@ int timer_setcallback(FAR void *handle, tccb_t callback, FAR void *arg);
 #endif
 
 #endif /* CONFIG_TIMER */
-#endif  /* __INCLUDE_NUTTX_TIMERS_TIMER_H */
+#endif /* __INCLUDE_NUTTX_TIMERS_TIMER_H */

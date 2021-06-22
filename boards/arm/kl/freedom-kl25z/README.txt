@@ -42,7 +42,7 @@ NuttX Buildroot Toolchain
   Bitbucket download site (https://bitbucket.org/nuttx/buildroot/downloads/).
   This GNU toolchain builds and executes in the Linux or Cygwin environment.
 
-  1. You must have already configured Nuttx in <some-dir>/nuttx.
+  1. You must have already configured NuttX in <some-dir>/nuttx.
 
      tools/configure.sh freedom-kl25z:<sub-dir>
 
@@ -300,13 +300,13 @@ Where <subdir> is one of the following:
        b. Execute 'make menuconfig' in nuttx/ in order to start the
           reconfiguration process.
 
-    2. By default, this configuration uses the CodeSourcery toolchain
+    2. By default, this configuration uses the ARM EABI toolchain
        for Windows and builds under Cygwin (or probably MSYS).  That
        can easily be reconfigured, of course.
 
        CONFIG_HOST_WINDOWS=y                   : Builds under Windows
        CONFIG_WINDOWS_CYGWIN=y                 : Using Cygwin
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
     3. Serial Console.  A serial console is necessary to interrupt with
        NSH.   The serial console is configured on UART0 which is available
@@ -354,7 +354,7 @@ Where <subdir> is one of the following:
          applications. Most of the memory used at runtime is allocated I/O
          buffers and the stack for the NSH main thread (1.5KB).
 
-       There is probably enough free memroy to support 3 or 4 application
+       There is probably enough free memory to support 3 or 4 application
        threads in addition to NSH.
 
     5. This configurations has support for NSH built-in applications.  However,

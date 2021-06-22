@@ -1,37 +1,20 @@
 /****************************************************************************
  * arch/arm/src/lc823450/lc823450_irq.c
  *
- *   Copyright 2014,2015,2016,2017,2018 Sony Video & Sound Products Inc.
- *   Author: Masatoshi Tateishi <Masatoshi.Tateishi@jp.sony.com>
- *   Author: Masayuki Ishikawa <Masayuki.Ishikawa@jp.sony.com>
- *   Author: Nobutaka Toyoshima <Nobutaka.Toyoshima@jp.sony.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,8 +36,8 @@
 
 #include "nvic.h"
 #include "ram_vectors.h"
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 #include "chip.h"
 #include "lc823450_intc.h"
 
@@ -106,17 +89,17 @@ volatile uint32_t *g_current_regs[1];
  * These definitions provide the aligned stack allocations.
  */
 
-uint64_t g_instack_alloc[INTSTACK_ALLOC >> 3];
+uint64_t g_intstack_alloc[INTSTACK_ALLOC >> 3];
 
 /* These definitions provide the "top" of the push-down stacks. */
 
-const uint32_t g_cpu0_instack_base =
-  (uint32_t)g_instack_alloc + INTSTACK_SIZE;
-
+const uint32_t g_cpu_intstack_top[CONFIG_SMP_NCPUS] =
+{
+  (uint32_t)g_intstack_alloc + INTSTACK_SIZE,
 #if CONFIG_SMP_NCPUS > 1
-const uint32_t g_cpu1_instack_base =
-  (uint32_t)g_instack_alloc + 2 * INTSTACK_SIZE;
-#endif
+  (uint32_t)g_intstack_alloc + (2 * INTSTACK_SIZE),
+#endif /* CONFIG_SMP_NCPUS > 1 */
+};
 #endif
 
 /****************************************************************************
@@ -155,28 +138,41 @@ static void lc823450_dumpnvic(const char *msg, int irq)
   irqinfo("  INTCTRL:    %08x VECTAB:  %08x\n",
           getreg32(NVIC_INTCTRL), getreg32(NVIC_VECTAB));
 #if 0
-  irqinfo("  SYSH ENABLE MEMFAULT: %08x BUSFAULT: %08x USGFAULT: %08x SYSTICK: %08x\n",
-          getreg32(NVIC_SYSHCON_MEMFAULTENA), getreg32(NVIC_SYSHCON_BUSFAULTENA),
-          getreg32(NVIC_SYSHCON_USGFAULTENA), getreg32(NVIC_SYSTICK_CTRL_ENABLE));
+  irqinfo("  SYSH ENABLE MEMFAULT: %08x BUSFAULT: %08x USGFAULT: %08x "
+          "SYSTICK: %08x\n",
+          getreg32(NVIC_SYSHCON_MEMFAULTENA),
+          getreg32(NVIC_SYSHCON_BUSFAULTENA),
+          getreg32(NVIC_SYSHCON_USGFAULTENA),
+          getreg32(NVIC_SYSTICK_CTRL_ENABLE));
 #endif
   irqinfo("  IRQ ENABLE: %08x %08x %08x\n",
-          getreg32(NVIC_IRQ0_31_ENABLE), getreg32(NVIC_IRQ32_63_ENABLE),
+          getreg32(NVIC_IRQ0_31_ENABLE),
+          getreg32(NVIC_IRQ32_63_ENABLE),
           getreg32(NVIC_IRQ64_95_ENABLE));
   irqinfo("  SYSH_PRIO:  %08x %08x %08x\n",
-          getreg32(NVIC_SYSH4_7_PRIORITY), getreg32(NVIC_SYSH8_11_PRIORITY),
+          getreg32(NVIC_SYSH4_7_PRIORITY),
+          getreg32(NVIC_SYSH8_11_PRIORITY),
           getreg32(NVIC_SYSH12_15_PRIORITY));
   irqinfo("  IRQ PRIO:   %08x %08x %08x %08x\n",
-          getreg32(NVIC_IRQ0_3_PRIORITY), getreg32(NVIC_IRQ4_7_PRIORITY),
-          getreg32(NVIC_IRQ8_11_PRIORITY), getreg32(NVIC_IRQ12_15_PRIORITY));
+          getreg32(NVIC_IRQ0_3_PRIORITY),
+          getreg32(NVIC_IRQ4_7_PRIORITY),
+          getreg32(NVIC_IRQ8_11_PRIORITY),
+          getreg32(NVIC_IRQ12_15_PRIORITY));
   irqinfo("              %08x %08x %08x %08x\n",
-          getreg32(NVIC_IRQ16_19_PRIORITY), getreg32(NVIC_IRQ20_23_PRIORITY),
-          getreg32(NVIC_IRQ24_27_PRIORITY), getreg32(NVIC_IRQ28_31_PRIORITY));
+          getreg32(NVIC_IRQ16_19_PRIORITY),
+          getreg32(NVIC_IRQ20_23_PRIORITY),
+          getreg32(NVIC_IRQ24_27_PRIORITY),
+          getreg32(NVIC_IRQ28_31_PRIORITY));
   irqinfo("              %08x %08x %08x %08x\n",
-          getreg32(NVIC_IRQ32_35_PRIORITY), getreg32(NVIC_IRQ36_39_PRIORITY),
-          getreg32(NVIC_IRQ40_43_PRIORITY), getreg32(NVIC_IRQ44_47_PRIORITY));
+          getreg32(NVIC_IRQ32_35_PRIORITY),
+          getreg32(NVIC_IRQ36_39_PRIORITY),
+          getreg32(NVIC_IRQ40_43_PRIORITY),
+          getreg32(NVIC_IRQ44_47_PRIORITY));
   irqinfo("              %08x %08x %08x %08x\n",
-          getreg32(NVIC_IRQ48_51_PRIORITY), getreg32(NVIC_IRQ52_55_PRIORITY),
-          getreg32(NVIC_IRQ56_59_PRIORITY), getreg32(NVIC_IRQ60_63_PRIORITY));
+          getreg32(NVIC_IRQ48_51_PRIORITY),
+          getreg32(NVIC_IRQ52_55_PRIORITY),
+          getreg32(NVIC_IRQ56_59_PRIORITY),
+          getreg32(NVIC_IRQ60_63_PRIORITY));
   irqinfo("              %08x\n",
           getreg32(NVIC_IRQ64_67_PRIORITY));
   leave_critical_section(flags);
@@ -186,11 +182,12 @@ static void lc823450_dumpnvic(const char *msg, int irq)
 #endif
 
 /****************************************************************************
- * Name: lc823450_nmi, lc823450_busfault, lc823450_usagefault, lc823450_pendsv,
- *       lc823450_dbgmonitor, lc823450_pendsv, lc823450_reserved
+ * Name: lc823450_nmi, lc823450_busfault, lc823450_usagefault,
+ *       lc823450_pendsv, lc823450_dbgmonitor, lc823450_pendsv,
+ *       lc823450_reserved
  *
  * Description:
- *   Handlers for various execptions.  None are handled and all are fatal
+ *   Handlers for various exceptions.  None are handled and all are fatal
  *   error conditions.  The only advantage these provided over the default
  *   unexpected interrupt handler is that they provide a diagnostic output.
  *
@@ -232,7 +229,7 @@ static int lc823450_pendsv(int irq, FAR void *context, FAR void *arg)
 static int lc823450_dbgmonitor(int irq, FAR void *context, FAR void *arg)
 {
   enter_critical_section();
-  irqinfo("PANIC!!! Debug Monitor receieved\n");
+  irqinfo("PANIC!!! Debug Monitor received\n");
   PANIC();
   return 0;
 }
@@ -269,13 +266,13 @@ static inline void lc823450_prioritize_syscall(int priority)
 }
 #endif
 
-/***********************************************************************
+/****************************************************************************
  * Name: lc823450_extint_clr
  *
  * Description:
  *   clear irq factor
  *
- ***********************************************************************/
+ ****************************************************************************/
 
 static void lc823450_extint_clr(int irq)
 {
@@ -290,19 +287,19 @@ static void lc823450_extint_clr(int irq)
   port = (irq & 0x70) >> 4;
   pin = irq & 0xf;
 
-  regaddr = INTC_REG(EXTINTnCLR_BASE, port);
+  regaddr = INTC_REG(EXTINTCLR_BASE, port);
   putreg32(1 << pin, regaddr);
 
   return;
 }
 
-/***********************************************************************
+/****************************************************************************
  * Name: lc823450_extint_isr
  *
  * Description:
  *   Handle external interrupt.
  *
- ***********************************************************************/
+ ****************************************************************************/
 
 static int lc823450_extint_isr(int irq, FAR void *context, FAR void *arg)
 {
@@ -316,19 +313,19 @@ static int lc823450_extint_isr(int irq, FAR void *context, FAR void *arg)
 
   /* Read irq factor */
 
-  regaddr = INTC_REG(EXTINTn_BASE, port);
+  regaddr = INTC_REG(EXTINT_BASE, port);
   pending = getreg32(regaddr);
 
   /* Clear irq factor */
 
-  regaddr = INTC_REG(EXTINTnCLR_BASE, port);
+  regaddr = INTC_REG(EXTINTCLR_BASE, port);
   putreg32(pending, regaddr);
 
   irq = LC823450_IRQ_GPIO00 + (port * 0x10);
 
   /* Re-deliver the IRQ */
 
-  for ( ; pending != 0; irq++, pending >>= 1)
+  for (; pending != 0; irq++, pending >>= 1)
     {
       if ((pending & 1) != 0)
         {
@@ -339,13 +336,13 @@ static int lc823450_extint_isr(int irq, FAR void *context, FAR void *arg)
   return OK;
 }
 
-/***********************************************************************
+/****************************************************************************
  * Name: lc823425_extint_initialize
  *
  * Description:
- *   Initialize external interrup.
+ *   Initialize external interrupt.
  *
- ***********************************************************************/
+ ****************************************************************************/
 
 static void lc823450_extint_initialize(void)
 {
@@ -398,7 +395,7 @@ static int lc823450_irqinfo(int irq, uintptr_t *regaddr, uint32_t *bit,
     {
       int port = ((irq - LC823450_IRQ_GPIO00) & 0x70) >> 4;
 
-      *regaddr = INTC_REG(EXTINTnM_BASE, port);
+      *regaddr = INTC_REG(EXTINTM_BASE, port);
       *bit = 1 << ((irq - LC823450_IRQ_GPIO00) & 0xf);
     }
   else if (irq >= LC823450_IRQ_INTERRUPTS)
@@ -428,10 +425,10 @@ static int lc823450_irqinfo(int irq, uintptr_t *regaddr, uint32_t *bit,
 
   else
     {
-       *regaddr = NVIC_SYSHCON;
-       if (irq == LC823450_IRQ_MEMFAULT)
+      *regaddr = NVIC_SYSHCON;
+      if (irq == LC823450_IRQ_MEMFAULT)
         {
-          *bit = NVIC_SYSHCON_MEMFAULTENA;
+         *bit = NVIC_SYSHCON_MEMFAULTENA;
         }
       else if (irq == LC823450_IRQ_BUSFAULT)
         {
@@ -473,27 +470,18 @@ void up_irqinitialize(void)
   putreg32(0xffffffff, NVIC_IRQ0_31_CLEAR);
   putreg32(0xffffffff, NVIC_IRQ32_63_CLEAR);
 
-  /* Colorize the interrupt stack for debug purposes */
-
-#if defined(CONFIG_STACK_COLORATION) && CONFIG_ARCH_INTERRUPTSTACK > 3
-  {
-    size_t intstack_size = (CONFIG_ARCH_INTERRUPTSTACK & ~3);
-    up_stack_color((FAR void *)((uintptr_t)&g_intstackbase - intstack_size),
-                   intstack_size);
-  }
-#endif
-
   /* The standard location for the vector table is at the beginning of FLASH
-   * at address 0x0800:0000.  If we are using the STMicro DFU bootloader, then
-   * the vector table will be offset to a different location in FLASH and we
-   * will need to set the NVIC vector location to this alternative location.
+   * at address 0x0800:0000.  If we are using the STMicro DFU bootloader,
+   * then the vector table will be offset to a different location in FLASH
+   * and we will need to set the NVIC vector location to this alternative
+   * location.
    *
    * If CONFIG_ARCH_RAMVECTORS is defined, then we are using a RAM-based
    * vector table that requires special initialization.
    */
 
 #if defined(CONFIG_ARCH_RAMVECTORS)
-  up_ramvec_initialize();
+  arm_ramvec_initialize();
 #elif defined(CONFIG_LC823450_DFU)
   putreg32((uint32_t)_vectors, NVIC_VECTAB);
 #endif
@@ -504,7 +492,7 @@ void up_irqinitialize(void)
   putreg32(DEFPRIORITY32, NVIC_SYSH8_11_PRIORITY);
   putreg32(DEFPRIORITY32, NVIC_SYSH12_15_PRIORITY);
 
-  /* The NVIC ICTR register (bits 0-4) holds the number of of interrupt
+  /* The NVIC ICTR register (bits 0-4) holds the number of interrupt
    * lines that the NVIC supports:
    *
    *  0 -> 32 interrupt lines,  8 priority registers
@@ -534,8 +522,8 @@ void up_irqinitialize(void)
    * under certain conditions.
    */
 
-  irq_attach(LC823450_IRQ_SVCALL, up_svcall, NULL);
-  irq_attach(LC823450_IRQ_HARDFAULT, up_hardfault, NULL);
+  irq_attach(LC823450_IRQ_SVCALL, arm_svcall, NULL);
+  irq_attach(LC823450_IRQ_HARDFAULT, arm_hardfault, NULL);
 
   /* Set the priority of the SVCall interrupt */
 
@@ -543,7 +531,7 @@ void up_irqinitialize(void)
   /* up_prioritize_irq(LC823450_IRQ_PENDSV, NVIC_SYSH_PRIORITY_MIN); */
 #endif
 #ifdef CONFIG_ARMV7M_USEBASEPRI
-   lc823450_prioritize_syscall(NVIC_SYSH_SVCALL_PRIORITY);
+  lc823450_prioritize_syscall(NVIC_SYSH_SVCALL_PRIORITY);
 #endif
 
   /* If the MPU is enabled, then attach and enable the Memory Management
@@ -551,7 +539,7 @@ void up_irqinitialize(void)
    */
 
 #ifdef CONFIG_ARM_MPU
-  irq_attach(LC823450_IRQ_MEMFAULT, up_memfault, NULL);
+  irq_attach(LC823450_IRQ_MEMFAULT, arm_memfault, NULL);
   up_enable_irq(LC823450_IRQ_MEMFAULT);
 #endif
 
@@ -681,7 +669,7 @@ void up_enable_irq(int irq)
        * set the bit in the System Handler Control and State Register.
        */
 
-      flags = spin_lock_irqsave();
+      flags = spin_lock_irqsave(NULL);
 
       if (irq >= LC823450_IRQ_NIRQS)
         {
@@ -704,21 +692,21 @@ void up_enable_irq(int irq)
           putreg32(regval, regaddr);
         }
 
-      spin_unlock_irqrestore(flags);
+      spin_unlock_irqrestore(NULL, flags);
     }
 
   /* lc823450_dumpnvic("enable", irq); */
 }
 
 /****************************************************************************
- * Name: up_ack_irq
+ * Name: arm_ack_irq
  *
  * Description:
  *   Acknowledge the IRQ
  *
  ****************************************************************************/
 
-void up_ack_irq(int irq)
+void arm_ack_irq(int irq)
 {
   if (irq < LC823450_IRQ_SYSTICK)
     {
@@ -739,7 +727,6 @@ void up_ack_irq(int irq)
       DEBUGASSERT(false);
     }
 #endif
-
 }
 
 /****************************************************************************
@@ -786,7 +773,6 @@ int up_prioritize_irq(int irq, int priority)
   regval     |= (priority << shift);
   putreg32(regval, regaddr);
 
-  /* lc823450_dumpnvic("prioritize", irq); */
   return OK;
 }
 #endif
@@ -831,9 +817,9 @@ int lc823450_irq_srctype(int irq, enum lc823450_srctype_e srctype)
   port = (irq & 0x70) >> 4;
   gpio = irq & 0xf;
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
 
-  regaddr = INTC_REG(EXTINTnCND_BASE, port);
+  regaddr = INTC_REG(EXTINTCND_BASE, port);
   regval = getreg32(regaddr);
 
   regval &= ~(3 << gpio * 2);
@@ -841,7 +827,7 @@ int lc823450_irq_srctype(int irq, enum lc823450_srctype_e srctype)
 
   putreg32(regval, regaddr);
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 
   return OK;
 }
@@ -869,6 +855,39 @@ int lc823450_irq_register(int irq, struct lc823450_irq_ops *ops)
     {
       return -1;
     }
+
   return OK;
 }
 #endif /* CONFIG_LC823450_VIRQ */
+
+/****************************************************************************
+ * Name: arm_intstack_base
+ *
+ * Description:
+ *   Return a pointer to the "base" the correct interrupt stack allocation
+ *   for the current CPU. NOTE: Here, the base means "top" of the stack
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 7
+uintptr_t arm_intstack_base(void)
+{
+  return g_cpu_intstack_top[up_cpu_index()];
+}
+#endif
+
+/****************************************************************************
+ * Name: arm_intstack_alloc
+ *
+ * Description:
+ *   Return a pointer to the "alloc" the correct interrupt stack allocation
+ *   for the current CPU.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 7
+uintptr_t arm_intstack_alloc(void)
+{
+  return g_cpu_intstack_top[up_cpu_index()] - INTSTACK_SIZE;
+}
+#endif

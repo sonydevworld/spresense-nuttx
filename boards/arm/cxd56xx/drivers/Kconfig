@@ -3,5 +3,7 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
+if SPECIFIC_DRIVERS
 source "drivers/platform/audio/Kconfig"
 source "drivers/platform/sensors/Kconfig"
+endif

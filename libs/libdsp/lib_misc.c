@@ -1,35 +1,20 @@
 /****************************************************************************
- * control/lib_misc.c
+ * libs/libdsp/lib_misc.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Mateusz Szafoni <raiden00@railab.me>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,9 +28,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+#define VECTOR2D_SATURATE_MAG_MIN (1e-10f)
+#define FAST_ATAN2_SMALLNUM       (1e-10f)
 
 /****************************************************************************
  * Public Functions
@@ -125,9 +109,9 @@ void vector2d_saturate(FAR float *x, FAR float *y, float max)
 
   mag = vector2d_mag(*x, *y);
 
-  if (mag < 1e-10f)
+  if (mag < VECTOR2D_SATURATE_MAG_MIN)
     {
-      mag = 1e-10f;
+      mag = VECTOR2D_SATURATE_MAG_MIN;
     }
 
   if (mag > max)
@@ -154,7 +138,7 @@ void vector2d_saturate(FAR float *x, FAR float *y, float max)
  *
  ****************************************************************************/
 
-float dq_mag(FAR dq_frame_t *dq)
+float dq_mag(FAR dq_frame_f32_t *dq)
 {
   return vector2d_mag(dq->d, dq->q);
 }
@@ -174,7 +158,7 @@ float dq_mag(FAR dq_frame_t *dq)
  *
  ****************************************************************************/
 
-void dq_saturate(FAR dq_frame_t *dq, float max)
+void dq_saturate(FAR dq_frame_f32_t *dq, float max)
 {
   vector2d_saturate(&dq->d, &dq->q, max);
 }
@@ -184,8 +168,6 @@ void dq_saturate(FAR dq_frame_t *dq, float max)
  *
  * Description:
  *   Fast sin calculation
- *
- *   Reference: http://lab.polygonal.de/?p=205
  *
  * Input Parameters:
  *   angle - (in)
@@ -244,12 +226,11 @@ float fast_cos(float angle)
  * Name: fast_sin2
  *
  * Description:
- *   Fast sin calculation with better accuracy
- *
- *   Reference: http://lab.polygonal.de/?p=205
+ *   Fast sin calculation with better accuracy (quadratic curve
+ *   approximation)
  *
  * Input Parameters:
- *   angle
+ *   angle - (in)
  *
  * Returned Value:
  *   Return estimated sine value
@@ -303,7 +284,8 @@ float fast_sin2(float angle)
  * Name:fast_cos2
  *
  * Description:
- *   Fast cos calculation with better accuracy
+ *   Fast cos calculation with better accuracy (quadratic curve
+ *   approximation)
  *
  * Input Parameters:
  *   angle - (in)
@@ -327,7 +309,7 @@ float fast_cos2(float angle)
  *   Fast atan2 calculation
  *
  * REFERENCE:
- *   https://dspguru.com/dsp/tricks/fixed-point-atan2-with-self-normalization/
+ * https://dspguru.com/dsp/tricks/fixed-point-atan2-with-self-normalization/
  *
  * Input Parameters:
  *   x - (in)
@@ -349,7 +331,7 @@ float fast_atan2(float y, float x)
 
   /* Get absolute value of y and add some small number to prevent 0/0 */
 
-  abs_y = fabsf(y)+1e-10f;
+  abs_y = fabsf(y) + FAST_ATAN2_SMALLNUM;
 
   /* Calculate angle */
 
@@ -371,10 +353,6 @@ float fast_atan2(float y, float x)
   if (y < 0.0f)
     {
       angle = -angle;
-    }
-  else
-    {
-      angle = angle;
     }
 
   return angle;
@@ -453,9 +431,9 @@ void angle_norm_2pi(FAR float *angle, float bottom, float top)
  *
  ****************************************************************************/
 
-void phase_angle_update(FAR struct phase_angle_s *angle, float val)
+void phase_angle_update(FAR struct phase_angle_f32_s *angle, float val)
 {
-  DEBUGASSERT(angle != NULL);
+  LIBDSP_DEBUGASSERT(angle != NULL);
 
   /* Normalize angle to <0.0, 2PI> */
 

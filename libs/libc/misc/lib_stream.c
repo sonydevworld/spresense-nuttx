@@ -1,35 +1,20 @@
 /****************************************************************************
  * libs/libc/misc/lib_stream.c
  *
- *   Copyright (C) 2007, 2011, 2013-2014, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,8 +36,7 @@
 
 #include "libc.h"
 
-#if (!defined(CONFIG_BUILD_PROTECTED) && !defined(CONFIG_BUILD_KERNEL)) || \
-      defined(__KERNEL__)
+#if defined(CONFIG_BUILD_FLAT) || defined(__KERNEL__)
 
 /****************************************************************************
  * Public Functions
@@ -67,14 +51,12 @@
  *
  ****************************************************************************/
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
 void lib_stream_initialize(FAR struct task_group_s *group)
 {
   FAR struct streamlist *list;
-  int i;
 
-#if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && \
-     defined(CONFIG_MM_KERNEL_HEAP)
+#ifdef CONFIG_MM_KERNEL_HEAP
   DEBUGASSERT(group && group->tg_streamlist);
   list = group->tg_streamlist;
 #else
@@ -84,30 +66,20 @@ void lib_stream_initialize(FAR struct task_group_s *group)
 
   /* Initialize the list access mutex */
 
-  nxsem_init(&list->sl_sem, 0, 1);
+  _SEM_INIT(&list->sl_sem, 0, 1);
+  list->sl_head = NULL;
+  list->sl_tail = NULL;
 
-  /* Initialize each FILE structure */
+  /* Initialize stdin, stdout and stderr stream */
 
-  for (i = 0; i < CONFIG_NFILE_STREAMS; i++)
-   {
-      FAR struct file_struct *stream = &list->sl_streams[i];
-
-      /* Clear the IOB */
-
-      memset(stream, 0, sizeof(FILE));
-
-      /* Indicate not opened */
-
-      stream->fs_fd = -1;
-
-      /* Initialize the stream semaphore to one to support one-at-
-       * a-time access to private data sets.
-       */
-
-      lib_sem_initialize(&list->sl_streams[i]);
-    }
+  list->sl_std[0].fs_fd = -1;
+  lib_sem_initialize(&list->sl_std[0]);
+  list->sl_std[1].fs_fd = -1;
+  lib_sem_initialize(&list->sl_std[1]);
+  list->sl_std[2].fs_fd = -1;
+  lib_sem_initialize(&list->sl_std[2]);
 }
-#endif /* CONFIG_NFILE_STREAMS > 0 */
+#endif /* CONFIG_FILE_STREAM */
 
 /****************************************************************************
  * Name: lib_stream_release
@@ -119,16 +91,12 @@ void lib_stream_initialize(FAR struct task_group_s *group)
  *
  ****************************************************************************/
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
 void lib_stream_release(FAR struct task_group_s *group)
 {
   FAR struct streamlist *list;
-#ifndef CONFIG_STDIO_DISABLE_BUFFERING
-  int i;
-#endif
 
-#if (defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)) && \
-     defined(CONFIG_MM_KERNEL_HEAP)
+#ifdef CONFIG_MM_KERNEL_HEAP
   DEBUGASSERT(group && group->tg_streamlist);
   list = group->tg_streamlist;
 #else
@@ -140,44 +108,47 @@ void lib_stream_release(FAR struct task_group_s *group)
 
   _SEM_DESTROY(&list->sl_sem);
 
-#ifndef CONFIG_STDIO_DISABLE_BUFFERING
   /* Release each stream in the list */
 
-  for (i = 0; i < CONFIG_NFILE_STREAMS; i++)
+  list->sl_tail = NULL;
+  while (list->sl_head != NULL)
     {
-      FAR struct file_struct *stream = &list->sl_streams[i];
+      FAR struct file_struct *stream = list->sl_head;
 
+      list->sl_head = stream->fs_next;
+
+#ifndef CONFIG_STDIO_DISABLE_BUFFERING
       /* Destroy the semaphore that protects the IO buffer */
 
       _SEM_DESTROY(&stream->fs_sem);
-
-      /* Release the IO buffer */
-
-      if (stream->fs_bufstart != NULL &&
-          (stream->fs_flags & __FS_FLAG_UBF) == 0)
-        {
-#ifndef CONFIG_BUILD_KERNEL
-          /* Release memory from the user heap */
-
-          sched_ufree(stream->fs_bufstart);
-#else
-          /* If the exiting group is unprivileged, then it has an address
-           * environment.  Don't bother to release the memory in this case...
-           * There is no point since the memory lies in the user heap which
-           * will be destroyed anyway.  But if this is a privileged group,
-           * when we still have to release the memory using the kernel
-           * allocator.
-           */
-
-          if ((group->tg_flags & GROUP_FLAG_PRIVILEGED) != 0)
-            {
-              sched_kfree(stream->fs_bufstart);
-            }
 #endif
+
+      /* Release the stream */
+
+#ifdef CONFIG_BUILD_KERNEL
+      /* If the exiting group is unprivileged, then it has an address
+       * environment.  Don't bother to release the memory in this case...
+       * There is no point since the memory lies in the user heap which
+       * will be destroyed anyway.  But if this is a privileged group,
+       * when we still have to release the memory using the kernel
+       * allocator.
+       */
+
+      if ((group->tg_flags & GROUP_FLAG_PRIVILEGED) != 0)
+#endif
+        {
+          group_free(group, stream);
         }
     }
+
+  /* Destroy stdin, stdout and stderr stream */
+
+#ifndef CONFIG_STDIO_DISABLE_BUFFERING
+  _SEM_DESTROY(&list->sl_std[0].fs_sem);
+  _SEM_DESTROY(&list->sl_std[1].fs_sem);
+  _SEM_DESTROY(&list->sl_std[2].fs_sem);
 #endif
 }
 
-#endif /* CONFIG_NFILE_STREAMS > 0 */
-#endif /* (!CONFIG_BUILD_PROTECTED && !CONFIG_BUILD_KERNEL) || __KERNEL__ */
+#endif /* CONFIG_FILE_STREAM */
+#endif /* CONFIG_BUILD_FLAT || __KERNEL__ */

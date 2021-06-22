@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/vfs/fs_rename.c
  *
- *   Copyright (C) 2007-2009, 2014, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -54,19 +39,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#undef FS_HAVE_WRITABLE_MOUNTPOINT
-#if !defined(CONFIG_DISABLE_MOUNTPOINT) && defined(CONFIG_FS_WRITABLE) && \
-    CONFIG_NFILE_STREAMS > 0
-#  define FS_HAVE_WRITABLE_MOUNTPOINT 1
-#endif
-
-#undef FS_HAVE_PSEUDOFS_OPERATIONS
-#if !defined(CONFIG_DISABLE_PSEUDOFS_OPERATIONS) && CONFIG_NFILE_STREAMS > 0
-#  define FS_HAVE_PSEUDOFS_OPERATIONS 1
-#endif
-
 #undef FS_HAVE_RENAME
-#if defined(FS_HAVE_WRITABLE_MOUNTPOINT) || defined(FS_HAVE_PSEUDOFS_OPERATIONS)
+#if !defined(CONFIG_DISABLE_MOUNTPOINT) || !defined(CONFIG_DISABLE_PSEUDOFS_OPERATIONS)
 #  define FS_HAVE_RENAME 1
 #endif
 
@@ -91,39 +65,7 @@ static int pseudorename(FAR const char *oldpath, FAR struct inode *oldinode,
   struct inode_search_s newdesc;
   FAR struct inode *newinode;
   FAR char *subdir = NULL;
-  FAR const char *name;
   int ret;
-
-  /* Special case the root directory.  There is no root inode and there is
-   * no name for the root.  inode_find() will fail to the find the root
-   * inode -- because there isn't one.
-   */
-
-  name = newpath;
-  while (*name == '/')
-    {
-      name++;
-    }
-
-  if (*name == '\0')
-    {
-      FAR char *subdirname;
-
-      /* In the newpath is the root directory, the target of the rename must
-       * be a directory entry under the root.
-       */
-
-      subdirname = basename((FAR char *)oldpath);
-
-      asprintf(&subdir, "/%s", subdirname);
-      if (subdir == NULL)
-        {
-          ret = -ENOMEM;
-          goto errout;
-        }
-
-      newpath = subdir;
-    }
 
   /* According to POSIX, any old inode at this path should be removed
    * first, provided that it is not a directory.
@@ -199,6 +141,7 @@ next_subdir:
            * over again.  A nasty goto is used because I am lazy.
            */
 
+          RELEASE_SEARCH(&newdesc);
           goto next_subdir;
         }
       else
@@ -224,7 +167,11 @@ next_subdir:
    * of  zero.
    */
 
-  inode_semtake();
+  ret = inode_semtake();
+  if (ret < 0)
+    {
+      goto errout;
+    }
 
   ret = inode_reserve(newpath, &newinode);
   if (ret < 0)
@@ -287,6 +234,8 @@ errout_with_sem:
   inode_semgive();
 
 errout:
+  RELEASE_SEARCH(&newdesc);
+
   if (subdir != NULL)
     {
       kmm_free(subdir);
@@ -504,12 +453,12 @@ int rename(FAR const char *oldpath, FAR const char *newpath)
   FAR struct inode *oldinode;
   int ret;
 
-  /* Ignore paths that are interpreted as the root directory which has no name
-   * and cannot be moved
+  /* Ignore paths that are interpreted as the root directory which has no
+   * name and cannot be moved
    */
 
-  if (!oldpath || *oldpath == '\0' || oldpath[0] != '/' ||
-      !newpath || *newpath == '\0' || newpath[0] != '/')
+  if (!oldpath || *oldpath == '\0' ||
+      !newpath || *newpath == '\0')
     {
       ret = -EINVAL;
       goto errout;
@@ -535,7 +484,7 @@ int rename(FAR const char *oldpath, FAR const char *newpath)
 #ifndef CONFIG_DISABLE_MOUNTPOINT
   /* Verify that the old inode is a valid mountpoint. */
 
-  if (INODE_IS_MOUNTPT(oldinode))
+  if (INODE_IS_MOUNTPT(oldinode) && *olddesc.relpath != '\0')
     {
       ret = mountptrename(oldpath, oldinode, olddesc.relpath, newpath);
     }

@@ -1,40 +1,25 @@
 /****************************************************************************
- * drivers/can/mcp2515.c
+ * drivers/can/mcp2515.h
  *
- *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
- *   Author: Alan Carvalho de Assis <acassis@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX, Atmel, nor the names of its contributors may
- *    be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
 #ifndef __DRIVERS_CAN_MCP2514_H
-#define __DRIVERS_CAN_MCP2514_H 1
+#define __DRIVERS_CAN_MCP2514_H
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -192,7 +177,7 @@
 #define TXBCTRL_TXERR        (1 << 4) /* Bit 4: Transmission Error Detected bit */
 #define TXBCTRL_MLOA         (1 << 5) /* Bit 5: Message Lost Arbitration bit */
 #define TXBCTRL_ABTF         (1 << 6) /* Bit 6: Message Aborted Flag bit */
-                                              /* Bit 7: Not used */
+                                      /* Bit 7: Not used */
 
 /* TXRTSCTRL – TXnRTS PIN CONTROL AND STATUS REGISTER */
 
@@ -249,13 +234,13 @@
 
 /* These bits are common to RXB0 and RXB1: */
 
-#define RXBCTRL_RXRTR        (1 << 3) /* Bit 3: Received Remote Transfer Request bit */
-                                      /* Bit 4: Not used */
-#define RXBCTRL_RXM_SHIFT    (5)      /* Bits 5-6: Receive Buffer Operating Mode bits */
+#define RXBCTRL_RXRTR        (1 << 3)                   /* Bit 3: Received Remote Transfer Request bit */
+                                                        /* Bit 4: Not used */
+#define RXBCTRL_RXM_SHIFT    (5)                        /* Bits 5-6: Receive Buffer Operating Mode bits */
 #define RXBCTRL_RXM_MASK     (0x3 << RXBCTRL_RXM_SHIFT)
 #define RXBCTRL_RXM_ALLMSG   (3 << RXBCTRL_RXM_SHIFT)   /* 11: Turn mask/filters off; receive any message */
 #define RXBCTRL_RXM_ALLVALID (0 << RXBCTRL_RXM_SHIFT)   /* 00: Receive all valid msgs using (STD or EXT) that meet filter criteria */
-                                      /* Bit 7: Not used */
+                                                        /* Bit 7: Not used */
 
 /* N.B.: In the datasheet DS21801D the file RXM of RXBnCTRL could to assume
  *       the value 01 and 10 to receive only STD or EXT msgs respectively.
@@ -264,7 +249,7 @@
 
 /* RXB1CTRL – RECEIVE BUFFER 1 CONTROL */
 
-#define RXB1CTRL_FILHIT_SHIFT (0)      /* Filter Hit bits - indicates which acceptance filter enabled reception of message */
+#define RXB1CTRL_FILHIT_SHIFT (0)                           /* Filter Hit bits - indicates which acceptance filter enabled reception of message */
 #define RXB1CTRL_FILHIT_MASK  (0x7 << RXB0CTRL_FILHIT_SHIFT)
 #define RXB1CTRL_FILHIT_F5    (5 << RXB1CTRL_FILHIT_SHIFT)  /* Acceptance Filter 5 (RXF5) */
 #define RXB1CTRL_FILHIT_F4    (4 << RXB1CTRL_FILHIT_SHIFT)  /* Acceptance Filter 4 (RXF4) */
@@ -305,7 +290,7 @@
 
 #define RXBEID0_EID_MASK     0xff     /* Bits 0-7: Extended Identifier bits <7:0> */
 
-/* RXBnDLC – RECEIVE BUFFER n DATA LENGHT CODE */
+/* RXBnDLC – RECEIVE BUFFER n DATA LENGTH CODE */
 
 #define RXBDLC_DLC_SHIFT     (0)      /* Bits 0-3: Data Length Code <3:0> bits */
 #define RXBDLC_DLC_MASK      (0xf << RXBDLC_DLC_SHIFT)
@@ -355,14 +340,14 @@
 
 /* CNF1 – CONFIGURATION 1 */
 
-#define CNF1_BRP_SHIFT       (0)      /* Bits 0-5: Baud Rate Prescaler bits <5:0>, TQ = 2 x (BRP + 1)/Fosc */
+#define CNF1_BRP_SHIFT       (0)                    /* Bits 0-5: Baud Rate Prescaler bits <5:0>, TQ = 2 x (BRP + 1)/Fosc */
 #define CNF1_BRP_MASK        (0x3f << CNF1_BRP_SHIFT)
-#define CNF1_SJW_SHIFT       (6)      /* Bit 6-7: Synchronization Jump Width Length bits <1:0> */
+#define CNF1_SJW_SHIFT       (6)                    /* Bit 6-7: Synchronization Jump Width Length bits <1:0> */
 #define CNF1_SJW_MASK        (3 << CNF1_SJW_SHIFT)
-#  define CNF1_SJW_4xTQ      (3 << CNF1_SJW_SHIFT) /* Length = 4 x TQ */
-#  define CNF1_SJW_3xTQ      (2 << CNF1_SJW_SHIFT) /* Length = 3 x TQ */
-#  define CNF1_SJW_2xTQ      (1 << CNF1_SJW_SHIFT) /* Length = 2 x TQ */
-#  define CNF1_SJW_1xTQ      (0 << CNF1_SJW_SHIFT) /* Length = 1 x TQ */
+#  define CNF1_SJW_4xTQ      (3 << CNF1_SJW_SHIFT)  /* Length = 4 x TQ */
+#  define CNF1_SJW_3xTQ      (2 << CNF1_SJW_SHIFT)  /* Length = 3 x TQ */
+#  define CNF1_SJW_2xTQ      (1 << CNF1_SJW_SHIFT)  /* Length = 2 x TQ */
+#  define CNF1_SJW_1xTQ      (0 << CNF1_SJW_SHIFT)  /* Length = 1 x TQ */
 
 /* CNF2 – CONFIGURATION 2 */
 

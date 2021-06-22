@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/str71x/str71x_serial.c
  *
- *   Copyright (C) 2008-2009, 2012-2013, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -52,8 +37,8 @@
 #include <nuttx/serial/serial.h>
 
 #include "chip.h"
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "str71x.h"
 
@@ -202,9 +187,9 @@
 #  define RXENABLE_BITS STR71X_UARTIER_RNE
 #endif
 
-/* Which ever model is used, there seems to be some timing disconnects between
- * Rx FIFO not full and Rx FIFO half full indications.  Best bet is to use
- * both.
+/* Which ever model is used, there seems to be some timing disconnects
+ * between Rx FIFO not full and Rx FIFO half full indications.  Best bet
+ * is to use both.
  */
 
 #define RXAVAILABLE_BITS (STR71X_UARTSR_RNE|STR71X_UARTSR_RHF)
@@ -232,7 +217,8 @@ struct up_dev_s
 /* Internal Helpers */
 
 static inline uint16_t up_serialin(struct up_dev_s *priv, int offset);
-static inline void up_serialout(struct up_dev_s *priv, int offset, uint16_t value);
+static inline void up_serialout(struct up_dev_s *priv, int offset,
+                                uint16_t value);
 static inline void up_disableuartint(struct up_dev_s *priv, uint16_t *ier);
 static inline void up_restoreuartint(struct up_dev_s *priv, uint16_t ier);
 #ifdef HAVE_CONSOLE
@@ -247,7 +233,7 @@ static int  up_attach(struct uart_dev_s *dev);
 static void up_detach(struct uart_dev_s *dev);
 static int  up_interrupt(int irq, void *context, void *arg);
 static int  up_ioctl(struct file *filep, int cmd, unsigned long arg);
-static int  up_receive(struct uart_dev_s *dev, uint32_t *status);
+static int  up_receive(struct uart_dev_s *dev, unsigned int *status);
 static void up_rxint(struct uart_dev_s *dev, bool enable);
 static bool up_rxavailable(struct uart_dev_s *dev);
 static void up_send(struct uart_dev_s *dev, int ch);
@@ -351,7 +337,7 @@ static uart_dev_t g_uart1port =
   {
     .size   = CONFIG_UART1_TXBUFSIZE,
     .buffer = g_uart1txbuffer,
-   },
+  },
   .ops      = &g_uart_ops,
   .priv     = &g_uart1priv,
 };
@@ -434,7 +420,8 @@ static inline uint16_t up_serialin(struct up_dev_s *priv, int offset)
  * Name: up_serialout
  ****************************************************************************/
 
-static inline void up_serialout(struct up_dev_s *priv, int offset, uint16_t value)
+static inline void up_serialout(struct up_dev_s *priv, int offset,
+                                uint16_t value)
 {
   putreg16(value, priv->uartbase + offset);
 }
@@ -482,6 +469,7 @@ static inline void up_waittxnotfull(struct up_dev_s *priv)
       if ((up_serialin(priv, STR71X_UART_SR_OFFSET) & STR71X_UARTSR_TF) == 0)
         {
           /* The TX FIFO is not full... return */
+
           break;
         }
     }
@@ -509,7 +497,7 @@ static int up_setup(struct uart_dev_s *dev)
   /* Set the BAUD rate */
 
   divisor = 16 * priv->baud;
-  baud    =  (STR71X_PCLK1 + divisor/2) / divisor;
+  baud    =  (STR71X_PCLK1 + divisor / 2) / divisor;
   up_serialout(priv, STR71X_UART_BR_OFFSET, baud);
 
   /* Get mode setting */
@@ -591,14 +579,15 @@ static void up_shutdown(struct uart_dev_s *dev)
  * Name: up_attach
  *
  * Description:
- *   Configure the UART to operation in interrupt driven mode.  This method is
- *   called when the serial port is opened.  Normally, this is just after the
+ *   Configure the UART to operation in interrupt driven mode.  This method
+ *   is called when the serial port is opened.  Normally, this is just after
  *   the setup() method is called, however, the serial console may operate in
  *   a non-interrupt driven mode during the boot phase.
  *
- *   RX and TX interrupts are not enabled when by the attach method (unless the
- *   hardware supports multiple levels of interrupt enabling).  The RX and TX
- *   interrupts are not enabled until the txint() and rxint() methods are called.
+ *   RX and TX interrupts are not enabled when by the attach method (unless
+ *   the hardware supports multiple levels of interrupt enabling).  The RX
+ *   and TX interrupts are not enabled until the txint() and rxint() methods
+ *   are called.
  *
  ****************************************************************************/
 
@@ -627,8 +616,8 @@ static int up_attach(struct uart_dev_s *dev)
  *
  * Description:
  *   Detach UART interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception is
- *   the serial console which is never shutdown.
+ *   closed normally just before the shutdown method is called.  The
+ *   exception is the serial console which is never shutdown.
  *
  ****************************************************************************/
 
@@ -647,7 +636,7 @@ static void up_detach(struct uart_dev_s *dev)
  *   when an interrupt received on the 'irq'  It should call
  *   uart_transmitchars or uart_receivechar to perform the
  *   appropriate data transfers.  The interrupt handling logic\
- *   must be able to map the 'irq' number into the approprite
+ *   must be able to map the 'irq' number into the appropriate
  *   uart_dev_s structure in order to call these functions.
  *
  ****************************************************************************/
@@ -753,7 +742,7 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
  *
  ****************************************************************************/
 
-static int up_receive(struct uart_dev_s *dev, uint32_t *status)
+static int up_receive(struct uart_dev_s *dev, unsigned int *status)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   uint16_t rxbufr;
@@ -788,6 +777,7 @@ static void up_rxint(struct uart_dev_s *dev, bool enable)
     {
       priv->ier &= ~RXENABLE_BITS;
     }
+
   up_serialout(priv, STR71X_UART_IER_OFFSET, priv->ier);
 }
 
@@ -802,7 +792,8 @@ static void up_rxint(struct uart_dev_s *dev, bool enable)
 static bool up_rxavailable(struct uart_dev_s *dev)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
-  return ((up_serialin(priv, STR71X_UART_SR_OFFSET) & RXAVAILABLE_BITS) != 0);
+  return ((up_serialin(priv, STR71X_UART_SR_OFFSET) &
+           RXAVAILABLE_BITS) != 0);
 }
 
 /****************************************************************************
@@ -844,6 +835,7 @@ static void up_txint(struct uart_dev_s *dev, bool enable)
 
       priv->ier &= ~STR71X_UARTSR_THE;
     }
+
   up_serialout(priv, STR71X_UART_IER_OFFSET, priv->ier);
 }
 
@@ -858,7 +850,8 @@ static void up_txint(struct uart_dev_s *dev, bool enable)
 static bool up_txready(struct uart_dev_s *dev)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
-  return ((up_serialin(priv, STR71X_UART_SR_OFFSET) & STR71X_UARTSR_TF) == 0);
+  return ((up_serialin(priv, STR71X_UART_SR_OFFSET) &
+           STR71X_UARTSR_TF) == 0);
 }
 
 /****************************************************************************
@@ -872,24 +865,27 @@ static bool up_txready(struct uart_dev_s *dev)
 static bool up_txempty(struct uart_dev_s *dev)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
-  return ((up_serialin(priv, STR71X_UART_SR_OFFSET) & STR71X_UARTSR_TE) != 0);
+  return ((up_serialin(priv, STR71X_UART_SR_OFFSET) &
+           STR71X_UARTSR_TE) != 0);
 }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
+#ifdef USE_EARLYSERIALINIT
+
 /****************************************************************************
- * Name: up_serialinit
+ * Name: arm_earlyserialinit
  *
  * Description:
  *   Performs the low level UART initialization early in
  *   debug so that the serial console will be available
- *   during bootup.  This must be called before up_serialinit.
+ *   during bootup.  This must be called before arm_serialinit.
  *
  ****************************************************************************/
 
-void up_earlyserialinit(void)
+void arm_earlyserialinit(void)
 {
   /* NOTE:  All GPIO configuration for the UARTs was performed in
    * up_lowsetup
@@ -915,17 +911,18 @@ void up_earlyserialinit(void)
   up_setup(&CONSOLE_DEV);
 #endif
 }
+#endif
 
 /****************************************************************************
- * Name: up_serialinit
+ * Name: arm_serialinit
  *
  * Description:
  *   Register serial console and serial ports.  This assumes
- *   that up_earlyserialinit was called previously.
+ *   that arm_earlyserialinit was called previously.
  *
  ****************************************************************************/
 
-void up_serialinit(void)
+void arm_serialinit(void)
 {
   /* Register the console */
 
@@ -1000,10 +997,10 @@ int up_putc(int ch)
     {
       /* Add CR */
 
-      up_lowputc('\r');
+      arm_lowputc('\r');
     }
 
-  up_lowputc(ch);
+  arm_lowputc(ch);
 #endif
   return ch;
 }

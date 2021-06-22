@@ -42,7 +42,7 @@ ST Bootloader
 LEDs
 ====
 
-The HY-MiniSTM32 board provides only two controlable LEDs labeled LED1 and LED2.
+The HY-MiniSTM32 board provides only two controllable LEDs labeled LED1 and LED2.
 Usage of these LEDs is defined in include/board.h and src/up_leds.c.
 They are encoded as follows:
 
@@ -58,7 +58,7 @@ They are encoded as follows:
     LED_PANIC           The system has crashed  BLINK   BLINK
     LED_IDLE            STM32 is is sleep mode  (Optional, not used)
 
-  * If Nuttx starts correctly, normal state is to have LED1 on and LED2 off.
+  * If NuttX starts correctly, normal state is to have LED1 on and LED2 off.
  ** LED1 is turned off during interrupt.
 *** LED2 is turned on during signal handler.
 
@@ -72,7 +72,7 @@ RTC
     CONFIG_RTC_HIRES - The typical RTC keeps time to resolution of 1
       second, usually supporting a 32-bit time_t value.  In this case,
       the RTC is used to &quot;seed&quot; the normal NuttX timer and the
-      NuttX timer provides for higher resoution time. If CONFIG_RTC_HIRES
+      NuttX timer provides for higher resolution time. If CONFIG_RTC_HIRES
       is enabled in the NuttX configuration, then the RTC provides higher
       resolution time and completely replaces the system timer for purpose of
       date and time.
@@ -274,7 +274,7 @@ HY-Mini specific Configuration Options
 
     CONFIG_SDIO_DMA - Support DMA data transfers.  Requires CONFIG_STM32_SDIO
       and CONFIG_STM32_DMA2.
-    CONFIG_STM32_SDIO_PRI - Select SDIO interrupt prority.  Default: 128
+    CONFIG_STM32_SDIO_PRI - Select SDIO interrupt priority.  Default: 128
     CONFIG_STM32_SDIO_DMAPRIO - Select SDIO DMA interrupt priority.
       Default:  Medium
     CONFIG_STM32_SDIO_WIDTH_D1_ONLY - Select 1-bit transfer mode.  Default:
@@ -400,7 +400,7 @@ Where <subdir> is one of the following:
         you will have to turn local echo on.
     (3) Microsoft holds several patents related to the design of
         long file names in the FAT file system.  Please refer to the
-        details in the top-level COPYING file.  Please do not use FAT
+        details in the top-level NOTICE file.  Please do not use FAT
         long file name unless you are familiar with these patent issues.
     (4) When built as an NSH add-on command (CONFIG_NSH_BUILTIN_APPS=y),
         Caution should be used to assure that the SD drive is not in use when
@@ -440,15 +440,15 @@ Where <subdir> is one of the following:
        CONFIG_SYSLOG_CHAR=y               : Use a character device for system logging
        CONFIG_SYSLOG_DEVPATH="/dev/ttyS0" : UART2 will be /dev/ttyS0
 
-       However, there is nothing to generate SYLOG output in the default
+       However, there is nothing to generate SYSLOG output in the default
        configuration so nothing should appear on UART2 unless you enable
        some debug output or enable the USB monitor.
 
     2. Enabling USB monitor SYSLOG output.  If tracing is enabled, the USB
        device will save encoded trace output in in-memory buffer; if the
        USB monitor is enabled, that trace buffer will be periodically
-       emptied and dumped to the system loggin device (UART2 in this
-       configuraion):
+       emptied and dumped to the system logging device (UART2 in this
+       configuration):
 
        CONFIG_USBDEV_TRACE=y                   : Enable USB trace feature
        CONFIG_USBDEV_TRACE_NRECORDS=128        : Buffer 128 records in memory
@@ -483,7 +483,7 @@ Where <subdir> is one of the following:
     more information.
 
       CONFIG_HOST_LINUX=y                      : Linux host
-      CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYL=y  : CodeSourcery toolchain under Linux
+      CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIL=y      : GNU EABI toolchain for Linux
 
     USB debug output can be enabled as by changing the following
     settings in the configuration file:
@@ -517,4 +517,3 @@ Where <subdir> is one of the following:
 
       -CONFIG_CDCACM=n
       +CONFIG_CDCACM=y
-

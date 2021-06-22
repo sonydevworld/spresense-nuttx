@@ -63,11 +63,12 @@
  *   must be undefined or defined to be 1.
  * CONFIG_ST7567_POWER
  *   If the hardware supports a controllable LCD a power supply, this
- *   configuration shold be defined.  (See st7567_power() below).
+ *   configuration should be defined.  (See st7567_power() below).
  *
  * Required LCD driver settings:
  * CONFIG_LCD_ST7567 - Enable ST7567 support
- * CONFIG_LCD_MAXCONTRAST should be 255, but any value >0 and <=255 will be accepted.
+ * CONFIG_LCD_MAXCONTRAST should be 255, but any value >0 and <=255 will be
+ * accepted.
  * CONFIG_LCD_MAXPOWER should be 2:  0=off, 1=dim, 2=normal
  *
  * Required SPI driver settings:
@@ -112,7 +113,8 @@ extern "C"
  * Input Parameters:
  *
  *   spi - A reference to the SPI driver instance.
- *   devno - A value in the range of 0 throst7567h CONFIG_ST7567_NINTERFACES-1.
+ *   devno - A value in the range of 0 throst7567h
+ *           CONFIG_ST7567_NINTERFACES-1.
  *     This allows support for multiple LCD devices.
  *
  * Returned Value:
@@ -124,7 +126,8 @@ extern "C"
 
 struct lcd_dev_s; /* see nuttx/lcd.h */
 struct spi_dev_s; /* see nuttx/spi/spi.h */
-FAR struct lcd_dev_s *st7567_initialize(FAR struct spi_dev_s *spi, unsigned int devno);
+FAR struct lcd_dev_s *st7567_initialize(FAR struct spi_dev_s *spi,
+                                        unsigned int devno);
 
 /****************************************************************************
  * Name:  st7567_power
@@ -136,14 +139,14 @@ FAR struct lcd_dev_s *st7567_initialize(FAR struct spi_dev_s *spi, unsigned int 
  *
  * Input Parameters:
  *
- *   devno - A value in the range of 0 throuh CONFIG_ST7567_NINTERFACES-1.
+ *   devno - A value in the range of 0 through CONFIG_ST7567_NINTERFACES-1.
  *     This allows support for multiple LCD devices.
  *   on - true:turn power on, false: turn power off.
  *
  * Returned Value:
  *   None
  *
- **************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_ST7567_POWER
 void st7567_power(unsigned int devno, bool on);

@@ -1,36 +1,20 @@
 /****************************************************************************
  * drivers/wireless/cc1101.c
  *
- *   Copyright (C) 2011 Uros Platise. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- *   Authors: Uros Platise <uros.platise@isotel.eu>
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,7 +31,8 @@
  *     ISM Region 2 (Complete America)
  *
  * Todo:
- *   - Extend max packet length up to 255 bytes or rather infinite < 4096 bytes
+ *   - Extend max packet length up to 255 bytes or rather
+ *     infinite < 4096 bytes
  *   - Power up/down modes
  *   - Sequencing between states or add protection for correct termination of
  *     various different state (so that CC1101 does not block in case of
@@ -84,7 +69,8 @@
  * how RSSI and LQI work:
  *
  *  1. A weak signal in the presence of noise may give low RSSI and low LQI.
- *  2. A weak signal in "total" absence of noise may give low RSSI and high LQI.
+ *  2. A weak signal in "total" absence of noise may give low RSSI and high
+ *     LQI.
  *  3. Strong noise (usually coming from an interferer) may give high RSSI
  *     and low LQI.
  *  4. A strong signal without much noise may give high RSSI and high LQI.
@@ -111,6 +97,7 @@
 #include <debug.h>
 
 #include <nuttx/kmalloc.h>
+#include <nuttx/signal.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/wireless/cc1101.h>
 
@@ -121,7 +108,7 @@
 #define CC1101_SPIFREQ_BURST    6500000 /* Hz, no delay */
 #define CC1101_SPIFREQ_SINGLE   9000000 /* Hz, single access only - no delay */
 
-#define CC1101_MCSM0_VALUE      0x1C
+#define CC1101_MCSM0_VALUE      0x1c
 
 /****************************************************************************
  * Chipcon CC1101 Internal Registers
@@ -139,12 +126,12 @@
 #define CC1101_PKTCTRL1         0x07        /* Packet automation control */
 #define CC1101_PKTCTRL0         0x08        /* Packet automation control */
 #define CC1101_ADDR             0x09        /* Device address */
-#define CC1101_CHANNR           0x0A        /* Channel number */
-#define CC1101_FSCTRL1          0x0B        /* Frequency synthesizer control */
-#define CC1101_FSCTRL0          0x0C        /* Frequency synthesizer control */
-#define CC1101_FREQ2            0x0D        /* Frequency control word, high byte */
-#define CC1101_FREQ1            0x0E        /* Frequency control word, middle byte */
-#define CC1101_FREQ0            0x0F        /* Frequency control word, low byte */
+#define CC1101_CHANNR           0x0a        /* Channel number */
+#define CC1101_FSCTRL1          0x0b        /* Frequency synthesizer control */
+#define CC1101_FSCTRL0          0x0c        /* Frequency synthesizer control */
+#define CC1101_FREQ2            0x0d        /* Frequency control word, high byte */
+#define CC1101_FREQ1            0x0e        /* Frequency control word, middle byte */
+#define CC1101_FREQ0            0x0f        /* Frequency control word, low byte */
 #define CC1101_MDMCFG4          0x10        /* Modem configuration */
 #define CC1101_MDMCFG3          0x11        /* Modem configuration */
 #define CC1101_MDMCFG2          0x12        /* Modem configuration */
@@ -155,12 +142,12 @@
 #define CC1101_MCSM1            0x17        /* Main Radio Cntrl State Machine config */
 #define CC1101_MCSM0            0x18        /* Main Radio Cntrl State Machine config */
 #define CC1101_FOCCFG           0x19        /* Frequency Offset Compensation config */
-#define CC1101_BSCFG            0x1A        /* Bit Synchronization configuration */
-#define CC1101_AGCCTRL2         0x1B        /* AGC control */
-#define CC1101_AGCCTRL1         0x1C        /* AGC control */
-#define CC1101_AGCCTRL0         0x1D        /* AGC control */
-#define CC1101_WOREVT1          0x1E        /* High byte Event 0 timeout */
-#define CC1101_WOREVT0          0x1F        /* Low byte Event 0 timeout */
+#define CC1101_BSCFG            0x1a        /* Bit Synchronization configuration */
+#define CC1101_AGCCTRL2         0x1b        /* AGC control */
+#define CC1101_AGCCTRL1         0x1c        /* AGC control */
+#define CC1101_AGCCTRL0         0x1d        /* AGC control */
+#define CC1101_WOREVT1          0x1e        /* High byte Event 0 timeout */
+#define CC1101_WOREVT0          0x1f        /* Low byte Event 0 timeout */
 #define CC1101_WORCTRL          0x20        /* Wake On Radio control */
 #define CC1101_FREND1           0x21        /* Front end RX configuration */
 #define CC1101_FREND0           0x22        /* Front end TX configuration */
@@ -171,11 +158,11 @@
 #define CC1101_RCCTRL1          0x27        /* RC oscillator configuration */
 #define CC1101_RCCTRL0          0x28        /* RC oscillator configuration */
 #define CC1101_FSTEST           0x29        /* Frequency synthesizer cal control */
-#define CC1101_PTEST            0x2A        /* Production test */
-#define CC1101_AGCTEST          0x2B        /* AGC test */
-#define CC1101_TEST2            0x2C        /* Various test settings */
-#define CC1101_TEST1            0x2D        /* Various test settings */
-#define CC1101_TEST0            0x2E        /* Various test settings */
+#define CC1101_PTEST            0x2a        /* Production test */
+#define CC1101_AGCTEST          0x2b        /* AGC test */
+#define CC1101_TEST2            0x2c        /* Various test settings */
+#define CC1101_TEST1            0x2d        /* Various test settings */
+#define CC1101_TEST0            0x2e        /* Various test settings */
 
 /* Status registers */
 
@@ -191,8 +178,8 @@
 #define CC1101_VCO_VC_DAC       (0x39 | 0xc0)   /* Current setting from PLL cal module */
 #define CC1101_TXBYTES          (0x3a | 0xc0)   /* Underflow and # of bytes in TXFIFO */
 #define CC1101_RXBYTES          (0x3b | 0xc0)   /* Overflow and # of bytes in RXFIFO */
-#define CC1101_RCCTRL1_STATUS   (0x3c | 0xc0)   /* Last RC oscilator calibration results */
-#define CC1101_RCCTRL0_STATUS   (0x3d | 0xc0)   /* Last RC oscilator calibration results */
+#define CC1101_RCCTRL1_STATUS   (0x3c | 0xc0)   /* Last RC oscillator calibration results */
+#define CC1101_RCCTRL0_STATUS   (0x3d | 0xc0)   /* Last RC oscillator calibration results */
 
 /* Multi byte memory locations */
 
@@ -229,6 +216,7 @@
 #define CC1101_MCSM0_XOSC_FORCE_ON  0x01
 
 /* Chip Status Byte */
+
 /* Bit fields in the chip status byte */
 
 #define CC1101_STATUS_CHIP_RDYn_BM              0x80
@@ -259,12 +247,12 @@
 #define CC1101_MARCSTATE_REGON                  0x07
 #define CC1101_MARCSTATE_STARTCAL               0x08
 #define CC1101_MARCSTATE_BWBOOST                0x09
-#define CC1101_MARCSTATE_FS_LOCK                0x0A
-#define CC1101_MARCSTATE_IFADCON                0x0B
-#define CC1101_MARCSTATE_ENDCAL                 0x0C
-#define CC1101_MARCSTATE_RX                     0x0D
-#define CC1101_MARCSTATE_RX_END                 0x0E
-#define CC1101_MARCSTATE_RX_RST                 0x0F
+#define CC1101_MARCSTATE_FS_LOCK                0x0a
+#define CC1101_MARCSTATE_IFADCON                0x0b
+#define CC1101_MARCSTATE_ENDCAL                 0x0c
+#define CC1101_MARCSTATE_RX                     0x0d
+#define CC1101_MARCSTATE_RX_END                 0x0e
+#define CC1101_MARCSTATE_RX_RST                 0x0f
 #define CC1101_MARCSTATE_TXRX_SWITCH            0x10
 #define CC1101_MARCSTATE_RXFIFO_OVERFLOW        0x11
 #define CC1101_MARCSTATE_FSTXON                 0x12
@@ -298,7 +286,8 @@ static int cc1101_file_open(FAR struct file *filep);
 static int cc1101_file_close(FAR struct file *filep);
 static ssize_t cc1101_file_read(FAR struct file *filep, FAR char *buffer,
                                 size_t buflen);
-static ssize_t cc1101_file_write(FAR struct file *filep, FAR const char *buffer,
+static ssize_t cc1101_file_write(FAR struct file *filep,
+                                 FAR const char *buffer,
                                  size_t buflen);
 static int cc1101_file_poll(FAR struct file *filep, FAR struct pollfd *fds,
                             bool setup);
@@ -416,7 +405,9 @@ static int cc1101_file_close(FAR struct file *filep)
     }
 
   dev->ops.irq(dev, false);
-  // nrf24l01_changestate(dev, ST_POWER_DOWN);
+#if 0
+  nrf24l01_changestate(dev, ST_POWER_DOWN);
+#endif
   dev->nopens--;
 
   nxsem_post(&dev->devsem);
@@ -685,7 +676,7 @@ void cc1101_access_begin(FAR struct cc1101_dev_s *dev)
     }
   else
     {
-      usleep(150 * 1000);
+      nxsig_usleep(150 * 1000);
     }
 }
 
@@ -934,13 +925,14 @@ void cc1101_setpacketctrl(struct cc1101_dev_s *dev)
 
   values[0] = 0x07; /* No time-out */
   values[1] = 0x03; /* Clear channel if RSSI < thr && !receiving;
-                     * TX -> RX, RX -> RX: 0x3F */
+                     * TX -> RX, RX -> RX: 0x3f */
   values[2] =
       CC1101_MCSM0_VALUE; /* Calibrate on IDLE -> RX/TX, OSC Timeout = ~500 us
                            * TODO: has XOSC_FORCE_ON */
   cc1101_access(dev, CC1101_MCSM2, values, -3);
 
   /* Wake-On Radio Control */
+
   /* Not used yet. */
 
   /* WOREVT1:WOREVT0 - 16-bit timeout register */
@@ -1126,7 +1118,8 @@ int cc1101_powerdown(FAR struct cc1101_dev_s *dev)
  *
  ****************************************************************************/
 
-int cc1101_setgdo(FAR struct cc1101_dev_s *dev, uint8_t pin, uint8_t function)
+int cc1101_setgdo(FAR struct cc1101_dev_s *dev, uint8_t pin,
+                  uint8_t function)
 {
   DEBUGASSERT(dev);
   DEBUGASSERT(pin <= CC1101_IOCFG0);
@@ -1170,30 +1163,36 @@ int cc1101_setgdo(FAR struct cc1101_dev_s *dev, uint8_t pin, uint8_t function)
 int cc1101_setrf(FAR struct cc1101_dev_s *dev,
                  FAR const struct c1101_rfsettings_s *settings)
 {
+  int ret;
+
   DEBUGASSERT(dev);
   DEBUGASSERT(settings);
 
-  if (cc1101_access(
-          dev, CC1101_FSCTRL1, (FAR uint8_t *)&settings->FSCTRL1, -11) < 0)
+  ret = cc1101_access(dev, CC1101_FSCTRL1,
+                      (FAR uint8_t *)&settings->FSCTRL1, -11);
+  if (ret < 0)
     {
       return -EIO;
     }
 
-  if (cc1101_access(dev, CC1101_FOCCFG, (FAR uint8_t *)&settings->FOCCFG, -5) <
-      0)
+  ret = cc1101_access(dev, CC1101_FOCCFG,
+                      (FAR uint8_t *)&settings->FOCCFG, -5);
+  if (ret < 0)
     {
       return -EIO;
     }
 
-  if (cc1101_access(dev, CC1101_FREND1, (FAR uint8_t *)&settings->FREND1, -6) <
-      0)
+  ret = cc1101_access(dev, CC1101_FREND1,
+                      (FAR uint8_t *)&settings->FREND1, -6);
+  if (ret < 0)
     {
       return -EIO;
     }
 
   /* Load Power Table */
 
-  if (cc1101_access(dev, CC1101_PATABLE, (FAR uint8_t *)settings->PA, -8) < 0)
+  ret = cc1101_access(dev, CC1101_PATABLE, (FAR uint8_t *)settings->PA, -8);
+  if (ret < 0)
     {
       return -EIO;
     }
@@ -1283,13 +1282,13 @@ uint8_t cc1101_setpower(FAR struct cc1101_dev_s *dev, uint8_t power)
 }
 
 /****************************************************************************
- * Name: cc1101_calcRSSIdBm
+ * Name: cc1101_calc_rssi_dbm
  *
  * Description:
  *
  ****************************************************************************/
 
-int cc1101_calcRSSIdBm(int rssi)
+int cc1101_calc_rssi_dbm(int rssi)
 {
   if (rssi >= 128)
     {
@@ -1347,7 +1346,8 @@ int cc1101_read(FAR struct cc1101_dev_s *dev, FAR uint8_t *buf, size_t size)
 
   nbytes += 2; /* RSSI and LQI */
   buf[0] = nbytes;
-  cc1101_access(dev, CC1101_RXFIFO, buf + 1, (nbytes > size) ? size : nbytes);
+  cc1101_access(dev, CC1101_RXFIFO, buf + 1,
+                (nbytes > size) ? size : nbytes);
 
   /* Flush remaining bytes, if there is no room to receive or if there is a
    * BAD CRC
@@ -1524,7 +1524,8 @@ void cc1101_isr_process(FAR void *arg)
 
       case CC1101_RECV:
         {
-          uint8_t buf[CC1101_FIFO_SIZE], len;
+          uint8_t buf[CC1101_FIFO_SIZE];
+          uint8_t len;
 
           memset(buf, 0, sizeof(buf));
           len = cc1101_read(dev, buf, sizeof(buf));

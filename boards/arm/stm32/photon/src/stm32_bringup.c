@@ -40,17 +40,21 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
-#include <sys/mount.h>
 #include <syslog.h>
 
 #include <nuttx/input/buttons.h>
 #include <nuttx/leds/userled.h>
 #include <nuttx/board.h>
+#include <nuttx/fs/fs.h>
 
 #include <arch/board/board.h>
 
 #include "photon.h"
 #include "stm32_wdg.h"
+
+#ifdef CONFIG_USBADB
+#  include <nuttx/usb/adb.h>
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -60,10 +64,10 @@
  * Name: stm32_bringup
  *
  * Description:
- *   Called either by board_initialize() if CONFIG_BOARD_LATE_INITIALIZE or by
- *   board_app_initialize if CONFIG_LIB_BOARDCTL is selected.  This function
- *   initializes and configures all on-board features appropriate for the
- *   selected configuration.
+ *   Called either by board_initialize() if CONFIG_BOARD_LATE_INITIALIZE or
+ *   by board_app_initialize if CONFIG_LIB_BOARDCTL is selected.
+ *   This function initializes and configures all on-board features
+ *   appropriate for the selected configuration.
  *
  ****************************************************************************/
 
@@ -74,7 +78,7 @@ int stm32_bringup(void)
 #ifdef CONFIG_FS_PROCFS
   /* Mount the procfs file system */
 
-  ret = mount(NULL, "/proc", "procfs", 0, NULL);
+  ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: Failed to mount procfs at /proc: %d\n", ret);
@@ -98,8 +102,8 @@ int stm32_bringup(void)
 #endif /* CONFIG_USERLED_LOWER */
 #endif /* CONFIG_USERLED && !CONFIG_ARCH_LEDS */
 
-#ifdef CONFIG_BUTTONS
-#ifdef CONFIG_BUTTONS_LOWER
+#ifdef CONFIG_INPUT_BUTTONS
+#ifdef CONFIG_INPUT_BUTTONS_LOWER
   /* Register the BUTTON driver */
 
   ret = btn_lower_initialize("/dev/buttons");
@@ -112,8 +116,8 @@ int stm32_bringup(void)
   /* Enable BUTTON support for some other purpose */
 
   board_button_initialize();
-#endif /* CONFIG_BUTTONS_LOWER */
-#endif /* CONFIG_BUTTONS */
+#endif /* CONFIG_INPUT_BUTTONS_LOWER */
+#endif /* CONFIG_INPUT_BUTTONS */
 
 #ifdef CONFIG_STM32_IWDG
   /* Initialize the watchdog timer */
@@ -153,5 +157,26 @@ int stm32_bringup(void)
     }
 #endif
 
+#ifdef CONFIG_USBDEV_COMPOSITE
+
+#ifndef CONFIG_BOARDCTL_USBDEVCTRL
+  ret = board_composite_initialize(0);
+  if (ret != OK)
+    {
+      syslog(LOG_ERR, "Failed to initialize composite: %d\n", ret);
+      return ret;
+    }
+
+  if (board_composite_connect(0, 0) == NULL)
+    {
+      syslog(LOG_ERR, "Failed to connect composite: %d\n", ret);
+      return ret;
+    }
+#endif /* !CONFIG_BOARDCTL_USBDEVCTRL */
+#else
+#ifdef CONFIG_USBADB
+  usbdev_adb_initialize();
+#endif
+#endif /* CONFIG_USBDEV_COMPOSITE */
   return ret;
 }

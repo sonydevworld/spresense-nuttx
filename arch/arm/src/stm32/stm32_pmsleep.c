@@ -43,7 +43,7 @@
 
 #include <stdbool.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "nvic.h"
 #include "stm32_pwr.h"
 #include "stm32_pm.h"
@@ -74,8 +74,8 @@
  *   sleeponexit - true:  SLEEPONEXIT bit is set when the WFI instruction is
  *                        executed, the MCU enters Sleep mode as soon as it
  *                        exits the lowest priority ISR.
- *               - false: SLEEPONEXIT bit is cleared, the MCU enters Sleep mode
- *                        as soon as WFI or WFE instruction is executed.
+ *               - false: SLEEPONEXIT bit is cleared, the MCU enters Sleep
+ *                        mode as soon as WFI or WFE instruction is executed.
  * Returned Value:
  *   None
  *

@@ -1,35 +1,20 @@
 /****************************************************************************
- *  sched/mqueue/mq_receive.c
+ * sched/mqueue/mq_receive.c
  *
- *   Copyright (C) 2007, 2009, 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -55,6 +40,100 @@
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: file_mq_receive
+ *
+ * Description:
+ *   This function receives the oldest of the highest priority messages
+ *   from the message queue specified by "mq."  This is an internal OS
+ *   interface.  It is functionally equivalent to mq_receive except that:
+ *
+ *   - It is not a cancellation point, and
+ *   - It does not modify the errno value.
+ *
+ *  See comments with mq_receive() for a more complete description of the
+ *  behavior of this function
+ *
+ * Input Parameters:
+ *   mq     - Message Queue Descriptor
+ *   msg    - Buffer to receive the message
+ *   msglen - Size of the buffer in bytes
+ *   prio   - If not NULL, the location to store message priority.
+ *
+ * Returned Value:
+ *   This is an internal OS interface and should not be used by applications.
+ *   It follows the NuttX internal error return policy:  Zero (OK) is
+ *   returned on success.  A negated errno value is returned on failure.
+ *   (see mq_receive() for the list list valid return values).
+ *
+ ****************************************************************************/
+
+ssize_t file_mq_receive(FAR struct file *mq, FAR char *msg, size_t msglen,
+                        FAR unsigned int *prio)
+{
+  FAR struct inode *inode = mq->f_inode;
+  FAR struct mqueue_inode_s *msgq;
+  FAR struct mqueue_msg_s *mqmsg;
+  irqstate_t flags;
+  ssize_t ret;
+
+  inode = mq->f_inode;
+  if (!inode)
+    {
+      return -EBADF;
+    }
+
+  msgq = inode->i_private;
+
+  DEBUGASSERT(up_interrupt_context() == false);
+
+  /* Verify the input parameters and, in case of an error, set
+   * errno appropriately.
+   */
+
+  ret = nxmq_verify_receive(msgq, mq->f_oflags, msg, msglen);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* Get the next message from the message queue.  We will disable
+   * pre-emption until we have completed the message received.  This
+   * is not too bad because if the receipt takes a long time, it will
+   * be because we are blocked waiting for a message and pre-emption
+   * will be re-enabled while we are blocked
+   */
+
+  sched_lock();
+
+  /* Furthermore, nxmq_wait_receive() expects to have interrupts disabled
+   * because messages can be sent from interrupt level.
+   */
+
+  flags = enter_critical_section();
+
+  /* Get the message from the message queue */
+
+  ret = nxmq_wait_receive(msgq, mq->f_oflags, &mqmsg);
+  leave_critical_section(flags);
+
+  /* Check if we got a message from the message queue.  We might
+   * not have a message if:
+   *
+   * - The message queue is empty and O_NONBLOCK is set in the mq
+   * - The wait was interrupted by a signal
+   */
+
+  if (ret >= 0)
+    {
+      DEBUGASSERT(mqmsg != NULL);
+      ret = nxmq_do_receive(msgq, mqmsg, msg, prio);
+    }
+
+  sched_unlock();
+  return ret;
+}
 
 /****************************************************************************
  * Name: nxmq_receive
@@ -87,57 +166,16 @@
 ssize_t nxmq_receive(mqd_t mqdes, FAR char *msg, size_t msglen,
                      FAR unsigned int *prio)
 {
-  FAR struct mqueue_msg_s *mqmsg;
-  irqstate_t flags;
-  ssize_t ret;
+  FAR struct file *filep;
+  int ret;
 
-  DEBUGASSERT(up_interrupt_context() == false);
-
-  /* Verify the input parameters and, in case of an error, set
-   * errno appropriately.
-   */
-
-  ret = nxmq_verify_receive(mqdes, msg, msglen);
+  ret = fs_getfilep(mqdes, &filep);
   if (ret < 0)
     {
       return ret;
     }
 
-  /* Get the next message from the message queue.  We will disable
-   * pre-emption until we have completed the message received.  This
-   * is not too bad because if the receipt takes a long time, it will
-   * be because we are blocked waiting for a message and pre-emption
-   * will be re-enabled while we are blocked
-   */
-
-  sched_lock();
-
-  /* Furthermore, nxmq_wait_receive() expects to have interrupts disabled
-   * because messages can be sent from interrupt level.
-   */
-
-  flags = enter_critical_section();
-
-  /* Get the message from the message queue */
-
-  ret = nxmq_wait_receive(mqdes, &mqmsg);
-  leave_critical_section(flags);
-
-  /* Check if we got a message from the message queue.  We might
-   * not have a message if:
-   *
-   * - The message queue is empty and O_NONBLOCK is set in the mqdes
-   * - The wait was interrupted by a signal
-   */
-
-  if (ret >= 0)
-    {
-      DEBUGASSERT(mqmsg != NULL);
-      ret = nxmq_do_receive(mqdes, mqmsg, msg, prio);
-    }
-
-  sched_unlock();
-  return ret;
+  return file_mq_receive(filep, msg, msglen, prio);
 }
 
 /****************************************************************************

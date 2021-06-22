@@ -51,12 +51,12 @@
 #include <errno.h>
 #include <arch/irq.h>
 
-#include <nuttx/clock.h>
 #include <nuttx/net/ip.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* The following flags may be set in the set of flags by the lower, device-
  * interfacing layer before calling through the socket layer callback. The
  * TCP_ACKDATA, XYZ_NEWDATA, and TCP_CLOSE flags may be set at the same time,
@@ -68,29 +68,32 @@
  *
  *   TCP_ACKDATA      IN: Signifies that the outstanding data was ACKed and
  *                        the socket layer should send out new data instead
- *                        of retransmitting the last data (TCP only)
+ *                        of retransmitting the last data. (TCP only)
  *                   OUT: Input state must be preserved on output.
  *
  *   TCP_NEWDATA      IN: Set to indicate that the peer has sent us new data.
- *   UDP_NEWDATA     OUT: Cleared (only) by the socket layer logic to indicate
- *   PKT_NEWDATA          that the new data was consumed, suppressing further
- *   BLUETOOTH_NEWDATA    attempts to process the new data.
+ *   UDP_NEWDATA     OUT: Cleared (only) by the socket layer logic to
+ *   ICMP_NEWDATA         indicate that the new data was consumed,
+ *   ICMPv6_NEWDATA       suppressing further attempts to process the new
+ *   PKT_NEWDATA          data.
+ *   BLUETOOTH_NEWDATA
  *   IEEE802154_NEWDATA
  *
  *   TCP_SNDACK       IN: Not used; always zero
- *                   OUT: Set by the socket layer if the new data was consumed
- *                        and an ACK should be sent in the response. (TCP only)
+ *                   OUT: Set by the socket layer if the new data was
+ *                        consumed and an ACK should be sent in the response.
+ *                        (TCP only)
  *
  *   TCP_REXMIT       IN: Tells the socket layer to retransmit the data that
  *                        was last sent. (TCP only)
  *                   OUT: Not used
  *
- *   TCP_POLL        IN:  Used for polling the socket layer.  This is provided
- *   UDP_POLL             periodically from the drivers to support (1) timed
- *   PKT_POLL             operations, and (2) to check if the socket layer has
- *   BLUETOOTH_POLL       data that it wants to send.  These are socket oriented
- *   IEEE802154_POLL      callbacks where the context depends on the specific
- *                        set
+ *   TCP_POLL        IN:  Used for polling the socket layer.  This is
+ *   UDP_POLL             provided periodically from the drivers to support
+ *   PKT_POLL             (1) timed operations, and (2) to check if the
+ *   BLUETOOTH_POLL       socket layer has data that it wants to send.
+ *   IEEE802154_POLL      These are socket oriented callbacks where the
+ *                        context depends on the specific set.
  *                   OUT: Not used
  *
  *   TCP_BACKLOG      IN: There is a new connection in the backlog list set
@@ -102,14 +105,15 @@
  *                   OUT: The socket layer signals that it wants to close the
  *                        connection. (TCP only)
  *
- *   TCP_ABORT        IN: The remote host has aborted the connection, thus the
- *                        connection has gone away. (TCP only)
+ *   TCP_ABORT        IN: The remote host has aborted the connection, thus
+ *                        the connection has gone away. (TCP only)
  *                   OUT: The socket layer signals that it wants to abort the
  *                        connection. (TCP only)
  *
- *   TCP_CONNECTED    IN: We have got a connection from a remote host and have
- *                        set up a new connection for it, or an active connection
- *                        has been successfully established. (TCP only)
+ *   TCP_CONNECTED    IN: We have got a connection from a remote host and
+ *                        have set up a new connection for it, or an active
+ *                        connection has been successfully established.
+ *                        (TCP only)
  *                   OUT: Not used
  *
  *   TCP_TIMEDOUT     IN: The connection has been aborted due to too many
@@ -119,55 +123,39 @@
  * Device Specific Events:  These are events that may be notified through
  * callback lists residing in the network device structure.
  *
- *   ICMP_NEWDATA     IN: Set to indicate that the peer has sent us new data.
- *   ICMPv6_NEWDATA OUT: Cleared (only) by the socket layer logic to indicate
- *                       that the new data was consumed, suppressing further
- *                       attempts to process the new data.
- *
- *   ARP_POLL         IN: Used for polling the socket layer.  This is provided
- *                        periodically from the drivers to support (1) timed
- *                        operations, and (2) to check if the ARP layer needs
- *                        to send an ARP request.  This is a device oriented
- *                        event, not associated with a socket.
+ *   ARP_POLL         IN: Used for polling the socket layer.  This is
+ *                        provided periodically from the drivers to support
+ *                        (1) timed operations, and (2) to check if the ARP
+ *                        layer needs to send an ARP request.  This is a
+ *                        device oriented event, not associated with a
+ *                        socket.
  *                   OUT: Not used
  *
- *   ICMP_POLL        IN: Used for polling the socket layer.  This is provided
- *                        periodically from the drivers to support (1) timed
- *                        operations, and (2) to check if the ICMP layer needs
- *                        to send an ARP request.  This is a device oriented
- *                        event, not associated with a socket.  This differs
- *                        from ICMPv6_POLL only in that the appdata pointer
- *                        is set differently
+ *   ICMP_POLL        IN: Used for polling the socket layer.  This is
+ *                        provided periodically from the drivers to support
+ *                        (1) timed operations, and (2) to check if the ICMP
+ *                        layer needs to send an ARP request.  This is a
+ *                        device oriented event, not associated with a
+ *                        socket.  This differs from ICMPv6_POLL only in that
+ *                        the appdata pointer is set differently.
  *                   OUT: Not used
  *
- *   ICMPv6_POLL      IN: Used for polling the socket layer.  This is provided
- *                        periodically from the drivers to support (1) timed
- *                        operations, and (2) to check if the ICMP layer needs
- *                        to send an ARP request.  This is a device oriented
- *                        event, not associated with a socket.  This differs
- *                        from ICMP_POLL only in that the appdata pointer
- *                        is set differently
+ *   ICMPv6_POLL      IN: Used for polling the socket layer.  This is
+ *                        provided periodically from the drivers to support
+ *                        (1) timed operations, and (2) to check if the ICMP
+ *                        layer needs to send an ARP request.  This is a
+ *                        device oriented event, not associated with a
+ *                        socket.  This differs from ICMP_POLL only in that
+ *                        the appdata pointer is set differently.
  *                   OUT: Not used
  *
  *   IPFWD_POLL       IN: Used for polling for forwarded packets layer.  This
- *                        is provided periodically from the drivers to support
- *                        to check if there is a packet waiting to be forward
- *                        on the device.  This is a device oriented event,
- *                        not associated with a socket.  The appdata pointer
- *                        The appdata pointer is not used in this case.
+ *                        is provided periodically from the drivers to
+ *                        support to check if there is a packet waiting to be
+ *                        forward on the device.  This is a device oriented
+ *                        event, not associated with a socket.  The appdata
+ *                        pointer is not used in this case.
  *                   OUT: Not used
- *
- *   ICMP_ECHOREPLY   IN: An ICMP Echo Reply has been received.  Used to support
- *                        ICMP ping from the socket layer. (ICMPv4 only)
- *                   OUT: Cleared (only) by the socket layer logic to indicate
- *                        that the reply was processed, suppressing further
- *                        attempts to process the reply.
- *
- *   ICMPv6_ECHOREPLY IN: An ICMP Echo Reply has been received.  Used to support
- *                        ICMP ping from the socket layer. (ICMPv6 only)
- *                   OUT: Cleared (only) by the socket layer logic to indicate
- *                        that the reply was processed, suppressing further
- *                        attempts to process the reply.
  *
  *   NETDEV_DOWN:     IN: The network device has been taken down.
  *                   OUT: Not used
@@ -178,9 +166,12 @@
 #define TCP_ACKDATA        (1 << 0)
 #define TCP_NEWDATA        (1 << 1)
 #define UDP_NEWDATA        TCP_NEWDATA
+#define ICMP_NEWDATA       TCP_NEWDATA
+#define ICMPv6_NEWDATA     TCP_NEWDATA
 #define BLUETOOTH_NEWDATA  TCP_NEWDATA
 #define IEEE802154_NEWDATA TCP_NEWDATA
 #define PKT_NEWDATA        TCP_NEWDATA
+#define CAN_NEWDATA        TCP_NEWDATA
 #define WPAN_NEWDATA       TCP_NEWDATA
 #define IPFWD_NEWDATA      TCP_NEWDATA
 #define TCP_SNDACK         (1 << 2)
@@ -188,6 +179,7 @@
 #define TCP_POLL           (1 << 4)
 #define UDP_POLL           TCP_POLL
 #define PKT_POLL           TCP_POLL
+#define CAN_POLL           TCP_POLL
 #define BLUETOOTH_POLL     TCP_POLL
 #define IEEE802154_POLL    TCP_POLL
 #define WPAN_POLL          TCP_POLL
@@ -197,12 +189,10 @@
 #define TCP_CONNECTED      (1 << 8)
 #define TCP_TIMEDOUT       (1 << 9)
 
-/* Bits 10-12: Device specific event bits */
+/* Bits 10-11: Unused, available */
 
-#define ICMP_NEWDATA       TCP_NEWDATA
-#define ICMPv6_NEWDATA     TCP_NEWDATA
-#define ICMP_ECHOREPLY     (1 << 10)
-#define ICMPv6_ECHOREPLY   (1 << 11)
+/* Bit 12: Device specific event bits */
+
 #define NETDEV_DOWN        (1 << 12)
 
 /* Bits 13-15: Encoded device specific poll events.  Unlike connection
@@ -287,12 +277,6 @@ extern "C"
 {
 #else
 #define EXTERN extern
-#endif
-
-#ifdef CONFIG_NET_IPv4_REASSEMBLY
-/* Reassembly timer (units: deci-seconds) */
-
-EXTERN uint8_t g_reassembly_timer;
 #endif
 
 /****************************************************************************
@@ -507,8 +491,29 @@ void devif_iob_send(FAR struct net_driver_s *dev, FAR struct iob_s *buf,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_PKT
+#if defined(CONFIG_NET_PKT)
 void devif_pkt_send(FAR struct net_driver_s *dev, FAR const void *buf,
+                    unsigned int len);
+#endif
+
+/****************************************************************************
+ * Name: devif_can_send
+ *
+ * Description:
+ *   Called from socket logic in order to send a raw packet in response to
+ *   an xmit or poll request from the network interface driver.
+ *
+ *   This is almost identical to calling devif_send() except that the data to
+ *   be sent is copied into dev->d_buf (vs. dev->d_appdata), since there is
+ *   no header on the data.
+ *
+ * Assumptions:
+ *   This function must be called with the network locked.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_NET_CAN)
+void devif_can_send(FAR struct net_driver_s *dev, FAR const void *buf,
                     unsigned int len);
 #endif
 

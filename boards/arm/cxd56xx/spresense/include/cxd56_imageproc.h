@@ -1,35 +1,25 @@
-/***************************************************************************
+/****************************************************************************
  * boards/arm/cxd56xx/spresense/include/cxd56_imageproc.h
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Corporation nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
  ****************************************************************************/
 
 #ifndef __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_IMAGEPROC_H
@@ -41,6 +31,10 @@
 extern "C"
 {
 #endif
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
 
 /* Structure of rectangle coordinates from left top point to
  * right bottom point.
@@ -64,7 +58,6 @@ extern "C"
       IMAGEPROC_IMGTYPE_8BPP   = 2, /* Each pixels have 8bit value */
       IMAGEPROC_IMGTYPE_16BPP  = 3, /* Each pixels have 16bit value */
     };
-
 
 /* Structure of binary image */
 
@@ -93,6 +86,9 @@ extern "C"
     };
   typedef struct imageproc_imginfo_s imageproc_imginfo_t;
 
+/****************************************************************************
+ * Public Functions Prototypes
+ ****************************************************************************/
 
 /* Initialize imageproc library
  */
@@ -201,14 +197,18 @@ extern "C"
  *  [in,out] dst: Destination image.
  *                dst->type = IMAGEPROC_IMGTYPE_16BPP.
  *  [in] pos_x:   x-coordinate of blended position.
- *                Minus value means the left of the destination image origin. 
+ *                Minus value means
+ *                the left of the destination image origin.
  *  [in] pos_y:   y-coordinate of blended position.
- *                Minus value means the upper of the destination image origin.
+ *                Minus value means
+ *                the upper of the destination image origin.
  *  [in] src:     Source image.
- *                src->type = IMAGEPROC_IMGTYPE_16BPP or IMAGEPROC_IMGTYPE_SINGLE.
+ *                src->type = IMAGEPROC_IMGTYPE_16BPP or
+ *                IMAGEPROC_IMGTYPE_SINGLE.
  *  [in] alpha:   Alpha plane.
- *                alpha->type = IMAGEPROC_IMGTYPE_SINGLE, IMAGEPROC_IMGTYPE_BINARY,
- *                              or IMAGEPROC_IMGTYPE_8BPP. 
+ *                alpha->type = IMAGEPROC_IMGTYPE_SINGLE,
+ *                IMAGEPROC_IMGTYPE_BINARY,
+ *                or IMAGEPROC_IMGTYPE_8BPP.
  *
  * return 0 on success, otherwise error code.
  */

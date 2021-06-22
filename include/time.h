@@ -1,35 +1,20 @@
 /********************************************************************************
  * include/time.h
  *
- *   Copyright (C) 2007-2011, 2013-2015, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ********************************************************************************/
 
@@ -90,18 +75,25 @@
 #  define CLOCK_MONOTONIC  1
 #endif
 
+/* Monotonic system-wide clock that includes time spent in suspension. */
+
+#ifdef CONFIG_CLOCK_MONOTONIC
+#  define CLOCK_BOOTTIME   2
+#endif
+
 /* This is a flag that may be passed to the timer_settime() and
  * clock_nanosleep() functions.
  */
 
 #define TIMER_ABSTIME      1
 
-#ifndef CONFIG_LIBC_LOCALTIME
-/* Local time is the same as gmtime in this implementation */
+/* Time base values for timespec_get.  */
 
-#  define localtime(c)     gmtime(c)
-#  define localtime_r(c,r) gmtime_r(c,r)
-#endif
+#define TIME_UTC           1
+
+/* Redirect the timegm */
+
+#define timegm mktime
 
 /********************************************************************************
  * Public Types
@@ -134,17 +126,17 @@ struct timespec
 
 struct tm
 {
-  int tm_sec;     /* Seconds (0-61, allows for leap seconds) */
-  int tm_min;     /* Minutes (0-59) */
-  int tm_hour;    /* Hours (0-23) */
-  int tm_mday;    /* Day of the month (1-31) */
-  int tm_mon;     /* Month (0-11) */
-  int tm_year;    /* Years since 1900 */
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
-  int tm_wday;    /* Day of the week (0-6) */
-  int tm_yday;    /* Day of the year (0-365) */
-  int tm_isdst;   /* Non-0 if daylight savings time is in effect */
-#endif
+  int  tm_sec;         /* Seconds (0-61, allows for leap seconds) */
+  int  tm_min;         /* Minutes (0-59) */
+  int  tm_hour;        /* Hours (0-23) */
+  int  tm_mday;        /* Day of the month (1-31) */
+  int  tm_mon;         /* Month (0-11) */
+  int  tm_year;        /* Years since 1900 */
+  int  tm_wday;        /* Day of the week (0-6) */
+  int  tm_yday;        /* Day of the year (0-365) */
+  int  tm_isdst;       /* Non-0 if daylight savings time is in effect */
+  long tm_gmtoff;      /* Offset from UTC in seconds */
+  const char *tm_zone; /* Timezone abbreviation. */
 };
 
 /* Struct itimerspec is used to define settings for an interval timer */
@@ -175,9 +167,11 @@ extern "C"
 #ifdef CONFIG_LIBC_LOCALTIME
 
 /* daylight - Daylight savings time flag */
+
 /* EXTERN int daylight; not supported */
 
 /* timezone - Difference from UTC and local standard time */
+
 /* EXTERN long int timezone; not supported */
 
 /* tzname[] - Timezone strings
@@ -196,25 +190,22 @@ clock_t clock(void);
 int clock_settime(clockid_t clockid, FAR const struct timespec *tp);
 int clock_gettime(clockid_t clockid, FAR struct timespec *tp);
 int clock_getres(clockid_t clockid, FAR struct timespec *res);
+int timespec_get(FAR struct timespec *t, int b);
 
 time_t mktime(FAR struct tm *tp);
 FAR struct tm *gmtime(FAR const time_t *timep);
 FAR struct tm *gmtime_r(FAR const time_t *timep, FAR struct tm *result);
 
-#ifdef CONFIG_LIBC_LOCALTIME
 FAR struct tm *localtime(FAR const time_t *timep);
 FAR struct tm *localtime_r(FAR const time_t *timep, FAR struct tm *result);
-#endif
 
 size_t strftime(FAR char *s, size_t max, FAR const char *format,
-                FAR const struct tm *tm);
+                FAR const struct tm *tm) strftimelike(3);
 
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
 FAR char *asctime(FAR const struct tm *tp);
 FAR char *asctime_r(FAR const struct tm *tp, FAR char *buf);
 FAR char *ctime(FAR const time_t *timep);
 FAR char *ctime_r(FAR const time_t *timep, FAR char *buf);
-#endif
 
 time_t time(FAR time_t *timep);
 
@@ -247,4 +238,4 @@ void tzset(void);
 }
 #endif
 
-#endif  /* __INCLUDE_TIME_H */
+#endif /* __INCLUDE_TIME_H */

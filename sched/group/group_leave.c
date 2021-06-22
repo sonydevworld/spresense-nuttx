@@ -1,35 +1,20 @@
 /****************************************************************************
- *  sched/group/group_leave.c
+ * sched/group/group_leave.c
  *
- *   Copyright (C) 2013-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -145,7 +130,7 @@ static inline void group_release(FAR struct task_group_s *group)
 #if defined(CONFIG_SCHED_HAVE_PARENT) && defined(CONFIG_SCHED_CHILD_STATUS)
   /* Free all un-reaped child exit status */
 
-  group_removechildren(group);
+  group_remove_children(group);
 #endif
 
   /* Release pending signals */
@@ -166,28 +151,16 @@ static inline void group_release(FAR struct task_group_s *group)
 
   files_releaselist(&group->tg_filelist);
 
-#if CONFIG_NFILE_STREAMS > 0
+#ifdef CONFIG_FILE_STREAM
   /* Free resource held by the stream list */
 
   lib_stream_release(group);
-#endif /* CONFIG_NFILE_STREAMS */
-
-#ifdef CONFIG_NET
-  /* Free resource held by the socket list */
-
-  net_releaselist(&group->tg_socketlist);
-#endif
+#endif /* CONFIG_FILE_STREAM */
 
 #ifndef CONFIG_DISABLE_ENVIRON
   /* Release all shared environment variables */
 
   env_release(group);
-#endif
-
-#ifndef CONFIG_DISABLE_MQUEUE
-  /* Close message queues opened by members of the group */
-
-  nxmq_release(group);
 #endif
 
 #if defined(CONFIG_BUILD_KERNEL) && defined(CONFIG_MM_SHM)
@@ -203,7 +176,7 @@ static inline void group_release(FAR struct task_group_s *group)
 
   /* Mark no address environment */
 
-  g_grpid_current = 0;
+  g_pid_current = INVALID_PROCESS_ID;
 #endif
 
 #if defined(HAVE_GROUP_MEMBERS) || defined(CONFIG_ARCH_ADDRENV)
@@ -217,44 +190,36 @@ static inline void group_release(FAR struct task_group_s *group)
 
   if (group->tg_members)
     {
-      sched_kfree(group->tg_members);
+      kmm_free(group->tg_members);
       group->tg_members = NULL;
     }
 #endif
 
-#if CONFIG_NFILE_STREAMS > 0 && defined(CONFIG_MM_KERNEL_HEAP)
+#if defined(CONFIG_FILE_STREAM) && defined(CONFIG_MM_KERNEL_HEAP)
   /* In a flat, single-heap build.  The stream list is part of the
    * group structure and, hence will be freed when the group structure
    * is freed.  Otherwise, it is separately allocated an must be
    * freed here.
    */
 
-#  if defined(CONFIG_BUILD_PROTECTED)
-  /* In the protected build, the task's stream list is always allocated
-   * and freed from the single, global user allocator.
-   */
-
-  sched_ufree(group->tg_streamlist);
-
-#  elif defined(CONFIG_BUILD_KERNEL)
-  /* In the kernel build, the unprivileged process' stream list will be
+#  ifdef CONFIG_BUILD_KERNEL
+  /* In the kernel build, the unprivileged process's stream list will be
    * allocated from with its per-process, private user heap. But in that
    * case, there is no reason to do anything here:  That allocation resides
    * in the user heap which which be completely freed when we destroy the
-   * process' address environment.
+   * process's address environment.
    */
 
   if ((group->tg_flags & GROUP_FLAG_PRIVILEGED) != 0)
+#  endif
     {
       /* But kernel threads are different in this build configuration: Their
        * stream lists were allocated from the common, global kernel heap and
        * must explicitly freed here.
        */
 
-      sched_kfree(group->tg_streamlist);
+      group_free(group, group->tg_streamlist);
     }
-
-#  endif
 #endif
 
 #ifdef CONFIG_BINFMT_LOADABLE
@@ -285,7 +250,7 @@ static inline void group_release(FAR struct task_group_s *group)
     {
       /* Release the group container itself */
 
-      sched_kfree(group);
+      kmm_free(group);
     }
 }
 
@@ -311,7 +276,8 @@ static inline void group_release(FAR struct task_group_s *group)
  ****************************************************************************/
 
 #ifdef HAVE_GROUP_MEMBERS
-static inline void group_removemember(FAR struct task_group_s *group, pid_t pid)
+static inline void group_removemember(FAR struct task_group_s *group,
+                                      pid_t pid)
 {
   irqstate_t flags;
   int i;
@@ -442,4 +408,3 @@ void group_leave(FAR struct tcb_s *tcb)
 }
 
 #endif /* HAVE_GROUP_MEMBERS */
-

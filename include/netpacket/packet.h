@@ -1,5 +1,5 @@
 /****************************************************************************
- * include/netpacket/netpacket.h
+ * include/netpacket/packet.h
  * Definitions for use with AF_PACKET sockets
  *
  *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
@@ -38,7 +38,7 @@
  ****************************************************************************/
 
 #ifndef __INCLUDE_NETPACKET_PACKET_H
-#define __INCLUDE_NETPACKET_PACKET_H  1
+#define __INCLUDE_NETPACKET_PACKET_H
 
 /****************************************************************************
  * Included Files
@@ -58,4 +58,4 @@ struct sockaddr_ll
   int16_t  sll_ifindex;
 };
 
-#endif  /* __INCLUDE_NETPACKET_PACKET_H */
+#endif /* __INCLUDE_NETPACKET_PACKET_H */

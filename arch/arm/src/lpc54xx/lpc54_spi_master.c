@@ -1,35 +1,20 @@
 /****************************************************************************
- * arch/arm/src/lpc54xx/lpc54_spi.c
+ * arch/arm/src/lpc54xx/lpc54_spi_master.c
  *
- *   Copyright (C) 2017-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -60,8 +45,8 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/spi/spi.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "hardware/lpc54_pinmux.h"
 #include "hardware/lpc54_syscon.h"
@@ -159,7 +144,7 @@ struct lpc54_txdummy_s
 
 /* Transfer helpers */
 
-static inline unsigned int lpc54_spi_fifodepth(FAR struct lpc54_spidev_s *priv);
+static inline size_t lpc54_spi_fifodepth(FAR struct lpc54_spidev_s *priv);
 static inline bool lpc54_spi_txavailable(FAR struct lpc54_spidev_s *priv);
 static inline bool lpc54_spi_rxavailable(FAR struct lpc54_spidev_s *priv);
 
@@ -182,7 +167,7 @@ static bool     lpc54_spi_txdummy(FAR struct lpc54_spidev_s *priv,
 static void     lpc54_spi_exchange8(FAR struct lpc54_spidev_s *priv,
                   FAR const void *txbuffer, FAR void *rxbuffer,
                   size_t nwords);
-#ifdefCONFIG_LPC54_SPI_WIDEDATA
+#ifdef CONFIG_LPC54_SPI_WIDEDATA
 static void     lpc54_spi_exchange16(FAR struct lpc54_spidev_s *priv,
                   FAR const void *txbuffer, FAR void *rxbuffer,
                   size_t nwords);
@@ -209,7 +194,7 @@ static uint32_t lpc54_spi_setfrequency(FAR struct spi_dev_s *dev,
 static void     lpc54_spi_setmode(FAR struct spi_dev_s *dev,
                   enum spi_mode_e mode);
 static void     lpc54_spi_setbits(FAR struct spi_dev_s *dev, int nbits);
-static uint16_t lpc54_spi_send(FAR struct spi_dev_s *dev, uint16_t ch);
+static uint32_t lpc54_spi_send(FAR struct spi_dev_s *dev, uint32_t wd);
 #ifdef CONFIG_SPI_EXCHANGE
 static void     lpc54_spi_exchange(FAR struct spi_dev_s *dev,
                   FAR const void *txbuffer, FAR void *rxbuffer,
@@ -591,7 +576,7 @@ static inline uint32_t lpc54_spi_getreg(struct lpc54_spidev_s *priv,
  *
  ****************************************************************************/
 
-static inline unsigned int lpc54_spi_fifodepth(FAR struct lpc54_spidev_s *priv)
+static inline size_t lpc54_spi_fifodepth(FAR struct lpc54_spidev_s *priv)
 {
   uint32_t regval = lpc54_spi_getreg(priv, LPC54_SPI_FIFOCFG_OFFSET);
   return ((regval & SPI_FIFOCFG_SIZE_MASK) >> SPI_FIFOCFG_SIZE_SHIFT) << 3;
@@ -692,7 +677,7 @@ static void lpc54_spi_resetfifos(FAR struct lpc54_spidev_s *priv)
  * Name: lpc54_spi_rxtransfer8 and lpc54_spi_rxtransfer16
  *
  * Description:
- *   Receive one 8- or 16-bit value from the selected SPI device.
+ *   Receive one 8-bit or 16-bit value from the selected SPI device.
  *
  * Input Parameters:
  *   priv - Device-specific state data
@@ -716,7 +701,9 @@ static void lpc54_spi_rxtransfer8(FAR struct lpc54_spidev_s *priv,
 
       if (xfr->expected == 0 || xfr->remaining == 0)
         {
-          /* No.. then just read and discard the data until the Rx FIFO is empty */
+          /* No..
+           * then just read and discard the data until the Rx FIFO is empty
+           */
 
           lpc54_spi_rxdiscard(priv);
           xfr->expected = 0;
@@ -887,7 +874,8 @@ static bool lpc54_spi_txdummy(FAR struct lpc54_spidev_s *priv,
  * Name: lpc54_spi_exchange8 and lpc54_spi_exchange16
  *
  * Description:
- *   Implements the SPI exchange method for the case of 8- and 16-bit transfers.
+ *   Implements the SPI exchange method for the case of 8-bit and 16-bit
+ *   transfers.
  *
  * Input Parameters:
  *   priv     - Device-specific state data
@@ -911,7 +899,7 @@ static void lpc54_spi_exchange8(FAR struct lpc54_spidev_s *priv,
 {
   struct lpc54_rxtransfer8_s rxtransfer;
   struct lpc54_txtransfer8_s txtransfer;
-  unsigned int depth;
+  size_t depth;
 
   DEBUGASSERT(rxbuffer != NULL && txbuffer != NULL);
 
@@ -921,12 +909,12 @@ static void lpc54_spi_exchange8(FAR struct lpc54_spidev_s *priv,
 
   /* Set up the transfer data */
 
-  txtransfer.txctrl    = SPI_FIFOWR_LEN(priv->nbits) | SPI_FIFOWR_TXSSELN_ALL;
-  txtransfer.txptr     = (FAR uint8_t *)txbuffer;
+  txtransfer.txctrl = SPI_FIFOWR_LEN(priv->nbits) | SPI_FIFOWR_TXSSELN_ALL;
+  txtransfer.txptr = (FAR uint8_t *)txbuffer;
   txtransfer.remaining = nwords;
-  rxtransfer.rxptr     = (FAR uint8_t *)rxbuffer;
+  rxtransfer.rxptr = (FAR uint8_t *)rxbuffer;
   rxtransfer.remaining = nwords;
-  rxtransfer.expected  = 0;
+  rxtransfer.expected = 0;
 
   /* Clear Tx/Rx errors and empty FIFOs */
 
@@ -965,13 +953,14 @@ static void lpc54_spi_exchange8(FAR struct lpc54_spidev_s *priv,
 
 #if defined(CONFIG_SPI_EXCHANGE) && defined(CONFIG_LPC54_SPI_WIDEDATA)
 static void lpc54_spi_exchange16(FAR struct lpc54_spidev_s *priv,
-                                 FAR const void *txbuffer, FAR void *rxbuffer,
+                                 FAR const void *txbuffer,
+                                 FAR void *rxbuffer,
                                  size_t nwords)
 {
   struct lpc54_rxtransfer16_s rxtransfer;
   struct lpc54_txtransfer16_s txtransfer;
   uint32_t regval;
-  unsigned int depth;
+  size_t depth;
 
   DEBUGASSERT(rxbuffer != NULL && ((uintptr_t)rxbuffer & 1) == 0);
   DEBUGASSERT(txbuffer != NULL && ((uintptr_t)txbuffer & 1) == 0);
@@ -982,12 +971,12 @@ static void lpc54_spi_exchange16(FAR struct lpc54_spidev_s *priv,
 
   /* Set up the transfer data */
 
-  txtransfer.txctrl    = SPI_FIFOWR_LEN(priv->nbits) | SPI_FIFOWR_TXSSELN_ALL;
-  txtransfer.txptr     = (FAR uint16_t *)txbuffer;
+  txtransfer.txctrl = SPI_FIFOWR_LEN(priv->nbits) | SPI_FIFOWR_TXSSELN_ALL;
+  txtransfer.txptr = (FAR uint16_t *)txbuffer;
   txtransfer.remaining = nwords;
-  rxtransfer.rxptr     = (FAR uint16_t *)rxbuffer;
+  rxtransfer.rxptr = (FAR uint16_t *)rxbuffer;
   rxtransfer.remaining = nwords;
-  rxtransfer.expected  = 0;
+  rxtransfer.expected = 0;
 
   /* Clear Tx/Rx errors and empty FIFOs */
 
@@ -1105,7 +1094,7 @@ static void lpc54_spi_sndblock16(FAR struct lpc54_spidev_s *priv,
       lpc54_spi_txtransfer16(priv, &txtransfer);
     }
 }
-#endif /*CONFIG_LPC54_SPI_WIDEDATA */
+#endif /* CONFIG_LPC54_SPI_WIDEDATA */
 
 /****************************************************************************
  * Name: lpc54_spi_recvblock8 and lpc54_spi_recvblock16
@@ -1133,7 +1122,7 @@ static void lpc54_spi_recvblock8(FAR struct lpc54_spidev_s *priv,
 {
   struct lpc54_rxtransfer8_s rxtransfer;
   struct lpc54_txdummy_s txtransfer;
-  unsigned int depth;
+  size_t depth;
 
   DEBUGASSERT(buffer != NULL);
 
@@ -1158,7 +1147,7 @@ static void lpc54_spi_recvblock8(FAR struct lpc54_spidev_s *priv,
    * received.
    */
 
-  while (txtransfer.remaining != 0|| rxtransfer.remaining != 0)
+  while (txtransfer.remaining != 0 || rxtransfer.remaining != 0)
     {
       /* Transfer one byte from the Rx FIFO to the caller's Rx buffer */
 
@@ -1188,7 +1177,7 @@ static void lpc54_spi_recvblock16(FAR struct lpc54_spidev_s *priv,
 {
   struct lpc54_rxtransfer16_s rxtransfer;
   struct lpc54_txdummy_s txtransfer;
-  unsigned int depth;
+  size_t depth;
 
   DEBUGASSERT(buffer != NULL);
 
@@ -1247,7 +1236,7 @@ static void lpc54_spi_recvblock16(FAR struct lpc54_spidev_s *priv,
  *   transfers.  The bus should be locked before the chip is selected. After
  *   locking the SPI bus, the caller should then also call the setfrequency,
  *   setbits, and setmode methods to make sure that the SPI is properly
- *   configured for the device.  If the SPI buss is being shared, then it
+ *   configured for the device.  If the SPI bus is being shared, then it
  *   may have been left in an incompatible state.
  *
  * Input Parameters:
@@ -1419,7 +1408,8 @@ static void lpc54_spi_setbits(FAR struct spi_dev_s *dev, int nbits)
 
   /* The valid range of bit selections is SPI_MINWIDTH through SPI_MAXWIDTH */
 
-  DEBUGASSERT(priv != NULL && nbits >= SPI_MINWIDTH && nbits <= SPI_MAXWIDTH);
+  DEBUGASSERT(priv != NULL && nbits >= SPI_MINWIDTH &&
+              nbits <= SPI_MAXWIDTH);
 
   if (nbits >= SPI_MINWIDTH && nbits <= SPI_MAXWIDTH)
     {
@@ -1445,7 +1435,7 @@ static void lpc54_spi_setbits(FAR struct spi_dev_s *dev, int nbits)
  *
  ****************************************************************************/
 
-static uint16_t lpc54_spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
+static uint32_t lpc54_spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 {
   FAR struct lpc54_spidev_s *priv = (FAR struct lpc54_spidev_s *)dev;
   uint32_t regval;
@@ -1473,7 +1463,7 @@ static uint16_t lpc54_spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
 
   /* Then read and return the value from the Rx FIFO */
 
-  return (uint16_t)lpc54_spi_getreg(priv, LPC54_SPI_FIFORD_OFFSET);
+  return lpc54_spi_getreg(priv, LPC54_SPI_FIFORD_OFFSET);
 }
 
 /****************************************************************************
@@ -1669,6 +1659,7 @@ FAR struct spi_dev_s *lpc54_spibus_initialize(int port)
   flags = enter_critical_section();
 
   /* Configure the requested SPI peripheral */
+
   /* NOTE:  The basic FLEXCOMM initialization was performed in
    * lpc54_lowputc.c.
    */
@@ -2068,8 +2059,8 @@ FAR struct spi_dev_s *lpc54_spibus_initialize(int port)
 
   /* Set the delay configuration (not used) */
 
-  regval = (SPI_DLY_PRE_DELAY(0) | SPI_DLY_POST_DELAY(0) | SPI_DLY_FRAME_DELAY(0) |
-            SPI_DLY_TRANSFER_DELAY(0));
+  regval = (SPI_DLY_PRE_DELAY(0) | SPI_DLY_POST_DELAY(0) |
+            SPI_DLY_FRAME_DELAY(0) | SPI_DLY_TRANSFER_DELAY(0));
   lpc54_spi_putreg(priv, LPC54_SPI_DLY_OFFSET, regval);
 
   /* Select a default frequency of approx. 400KHz */

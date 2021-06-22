@@ -190,31 +190,6 @@ the following lines in each Make.defs file:
     ARCHCPUFLAGS = -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
   endif
 
-Configuration Changes
----------------------
-
-Below are all of the configuration changes that I had to make to boards/arm/stm32/stm3240g-eval/nsh2
-in order to successfully build NuttX using the Atollic toolchain WITH FPU support:
-
-  -CONFIG_ARCH_FPU=n                       : Enable FPU support
-  +CONFIG_ARCH_FPU=y
-
-  -CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : Disable the CodeSourcery toolchain
-  +CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=n
-
-  -CONFIG_ARMV7M_TOOLCHAIN_ATOLLIC=n       : Enable the Atollic toolchain
-  +CONFIG_ARMV7M_TOOLCHAIN_ATOLLIC=y       :
-
-  -CONFIG_INTELHEX_BINARY=y                : Suppress generation FLASH download formats
-  +CONFIG_INTELHEX_BINARY=n                : (Only necessary with the "Lite" version)
-
-  -CONFIG_HAVE_CXX=y                       : Suppress generation of C++ code
-  +CONFIG_HAVE_CXX=n                       : (Only necessary with the "Lite" version)
-
-See the section above on Toolchains, NOTE 2, for explanations for some of
-the configuration settings.  Some of the usual settings are just not supported
-by the "Lite" version of the Atollic toolchain.
-
 FSMC SRAM
 =========
 
@@ -514,7 +489,7 @@ STM3240G-EVAL-specific Configuration Options
 
     CONFIG_SDIO_DMA - Support DMA data transfers.  Requires CONFIG_STM32_SDIO
       and CONFIG_STM32_DMA2.
-    CONFIG_STM32_SDIO_PRI - Select SDIO interrupt prority.  Default: 128
+    CONFIG_STM32_SDIO_PRI - Select SDIO interrupt priority.  Default: 128
     CONFIG_STM32_SDIO_DMAPRIO - Select SDIO DMA interrupt priority.
       Default:  Medium
     CONFIG_STM32_SDIO_WIDTH_D1_ONLY - Select 1-bit transfer mode.  Default:
@@ -589,14 +564,14 @@ STM3240G-EVAL-specific Configuration Options
       320x240 "landscape" orientation.
       In this orientation, the top of the display is to the left
       of the buttons (if the board is held so that the buttons are at the
-      botton of the board).
+      bottom of the board).
     CONFIG_LCD_RPORTRAIT - Define for 240x320 display "reverse
       portrait" orientation support.  In this orientation, the
       STM3210E-EVAL's LCD ribbon cable is at the top of the display.
       Default is 320x240 "landscape" orientation.
       In this orientation, the top of the display is to the right
       of the buttons (if the board is held so that the buttons are at the
-      botton of the board).
+      bottom of the board).
     CONFIG_STM3240G_LCD_RDSHIFT - When reading 16-bit gram data, there appears
       to be a shift in the returned data.  This value fixes the offset.
       Default 5.
@@ -646,7 +621,7 @@ Where <subdir> is one of the following:
   dhcpd:
   -----
 
-    This builds the DCHP server using the apps/examples/dhcpd application
+    This builds the DHCP server using the apps/examples/dhcpd application
     (for execution from FLASH.) See apps/examples/README.txt for information
     about the dhcpd example.
 
@@ -668,12 +643,12 @@ Where <subdir> is one of the following:
 
       CONFIG_HOST_WINDOWS=y
       CONFIG_WINDOWS_CYGWIN=y
-      CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y
+      CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y
 
   discover:
   --------
     This configuration exercises netutils/discover utility using
-    apps/exmaples/discover.  This example initializes and starts the UDP
+    apps/examples/discover.  This example initializes and starts the UDP
     discover daemon. This daemon is useful for discovering devices in
     local networks, especially with DHCP configured devices.  It listens
     for UDP broadcasts which also can include a device class so that
@@ -683,7 +658,7 @@ Where <subdir> is one of the following:
     Configuration settings that you may need to change for your
     environment:
 
-      CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYL=y - CodeSourcery for Linux
+      CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIL=y     - GNU EABI toolchain for Linux
       CONFIG_EXAMPLES_DISCOVER_DHCPC=y        - DHCP Client
       CONFIG_EXAMPLES_DISCOVER_IPADDR         - (not defined)
       CONFIG_EXAMPLES_DISCOVER_DRIPADDR       - Router IP address
@@ -753,18 +728,9 @@ Where <subdir> is one of the following:
        CONFIG_HOST_WINDOWS=y                   : Windows
        CONFIG_WINDOWS_CYGWIN=y                 : Cygwin environment on Windows
        CONFIG_ARMV7M_TOOLCHAIN_BUILDROOT=y     : NuttX EABI buildroot toolchain
-       CONFIG_CXX_NEWLONG=y                    : size_t is long (maybe?)
+       CONFIG_ARCH_SIZET_LONG=y                : size_t is long (maybe?)
 
        This is easily changed by modifying the configuration.
-
-       NOTE:  When I used a recent CodeSourcery toolchain, then toolchain
-       generated an illegal blx to an even address when calling into one
-       of the EABI math libraries.  I don't know why this happened or if
-       the probably is repeatable with other CodeSourcery versions.  You
-       can try for yourself setting:
-
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery under Windows
-       CONFIG_CXX_NEWLONG=n                    : size_t is unsigned int (maybe?)
 
     3. In addition to the protected mode build, this NxWM configuration
        differences from the nxwm configuration in that:
@@ -856,7 +822,7 @@ Where <subdir> is one of the following:
     using the STM32's Ethernet controller. It uses apps/examples/nettest to exercise the
     TCP/IP network.
 
-    CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y                : CodeSourcery under Windows
+    CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y                    : GNU EABI toolchain for Windows
     CONFIG_EXAMPLES_NETTEST_SERVER=n                       : Target is configured as the client
     CONFIG_EXAMPLES_NETTEST_PERFORMANCE=y                  : Only network performance is verified.
     CONFIG_EXAMPLES_NETTEST_IPADDR=(10<<24|0<<16|0<<8|2)   : Target side is IP: 10.0.0.2
@@ -879,7 +845,7 @@ Where <subdir> is one of the following:
     Configures the NuttShell (nsh) located at apps/examples/nsh.  The
     Configuration enables both the serial and telnet NSH interfaces.
 
-    CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y   : CodeSourcery under Windows
+   CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y        : GNU EABI toolchain for Windows
     CONFIG_NSH_DHCPC=n                        : DHCP is disabled
     CONFIG_NSH_IPADDR=(10<<24|0<<16|0<<8|2)   : Target IP address 10.0.0.2
     CONFIG_NSH_DRIPADDR=(10<<24|0<<16|0<<8|1) : Host IP address 10.0.0.1
@@ -1017,7 +983,7 @@ Where <subdir> is one of the following:
         a USB host on the STM32F4Discovery, including support for a mass storage
         class driver:
 
-        CONFIG_USBDEV=n          : Make sure tht USB device support is disabled
+        CONFIG_USBDEV=n          : Make sure the USB device support is disabled
         CONFIG_USBHOST=y         : Enable USB host support
         CONFIG_STM32_OTGFS=y     : Enable the STM32 USB OTG FS block
         CONFIG_STM32_SYSCFG=y    : Needed for all USB OTF FS support
@@ -1104,7 +1070,7 @@ Where <subdir> is one of the following:
     There are some special settings to make life with only a Telnet
 
     CONFIG_RAMLOG=y - Enable the RAM-based logging feature.
-    CONFIG_RAMLOG_CONSOLE=y - Use the RAM logger as the default console.
+    CONFIG_CONSOLE_SYSLOG=y - Use the RAM logger as the default console.
       This means that any console output from non-Telnet threads will
       go into the circular buffer in RAM.
     CONFIG_RAMLOG_SYSLOG - This enables the RAM-based logger as the
@@ -1215,7 +1181,7 @@ Where <subdir> is one of the following:
 
          CONFIG_HOST_WINDOWS=y                    : Windows
          CONFIG_WINDOWS_CYGWIN=y                  : With Cygwin
-         CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y  : CodeSourcery under Windows
+         CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y      : GNU EABI toolchain for Windows
 
   nxwm
   ----
@@ -1253,7 +1219,7 @@ Where <subdir> is one of the following:
 
       CONFIG_HOST_WINDOWS=y
       CONFIG_WINDOWS_CYGWIN=y
-      CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y
+      CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y
 
   xmlrpc
   ------

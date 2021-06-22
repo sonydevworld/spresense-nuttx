@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/risc-v/include/rv32im/irq.h
+ * arch/misoc/include/minerva/irq.h
  *
  *   Copyright (C) 2011, 2013, 2015 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -35,7 +35,7 @@
  *
  ****************************************************************************/
 
-/* This file should never be included directed but, rather, only indirectly
+/* This file should never be included directly but, rather, only indirectly
  * through nuttx/irq.h
  */
 
@@ -55,7 +55,9 @@
 
 /* Configuration ************************************************************/
 
-/* If this is a kernel build, how many nested system calls should we support? */
+/* If this is a kernel build, how many nested system calls should we
+ * support?
+ */
 
 #define MINERVA_NINTERRUPTS 32
 #define MINERVA_IRQ_SWINT   32

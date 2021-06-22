@@ -45,15 +45,11 @@
 #
 
 ifeq ($(filter y, $(CONFIG_RV32IM_TOOLCHAIN_GNU_RVGL)),y)
-  CONFIG_RISCV_TOOLCHAIN ?= GNU_RVGL
+  CONFIG_RISCV_TOOLCHAIN ?= GNU_RVG
 endif
 
 ifeq ($(filter y, $(CONFIG_RV32IM_TOOLCHAIN_GNU_RVGW)),y)
-  CONFIG_RISCV_TOOLCHAIN ?= GNU_RVGW
-endif
-
-ifeq ($(filter y, $(CONFIG_RI5CY_GAP8_TOOLCHAIN)),y)
-  CONFIG_RISCV_TOOLCHAIN ?= GNU_RISCY
+  CONFIG_RISCV_TOOLCHAIN ?= GNU_RVG
 endif
 
 #
@@ -62,8 +58,6 @@ endif
 # Each toolchain definition should set:
 #
 #  CROSSDEV         The GNU toolchain triple (command prefix)
-#  ARCROSSDEV       If required, an alternative prefix used when
-#                   invoking ar and nm.
 #  ARCHCPUFLAGS     CPU-specific flags selecting the instruction set
 #                   options, etc.
 #  MAXOPTIMIZATION  The maximum optimization level that results in
@@ -74,35 +68,20 @@ ifeq ($(CONFIG_DEBUG_CUSTOMOPT),y)
   MAXOPTIMIZATION := $(CONFIG_DEBUG_OPTLEVEL)
 endif
 
-# Generic GNU RVG toolchain on OS X, Linux or any typical Posix system
+# Generic GNU RVG toolchain
 
-ifeq ($(CONFIG_RISCV_TOOLCHAIN),GNU_RVGL)
+ifeq ($(CONFIG_RISCV_TOOLCHAIN),GNU_RVG)
   CROSSDEV ?= riscv64-unknown-elf-
-  ARCROSSDEV ?= riscv64-unknown-elf-
-ifeq ($(CONFIG_RV32IM_HW_MULDIV),y)
-  ARCHCPUFLAGS = -march=RV32IMXcustom -m32
-else
-  ARCHCPUFLAGS = -march=RV32IXcustom -m32
-endif
-endif
-
-ifeq ($(CONFIG_RISCV_TOOLCHAIN),GNU_RVGW)
-  CROSSDEV ?= riscv32-unknown-elf-
-  ARCROSSDEV ?= riscv32-unknown-elf-
-  ifneq ($(CONFIG_WINDOWS_NATIVE),y)
-    WINTOOL = y
+  ifeq ($(CONFIG_ARCH_FPU),y)
+      ARCHCPUFLAGS = -march=rv32imfc -mabi=ilp32f
+  else
+      ARCHCPUFLAGS = -march=rv32imc -mabi=ilp32
   endif
-ifeq ($(CONFIG_RV32IM_HW_MULDIV),y)
-  ARCHCPUFLAGS = -march=RV32IMXcustom -m32
-else
-  ARCHCPUFLAGS = -march=RV32IXcustom -m32
-endif
-endif
-
-ifeq ($(CONFIG_RISCV_TOOLCHAIN),GNU_RISCY)
-  CROSSDEV ?= riscv32-unknown-elf-
-  ARCROSSDEV ?= riscv32-unknown-elf-
-  ARCHCPUFLAGS = -march=rv32imcxgap8 -mPE=8 -mFC=1 -D__riscv__ -D__pulp__ -D__GAP8__
+  ifeq ($(CONFIG_RV32IM_HW_MULDIV),y)
+    ARCHCPUFLAGS += -mdiv
+  else
+    ARCHCPUFLAGS += -mno-div
+  endif
 endif
 
 # Individual tools may limit the optimization level but, by default, the
@@ -110,4 +89,31 @@ endif
 
 ifeq ($(CONFIG_DEBUG_SYMBOLS),)
 MAXOPTIMIZATION ?= -Os
+endif
+
+# Default toolchain
+
+CC = $(CROSSDEV)gcc
+CXX = $(CROSSDEV)g++
+CPP = $(CROSSDEV)gcc -E -P -x c
+LD = $(CROSSDEV)ld
+STRIP = $(CROSSDEV)strip --strip-unneeded
+AR = $(CROSSDEV)ar rcs
+NM = $(CROSSDEV)nm
+OBJCOPY = $(CROSSDEV)objcopy
+OBJDUMP = $(CROSSDEV)objdump
+
+# Add the builtin library
+
+EXTRA_LIBS += -lgcc
+EXTRA_LIBPATHS += -L "${shell dirname "`$(CC) $(ARCHCPUFLAGS) --print-libgcc-file-name`"}"
+
+ifneq ($(CONFIG_LIBM),y)
+  EXTRA_LIBS += -lm
+  EXTRA_LIBPATHS += -L "${shell dirname "`$(CC) $(ARCHCPUFLAGS) --print-file-name=libm.a`"}"
+endif
+
+ifeq ($(CONFIG_CXX_LIBSUPCXX),y)
+  EXTRA_LIBS += -lsupc++
+  EXTRA_LIBPATHS += -L "${shell dirname "`$(CC) $(ARCHCPUFLAGS) --print-file-name=libsupc++.a`"}"
 endif

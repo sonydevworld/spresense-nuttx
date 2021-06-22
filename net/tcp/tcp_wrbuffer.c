@@ -119,6 +119,7 @@ void tcp_wrbuffer_initialize(void)
     }
 
   nxsem_init(&g_wrbuffer.sem, 0, CONFIG_NET_TCP_NWRBCHAINS);
+  nxsem_set_protocol(&g_wrbuffer.sem, SEM_PRIO_NONE);
 }
 
 /****************************************************************************
@@ -149,7 +150,7 @@ FAR struct tcp_wrbuffer_s *tcp_wrbuffer_alloc(void)
    * buffer
    */
 
-  DEBUGVERIFY(net_lockedwait(&g_wrbuffer.sem)); /* TODO: Handle EINTR. */
+  net_lockedwait_uninterruptible(&g_wrbuffer.sem);
 
   /* Now, we are guaranteed to have a write buffer structure reserved
    * for us in the free list.
@@ -207,11 +208,7 @@ FAR struct tcp_wrbuffer_s *tcp_wrbuffer_tryalloc(void)
    * buffer
    */
 
-  if (tcp_wrbuffer_test() == OK)
-    {
-      DEBUGVERIFY(net_lockedwait(&g_wrbuffer.sem));
-    }
-  else
+  if (nxsem_trywait(&g_wrbuffer.sem) != OK)
     {
       return NULL;
     }
@@ -263,6 +260,10 @@ void tcp_wrbuffer_release(FAR struct tcp_wrbuffer_s *wrb)
       iob_free_chain(wrb->wb_iob, IOBUSER_NET_TCP_WRITEBUFFER);
     }
 
+  /* Reset the ack counter */
+
+  TCP_WBNACK(wrb) = 0;
+
   /* Then free the write buffer structure */
 
   sq_addlast(&wrb->wb_node, &g_wrbuffer.freebuffers);
@@ -285,7 +286,7 @@ int tcp_wrbuffer_test(void)
   int val = 0;
   int ret;
 
-  ret = nxsem_getvalue(&g_wrbuffer.sem, &val);
+  ret = nxsem_get_value(&g_wrbuffer.sem, &val);
   if (ret >= 0)
     {
       ret = val > 0 ? OK : -ENOSPC;

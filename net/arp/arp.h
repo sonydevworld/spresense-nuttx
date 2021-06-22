@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/arp/arp.h
  *
- *   Copyright (C) 2014-2016, 2018-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -107,7 +92,7 @@ struct arp_hdr_s
   uint8_t  ah_protolen;      /*  8-bit Procotol address size (4) */
   uint16_t ah_opcode;        /* 16-bit Operation */
   uint8_t  ah_shwaddr[6];    /* 48-bit Sender hardware address */
-  uint16_t ah_sipaddr[2];    /* 32-bit Sender IP adress */
+  uint16_t ah_sipaddr[2];    /* 32-bit Sender IP address */
   uint8_t  ah_dhwaddr[6];    /* 48-bit Target hardware address */
   uint16_t ah_dipaddr[2];    /* 32-bit Target IP address */
 };
@@ -193,11 +178,11 @@ void arp_format(FAR struct net_driver_s *dev, in_addr_t ipaddr);
  *   address.  This function first checks if the IPv4 address is already in
  *   the ARP table.  If so, then it returns success immediately.
  *
- *   If the requested IPv4 address in not in the ARP table, then this function
- *   will send an ARP request, delay, then check if the IP address is now in
- *   the ARP table.  It will repeat this sequence until either (1) the IP
- *   address mapping is now in the ARP table, or (2) a configurable number
- *   of timeouts occur without receiving the ARP replay.
+ *   If the requested IPv4 address in not in the ARP table, then this
+ *   function will send an ARP request, delay, then check if the IP address
+ *   is now in the ARP table.  It will repeat this sequence until either (1)
+ *   the IP address mapping is now in the ARP table, or (2) a configurable
+ *   number of timeouts occur without receiving the ARP replay.
  *
  * Input Parameters:
  *   ipaddr   The IP address to be queried.
@@ -286,14 +271,13 @@ int arp_wait_cancel(FAR struct arp_notify_s *notify);
  *   timeout occurs.
  *
  * Assumptions:
- *   This function is called from ARP send and mut execute with the network
+ *   This function is called from ARP send and must execute with the network
  *   un-locked.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_NET_ARP_SEND
-struct timespec;
-int arp_wait(FAR struct arp_notify_s *notify, FAR struct timespec *timeout);
+int arp_wait(FAR struct arp_notify_s *notify, unsigned int timeout);
 #else
 #  define arp_wait(n,t) (0)
 #endif

@@ -1,36 +1,20 @@
 /****************************************************************************
- * arch/arm/src/tiva/common/tiva_gpio.c
+ * arch/arm/src/tiva/lm/lm3s_gpio.c
  *
- *   Copyright (C) 2009-2010, 2014-2015, 2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -48,7 +32,7 @@
 
 #include <nuttx/irq.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "tiva_enablepwr.h"
 #include "tiva_enableclks.h"
 #include "tiva_gpio.h"
@@ -611,12 +595,12 @@ static inline void tiva_interrupt(pinconfig_t pinconfig)
     }
 
   /* "The GPIO IBE register is the interrupt both-edges register. When the
-   * corresponding bit in the GPIO Interrupt Sense (GPIO IS) register ... is
-   * set to detect edges, bits set to High in GPIO IBE configure the
-   * corresponding pin to detect both rising and falling edges, regardless
-   * of the corresponding bit in the GPIO Interrupt Event (GPIO IEV) register ...
-   * Clearing a bit configures the pin to be controlled by GPIOIEV. All bits
-   * are cleared by a reset.
+   *  corresponding bit in the GPIO Interrupt Sense (GPIO IS) register ...
+   *  is set to detect edges, bits set to High in GPIO IBE configure the
+   *  corresponding pin to detect both rising and falling edges, regardless
+   *  of the corresponding bit in the GPIO Interrupt Event (GPIO IEV)
+   *  register ... Clearing a bit configures the pin to be controlled by
+   *  GPIOIEV. All bits are cleared by a reset.
    */
 
   modifyreg32(base + TIVA_GPIO_IBE_OFFSET, ibeclr, ibeset);
@@ -629,12 +613,12 @@ static inline void tiva_interrupt(pinconfig_t pinconfig)
 
   modifyreg32(base + TIVA_GPIO_IS_OFFSET, isclr, isset);
 
-  /* "The GPIOIEV register is the interrupt event register. Bits set to
-   * High in GPIO IEV configure the corresponding pin to detect rising edges
-   * or high levels, depending on the corresponding bit value in the GPIO
-   * Interrupt Sense (GPIO IS) register... Clearing a bit configures the pin to
-   * detect falling edges or low levels, depending on the corresponding bit
-   * value in GPIOIS. All bits are cleared by a reset.
+  /* "The GPIOIEV register is the interrupt event register. Bits set to High
+   *  in GPIO IEV configure the corresponding pin to detect rising edges or
+   *  high levels, depending on the corresponding bit value in the GPIO
+   *  Interrupt Sense (GPIO IS) register... Clearing a bit configures the
+   *  pin to detect falling edges or low levels, depending on the
+   *  corresponding bit value in GPIOIS. All bits are cleared by a reset.
    */
 
   modifyreg32(base + TIVA_GPIO_IEV_OFFSET, ievclr, ievset);
@@ -644,13 +628,13 @@ static inline void tiva_interrupt(pinconfig_t pinconfig)
 
   gpioinfo("reg expected actual: [interrupt type=%d]\n", inttype);
 
-  regval = (getreg32(base+TIVA_GPIO_IS_OFFSET) & pin) ? pin : 0;
+  regval = (getreg32(base + TIVA_GPIO_IS_OFFSET) & pin) ? pin : 0;
   gpioinfo("IS  0x%08x 0x%08x\n", isset, regval);
 
-  regval = (getreg32(base+TIVA_GPIO_IBE_OFFSET) & pin) ? pin : 0;
+  regval = (getreg32(base + TIVA_GPIO_IBE_OFFSET) & pin) ? pin : 0;
   gpioinfo("IBE 0x%08x 0x%08x\n", ibeset, regval);
 
-  regval = (getreg32(base+TIVA_GPIO_IEV_OFFSET) & pin) ? pin : 0;
+  regval = (getreg32(base + TIVA_GPIO_IEV_OFFSET) & pin) ? pin : 0;
   gpioinfo("IEV 0x%08x 0x%08x\n", ievset, regval);
 #endif
 }
@@ -750,9 +734,9 @@ int tiva_configgpio(pinconfig_t pinconfig)
   tiva_portcontrol(base, pinno, pinconfig, &g_funcbits[0]);
 #endif
 
-  /* Then set up pad strengths and pull-ups.  These setups should be done before
-   * setting up the function because some function settings will over-ride these
-   * user options.
+  /* Then set up pad strengths and pull-ups.  These setups should be done
+   * before setting up the function because some function settings will
+   * over-ride these user options.
    */
 
   tiva_gpiopadstrength(base, pin, pinconfig);
@@ -810,17 +794,18 @@ void tiva_gpiowrite(pinconfig_t pinconfig, bool value)
 
   /* "The GPIO DATA register is the data register. In software control mode,
    *  values written in the GPIO DATA register are transferred onto the GPIO
-   *  port pins if the respective pins have been configured as outputs through
-   *  the GPIO Direction (GPIO DIR) register ...
+   *  port pins if the respective pins have been configured as outputs
+   *  through the GPIO Direction (GPIO DIR) register ...
    *
    * "In order to write to GPIO DATA, the corresponding bits in the mask,
-   *  resulting from the address bus bits [9:2], must be High. Otherwise, the
-   *  bit values remain unchanged by the write.
+   *  resulting from the address bus bits [9:2], must be High. Otherwise,
+   *  the bit values remain unchanged by the write.
    *
    * "... All bits are cleared by a reset."
    */
 
-  putreg32((uint32_t)value << pinno, base + TIVA_GPIO_DATA_OFFSET + (1 << (pinno + 2)));
+  putreg32((uint32_t)value << pinno,
+           base + TIVA_GPIO_DATA_OFFSET + (1 << (pinno + 2)));
 }
 
 /****************************************************************************
@@ -846,18 +831,19 @@ bool tiva_gpioread(pinconfig_t pinconfig)
 
   base = tiva_gpiobaseaddress(port);
 
-  /* "... the values read from this register are determined for each bit
-   *  by the mask bit derived from the address used to access the data register,
-   *  bits [9:2]. Bits that are 1 in the address mask cause the corresponding
-   *  bits in GPIODATA to be read, and bits that are 0 in the address mask cause
-   *  the corresponding bits in GPIO DATA to be read as 0, regardless of their
-   *  value.
+  /* "... the values read from this register are determined for each bit by
+   *  the mask bit derived from the address used to access the data
+   *  register, bits [9:2]. Bits that are 1 in the address mask cause the
+   *  corresponding bits in GPIODATA to be read, and bits that are 0 in the
+   *  address mask cause the corresponding bits in GPIO DATA to be read as
+   *  0, regardless of their value.
    *
-   * "A read from GPIO DATA returns the last bit value written if the respective
-   *  pins are configured as outputs, or it returns the value on the
-   *  corresponding input pin when these are configured as inputs. All bits
-   *  are cleared by a reset."
+   * "A read from GPIO DATA returns the last bit value written if the
+   *  respective pins are configured as outputs, or it returns the value on
+   *  the corresponding input pin when these are configured as inputs. All
+   *  bits are cleared by a reset."
    */
+
   return (getreg32(base + TIVA_GPIO_DATA_OFFSET + (1 << (pinno + 2))) != 0);
 }
 
@@ -906,5 +892,6 @@ void tiva_gpio_lockport(pinconfig_t pinconfig, bool lock)
 
   /* Restrict access to the TIVA_GPIO_CR_OFFSET register */
 
-  modifyreg32(base + TIVA_GPIO_LOCK_OFFSET,  GPIO_LOCK_UNLOCK, GPIO_LOCK_LOCKED);
+  modifyreg32(base + TIVA_GPIO_LOCK_OFFSET,  GPIO_LOCK_UNLOCK,
+              GPIO_LOCK_LOCKED);
 }

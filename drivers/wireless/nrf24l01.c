@@ -1,35 +1,20 @@
 /****************************************************************************
- * drivers/wireless/nrf24l01/nrf24l01.c
+ * drivers/wireless/nrf24l01.c
  *
- *   Copyright (C) 2013 Laurent Latil. All rights reserved.
- *   Authors: Laurent Latil <laurent@latil.nom.fr>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -683,7 +668,8 @@ static void nrf24l01_worker(FAR void *arg)
            *   - Read payload content
            */
 
-          pipeno = (status & NRF24L01_RX_P_NO_MASK) >> NRF24L01_RX_P_NO_SHIFT;
+          pipeno = (status & NRF24L01_RX_P_NO_MASK) >>
+                   NRF24L01_RX_P_NO_SHIFT;
           if (pipeno >= NRF24L01_PIPE_COUNT) /* 6=invalid 7=fifo empty */
             {
               wlerr("invalid pipe rx: %d\n", (int)pipeno);
@@ -711,7 +697,8 @@ static void nrf24l01_worker(FAR void *arg)
 
           /* Get payload content */
 
-          nrf24l01_access(dev, MODE_READ, NRF24L01_R_RX_PAYLOAD, buf, pktlen);
+          nrf24l01_access(dev, MODE_READ,
+                          NRF24L01_R_RX_PAYLOAD, buf, pktlen);
 
           fifoput(dev, pipeno, buf, pktlen);
           has_data = true;
@@ -744,16 +731,16 @@ static void nrf24l01_worker(FAR void *arg)
 
   if (status & (NRF24L01_TX_DS | NRF24L01_MAX_RT))
     {
-       /* Confirm send */
+      /* Confirm send */
 
-       nrf24l01_chipenable(dev, false);
+      nrf24l01_chipenable(dev, false);
 
-       if (dev->tx_pending)
-         {
-           /* The actual work is done in the send function */
+      if (dev->tx_pending)
+        {
+          /* The actual work is done in the send function */
 
-           nxsem_post(&dev->sem_tx);
-         }
+          nxsem_post(&dev->sem_tx);
+        }
     }
 
   if (dev->state == ST_RX)
@@ -794,6 +781,7 @@ static void nrf24l01_tostate(FAR struct nrf24l01_dev_s *dev,
   switch (state)
     {
     case ST_UNKNOWN:
+
       /* Power down the module here... */
 
     case ST_POWER_DOWN:
@@ -859,7 +847,7 @@ static int dosend(FAR struct nrf24l01_dev_s *dev, FAR const uint8_t *data,
 
   /* Wait for IRQ (TX_DS or MAX_RT) - but don't hang on lost IRQ */
 
-  ret = nxsem_tickwait(&dev->sem_tx, clock_systimer(),
+  ret = nxsem_tickwait(&dev->sem_tx, clock_systime_ticks(),
                        MSEC2TICK(NRF24L01_MAX_TX_IRQ_WAIT));
 
   /* Re-acquire the SPI bus */
@@ -870,9 +858,9 @@ static int dosend(FAR struct nrf24l01_dev_s *dev, FAR const uint8_t *data,
 
   if (ret < 0)
     {
-       wlerr("wait for irq failed\n");
-       nrf24l01_flush_tx(dev);
-       goto out;
+      wlerr("wait for irq failed\n");
+      nrf24l01_flush_tx(dev);
+      goto out;
     }
 
   status = nrf24l01_readreg(dev, NRF24L01_OBSERVE_TX, &obsvalue, 1);
@@ -1055,7 +1043,7 @@ static ssize_t nrf24l01_read(FAR struct file *filep, FAR char *buffer,
 
       /* Test if data is ready */
 
-      ret = nxsem_getvalue(&dev->sem_rx, &packet_count);
+      ret = nxsem_get_value(&dev->sem_rx, &packet_count);
       if (ret)
         {
           goto errout; /* getvalue failed */
@@ -1200,7 +1188,7 @@ static int nrf24l01_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case NRF24L01IOC_GETRETRCFG:  /* Get retransmit params. arg: Pointer
                                      * to nrf24l01_retrcfg_t */
-        ret = -ENOSYS;  /* TODO */
+        ret = -ENOSYS;              /* TODO */
         break;
 
       case NRF24L01IOC_SETPIPESCFG:
@@ -1495,7 +1483,7 @@ int nrf24l01_register(FAR struct spi_dev_s *spi,
 
   nxsem_init(&(dev->devsem), 0, 1);
   nxsem_init(&dev->sem_tx, 0, 0);
-  nxsem_setprotocol(&dev->sem_tx, SEM_PRIO_NONE);
+  nxsem_set_protocol(&dev->sem_tx, SEM_PRIO_NONE);
 
 #ifdef CONFIG_WL_NRF24L01_RXSUPPORT
   if ((rx_fifo = kmm_malloc(CONFIG_WL_NRF24L01_RXFIFO_LEN)) == NULL)
@@ -1508,7 +1496,7 @@ int nrf24l01_register(FAR struct spi_dev_s *spi,
 
   nxsem_init(&(dev->sem_fifo), 0, 1);
   nxsem_init(&(dev->sem_rx), 0, 0);
-  nxsem_setprotocol(&dev->sem_rx, SEM_PRIO_NONE);
+  nxsem_set_protocol(&dev->sem_rx, SEM_PRIO_NONE);
 #endif
 
   /* Configure IRQ pin  (falling edge) */
@@ -1801,7 +1789,8 @@ int nrf24l01_setretransmit(FAR struct nrf24l01_dev_s *dev,
 
   CHECK_ARGS(dev && retrcount <= NRF24L01_MAX_XMIT_RETR);
 
-  val = (retrdelay << NRF24L01_ARD_SHIFT) | (retrcount << NRF24L01_ARC_SHIFT);
+  val = (retrdelay << NRF24L01_ARD_SHIFT) |
+        (retrcount << NRF24L01_ARC_SHIFT);
 
   nrf24l01_lock(dev->spi);
 
@@ -1868,7 +1857,10 @@ int nrf24l01_settxpower(FAR struct nrf24l01_dev_s *dev, int outpower)
 int nrf24l01_gettxpower(FAR struct nrf24l01_dev_s *dev)
 {
   uint8_t value;
-  int powers[] = { -18, -12, -6, 0};
+  int powers[] =
+  {
+    -18, -12, -6, 0
+  };
 
   nrf24l01_lock(dev->spi);
 

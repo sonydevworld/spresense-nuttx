@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/mips/pic32mx/pic32mx7mmb/src/pic32_touchscreen.c
  *
- *   Copyright (C) 2012, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -55,12 +40,12 @@
 #include <nuttx/semaphore.h>
 
 #include <arch/board/board.h>
-#include "up_arch.h"
-#include "up_internal.h"
+#include "mips_arch.h"
+#include "mips_internal.h"
 
 #include "pic32mx.h"
-#include "pic32mx-adc.h"
-#include "pic32mx-ioport.h"
+#include "pic32mx_adc.h"
+#include "pic32mx_ioport.h"
 #include "pic32mx7mmb.h"
 
 #ifdef CONFIG_INPUT
@@ -135,7 +120,9 @@
 #define LCD_YMINUS_BIT (1 << LCD_YMINUS_PIN)
 #define LCD_ALL_BITS   (LCD_XPLUS_BIT | LCD_YPLUS_BIT | LCD_XMINUS_BIT | LCD_YMINUS_BIT)
 
-/* Conversions are performed as 10-bit samples represented as 16-bit unsigned integers: */
+/* Conversions are performed as 10-bit samples represented as 16-bit
+ * unsigned integers:
+ */
 
 #define MAX_ADC        (1023)
 
@@ -282,7 +269,7 @@ static struct tc_dev_s g_touchscreen;
  *
  * Description:
  *   Perform A/D sampling.
- *   Time must be allowed betwen the start of sampling
+ *   Time must be allowed between the start of sampling
  *   and conversion (approx. 100Ms).
  *
  ****************************************************************************/
@@ -333,12 +320,12 @@ static void tc_adc_sample(int pin)
  *
  * Description:
  *   Begin A/D conversion.
- *   Time must be allowed betwen the start of sampling
+ *   Time must be allowed between the start of sampling
  *   and conversion (approx. 100Ms).
  *
  * Assumptions:
  * 1) All output pins configured as outputs:
- * 2) Approprite pins are driven high and low
+ * 2) Appropriate pins are driven high and low
  *
  ****************************************************************************/
 
@@ -489,19 +476,6 @@ static void tc_notify(FAR struct tc_dev_s *priv)
 {
   int i;
 
-  /* If there are threads waiting for read data, then signal one of them
-   * that the read data is available.
-   */
-
-  if (priv->nwaiters > 0)
-    {
-      /* After posting this semaphore, we need to exit because the touchscreen
-       * is no longer available.
-       */
-
-      nxsem_post(&priv->waitsem);
-    }
-
   /* If there are threads waiting on poll() for touchscreen data to become
    * available, then wake them up now.  NOTE: we wake up all waiting threads
    * because we do not know that they are going to do.
@@ -518,6 +492,19 @@ static void tc_notify(FAR struct tc_dev_s *priv)
           iinfo("Report events: %02x\n", fds->revents);
           nxsem_post(fds->sem);
         }
+    }
+
+  /* If there are threads waiting for read data, then signal one of them
+   * that the read data is available.
+   */
+
+  if (priv->nwaiters > 0)
+    {
+      /* After posting this semaphore, we need to exit because the
+       * touchscreen is no longer available.
+       */
+
+      nxsem_post(&priv->waitsem);
     }
 }
 
@@ -592,7 +579,7 @@ static int tc_waitsample(FAR struct tc_dev_s *priv,
   nxsem_post(&priv->devsem);
 
   /* Try to get the a sample... if we cannot, then wait on the semaphore
-   * that is posted when new sample data is availble.
+   * that is posted when new sample data is available.
    */
 
   while (tc_sample(priv, sample) < 0)
@@ -610,7 +597,7 @@ static int tc_waitsample(FAR struct tc_dev_s *priv,
     }
 
   /* Re-acquire the semaphore that manages mutually exclusive access to
-   * the device structure.  We may have to wait here.  But we have our sample.
+   * the device structure. We may have to wait here. But we have our sample.
    * Interrupts and pre-emption will be re-enabled while we wait.
    */
 

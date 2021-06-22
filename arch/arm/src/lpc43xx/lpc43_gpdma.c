@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/lpc43xx/lpc43_gpdma.c
  *
- *   Copyright (C) 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,8 +32,8 @@
 
 #include <nuttx/arch.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "chip.h"
 
@@ -269,18 +254,18 @@ static int gpdma_interrupt(int irq, FAR void *context, FAR void *arg)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_dma_initialize
+ * Name: arm_dma_initialize
  *
  * Description:
- *   Initialize the GPDMA subsystem.  Called from up_initialize() early in the
- *   boot-up sequence.  Prototyped in up_internal.h.
+ *   Initialize the GPDMA subsystem.  Called from up_initialize() early in
+ *   the boot-up sequence.  Prototyped in arm_internal.h.
  *
  * Returned Value:
  *   None
  *
  ****************************************************************************/
 
-void weak_function up_dma_initialize(void)
+void weak_function arm_dma_initialize(void)
 {
   uint32_t regval;
   int ret;
@@ -391,10 +376,15 @@ DMA_HANDLE lpc43_dmachannel(void)
 {
   struct lpc43_dmach_s *dmach = NULL;
   int i;
+  int ret;
 
   /* Get exclusive access to the GPDMA state structure */
 
-  nxsem_wait_uninterruptible(&g_gpdma.exclsem);
+  ret = nxsem_wait_uninterruptible(&g_gpdma.exclsem);
+  if (ret < 0)
+    {
+      return NULL;
+    }
 
   /* Find an available DMA channel */
 
@@ -584,7 +574,8 @@ int lpc43_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg)
   base    = LPC43_GPDMA_CHANNEL((uint32_t)dmach->chn);
   regval  = getreg32(base + LPC43_GPDMA_CONTROL_CHOFFSET);
   regval &= ~GPDMA_CONTROL_XFRSIZE_MASK;
-  regval |= (GPDMA_CONTROL_IE | ((uint32_t)dmach->nxfrs << GPDMA_CONTROL_XFRSIZE_SHIFT));
+  regval |= (GPDMA_CONTROL_IE |
+            ((uint32_t)dmach->nxfrs << GPDMA_CONTROL_XFRSIZE_SHIFT));
   putreg32(regval, base + LPC43_GPDMA_CONTROL_CHOFFSET);
 
   /* Enable the channel and unmask terminal count and error interrupts.
@@ -694,7 +685,8 @@ void lpc43_dmasample(DMA_HANDLE handle, struct lpc43_dmaregs_s *regs)
  ****************************************************************************/
 
 #ifdef CONFIG_DEBUG_DMA
-void lpc43_dmadump(DMA_HANDLE handle, const struct lpc43_dmaregs_s *regs, const char *msg)
+void lpc43_dmadump(DMA_HANDLE handle, const struct lpc43_dmaregs_s *regs,
+                   const char *msg)
 {
   struct lpc43_dmach_s *dmach = (DMA_HANDLE)handle;
   uint32_t base;

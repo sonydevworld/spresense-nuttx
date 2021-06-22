@@ -4,8 +4,6 @@
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *
- * Reference: XMC4500 Reference Manual V1.5 2014-07 Microcontrollers.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -49,13 +47,15 @@
  *
  ****************************************************************************/
 
+/* Reference: XMC4500 Reference Manual V1.5 2014-07 Microcontrollers. */
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "hardware/xmc4_scu.h"
 #include "xmc4_clockconfig.h"
 #include "hardware/xmc4_ports.h"

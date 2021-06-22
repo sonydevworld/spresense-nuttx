@@ -1,36 +1,20 @@
 /****************************************************************************
  * net/socket/getsockopt.c
  *
- *   Copyright (C) 2007-2009, 2012, 2014, 2017-2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -52,6 +36,7 @@
 #include "tcp/tcp.h"
 #include "usrsock/usrsock.h"
 #include "utils/utils.h"
+#include "can/can.h"
 
 /****************************************************************************
  * Private Functions
@@ -66,12 +51,12 @@
  *   the size of the option value is greater than 'value_len', the value
  *   stored in the object pointed to by the 'value' argument will be silently
  *   truncated. Otherwise, the length pointed to by the 'value_len' argument
- *   will be modified to indicate the actual length of the'value'.
+ *   will be modified to indicate the actual length of the 'value'.
  *
  *   The 'level' argument specifies the protocol level of the option. To
  *   retrieve options at the socket level, specify the level argument as
  *   SOL_SOCKET; to retrieve options at the TCP-protocol level, the level
- *   argument is SOL_CP.
+ *   argument is SOL_TCP.
  *
  *   See <sys/socket.h> a complete list of values for the socket-level
  *   'option' argument.  Protocol-specific options are are protocol specific
@@ -92,7 +77,8 @@
  ****************************************************************************/
 
 static int psock_socketlevel_option(FAR struct socket *psock, int option,
-                                    FAR void *value, FAR socklen_t *value_len)
+                                    FAR void *value,
+                                    FAR socklen_t *value_len)
 {
   /* Verify that the socket option if valid (but might not be supported ) */
 
@@ -101,43 +87,57 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
       return -EINVAL;
     }
 
-  /* Verify that the sockfd corresponds to valid, allocated socket */
-
-  if (psock == NULL || psock->s_crefs <= 0)
-    {
-      return -EBADF;
-    }
-
-#ifdef CONFIG_NET_USRSOCK
-  if (psock->s_type == SOCK_USRSOCK_TYPE)
-    {
-      FAR struct usrsock_conn_s *conn = psock->s_conn;
-
-      DEBUGASSERT(conn);
-
-      /* Some of the socket options are handled from this function. */
-
-      switch (option)
-        {
-          case SO_TYPE:     /* Type can be read from NuttX psock structure. */
-          case SO_RCVTIMEO: /* Rx timeouts can be handled at NuttX side, thus
-                             * simplify daemon implementation. */
-          case SO_SNDTIMEO: /* Rx timeouts can be handled at NuttX side, thus
-                             * simplify daemon implementation. */
-            break;
-
-          default:          /* Other options are passed to usrsock daemon. */
-            {
-              return usrsock_getsockopt(conn, SOL_SOCKET, option, value, value_len);
-            }
-        }
-    }
-#endif
-
   /* Process the option */
 
   switch (option)
     {
+      /* The following are valid only if the OS CLOCK feature is enabled */
+
+      case SO_RCVTIMEO:
+      case SO_SNDTIMEO:
+        {
+          socktimeo_t timeo;
+
+          /* Verify that option is the size of an 'int'.  Should also check
+           * that 'value' is properly aligned for an 'int'
+           */
+
+          if (*value_len < sizeof(struct timeval))
+            {
+              return -EINVAL;
+            }
+
+          /* Get the timeout value.  This is a atomic operation and should
+         * require no special operation.
+         */
+
+          if (option == SO_RCVTIMEO)
+            {
+              timeo = psock->s_rcvtimeo;
+            }
+          else
+            {
+              timeo = psock->s_sndtimeo;
+            }
+
+          /* Then return the timeout value to the caller */
+
+          net_dsec2timeval(timeo, (struct timeval *)value);
+          *value_len   = sizeof(struct timeval);
+        }
+        break;
+
+#ifndef CONFIG_NET_USRSOCK
+      case SO_ACCEPTCONN: /* Reports whether socket listening is enabled */
+        if (*value_len < sizeof(int))
+          {
+            return -EINVAL;
+          }
+
+        *(FAR int *)value = _SS_ISLISTENING(psock->s_flags);
+        *value_len        = sizeof(int);
+        break;
+
       /* The following options take a point to an integer boolean value.
        * We will blindly report the bit here although the implementation
        * is outside of the scope of getsockopt.
@@ -225,51 +225,41 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
         }
         break;
 
-      /* The following are valid only if the OS CLOCK feature is enabled */
-
-      case SO_RCVTIMEO:
-      case SO_SNDTIMEO:
+      case SO_ERROR:      /* Reports and clears error status. */
         {
-          socktimeo_t timeo;
-
-          /* Verify that option is the size of an 'int'.  Should also check
-           * that 'value' is properly aligned for an 'int'
-           */
-
-          if (*value_len < sizeof(struct timeval))
+          if (*value_len != sizeof(int))
             {
               return -EINVAL;
             }
 
-          /* Get the timeout value.  This is a atomic operation and should
-         * require no special operation.
-         */
-
-          if (option == SO_RCVTIMEO)
-            {
-              timeo = psock->s_rcvtimeo;
-            }
-          else
-            {
-              timeo = psock->s_sndtimeo;
-            }
-
-          /* Then return the timeout value to the caller */
-
-          net_dsec2timeval(timeo, (struct timeval *)value);
-          *value_len   = sizeof(struct timeval);
+          *(FAR int *)value = (int)psock->s_error;
+          psock->s_error = 0;
         }
         break;
 
-      /* The following are not yet implemented (return values other than {0,1) */
+#ifdef CONFIG_NET_TIMESTAMP
+      case SO_TIMESTAMP:
+        {
+          if (*value_len != sizeof(int))
+            {
+              return -EINVAL;
+            }
 
-      case SO_ACCEPTCONN: /* Reports whether socket listening is enabled */
-      case SO_ERROR:      /* Reports and clears error status. */
+          *(FAR int *)value = (int)psock->s_timestamp;
+        }
+        break;
+#endif
+
+      /* The following are not yet implemented
+       * (return values other than {0,1})
+       */
+
       case SO_LINGER:     /* Lingers on a close() if data is present */
       case SO_RCVBUF:     /* Sets receive buffer size */
       case SO_RCVLOWAT:   /* Sets the minimum number of bytes to input */
       case SO_SNDBUF:     /* Sets send buffer size */
       case SO_SNDLOWAT:   /* Sets the minimum number of bytes to output */
+#endif
 
       default:
         return -ENOPROTOOPT;
@@ -296,7 +286,7 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
  *   The 'level' argument specifies the protocol level of the option. To
  *   retrieve options at the socket level, specify the level argument as
  *   SOL_SOCKET; to retrieve options at the TCP-protocol level, the level
- *   argument is SOL_CP.
+ *   argument is SOL_TCP.
  *
  *   See <sys/socket.h> a complete list of values for the socket-level
  *   'option' argument.  Protocol-specific options are are protocol specific
@@ -331,19 +321,32 @@ int psock_getsockopt(FAR struct socket *psock, int level, int option,
 {
   int ret;
 
+  /* Verify that the sockfd corresponds to valid, allocated socket */
+
+  if (psock == NULL || psock->s_conn == NULL)
+    {
+      return -EBADF;
+    }
+
   /* Handle retrieval of the socket option according to the level at which
    * option should be applied.
    */
 
   switch (level)
     {
-      case SOL_SOCKET: /* Socket-level options (see include/sys/socket.h) */
+      case SOL_SOCKET:   /* Socket-level options (see include/sys/socket.h) */
        ret = psock_socketlevel_option(psock, option, value, value_len);
        break;
 
-      case SOL_TCP:    /* TCP protocol socket options (see include/netinet/tcp.h) */
 #ifdef CONFIG_NET_TCPPROTO_OPTIONS
+      case IPPROTO_TCP:  /* TCP protocol socket options (see include/netinet/tcp.h) */
        ret = tcp_getsockopt(psock, option, value, value_len);
+       break;
+#endif
+
+#ifdef CONFIG_NET_CANPROTO_OPTIONS
+      case SOL_CAN_RAW:/* CAN protocol socket options (see include/netpacket/can.h) */
+       ret = can_getsockopt(psock, option, value, value_len);
        break;
 #endif
 
@@ -351,16 +354,23 @@ int psock_getsockopt(FAR struct socket *psock, int level, int option,
        * implemented.
        */
 
-      case SOL_IP:     /* TCP protocol socket options (see include/netinet/ip.h) */
-      case SOL_IPV6:   /* TCP protocol socket options (see include/netinet/ip6.h) */
-      case SOL_UDP:    /* TCP protocol socket options (see include/netinit/udp.h) */
-        ret = -ENOSYS;
-       break;
-
-      default:         /* The provided level is invalid */
-        ret = -EINVAL;
+      case IPPROTO_IP:   /* TCP protocol socket options (see include/netinet/ip.h) */
+      case IPPROTO_IPV6: /* TCP protocol socket options (see include/netinet/ip6.h) */
+      case IPPROTO_UDP:  /* TCP protocol socket options (see include/netinit/udp.h) */
+      default:           /* The provided level is invalid */
+        ret = -ENOPROTOOPT;
        break;
     }
+
+#ifdef CONFIG_NET_USRSOCK
+  /* Try usrsock further if the protocol not available */
+
+  if (ret == -ENOPROTOOPT && psock->s_type == SOCK_USRSOCK_TYPE)
+    {
+      ret = usrsock_getsockopt(psock->s_conn, level,
+                               option, value, value_len);
+    }
+#endif
 
   return ret;
 }
@@ -379,7 +389,7 @@ int psock_getsockopt(FAR struct socket *psock, int level, int option,
  *   The 'level' argument specifies the protocol level of the option. To
  *   retrieve options at the socket level, specify the level argument as
  *   SOL_SOCKET; to retrieve options at the TCP-protocol level, the level
- *   argument is SOL_CP.
+ *   argument is SOL_TCP.
  *
  *   See <sys/socket.h> a complete list of values for the socket-level
  *   'option' argument.  Protocol-specific options are are protocol specific
@@ -411,7 +421,8 @@ int psock_getsockopt(FAR struct socket *psock, int level, int option,
  *
  ****************************************************************************/
 
-int getsockopt(int sockfd, int level, int option, void *value, socklen_t *value_len)
+int getsockopt(int sockfd, int level, int option,
+               void *value, socklen_t *value_len)
 {
   FAR struct socket *psock;
   int ret;

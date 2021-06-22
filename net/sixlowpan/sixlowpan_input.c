@@ -265,8 +265,8 @@ static uint16_t sixlowpan_uncompress_ipv6proto(FAR uint8_t *fptr,
  *     INPUT_PARTIAL  Frame processed successful, packet incomplete
  *     INPUT_COMPLETE Frame processed successful, packet complete
  *
- *   Othewise a negated errno value is returned to indicate the nature of the
- *   failure.
+ *   Otherwise a negated errno value is returned to indicate the nature of
+ *   the failure.
  *
  * Assumptions:
  *   Network is locked
@@ -274,7 +274,8 @@ static uint16_t sixlowpan_uncompress_ipv6proto(FAR uint8_t *fptr,
  ****************************************************************************/
 
 static int sixlowpan_frame_process(FAR struct radio_driver_s *radio,
-                                   FAR const void *metadata, FAR struct iob_s *iob)
+                                   FAR const void *metadata,
+                                   FAR struct iob_s *iob)
 {
   FAR struct sixlowpan_reassbuf_s *reass;
   struct netdev_varaddr_s fragsrc;
@@ -288,7 +289,7 @@ static int sixlowpan_frame_process(FAR struct radio_driver_s *radio,
   uint8_t fragoffset = 0;     /* Offset of the fragment in the IP packet */
   uint8_t protosize  = 0;     /* Length of the protocol header (treated like payload) */
   bool isfrag        = false; /* true: Frame is a fragment */
-  bool isfrag1       = false; /* true: Frame is the first fragement of the series */
+  bool isfrag1       = false; /* true: Frame is the first fragment of the series */
   int reqsize;                /* Required buffer size */
   int hdrsize;                /* Size of the IEEE802.15.4 header */
   int ret;
@@ -311,7 +312,7 @@ static int sixlowpan_frame_process(FAR struct radio_driver_s *radio,
 
   /* Since we don't support the mesh and broadcast header, the first header
    * we look for is the fragmentation header.  NOTE that g_frame_hdrlen
-   * already includes the fragementation header, if presetn.
+   * already includes the fragmentation header, if presetn.
    */
 
   fragptr = fptr + hdrsize;
@@ -323,8 +324,8 @@ static int sixlowpan_frame_process(FAR struct radio_driver_s *radio,
       {
         /* Set up for the reassembly */
 
-        fragsize        = GETUINT16(fragptr, SIXLOWPAN_FRAG_DISPATCH_SIZE) & 0x07ff;
-        fragtag         = GETUINT16(fragptr, SIXLOWPAN_FRAG_TAG);
+        fragsize = GETUINT16(fragptr, SIXLOWPAN_FRAG_DISPATCH_SIZE) & 0x07ff;
+        fragtag  = GETUINT16(fragptr, SIXLOWPAN_FRAG_TAG);
         g_frame_hdrlen += SIXLOWPAN_FRAG1_HDR_LEN;
 
         ninfo("FRAG1: fragsize=%d fragtag=%d fragoffset=%d\n",
@@ -381,9 +382,9 @@ static int sixlowpan_frame_process(FAR struct radio_driver_s *radio,
       {
         /* Get offset, tag, size.  Offset is in units of 8 bytes. */
 
-        fragoffset      = fragptr[SIXLOWPAN_FRAG_OFFSET];
-        fragtag         = GETUINT16(fragptr, SIXLOWPAN_FRAG_TAG);
-        fragsize        = GETUINT16(fragptr, SIXLOWPAN_FRAG_DISPATCH_SIZE) & 0x07ff;
+        fragoffset = fragptr[SIXLOWPAN_FRAG_OFFSET];
+        fragtag  = GETUINT16(fragptr, SIXLOWPAN_FRAG_TAG);
+        fragsize = GETUINT16(fragptr, SIXLOWPAN_FRAG_DISPATCH_SIZE) & 0x07ff;
         g_frame_hdrlen += SIXLOWPAN_FRAGN_HDR_LEN;
 
         /* Extract the source address from the 'metadata'. */
@@ -395,7 +396,9 @@ static int sixlowpan_frame_process(FAR struct radio_driver_s *radio,
             return ret;
           }
 
-        /* Find the existing reassembly buffer with the same tag and source address */
+        /* Find the existing reassembly buffer
+         * with the same tag and source address
+         */
 
         reass = sixlowpan_reass_find(fragtag, &fragsrc);
         if (reass == NULL)
@@ -409,7 +412,7 @@ static int sixlowpan_frame_process(FAR struct radio_driver_s *radio,
         {
           /* The packet is a fragment but its size does not match. */
 
-          nwarn("WARNING: Dropping 6LoWPAN packet.  Bad fragsize: %u vs &u\n",
+          nwarn("WARNING: Dropping 6LoWPAN packet. Bad fragsize: %u vs %u\n",
                 fragsize, reass->rb_pktlen);
           ret = -EPERM;
           goto errout_with_reass;
@@ -453,7 +456,8 @@ static int sixlowpan_frame_process(FAR struct radio_driver_s *radio,
       SIXLOWPAN_DISPATCH_IPHC)
     {
       ninfo("IPHC Dispatch\n");
-      sixlowpan_uncompresshdr_hc06(radio, metadata, fragsize, iob, fptr, bptr);
+      sixlowpan_uncompresshdr_hc06(radio, metadata,
+                                   fragsize, iob, fptr, bptr);
     }
   else
 #endif /* CONFIG_NET_6LOWPAN_COMPRESSION_HC06 */
@@ -462,7 +466,8 @@ static int sixlowpan_frame_process(FAR struct radio_driver_s *radio,
   if (hc1[SIXLOWPAN_HC1_DISPATCH] == SIXLOWPAN_DISPATCH_HC1)
     {
       ninfo("HC1 Dispatch\n");
-      sixlowpan_uncompresshdr_hc1(radio, metadata, fragsize, iob, fptr, bptr);
+      sixlowpan_uncompresshdr_hc1(radio, metadata,
+                                  fragsize, iob, fptr, bptr);
     }
   else
 #endif /* CONFIG_NET_6LOWPAN_COMPRESSION_HC1 */
@@ -525,7 +530,7 @@ static int sixlowpan_frame_process(FAR struct radio_driver_s *radio,
   paysize = iob->io_len - g_frame_hdrlen;
   if (paysize > CONFIG_NET_6LOWPAN_PKTSIZE)
     {
-      nwarn("WARNING: Packet dropped due to payload (%u) > packet buffer (%u)\n",
+      nwarn("Packet dropped due to payload (%u) > packet buffer (%u)\n",
             paysize, CONFIG_NET_6LOWPAN_PKTSIZE);
       ret = -ENOSPC;
       goto errout_with_reass;
@@ -597,7 +602,8 @@ errout_with_reass:
  * Name: sixlowpan_dispatch
  *
  * Description:
- *   Inject the packet in d_buf into the network for normal packet processing.
+ *   Inject the packet in d_buf into the network for normal packet
+ *   processing.
  *
  * Input Parameters:
  *   radio - The IEEE802.15.4 MAC network driver interface.
@@ -617,7 +623,7 @@ static int sixlowpan_dispatch(FAR struct radio_driver_s *radio)
                        radio->r_dev.d_len);
 
 #ifdef CONFIG_NET_PKT
-  /* When packet sockets are enabled, feed the frame into the packet tap */
+  /* When packet sockets are enabled, feed the frame into the tap */
 
   ninfo("Packet tap\n");
   pkt_input(&radio->r_dev);
@@ -669,15 +675,16 @@ static int sixlowpan_dispatch(FAR struct radio_driver_s *radio)
  *   - The io_flink field points to the next frame in the list (if enable)
  *   - The last frame in the list will have io_flink == NULL.
  *
- *   An non-NULL d_buf of size CONFIG_NET_6LOWPAN_PKTSIZE + CONFIG_NET_GUARDSIZE
- *   must also be provided.  The frame will be decompressed and placed in
- *   the d_buf. Fragmented packets will also be reassembled in the d_buf as
- *   they are received (meaning for the driver, that two packet buffers are
- *   required:  One for reassembly of RX packets and one used for TX polling).
+ *   An non-NULL d_buf of size CONFIG_NET_6LOWPAN_PKTSIZE +
+ *   CONFIG_NET_GUARDSIZE must also be provided. The frame will be
+ *   decompressed and placed in the d_buf. Fragmented packets will also be
+ *   reassembled in the d_buf as they are received (meaning for the driver,
+ *   that two packet buffers are required: One for reassembly of RX packets
+ *   and one used for TX polling).
  *
  *   After each frame is processed into d_buf, the IOB is deallocated.  If
  *   reassembly is incomplete, the partially reassembled packet must be
- *   preserved by the radio network drvier and provided again when the next
+ *   preserved by the radio network driver and provided again when the next
  *   frame is received.
  *
  *   When the packet in the d_buf is fully reassembled, it will be provided
@@ -710,7 +717,7 @@ static int sixlowpan_dispatch(FAR struct radio_driver_s *radio)
  *               must apply to all of the frames in the list.
  *
  * Returned Value:
- *   Zero (OK) is returned if the the frame was consumed; Othewise a negated
+ *   Zero (OK) is returned if the the frame was consumed; Otherwise a negated
  *   errno value is returned.
  *
  ****************************************************************************/
@@ -723,8 +730,9 @@ int sixlowpan_input(FAR struct radio_driver_s *radio,
 
   DEBUGASSERT(radio != NULL && framelist != NULL);
 
-  /* Sixlowpan modifies the d_buf to process fragments using reassembly buffers.
-   * Save the value of d_buf on entry and set it back before returning
+  /* Sixlowpan modifies the d_buf to process fragments using reassembly
+   * buffers. Save the value of d_buf on entry and set it back before
+   * returning
    */
 
   d_buf_backup = radio->r_dev.d_buf;
@@ -796,7 +804,8 @@ int sixlowpan_input(FAR struct radio_driver_s *radio,
                                               &destmac);
                   if (ret < 0)
                     {
-                      nerr("ERROR: Failed to get dest MAC address: %d\n", ret);
+                      nerr("ERROR: Failed to get dest MAC address: %d\n",
+                           ret);
                       goto drop;
                     }
 
@@ -812,8 +821,9 @@ int sixlowpan_input(FAR struct radio_driver_s *radio,
                           FAR struct tcp_hdr_s *tcp = TCPBUF(&radio->r_dev);
                           uint16_t tcplen;
 
-                          /* The TCP header length is encoded in the top 4 bits
-                           * of the tcpoffset field (in units of 32-bit words).
+                          /* The TCP header length is encoded in the top 4
+                           * bits of the tcpoffset field (in units of 32-bit
+                           * words).
                            */
 
                           tcplen = ((uint16_t)tcp->tcpoffset >> 4) << 2;
@@ -837,7 +847,7 @@ int sixlowpan_input(FAR struct radio_driver_s *radio,
 #endif
                       default:
                         {
-                          nwarn("WARNING: Unsupported protoype: %u\n",
+                          nwarn("WARNING: Unsupported prototype: %u\n",
                                 ipv6hdr->proto);
                           goto drop;
                         }
@@ -845,7 +855,7 @@ int sixlowpan_input(FAR struct radio_driver_s *radio,
 
                   if (hdrlen > radio->r_dev.d_len)
                     {
-                      nwarn("WARNING: Packet too small: Have %u need >%u\n",
+                      nwarn("WARNING: Packet too small: Have %u need >%zu\n",
                             radio->r_dev.d_len, hdrlen);
                       goto drop;
                     }
@@ -855,8 +865,8 @@ int sixlowpan_input(FAR struct radio_driver_s *radio,
                   buffer = radio->r_dev.d_buf + hdrlen;
                   buflen = radio->r_dev.d_len - hdrlen;
 
-                  ret = sixlowpan_queue_frames(radio, ipv6hdr, buffer, buflen,
-                                               &destmac);
+                  ret = sixlowpan_queue_frames(radio, ipv6hdr, buffer,
+                                               buflen, &destmac);
 drop:
                   radio->r_dev.d_len = 0;
 

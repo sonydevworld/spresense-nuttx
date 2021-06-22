@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/xtensa/src/esp32/esp32_irq.c
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -49,13 +34,24 @@
 #include "xtensa.h"
 #include "esp32_cpuint.h"
 #include "esp32_smp.h"
+#include "esp32_gpio.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Interrupt stack definitions for SMP */
+
+#if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 15
+#  define INTSTACK_ALLOC (CONFIG_SMP_NCPUS * INTSTACK_SIZE)
+#endif
 
 /****************************************************************************
  * Public Data
  ****************************************************************************/
 
-/* g_current_regs[] holds a references to the current interrupt level
- * register storage structure.  If is non-NULL only during interrupt
+/* g_current_regs[] holds a reference to the current interrupt level
+ * register storage structure.  It is non-NULL only during interrupt
  * processing.  Access to g_current_regs[] must be through the macro
  * CURRENT_REGS for portability.
  */
@@ -72,6 +68,24 @@ volatile uint32_t *g_current_regs[CONFIG_SMP_NCPUS];
 volatile uint32_t *g_current_regs[1];
 
 #endif
+
+#if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 15
+/* In the SMP configuration, we will need custom interrupt stacks.
+ * These definitions provide the aligned stack allocations.
+ */
+
+static uint32_t g_intstackalloc[INTSTACK_ALLOC >> 2];
+
+/* These definitions provide the "top" of the push-down stacks. */
+
+uintptr_t g_cpu_intstack_top[CONFIG_SMP_NCPUS] =
+{
+  (uintptr_t)g_intstackalloc + INTSTACK_SIZE,
+#if CONFIG_SMP_NCPUS > 1
+  (uintptr_t)g_intstackalloc + (2 * INTSTACK_SIZE),
+#endif /* CONFIG_SMP_NCPUS > 1 */
+};
+#endif /* defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 15 */
 
 /****************************************************************************
  * Private Functions
@@ -132,22 +146,16 @@ static inline void xtensa_attach_fromcpu1_interrupt(void)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: xtensa_irq_initialize
+ * Name: up_irqinitialize
  ****************************************************************************/
 
-void xtensa_irq_initialize(void)
+void up_irqinitialize(void)
 {
   /* Initialize CPU interrupts */
 
   esp32_cpuint_initialize();
 
-#if defined(CONFIG_STACK_COLORATION) && defined(HAVE_INTERRUPTSTACK)
-  /* Colorize the interrupt stack for debug purposes */
-
-#warning Missing logic
-#endif
-
-  /* Attach and emable internal interrupts */
+  /* Attach and enable internal interrupts */
 
 #ifdef CONFIG_SMP
   /* Attach and enable the inter-CPU interrupt */
@@ -169,3 +177,33 @@ void xtensa_irq_initialize(void)
   up_irq_enable();
 #endif
 }
+
+/****************************************************************************
+ * Name: xtensa_intstack_base
+ *
+ * Description:
+ *   Return a pointer to the "base" of the correct interrupt stack for the
+ *   given CPU.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 15
+uintptr_t xtensa_intstack_base(void)
+{
+  return g_cpu_intstack_top[up_cpu_index()];
+}
+
+/****************************************************************************
+ * Name: xtensa_intstack_alloc
+ *
+ * Description:
+ *   Return a pointer to the "alloc" the correct interrupt stack allocation
+ *   for the current CPU.
+ *
+ ****************************************************************************/
+
+uintptr_t xtensa_intstack_alloc(void)
+{
+  return g_cpu_intstack_top[up_cpu_index()] - INTSTACK_SIZE;
+}
+#endif

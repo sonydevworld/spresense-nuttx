@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/stm32/mikroe_stm32f4/src/stm32_idle.c
+ * boards/arm/stm32/mikroe-stm32f4/src/stm32_idle.c
  *
  *   Copyright (C) 2012-2013, 2016 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
@@ -51,7 +51,7 @@
 
 #include <nuttx/irq.h>
 
-#include "up_internal.h"
+#include "arm_internal.h"
 #include "stm32_pm.h"
 #include "stm32_rcc.h"
 #include "stm32_exti.h"
@@ -61,7 +61,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* Does the board support an IDLE LED to indicate that the board is in the
  * IDLE state?
  */
@@ -276,4 +278,3 @@ void up_idle(void)
   END_IDLE();
 #endif
 }
-

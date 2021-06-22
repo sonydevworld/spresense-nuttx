@@ -36,7 +36,7 @@
 ############################################################################
 
 include $(TOPDIR)/Make.defs
-include chip/Make.defs
+-include chip/Make.defs
 
 ifeq ($(CONFIG_ARCH_RV32I),y)           # Base Integer support
 ARCH_SUBDIR = rv32i
@@ -48,32 +48,28 @@ else
 ARCH_SUBDIR = rv32i                     # Default to base RV32I core
 endif
 
-CPPFLAGS += $(EXTRADEFINES)
-CFLAGS += $(EXTRADEFINES)
-CXXFLAGS += $(EXTRADEFINES)
+ARCH_SRCDIR = $(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src
 
-ifeq ($(CONFIG_WINDOWS_NATIVE),y)
-  ARCH_SRCDIR = $(TOPDIR)\arch\$(CONFIG_ARCH)\src
-  NUTTX = "$(TOPDIR)\nuttx$(EXEEXT)"
-  CFLAGS += -I$(ARCH_SRCDIR)\chip
-  CFLAGS += -I$(ARCH_SRCDIR)\common
-  CFLAGS += -I$(ARCH_SRCDIR)\$(ARCH_SUBDIR)
-  CFLAGS += -I$(TOPDIR)\sched
+INCLUDES += ${shell $(INCDIR) "$(CC)" $(ARCH_SRCDIR)$(DELIM)chip}
+INCLUDES += ${shell $(INCDIR) "$(CC)" $(ARCH_SRCDIR)$(DELIM)common}
+INCLUDES += ${shell $(INCDIR) "$(CC)" $(ARCH_SRCDIR)$(DELIM)$(ARCH_SUBDIR)}
+INCLUDES += ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)sched}
+
+CPPFLAGS += $(INCLUDES)
+CFLAGS += $(INCLUDES)
+CXXFLAGS += $(INCLUDES)
+AFLAGS += $(INCLUDES)
+
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
+  NUTTX = "${shell cygpath -w $(TOPDIR)$(DELIM)nuttx$(EXEEXT)}"
 else
-  ARCH_SRCDIR = $(TOPDIR)/arch/$(CONFIG_ARCH)/src
-ifeq ($(WINTOOL),y)
-  NUTTX = "${shell cygpath -w $(TOPDIR)/nuttx$(EXEEXT)}"
-  CFLAGS += -I "${shell cygpath -w $(ARCH_SRCDIR)/chip}"
-  CFLAGS += -I "${shell cygpath -w $(ARCH_SRCDIR)/common}"
-  CFLAGS += -I "${shell cygpath -w $(ARCH_SRCDIR)/$(ARCH_SUBDIR)}"
-  CFLAGS += -I "${shell cygpath -w $(TOPDIR)/sched}"
-else
-  NUTTX = "$(TOPDIR)/nuttx$(EXEEXT)"
-  CFLAGS += -I$(ARCH_SRCDIR)/chip
-  CFLAGS += -I$(ARCH_SRCDIR)/common
-  CFLAGS += -I$(ARCH_SRCDIR)/$(ARCH_SUBDIR)
-  CFLAGS += -I$(TOPDIR)/sched
+  NUTTX = "$(TOPDIR)$(DELIM)nuttx$(EXEEXT)"
 endif
+
+# Additional rules for system call wrapper
+
+ifeq ($(CONFIG_SCHED_INSTRUMENTATION_SYSCALL),y)
+  EXTRALINKCMDS += @$(TOPDIR)/syscall/syscall_wraps.ldcmd
 endif
 
 # The "head" object
@@ -104,48 +100,33 @@ USRCS = $(UASRCS) $(UCSRCS)
 UOBJS = $(UAOBJS) $(UCOBJS)
 
 KBIN = libkarch$(LIBEXT)
-UBIN = libuarch$(LIBEXT)
 BIN  = libarch$(LIBEXT)
 
-LDFLAGS += $(ARCHSCRIPT)
+LDFLAGS += $(ARCHSCRIPT) $(EXTRALINKCMDS)
 
-EXTRA_LIBS ?=
-EXTRA_LIBPATHS ?=
-LINKLIBS ?=
+LDSTARTGROUP ?= --start-group
+LDENDGROUP ?= --end-group
 
-AFLAGS += -I$(TOPDIR)/include
+BOARDMAKE = $(if $(wildcard board$(DELIM)Makefile),y,)
 
-ifeq ($(CONFIG_WINDOWS_NATIVE),y)
-  BOARDMAKE = $(if $(wildcard .\board\Makefile),y,)
-  LIBPATHS += -L"$(TOPDIR)\staging"
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
+  LIBPATHS += -L"${shell cygpath -w "$(TOPDIR)$(DELIM)staging"}"
 ifeq ($(BOARDMAKE),y)
-  LIBPATHS += -L"$(TOPDIR)\arch\$(CONFIG_ARCH)\src\board"
+  LIBPATHS += -L"${shell cygpath -w "$(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)board"}"
 endif
 
 else
-  BOARDMAKE = $(if $(wildcard ./board/Makefile),y,)
-
-ifeq ($(WINTOOL),y)
-  LIBPATHS += -L"${shell cygpath -w "$(TOPDIR)/staging"}"
+  LIBPATHS += -L"$(TOPDIR)$(DELIM)staging"
 ifeq ($(BOARDMAKE),y)
-  LIBPATHS += -L"${shell cygpath -w "$(TOPDIR)/arch/$(CONFIG_ARCH)/src/board"}"
+  LIBPATHS += -L"$(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)board"
 endif
 
-else
-  LIBPATHS += -L"$(TOPDIR)/staging"
-ifeq ($(BOARDMAKE),y)
-  LIBPATHS += -L"$(TOPDIR)/arch/$(CONFIG_ARCH)/src/board"
-endif
-endif
 endif
 
 LDLIBS = $(patsubst %.a,%,$(patsubst lib%,-l%,$(LINKLIBS)))
 ifeq ($(BOARDMAKE),y)
   LDLIBS += -lboard
 endif
-
-LIBGCC = "${shell "$(CC)" $(ARCHCPUFLAGS) -print-libgcc-file-name}"
-GCC_LIBDIR := ${shell dirname $(LIBGCC)}
 
 VPATH += chip
 VPATH += common
@@ -162,21 +143,25 @@ $(AOBJS) $(UAOBJS) $(HEAD_OBJ): %$(OBJEXT): %.S
 $(COBJS) $(UCOBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
-$(BIN) $(KBIN): $(OBJS)
+ifeq ($(CONFIG_BUILD_FLAT),y)
+$(BIN): $(OBJS)
 	$(call ARCHIVE, $@, $(OBJS))
-	@$(MAKE) depend
-
-$(UBIN): $(UOBJS)
+else
+$(BIN): $(UOBJS)
 	$(call ARCHIVE, $@, $(UOBJS))
+endif
+
+$(KBIN): $(OBJS)
+	$(call ARCHIVE, $@, $(OBJS))
 
 board/libboard$(LIBEXT):
-	$(Q) $(MAKE) -C board TOPDIR="$(TOPDIR)" libboard$(LIBEXT) EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C board libboard$(LIBEXT) EXTRAFLAGS="$(EXTRAFLAGS)"
 
 nuttx$(EXEEXT): $(HEAD_OBJ) board/libboard$(LIBEXT)
 	$(Q) echo "LD: nuttx"
 	$(Q) $(LD) --entry=__start $(LDFLAGS) $(LIBPATHS) $(EXTRA_LIBPATHS) \
 		-o $(NUTTX) $(HEAD_OBJ) $(EXTRA_OBJS) \
-		--start-group $(LDLIBS) $(EXTRA_LIBS) $(LIBGCC) --end-group
+		$(LDSTARTGROUP) $(LDLIBS) $(EXTRA_LIBS) $(LDENDGROUP)
 ifneq ($(CONFIG_WINDOWS_NATIVE),y)
 	$(Q) $(NM) $(NUTTX) | \
 	grep -v '\(compiled\)\|\(\$(OBJEXT)$$\)\|\( [aUw] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)' | \
@@ -199,29 +184,35 @@ endif
 
 # Dependencies
 
+makedepfile: $(CSRCS:.c=.ddc) $(ASRCS:.S=.dds) $(HEAD_ASRC:.S=.dds)
+	$(call CATFILE, Make.dep, $^)
+	$(call DELFILE, $^)
+
 .depend: Makefile $(SRCS) $(TOPDIR)$(DELIM).config
 ifeq ($(BOARDMAKE),y)
-	$(Q) $(MAKE) -C board TOPDIR="$(TOPDIR)" depend
+	$(Q) $(MAKE) -C board depend
 endif
-	$(Q) $(MKDEP) $(patsubst %,--dep-path %,$(subst :, ,$(VPATH))) \
-	 "$(CC)" -- $(CFLAGS) -- $(SRCS) > Make.dep
+	$(Q) $(MAKE) makedepfile DEPPATH="$(patsubst %,--dep-path %,$(subst :, ,$(VPATH)))"
 	$(Q) touch $@
 
 depend: .depend
 
+context::
+
+clean_context::
+
 clean:
 ifeq ($(BOARDMAKE),y)
-	$(Q) $(MAKE) -C board TOPDIR="$(TOPDIR)" clean
+	$(Q) $(MAKE) -C board clean
 endif
 	$(call DELFILE, $(KBIN))
-	$(call DELFILE, $(UBIN))
 	$(call DELFILE, $(BIN))
 	$(call DELFILE, $(HEAD_OBJ))
 	$(call CLEAN)
 
 distclean: clean
 ifeq ($(BOARDMAKE),y)
-	$(Q) $(MAKE) -C board TOPDIR="$(TOPDIR)" distclean
+	$(Q) $(MAKE) -C board distclean
 endif
 	$(call DELFILE, Make.dep)
 	$(call DELFILE, .depend)

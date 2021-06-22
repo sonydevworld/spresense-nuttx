@@ -1,36 +1,20 @@
 /****************************************************************************
  * arch/sim/src/sim/up_head.c
  *
- *   Copyright (C) 2007-2009, 2011-2013, 2016 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,16 +24,15 @@
 
 #include <nuttx/config.h>
 
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <setjmp.h>
+#include <syslog.h>
 #include <assert.h>
 
 #include <nuttx/init.h>
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
-#include <nuttx/power/pm.h>
 #include <nuttx/syslog/syslog_rpmsg.h>
 
 #include "up_internal.h"
@@ -83,13 +66,7 @@ int main(int argc, char **argv, char **envp)
   syslog_rpmsg_init_early("server", g_logbuffer, sizeof(g_logbuffer));
 #endif
 
-#ifdef CONFIG_SMP
-  /* In the SMP case, configure the main thread as CPU 0 */
-
-  sim_cpu0_initialize();
-#endif
-
-  /* Then start NuttX */
+  /* Start NuttX */
 
   if (setjmp(g_simabort) == 0)
     {
@@ -97,52 +74,30 @@ int main(int argc, char **argv, char **envp)
       /* Start the CPU0 emulation.  This should not return. */
 
       sim_cpu0_start();
-#else
-      /* Start the Nuttx emulation.  This should not return. */
+#endif
+      /* Start the NuttX emulation.  This should not return. */
 
       nx_start();
-#endif
     }
-
-#ifdef USE_DEVCONSOLE
-  /* Restore the original terminal mode and return the exit code */
-
-  simuart_terminate();
-#endif
 
   return g_exitcode;
 }
 
 /****************************************************************************
- * Name: up_assert
+ * Name: host_abort
  *
  * Description:
- *   Called to terminate the simulation abnormally in the event of a failed
- *   assertion.
+ *   Abort the simulation
  *
+ * Input Parameters:
+ *   status - Exit status to set
  ****************************************************************************/
 
-void up_assert(const uint8_t *filename, int line)
+void host_abort(int status)
 {
-  /* Show the location of the failed assertion */
+  /* Save the return code and exit the simulation */
 
-#ifdef CONFIG_SMP
-  fprintf(stderr, "CPU%d: Assertion failed at file:%s line: %d\n",
-          up_cpu_index(), filename, line);
-#else
-  fprintf(stderr, "Assertion failed at file:%s line: %d\n",
-          filename, line);
-#endif
-
-  /* Allow for any board/configuration specific crash information */
-
-#ifdef CONFIG_BOARD_CRASHDUMP
-  board_crashdump(up_getsp(), this_task(), filename, line);
-#endif
-
-  /* Exit the simulation */
-
-  g_exitcode = EXIT_FAILURE;
+  g_exitcode = status;
   longjmp(g_simabort, 1);
 }
 
@@ -166,9 +121,12 @@ void up_assert(const uint8_t *filename, int line)
 #ifdef CONFIG_BOARDCTL_POWEROFF
 int board_power_off(int status)
 {
-  /* Save the return code and exit the simulation */
+  /* Abort simulator */
 
-  g_exitcode = status;
-  longjmp(g_simabort, 1);
+  host_abort(status);
+
+  /* Does not really return */
+
+  return 0;
 }
 #endif

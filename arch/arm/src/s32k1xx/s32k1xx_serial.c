@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/s32k1xx/s32k1xx_serial.c
  *
- *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
- *   Author:  Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -61,8 +46,8 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "hardware/s32k1xx_lpuart.h"
 #include "hardware/s32k1xx_pinmux.h"
@@ -154,29 +139,29 @@
 
 struct s32k1xx_uart_s
 {
-  uint32_t uartbase;    /* Base address of UART registers */
-  uint32_t baud;        /* Configured baud */
-  uint32_t ie;          /* Saved enabled interrupts */
-  uint8_t  irq;         /* IRQ associated with this UART */
-  uint8_t  parity;      /* 0=none, 1=odd, 2=even */
-  uint8_t  bits;        /* Number of bits (7 or 8) */
+  uint32_t uartbase;        /* Base address of UART registers */
+  uint32_t baud;            /* Configured baud */
+  uint32_t ie;              /* Saved enabled interrupts */
+  uint8_t  irq;             /* IRQ associated with this UART */
+  uint8_t  parity;          /* 0=none, 1=odd, 2=even */
+  uint8_t  bits;            /* Number of bits (7 or 8) */
 #if defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL)
-  uint8_t  inviflow:1;  /* Invert RTS sense */
+  uint8_t  inviflow:1;      /* Invert RTS sense */
   const uint32_t rts_gpio;  /* U[S]ART RTS GPIO pin configuration */
 #endif
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
   const uint32_t cts_gpio;  /* U[S]ART CTS GPIO pin configuration */
 #endif
 
-  uint8_t  stopbits2:1; /* 1: Configure with 2 stop bits vs 1 */
+  uint8_t  stopbits2:1;     /* 1: Configure with 2 stop bits vs 1 */
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
-  uint8_t  iflow:1;     /* input flow control (RTS) enabled */
+  uint8_t  iflow:1;         /* input flow control (RTS) enabled */
 #endif
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
-  uint8_t  oflow:1;     /* output flow control (CTS) enabled */
+  uint8_t  oflow:1;         /* output flow control (CTS) enabled */
 #endif
 #ifdef CONFIG_SERIAL_RS485CONTROL
-  uint8_t rs485mode:1;  /* We are in RS485 (RTS on TX) mode */
+  uint8_t rs485mode:1;      /* We are in RS485 (RTS on TX) mode */
 #endif
 };
 
@@ -199,7 +184,7 @@ static int  s32k1xx_attach(struct uart_dev_s *dev);
 static void s32k1xx_detach(struct uart_dev_s *dev);
 static int  s32k1xx_interrupt(int irq, void *context, FAR void *arg);
 static int  s32k1xx_ioctl(struct file *filep, int cmd, unsigned long arg);
-static int  s32k1xx_receive(struct uart_dev_s *dev, uint32_t *status);
+static int  s32k1xx_receive(struct uart_dev_s *dev, unsigned int *status);
 static void s32k1xx_rxint(struct uart_dev_s *dev, bool enable);
 static bool s32k1xx_rxavailable(struct uart_dev_s *dev);
 static void s32k1xx_send(struct uart_dev_s *dev, int ch);
@@ -340,18 +325,18 @@ static struct s32k1xx_uart_s g_uart1priv =
 
 static struct uart_dev_s g_uart1port =
 {
-  .recv         =
-  {
-    .size       = CONFIG_LPUART1_RXBUFSIZE,
-    .buffer     = g_uart1rxbuffer,
-  },
-  .xmit         =
-  {
-    .size       = CONFIG_LPUART1_TXBUFSIZE,
-    .buffer     = g_uart1txbuffer,
-   },
-  .ops          = &g_uart_ops,
-  .priv         = &g_uart1priv,
+  .recv           =
+    {
+      .size       = CONFIG_LPUART1_RXBUFSIZE,
+      .buffer     = g_uart1rxbuffer,
+    },
+  .xmit           =
+    {
+      .size       = CONFIG_LPUART1_TXBUFSIZE,
+      .buffer     = g_uart1txbuffer,
+    },
+  .ops            = &g_uart_ops,
+  .priv           = &g_uart1priv,
 };
 #endif
 
@@ -387,18 +372,18 @@ static struct s32k1xx_uart_s g_uart2priv =
 
 static struct uart_dev_s g_uart2port =
 {
-  .recv         =
-  {
-    .size       = CONFIG_LPUART2_RXBUFSIZE,
-    .buffer     = g_uart2rxbuffer,
-  },
-  .xmit         =
-  {
-    .size       = CONFIG_LPUART2_TXBUFSIZE,
-    .buffer     = g_uart2txbuffer,
-  },
-  .ops          = &g_uart_ops,
-  .priv         = &g_uart2priv,
+  .recv           =
+    {
+      .size       = CONFIG_LPUART2_RXBUFSIZE,
+      .buffer     = g_uart2rxbuffer,
+    },
+  .xmit           =
+    {
+      .size       = CONFIG_LPUART2_TXBUFSIZE,
+      .buffer     = g_uart2txbuffer,
+    },
+  .ops            = &g_uart_ops,
+  .priv           = &g_uart2priv,
 };
 #endif
 
@@ -428,8 +413,8 @@ static inline uint32_t s32k1xx_serialin(struct s32k1xx_uart_s *priv,
  * Name: s32k1xx_serialout
  ****************************************************************************/
 
-static inline void s32k1xx_serialout(struct s32k1xx_uart_s *priv, uint32_t offset,
-                                   uint32_t value)
+static inline void s32k1xx_serialout(struct s32k1xx_uart_s *priv,
+                                     uint32_t offset, uint32_t value)
 {
   putreg32(value, priv->uartbase + offset);
 }
@@ -439,12 +424,12 @@ static inline void s32k1xx_serialout(struct s32k1xx_uart_s *priv, uint32_t offse
  ****************************************************************************/
 
 static inline void s32k1xx_disableuartint(struct s32k1xx_uart_s *priv,
-                                        uint32_t *ie)
+                                          uint32_t *ie)
 {
   irqstate_t flags;
   uint32_t regval;
 
-  flags  = spin_lock_irqsave();
+  flags  = spin_lock_irqsave(NULL);
   regval = s32k1xx_serialin(priv, S32K1XX_LPUART_CTRL_OFFSET);
 
   /* Return the current Rx and Tx interrupt state */
@@ -456,7 +441,7 @@ static inline void s32k1xx_disableuartint(struct s32k1xx_uart_s *priv,
 
   regval &= ~LPUART_ALL_INTS;
   s32k1xx_serialout(priv, S32K1XX_LPUART_CTRL_OFFSET, regval);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -473,12 +458,12 @@ static inline void s32k1xx_restoreuartint(struct s32k1xx_uart_s *priv,
    * enabled/disabled.
    */
 
-  flags   = spin_lock_irqsave();
+  flags   = spin_lock_irqsave(NULL);
   regval  = s32k1xx_serialin(priv, S32K1XX_LPUART_CTRL_OFFSET);
   regval &= ~LPUART_ALL_INTS;
   regval |= ie;
   s32k1xx_serialout(priv, S32K1XX_LPUART_CTRL_OFFSET, regval);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -496,9 +481,10 @@ static int s32k1xx_setup(struct uart_dev_s *dev)
   struct s32k1xx_uart_s *priv = (struct s32k1xx_uart_s *)dev->priv;
 #ifndef CONFIG_SUPPRESS_LPUART_CONFIG
   struct uart_config_s config =
-  {
-    0
-  };
+    {
+      0
+    };
+
   int ret;
 
   /* Configure the UART */
@@ -522,11 +508,13 @@ static int s32k1xx_setup(struct uart_dev_s *dev)
 
   ret = s32k1xx_lpuart_configure(priv->uartbase, &config);
 
-  priv->ie = s32k1xx_serialin(priv, S32K1XX_LPUART_CTRL_OFFSET) & LPUART_ALL_INTS;
+  priv->ie = s32k1xx_serialin(priv, S32K1XX_LPUART_CTRL_OFFSET) & \
+             LPUART_ALL_INTS;
   return ret;
 
 #else
-  priv->ie = s32k1xx_serialin(priv, S32K1XX_LPUART_CTRL_OFFSET) & LPUART_ALL_INTS;
+  priv->ie = s32k1xx_serialin(priv, S32K1XX_LPUART_CTRL_OFFSET) & \
+             LPUART_ALL_INTS;
   return OK;
 #endif
 }
@@ -651,12 +639,14 @@ static int s32k1xx_interrupt(int irq, void *context, FAR void *arg)
 
       if ((usr & LPUART_STAT_OR) != 0)
         {
-          s32k1xx_serialout(priv, S32K1XX_LPUART_STAT_OFFSET, LPUART_STAT_OR);
+          s32k1xx_serialout(priv, S32K1XX_LPUART_STAT_OFFSET,
+                            LPUART_STAT_OR);
         }
 
       if ((usr & LPUART_STAT_FE) != 0)
         {
-          s32k1xx_serialout(priv, S32K1XX_LPUART_STAT_OFFSET, LPUART_STAT_FE);
+          s32k1xx_serialout(priv, S32K1XX_LPUART_STAT_OFFSET,
+                            LPUART_STAT_FE);
         }
 
       /* Handle incoming, receive bytes */
@@ -727,10 +717,6 @@ static int s32k1xx_ioctl(struct file *filep, int cmd, unsigned long arg)
             break;
           }
 
-        /* Return baud */
-
-        cfsetispeed(termiosp, priv->baud);
-
         /* Return parity */
 
         termiosp->c_cflag = ((priv->parity != 0) ? PARENB : 0) |
@@ -748,6 +734,10 @@ static int s32k1xx_ioctl(struct file *filep, int cmd, unsigned long arg)
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
         termiosp->c_cflag |= ((priv->iflow) ? CRTS_IFLOW : 0);
 #endif
+        /* Return baud */
+
+        cfsetispeed(termiosp, priv->baud);
+
         /* Return number of bits */
 
         switch (priv->bits)
@@ -889,12 +879,14 @@ static int s32k1xx_ioctl(struct file *filep, int cmd, unsigned long arg)
         irqstate_t flags;
         struct s32k1xx_uart_s *priv = (struct s32k1xx_uart_s *)dev->priv;
 
-        flags  = spin_lock_irqsave();
+        flags  = spin_lock_irqsave(NULL);
         ctrl   = s32k1xx_serialin(priv, S32K1XX_LPUART_CTRL_OFFSET);
         stat   = s32k1xx_serialin(priv, S32K1XX_LPUART_STAT_OFFSET);
         regval = ctrl;
 
-        /* {R|T}XINV bit field can only be written when the receiver is disabled (RE=0). */
+        /* {R|T}XINV bit field can only be written when the receiver is
+        * disabled (RE=0).
+        */
 
         regval &= ~LPUART_CTRL_RE;
 
@@ -923,7 +915,7 @@ static int s32k1xx_ioctl(struct file *filep, int cmd, unsigned long arg)
         s32k1xx_serialout(priv, S32K1XX_LPUART_STAT_OFFSET, stat);
         s32k1xx_serialout(priv, S32K1XX_LPUART_CTRL_OFFSET, ctrl);
 
-        spin_unlock_irqrestore(flags);
+        spin_unlock_irqrestore(NULL, flags);
       }
       break;
 #endif
@@ -948,7 +940,7 @@ static int s32k1xx_ioctl(struct file *filep, int cmd, unsigned long arg)
  *
  ****************************************************************************/
 
-static int s32k1xx_receive(struct uart_dev_s *dev, uint32_t *status)
+static int s32k1xx_receive(struct uart_dev_s *dev, unsigned int *status)
 {
   struct s32k1xx_uart_s *priv = (struct s32k1xx_uart_s *)dev->priv;
   uint32_t rxd;
@@ -974,7 +966,7 @@ static void s32k1xx_rxint(struct uart_dev_s *dev, bool enable)
 
   /* Enable interrupts for data available at Rx */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   if (enable)
     {
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
@@ -990,7 +982,7 @@ static void s32k1xx_rxint(struct uart_dev_s *dev, bool enable)
   regval &= ~LPUART_ALL_INTS;
   regval |= priv->ie;
   s32k1xx_serialout(priv, S32K1XX_LPUART_CTRL_OFFSET, regval);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -1042,7 +1034,7 @@ static void s32k1xx_txint(struct uart_dev_s *dev, bool enable)
 
   /* Enable interrupt for TX complete */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   if (enable)
     {
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
@@ -1058,7 +1050,7 @@ static void s32k1xx_txint(struct uart_dev_s *dev, bool enable)
   regval &= ~LPUART_ALL_INTS;
   regval |= priv->ie;
   s32k1xx_serialout(priv, S32K1XX_LPUART_CTRL_OFFSET, regval);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -1125,32 +1117,29 @@ static void up_pm_notify(struct pm_callback_s *cb, int domain,
       case(PM_NORMAL):
         {
           /* Logic for PM_NORMAL goes here */
-
         }
         break;
 
       case(PM_IDLE):
         {
           /* Logic for PM_IDLE goes here */
-
         }
         break;
 
       case(PM_STANDBY):
         {
           /* Logic for PM_STANDBY goes here */
-
         }
         break;
 
       case(PM_SLEEP):
         {
           /* Logic for PM_SLEEP goes here */
-
         }
         break;
 
       default:
+
         /* Should not get here */
 
         break;
@@ -1212,7 +1201,7 @@ static int up_pm_prepare(struct pm_callback_s *cb, int domain,
  * Description:
  *   Performs the low level UART initialization early in debug so that the
  *   serial console will be available during bootup.  This must be called
- *   before up_serialinit.
+ *   before arm_serialinit.
  *
  ****************************************************************************/
 
@@ -1234,7 +1223,7 @@ void s32k1xx_earlyserialinit(void)
 }
 
 /****************************************************************************
- * Name: up_serialinit
+ * Name: arm_serialinit
  *
  * Description:
  *   Register serial console and serial ports.  This assumes
@@ -1242,7 +1231,7 @@ void s32k1xx_earlyserialinit(void)
  *
  ****************************************************************************/
 
-void up_serialinit(void)
+void arm_serialinit(void)
 {
 #ifdef CONFIG_PM
   int ret;
@@ -1320,10 +1309,10 @@ int up_putc(int ch)
     {
       /* Add CR */
 
-      up_lowputc('\r');
+      arm_lowputc('\r');
     }
 
-  up_lowputc(ch);
+  arm_lowputc(ch);
 #endif
 
   return ch;

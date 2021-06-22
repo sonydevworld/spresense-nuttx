@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32/stm32ldiscovery/include/board.h
  *
- *   Copyright (C) 2013, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -52,19 +37,22 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Clocking *************************************************************************/
-/* Four different clock sources can be used to drive the system clock (SYSCLK):
+/* Clocking *****************************************************************/
+
+/* Four different clock sources can be used to drive the system clock
+ * (SYSCLK):
  *
  * - HSI high-speed internal oscillator clock
  *   Generated from an internal 16 MHz RC oscillator
  * - HSE high-speed external oscillator clock
- *   Normally driven by an external crystal (X3).  However, this crystal is not fitted
- *   on the STM32L-Discovery board.
+ *   Normally driven by an external crystal (X3).  However, this crystal is
+ *   not fitted on the STM32L-Discovery board.
  * - PLL clock
  * - MSI multispeed internal oscillator clock
- *   The MSI clock signal is generated from an internal RC oscillator. Seven frequency
- *   ranges are available: 65.536 kHz, 131.072 kHz, 262.144 kHz, 524.288 kHz, 1.048 MHz,
- *   2.097 MHz (default value) and 4.194 MHz.
+ *   The MSI clock signal is generated from an internal RC oscillator.
+ *   Seven frequency ranges are available: 65.536 kHz, 131.072 kHz,
+ *   262.144 kHz, 524.288 kHz, 1.048 MHz, 2.097 MHz (default value) and
+ *   4.194 MHz.
  *
  * The devices have the following two secondary clock sources
  * - LSI low-speed internal RC clock
@@ -95,13 +83,15 @@
  *   MHz frequency. This is required to provide a 48 MHz clock to the USB or
  *   SDIO (SDIOCLK or USBCLK = PLLVCO/2).
  * SYSCLK
- *   The system clock is derived from the PLL VCO divided by the output division factor.
+ *   The system clock is derived from the PLL VCO divided by the output
+ *   division factor.
  * Limitations:
  *   96 MHz as PLLVCO when the product is in range 1 (1.8V),
  *   48 MHz as PLLVCO when the product is in range 2 (1.5V),
  *   24 MHz when the product is in range 3 (1.2V).
  *   Output division to avoid exceeding 32 MHz as SYSCLK.
- *   The minimum input clock frequency for PLL is 2 MHz (when using HSE as PLL source).
+ *   The minimum input clock frequency for PLL is 2 MHz (when using HSE as
+ *   PLL source).
  */
 
 #define STM32_CFGR_PLLSRC        0                       /* Source is 16MHz HSI */
@@ -115,8 +105,8 @@
 #  define STM32_PLL_FREQUENCY    (4*STM32_HSI_FREQUENCY) /* PLL VCO Frequency is 64MHz */
 #endif
 
-/* Use the PLL and set the SYSCLK source to be the divided down PLL VCO output
- * frequency (STM32_PLL_FREQUENCY divided by the PLLDIV value).
+/* Use the PLL and set the SYSCLK source to be the divided down PLL VCO
+ * output frequency (STM32_PLL_FREQUENCY divided by the PLLDIV value).
  */
 
 #define STM32_SYSCLK_SW          RCC_CFGR_SW_PLL         /* Use the PLL as the SYSCLK */
@@ -131,7 +121,6 @@
 
 #define STM32_RCC_CFGR_HPRE      RCC_CFGR_HPRE_SYSCLK
 #define STM32_HCLK_FREQUENCY     STM32_SYSCLK_FREQUENCY
-#define STM32_BOARD_HCLK         STM32_HCLK_FREQUENCY    /* Same as above, to satisfy compiler */
 
 /* APB2 clock (PCLK2) is HCLK (32MHz) */
 
@@ -159,23 +148,25 @@
 #define STM32_APB1_TIM6_CLKIN    (STM32_PCLK1_FREQUENCY)
 #define STM32_APB1_TIM7_CLKIN    (STM32_PCLK1_FREQUENCY)
 
-/* LED definitions ******************************************************************/
+/* LED definitions **********************************************************/
+
 /* The STM32L-Discovery board has four LEDs.  Two of these are controlled by
  * logic on the board and are not available for software control:
  *
- * LD1 COM:   LD2 default status is red. LD2 turns to green to indicate that
- *            communications are in progress between the PC and the ST-LINK/V2.
+ * LD1 COM:   LD2 default status is red. LD2 turns to green to indicate
+ *            that communications are in progress between the PC and the
+ *            ST-LINK/V2.
  * LD2 PWR:   Red LED indicates that the board is powered.
  *
  * And two LEDs can be controlled by software:
  *
- * User LD3:  Green LED is a user LED connected to the I/O PB7 of the STM32L152
- *            MCU.
- * User LD4:  Blue LED is a user LED connected to the I/O PB6 of the STM32L152
- *            MCU.
+ * User LD3:  Green LED is a user LED connected to the I/O PB7 of the
+ *            STM32L152 MCU.
+ * User LD4:  Blue LED is a user LED connected to the I/O PB6 of the
+ *            STM32L152 MCU.
  *
- * If CONFIG_ARCH_LEDS is not defined, then the user can control the LEDs in any
- * way.  The following definitions are used to access individual LEDs.
+ * If CONFIG_ARCH_LEDS is not defined, then the user can control the LEDs in
+ * any way.  The following definitions are used to access individual LEDs.
  */
 
 /* LED index values for use with board_userled() */
@@ -189,8 +180,9 @@
 #define BOARD_LED1_BIT           (1 << BOARD_LED1)
 #define BOARD_LED2_BIT           (1 << BOARD_LED2)
 
-/* If CONFIG_ARCH_LEDs is defined, then NuttX will control the 8 LEDs on board the
- * STM32L-Discovery.  The following definitions describe how NuttX controls the LEDs:
+/* If CONFIG_ARCH_LEDS is defined, then NuttX will control the 2 LEDs on
+ * board the STM32L-Discovery.  The following definitions describe how NuttX
+ * controls the LEDs:
  *
  *   SYMBOL                Meaning                 LED state
  *                                                   LED1     LED2
@@ -215,12 +207,14 @@
 #define LED_ASSERTION            2
 #define LED_PANIC                3
 
-/* Button definitions ***************************************************************/
-/* The STM32L-Discovery supports two buttons; only one button is controllable by
- * software:
+/* Button definitions *******************************************************/
+
+/* The STM32L-Discovery supports two buttons; only one button is controllable
+ * by software:
  *
- *   B1 USER: user and wake-up button connected to the I/O PA0 of the STM32L152RBT6.
- *   B2 RESET: pushbutton connected to NRST is used to RESET the STM32L152RBT6.
+ *   B1 USER:  user and wake-up button connected to the I/O PA0 of the
+ *             STM32L152.
+ *   B2 RESET: pushbutton connected to NRST is used to RESET the STM32L152.
  */
 
 #define BUTTON_USER              0
@@ -228,11 +222,12 @@
 
 #define BUTTON_USER_BIT          (1 << BUTTON_USER)
 
-/* Alternate Pin Functions **********************************************************/
-/* The STM32L-Discovery has no on-board RS-232 driver.  Further, there are no USART
- * pins that do not conflict with the on board resources, in particular, the LCD:
- * Most USART pins are available if the LCD is enabled; USART2 may be used if either
- * the LCD or the on-board LEDs are disabled.
+/* Alternate Pin Functions **************************************************/
+
+/* The STM32L-Discovery has no on-board RS-232 driver.  Further, there
+ * are no USART pins that do not conflict with the on board resources, in
+ * particular, the LCD.  Most USART pins are available if the LCD is enabled;
+ * USART2 may be used if either the LCD or the on-board LEDs are disabled.
  *
  *   PA9   USART1_TX  LCD glass COM1  P2, pin 22
  *   PA10  USART1_RX  LCD glass COM2  P2, pin 21
@@ -307,4 +302,4 @@ int stm32_slcd_initialize(void);
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif  /* __BOARDS_ARM_STM32_STM32LDISCOVERY_INCLUDE_BOARD_H */
+#endif /* __BOARDS_ARM_STM32_STM32LDISCOVERY_INCLUDE_BOARD_H */

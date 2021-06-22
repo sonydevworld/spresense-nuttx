@@ -61,6 +61,10 @@ static void mrf24j40_irqwork_txgts(FAR struct mrf24j40_radio_s *dev,
               uint8_t gts_num);
 
 /****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
  * Name: mrf24j40_irqwork_txnorm
  *
  * Description:
@@ -93,10 +97,10 @@ static void mrf24j40_irqwork_txnorm(FAR struct mrf24j40_radio_s *dev)
 
   if (reg & MRF24J40_TXSTAT_TXNSTAT)
     {
-      /* The number of retries of the most recent transmission is contained in the
-       * TXNRETRY (TXSTAT 0x24<7:6>) bits. The CCAFAIL (TXSTAT 0x24<5>) bit = 1
-       * indicates if the failed transmission was due to the channel busy
-       * (CSMA-CA timed out).
+      /* The number of retries of the most recent transmission is contained
+       * in the TXNRETRY (TXSTAT 0x24<7:6>) bits.
+       * The CCAFAIL (TXSTAT 0x24<5>) bit = 1 indicates if the failed
+       * transmission was due to the channel busy (CSMA-CA timed out).
        */
 
       if (reg & MRF24J40_TXSTAT_CCAFAIL)
@@ -196,7 +200,7 @@ static void mrf24j40_irqwork_txgts(FAR struct mrf24j40_radio_s *dev,
 
   /* We are now done with the transaction */
 
-  dev->gts_busy[gts]= 0;
+  dev->gts_busy[gts] = 0;
 
   mrf24j40_dopoll_gts(dev);
 }
@@ -210,7 +214,6 @@ static void mrf24j40_irqwork_txgts(FAR struct mrf24j40_radio_s *dev,
  ****************************************************************************/
 
 static void mrf24j40_irqwork_rx(FAR struct mrf24j40_radio_s *dev)
-
 {
   FAR struct ieee802154_primitive_s *primitive;
   FAR struct ieee802154_data_ind_s *ind;
@@ -275,6 +278,7 @@ static void mrf24j40_irqwork_rx(FAR struct mrf24j40_radio_s *dev)
   dev->radiocb->rxframe(dev->radiocb, ind);
 
 done:
+
   /* Enable reception of next packet by flushing the fifo.
    * This is an MRF24J40 errata (no. 1).
    */
@@ -294,6 +298,10 @@ done:
       mrf24j40_setreg(dev->spi, MRF24J40_INTCON, reg);
     }
 }
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
 
 /****************************************************************************
  * Name: mrf24j40_irqworker
@@ -335,8 +343,8 @@ void mrf24j40_irqworker(FAR void *arg)
 
   if ((intstat & MRF24J40_INTSTAT_HSYMTMRIF))
     {
-      /* As of now the only use for the MAC timer is for delayed transactions.
-       * Therefore, all we do here is trigger the TX norm FIFO
+      /* As of now the only use for the MAC timer is for delayed
+       * transactions.  Therefore, all we do here is trigger the TX norm FIFO
        */
 
       mrf24j40_norm_trigger(dev);
@@ -357,21 +365,21 @@ void mrf24j40_irqworker(FAR void *arg)
 
   if ((intstat & MRF24J40_INTSTAT_TXNIF))
     {
-      /* A packet was transmitted or failed*/
+      /* A packet was transmitted or failed */
 
       mrf24j40_irqwork_txnorm(dev);
     }
 
   if ((intstat & MRF24J40_INTSTAT_TXG1IF))
     {
-      /* A packet was transmitted or failed*/
+      /* A packet was transmitted or failed */
 
       mrf24j40_irqwork_txgts(dev, 0);
     }
 
   if ((intstat & MRF24J40_INTSTAT_TXG1IF))
     {
-      /* A packet was transmitted or failed*/
+      /* A packet was transmitted or failed */
 
       mrf24j40_irqwork_txgts(dev, 1);
     }
@@ -395,15 +403,15 @@ void mrf24j40_irqworker(FAR void *arg)
 
       if (dev->devmode != IEEE802154_DEVMODE_ENDPOINT)
         {
-          /* This is right before the beacon, we set the bsn here, since the MAC
-           * uses the SLPIF (end of active portion of superframe). to make any
-           * changes to the beacon.  This assumes that any changes to the beacon
-           * be in by the time that this interrupt fires.
+          /* This is right before the beacon, we set the bsn here, since the
+           * MAC uses the SLPIF (end of active portion of superframe). to
+           * make any changes to the beacon.  This assumes that any changes
+           * to the beacon be in by the time that this interrupt fires.
            */
 
           mrf24j40_setreg(dev->spi, MRF24J40_BEACON_FIFO + 4, dev->bsn++);
           mrf24j40_beacon_trigger(dev);
-          wlinfo("Beacon triggered. BSN: 0x%02X\n", dev->bsn-1);
+          wlinfo("Beacon triggered. BSN: 0x%02X\n", dev->bsn - 1);
         }
     }
 
@@ -454,5 +462,6 @@ int mrf24j40_interrupt(int irq, FAR void *context, FAR void *arg)
    */
 
   dev->lower->enable(dev->lower, false);
-  return work_queue(HPWORK, &dev->irqwork, mrf24j40_irqworker, (FAR void *)dev, 0);
+  return work_queue(HPWORK, &dev->irqwork,
+                    mrf24j40_irqworker, (FAR void *)dev, 0);
 }

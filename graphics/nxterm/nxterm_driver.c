@@ -1,35 +1,20 @@
 /****************************************************************************
- * nuttx/graphics/nxterm/nxterm_driver.c
+ * graphics/nxterm/nxterm_driver.c
  *
- *   Copyright (C) 2012, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -139,7 +124,7 @@ static int nxterm_open(FAR struct file *filep)
 #endif
 
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  /* Increment the count of open file references */
+  /* Increment the count of open file reference */
 
   DEBUGASSERT(priv->orefs != UINT8_MAX);
   priv->orefs++;
@@ -174,7 +159,7 @@ static int nxterm_close(FAR struct file *filep)
       return ret;
     }
 
-  /* Has the driver been unlinked?  Was this the last open refernce to the
+  /* Has the driver been unlinked?  Was this the last open references to the
    * terminal driver?
    */
 
@@ -288,7 +273,7 @@ static ssize_t nxterm_write(FAR struct file *filep, FAR const char *buffer,
 
                 for (i = 1; i < priv->nseq; i++)
                   {
-                    priv->seq[i-1] = priv->seq[i];
+                    priv->seq[i - 1] = priv->seq[i];
                   }
 
                 priv->nseq--;
@@ -319,7 +304,7 @@ static int nxterm_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   /* NOTE:  We don't need driver context here because the NXTERM handle
    * provided within each of the NXTERM IOCTL command data.  Mutual
-   * exclusion is similar managed by the IOCTL cmmand hendler.
+   * exclusion is similar managed by the IOCTL cmmand handler.
    *
    * This permits the IOCTL to be called in abnormal context (such as
    * from boardctl())
@@ -383,7 +368,7 @@ static int nxterm_unlink(FAR struct inode *inode)
  *
  * NOTE:  We don't need driver context here because the NXTERM handle
  * provided within each of the NXTERM IOCTL command data.  Mutual
- * exclusion is similar managed by the IOCTL cmmand hendler.
+ * exclusion is similar managed by the IOCTL cmmand handler.
  *
  * This permits the IOCTL to be called in abnormal context (such as
  * from boardctl())
@@ -439,7 +424,8 @@ int nxterm_ioctl_tap(int cmd, uintptr_t arg)
       /* CMD:           NXTERMIOC_NXTERM_RESIZE
        * DESCRIPTION:   Inform NxTerm keyboard the the size of the window has
        *                changed
-       * ARG:           A reference readable instance of struct nxtermioc_resize_s
+       * ARG:           A reference readable instance of struct
+       *                nxtermioc_resize_s
        * CONFIGURATION: CONFIG_NXTERM
        */
 

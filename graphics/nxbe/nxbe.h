@@ -1,36 +1,20 @@
 /****************************************************************************
  * graphics/nxbe/nxbe.h
  *
- *   Copyright (C) 2008-2011, 2013, 2016, 2019 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -189,6 +173,7 @@ struct nxbe_plane_s
 
   /* Framebuffer plane info describing destination video plane */
 
+  NX_DRIVERTYPE *driver;
   NX_PLANEINFOTYPE pinfo;
 };
 
@@ -216,14 +201,14 @@ struct nxbe_clipops_s
 #if defined(CONFIG_NX_SWCURSOR)
 struct nxbe_cursor_s
 {
-  bool visible;                    /* True: the cursor is visible */
-  struct nxgl_rect_s bounds;       /* Cursor image bounding box */
+  bool visible;                             /* True: the cursor is visible */
+  struct nxgl_rect_s bounds;                /* Cursor image bounding box */
   nxgl_mxpixel_t color1[CONFIG_NX_NPLANES]; /* Color1 is main color of the cursor */
   nxgl_mxpixel_t color2[CONFIG_NX_NPLANES]; /* Color2 is color of any border */
   nxgl_mxpixel_t color3[CONFIG_NX_NPLANES]; /* Color3 is the blended color */
-  size_t allocsize;                /* Size of the background allocation */
-  FAR const uint8_t *image;        /* Cursor image at 2-bits/pixel */
-  FAR nxgl_mxpixel_t *bkgd;        /* Cursor background in device pixels */
+  size_t allocsize;                         /* Size of the background allocation */
+  FAR const uint8_t *image;                 /* Cursor image at 2-bits/pixel */
+  FAR nxgl_mxpixel_t *bkgd;                 /* Cursor background in device pixels */
 };
 #elif defined(CONFIG_NX_HWCURSOR)
 struct nxbe_cursor_s
@@ -252,9 +237,9 @@ struct nxbe_state_s
   FAR struct nxbe_window_s *topwnd;  /* The window at the top of the display */
   struct nxbe_window_s bkgd;         /* The background window is always at the bottom */
 
-  /* At present, only a solid colored background is supported for refills.  The
-   * following provides the background color.  It would be nice to support
-   * background bitmap images as well.
+  /* At present, only a solid colored background is supported for refills.
+   * The following provides the background color.  It would be nice to
+   * support background bitmap images as well.
    */
 
   nxgl_mxpixel_t bgcolor[CONFIG_NX_NPLANES];
@@ -279,13 +264,14 @@ struct nxbe_state_s
 #undef EXTERN
 #if defined(__cplusplus)
 #define EXTERN extern "C"
-extern "C" {
+extern "C"
+{
 #else
 #define EXTERN extern
 #endif
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
@@ -298,6 +284,32 @@ extern "C" {
 
 #ifdef CONFIG_FB_CMAP
 int nxbe_colormap(FAR NX_DRIVERTYPE *dev);
+#endif
+
+/****************************************************************************
+ * Name: nxbe_notify_rectangle
+ *
+ * Description:
+ *   When CONFIG_NX_UPDATE=y, then the graphics system will callout to
+ *   inform some external module that the display has been updated.  This
+ *   would be useful in a couple for cases.
+ *
+ *   - When a serial LCD is used, but a framebuffer is used to access the
+ *     LCD.  In this case, the update callout can be used to refresh the
+ *     affected region of the display.
+ *
+ *   - When VNC is enabled.  This is case, this callout is necessary to
+ *     update the remote frame buffer to match the local framebuffer.
+ *
+ *   When this feature is enabled, some external logic must provide this
+ *   interface.  This is the function that will handle the notification.  It
+ *   receives the rectangular region that was updated on the provided plane.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NX_UPDATE
+void nxbe_notify_rectangle(FAR NX_DRIVERTYPE *dev,
+                           FAR const struct nxgl_rect_s *rect);
 #endif
 
 /****************************************************************************
@@ -336,7 +348,7 @@ void nxbe_cursor_enable(FAR struct nxbe_state_s *be, bool enable);
  *   Set the cursor image
  *
  *   The image is provided a a 2-bits-per-pixel image.  The two bit incoding
- *   is as followings:
+ *   is as following:
  *
  *   00 - The transparent background
  *   01 - Color1:  The main color of the cursor
@@ -389,7 +401,7 @@ void nxbe_cursor_setposition(FAR struct nxbe_state_s *be,
  *   be    - The back-end state structure instance, or
  *   wnd   - Window state structure
  *   rect  - The modified region of the window.  In windows coordinates for
- *           nxbe_cursor_backupdraw(); in graphics device corrdinates for
+ *           nxbe_cursor_backupdraw(); in graphics device coordinates for
  *           nxbe_cursor_backupdraw_dev().
  *   plane - The plane number to use.
  *
@@ -415,7 +427,7 @@ void nxbe_cursor_backupdraw_dev(FAR struct nxbe_state_s *be,
  *   be    - The back-end state structure instance, or
  *   wnd   - Window state structure
  *   rect  - The modified region of the window.  In windows coordinates for
- *           nxbe_cursor_backupdraw(); in graphics device corrdinates for
+ *           nxbe_cursor_backupdraw(); in graphics device coordinates for
  *           nxbe_cursor_backupdraw_dev().
  *
  * Returned Value:
@@ -505,7 +517,7 @@ void nxbe_modal(FAR struct nxbe_window_s *wnd, bool enable);
  *
  * Description:
  *   Select if the window is visible or hidden.  A hidden window is still
- *   present will will update normally, but will be on the visiable on the
+ *   present will will update normally, but will be on the visible on the
  *   display until it is unhidden.
  *
  * Input Parameters:
@@ -523,8 +535,8 @@ void nxbe_setvisibility(FAR struct nxbe_window_s *wnd, bool hide);
  * Name: nxbe_setpixel
  *
  * Description:
- *  Set a single pixel in the window to the specified color.  This is simply
- *  a degenerate case of nxbe_fill(), but may be optimized in some architectures.
+ *  Set a single pixel in the window to the specified color. This is simply a
+ *  degenerate case of nxbe_fill, but may be optimized in some architectures.
  *
  * Input Parameters:
  *   wnd  - The window structure reference
@@ -692,7 +704,7 @@ void nxbe_bitmap(FAR struct nxbe_window_s *wnd,
  * Name: nxbe_flush
  *
  * Description:
- *   After per-window frambuffer has been updated, the modified region must
+ *   After per-window framebuffer has been updated, the modified region must
  *   be written to device graphics memory.  That function is managed by this
  *   simple function.  It does the following:
  *

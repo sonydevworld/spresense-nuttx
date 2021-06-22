@@ -1,5 +1,5 @@
 /******************************************************************************
- * drivers/wireless/spirit/lib//spirit_spi.c
+ * drivers/wireless/spirit/lib/spirit_spi.c
  * NuttX SPIRIT SPI driver interface.
  *
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -87,7 +87,7 @@
 #if defined(CONFIG_WL_SPIRIT_REGDEBUG) || defined(CONFIG_WL_SPIRIT_FIFODUMP)
 static void spirit_dump_buffer(FAR const uint8_t *buffer, unsigned int buflen)
 {
-  char outbuf[16*3 + 3]; /* 16 hex bytes + 2 space separator + NUL termination */
+  char outbuf[16 * 3 + 3]; /* 16 hex bytes + 2 space separator + NUL termination */
   FAR char *ptr;
   unsigned int i;
   unsigned int j;
@@ -310,7 +310,7 @@ int spirit_reg_read(FAR struct spirit_library_s *spirit, uint8_t regaddr,
  *   Read single or multiple SPIRIT1 register.
  *
  * Input Parameters:
- *   spirit  - Reference to an instance of the driver state stucture.
+ *   spirit  - Reference to an instance of the driver state structure.
  *   regaddr - Base register's address to write
  *   buffer  - Pointer to the buffer of register values to write
  *   buflen  - Number of registers values to be written.
@@ -364,10 +364,10 @@ int spirit_reg_write(FAR struct spirit_library_s *spirit, uint8_t regaddr,
  *   Perform atomic read/modify/write on a single SPIRIT1 register.
  *
  * Input Parameters:
- *   spirit  - Reference to an instance of the driver state stucture.
+ *   spirit  - Reference to an instance of the driver state structure.
  *   regaddr - Base register's address to write
  *   clrbits - Bits to clear in the register
- *   setbits - Bits to set in the regiser
+ *   setbits - Bits to set in the register
  *
  * Returned Value:
  *   Zero (OK) is returned on success.  A negated errno value is returned on
@@ -443,7 +443,7 @@ int spirit_reg_modify(FAR struct spirit_library_s *spirit, uint8_t regaddr,
  *   Send a command
  *
  * Input Parameters:
- *   spirit - Reference to an instance of the driver state stucture.
+ *   spirit - Reference to an instance of the driver state structure.
  *   cmd    - Command code to be sent
  *
  * Returned Value:
@@ -490,7 +490,7 @@ int spirit_command(FAR struct spirit_library_s *spirit, uint8_t cmd)
  *   Read data from RX FIFO
  *
  * Input Parameters:
- *   spirit - Reference to an instance of the driver state stucture.
+ *   spirit - Reference to an instance of the driver state structure.
  *   buffer - Pointer to the buffer of data values to write
  *   buflen - Number of bytes to be written
  *
@@ -544,7 +544,7 @@ int spirit_fifo_read(FAR struct spirit_library_s *spirit, FAR uint8_t *buffer,
  *   Write data into TX FIFO.
  *
  * Input Parameters:
- *   spirit  - Reference to an instance of the driver state stucture.
+ *   spirit  - Reference to an instance of the driver state structure.
  *   buffer  - Pointer to the buffer of data values to write
  *   buflen  - Number of data values to be written.
  *
@@ -598,7 +598,7 @@ int spirit_fifo_write(FAR struct spirit_library_s *spirit,
  *   register of SPIRIT.
  *
  * Input Parameters:
- *   spirit - Reference to an instance of the driver state stucture.
+ *   spirit - Reference to an instance of the driver state structure.
  *
  * Returned Value:
  *   Zero (OK) is returned on success.  A negated errno value is returned on
@@ -617,7 +617,7 @@ int spirit_update_status(FAR struct spirit_library_s *spirit)
   return spirit_reg_read(spirit, MC_STATE1_BASE, &regval, 1);
 }
 
-/****************************************************************************
+/******************************************************************************
  * Name: spirit_waitstatus
  *
  * Description:
@@ -635,7 +635,7 @@ int spirit_update_status(FAR struct spirit_library_s *spirit)
  * Assumptions:
  *   We have exclusive access to the driver state and to the spirit library.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 int spirit_waitstatus(FAR struct spirit_library_s *spirit,
                       enum spirit_state_e state, unsigned int msec)
@@ -670,7 +670,7 @@ int spirit_waitstatus(FAR struct spirit_library_s *spirit,
 
   /* The time that we started the wait */
 
-  start = clock_systimer();
+  start = clock_systime_ticks();
 
   /* Loop until the status change occurs (or the wait times out) */
 
@@ -682,7 +682,7 @@ int spirit_waitstatus(FAR struct spirit_library_s *spirit,
           return ret;
         }
 
-      elapsed = clock_systimer() - start;
+      elapsed = clock_systime_ticks() - start;
     }
   while (spirit->u.state.MC_STATE != state && elapsed <= ticks);
 

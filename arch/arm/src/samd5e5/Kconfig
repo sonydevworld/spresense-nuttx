@@ -321,6 +321,10 @@ config SAMD5E5_HAVE_SERCOM7
 	bool
 	default n
 
+config SAMD5E5_HAVE_TC
+	bool
+	default n
+
 config SAMD5E5_HAVE_TC4
 	bool
 	default n
@@ -338,6 +342,22 @@ config SAMD5E5_HAVE_TC7
 	default n
 
 config SAMD5E5_SERCOM
+	bool
+	default n
+
+config SAMD5E5_TC
+	bool
+	default y
+
+config SAMD5E5_HAVE_TC4
+	bool
+	default n
+
+config SAMD5E5_HAVE_TC5
+	bool
+	default n
+
+config SAMD5E5_HAVE_TC6
 	bool
 	default n
 
@@ -360,6 +380,13 @@ config SAMD5E5_DMAC
 	bool "DMA Controller"
 	default n
 	select ARCH_DMA
+
+config SAMD5E5_GMAC
+	bool "Ethernet"
+	default n
+	depends on SAMD5E5_HAVE_ETHERNET
+	select NETDEVICES
+	select ARCH_HAVE_PHY
 
 config SAMD5E5_EVSYS
 	bool "Event System"
@@ -422,42 +449,97 @@ config SAMD5E5_SERCOM7
 config SAMD5E5_TC0
 	bool "Timer/Counter 0"
 	default n
+	depends on SAMD5E5_TC
+	select SAMD5E5_HAVE_TC
 
 config SAMD5E5_TC1
 	bool "Timer/Counter 1"
 	default n
+	depends on SAMD5E5_TC
+	select SAMD5E5_HAVE_TC
 
 config SAMD5E5_TC2
 	bool "Timer/Counter 2"
 	default n
+	depends on SAMD5E5_TC
+	select SAMD5E5_HAVE_TC
 
 config SAMD5E5_TC3
 	bool "Timer/Counter 3"
 	default n
+	depends on SAMD5E5_TC
+	select SAMD5E5_HAVE_TC
 
 config SAMD5E5_TC4
 	bool "Timer/Counter 4"
 	default n
 	depends on SAMD5E5_HAVE_TC4
+	select SAMD5E5_HAVE_TC
 
 config SAMD5E5_TC5
 	bool "Timer/Counter 5"
 	default n
 	depends on SAMD5E5_HAVE_TC5
+	select SAMD5E5_HAVE_TC
 
 config SAMD5E5_TC6
 	bool "Timer/Counter 6"
 	default n
 	depends on SAMD5E5_HAVE_TC6
+	select SAMD5E5_HAVE_TC
 
 config SAMD5E5_TC7
 	bool "Timer/Counter 7"
 	default n
 	depends on SAMD5E5_HAVE_TC7
+	select SAMD5E5_HAVE_TC
+
+config SAMD5E5_ONESHOT
+	bool "TC one-shot wrapper"
+	default n if !SCHED_TICKLESS
+	default y if SCHED_TICKLESS
+	---help---
+		Enable a wrapper around the low level timer/counter functions to
+		support one-shot timer.
+
+config SAMD5E5_FREERUN
+	bool "TC free-running wrapper"
+	default n if !SCHED_TICKLESS
+	default y if SCHED_TICKLESS
+	---help---
+		Enable a wrapper around the low level timer/counter functions to
+		support a free-running timer.
+
+if SCHED_TICKLESS
+
+config SAMD5E5_TICKLESS_ONESHOT
+	int "Tickless one-shot timer channel"
+	default 2
+	range 0 7
+	---help---
+		If the Tickless OS feature is enabled, the one clock must be
+		assigned to provided the one-shot timer needed by the OS.
+		NOTE: Use even timers (0, 2 or 4) because timers are program
+		in 32-bit mode (1, 3 and 5 are slaves).
+
+config SAMD5E5_TICKLESS_FREERUN
+	int "Tickless free-running timer channel"
+	default 4
+	range 0 7
+	---help---
+		If the Tickless OS feature is enabled, the one clock must be
+		assigned to provided the free-running timer needed by the OS.
+		NOTE: Use even timers (0, 2 or 4) because timers are program
+		in 32-bit mode (1, 3 and 5 are slaves).
+
+endif
 
 config SAMD5E5_USB
 	bool "USB"
 	default n
+	select USBHOST_HAVE_ASYNCH
+	---help---
+		Build support for the SAMD51 USB full speed USB host.
 
 config SAMD5E5_EIC
 	bool "External Interrupt Controller"
@@ -466,6 +548,26 @@ config SAMD5E5_EIC
 config SAMD5E5_WDT
 	bool "Watchdog Timer"
 	default n
+
+menuconfig SAMD5E5_PROGMEM
+        bool "FLASH program memory"
+        default n
+        select ARCH_HAVE_PROGMEM
+        ---help---
+                Enable support FLASH interfaces as defined in include/nuttx/progmem.h
+
+if SAMD5E5_PROGMEM
+
+config SAMD5E5_PROGMEM_NSECTORS
+        int "Number of 32Kbytes sectors"
+        default 2
+        range 1 32
+        ---help---
+                This is the number of 32Kbytes FLASH sectors at the end of the program
+                flash memory that will be reserved for use with by the interfaces
+                prototyped in include/nuttx/progmem.h
+
+endif # SAMD5E5_PROGMEM
 
 endmenu # SAMD5x/E5x Peripheral Support
 
@@ -710,3 +812,110 @@ config SAMD5E5_USB_REGDEBUG
 		CONFIG_DEBUG_USB_INFO.
 
 endmenu # USB options
+
+
+if SAMD5E5_GMAC
+
+menu "GMAC device driver options"
+
+config SAMD5E5_GMAC_NRXBUFFERS
+	int "Number of RX buffers"
+	default 16
+	---help---
+		GMAC buffer memory is segmented into 128 byte units (not
+		configurable).  This setting provides the number of such 128 byte
+		units used for reception.  This is also equal to the number of RX
+		descriptors that will be allocated  The selected value must be an
+		even power of 2.
+
+config SAMD5E5_GMAC_NTXBUFFERS
+	int "Number of TX buffers"
+	default 8
+	---help---
+		GMAC buffer memory is segmented into full Ethernet packets (size
+		NET_BUFSIZE bytes).  This setting provides the number of such packets
+		that can be in flight.  This is also equal to the number of TX
+		descriptors that will be allocated.
+
+config SAMD5E5_GMAC_PREALLOCATE
+	bool "Preallocate buffers"
+	default n
+	---help---
+		Buffer an descriptor many may either be allocated from the memory
+		pool or pre-allocated to lie in .bss.  This options selected pre-
+		allocated buffer memory.
+
+config SAMD5E5_GMAC_NBC
+	bool "Disable Broadcast"
+	default n
+	---help---
+		Select to disable receipt of broadcast packets.
+
+config SAMD5E5_GMAC_PHYADDR
+	int "PHY address"
+	default 1
+	---help---
+		The 5-bit address of the PHY on the board.  Default: 1
+
+config SAMD5E5_GMAC_PHYINIT
+	bool "Board-specific PHY Initialization"
+	default n
+	---help---
+		Some boards require specialized initialization of the PHY before it can be used.
+		This may include such things as configuring GPIOs, resetting the PHY, etc.  If
+		SAMD5E5_GMAC_PHYINIT is defined in the configuration then the board specific logic must
+		provide sam_phyinitialize();  The SAMD5E5 GMAC driver will call this function
+		one time before it first uses the PHY.
+
+config SAMD5E5_GMAC_AUTONEG
+	bool "Use autonegotiation"
+	default y
+	---help---
+		Use PHY autonegotiation to determine speed and mode
+
+if !SAMD5E5_GMAC_AUTONEG
+
+config SAMD5E5_GMAC_ETHFD
+	bool "Full duplex"
+	default n
+	---help---
+		If SAMD5E5_GMAC_AUTONEG is not defined, then this may be defined to
+		select full duplex mode. Default: half-duplex
+
+choice
+	prompt "GMAC Speed"
+	default SAMD5E5_GMAC_ETH100MBPS
+	---help---
+		If autonegotiation is not used, then you must select the fixed speed
+		of the PHY
+
+config SAMD5E5_GMAC_ETH10MBPS
+	bool "10 Mbps"
+	---help---
+		If SAMD5E5_GMAC_AUTONEG is not defined, then this may be defined to select 10 MBps
+		speed.  Default: 100 Mbps
+
+config SAMD5E5_GMAC_ETH100MBPS
+	bool "100 Mbps"
+	---help---
+		If SAMD5E5_GMAC_AUTONEG is not defined, then this may be defined to select 100 MBps
+		speed.  Default: 100 Mbps
+
+endchoice # GMAC speed
+endif # !SAMD5E5_GMAC_AUTONEG
+
+config SAMD5E5_GMAC_REGDEBUG
+	bool "Register-Level Debug"
+	default n
+	depends on DEBUG_NET_INFO
+	---help---
+		Enable very low-level register access debug.  Depends on CONFIG_DEBUG_NET_INFO.
+
+config SAMD5E5_GMAC_USE_MII
+	bool "Use MII interface for Ethernet"
+	default n
+	---help---
+		If selected, use MII interface to Ethernet PHY.  Otherwise, RMII will be used.
+
+endmenu # GMAC device driver options
+endif # SAMD5E5_GMAC

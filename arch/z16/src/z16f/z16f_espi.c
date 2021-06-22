@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/z16/src/z16f/z16f_espi.c
  *
- *   Copyright (C) 2014, 2016-2017 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -50,7 +35,7 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/spi/spi.h>
 
-#include "up_arch.h"
+#include "z16_arch.h"
 #include "chip.h"
 
 #ifdef CONFIG_Z16F_ESPI
@@ -74,10 +59,10 @@ struct z16f_spi_s
   /* Debug stuff */
 
 #ifdef CONFIG_Z16F_ESPI_REGDEBUG
-   bool wr;                    /* Last was a write */
-   uint16_t regval;            /* Last value */
-   int ntimes;                 /* Number of times */
-   uintptr_t regaddr;          /* Last address */
+  bool wr;                    /* Last was a write */
+  uint16_t regval;            /* Last value */
+  int ntimes;                 /* Number of times */
+  uintptr_t regaddr;          /* Last address */
 #endif
 };
 
@@ -112,17 +97,19 @@ static void     spi_flush(FAR struct z16f_spi_s *priv);
 /* SPI methods */
 
 static int      spi_lock(FAR struct spi_dev_s *dev, bool lock);
-static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev, uint32_t frequency);
+static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev,
+                                 uint32_t frequency);
 static void     spi_setmode(FAR struct spi_dev_s *dev, enum spi_mode_e mode);
 static void     spi_setbits(FAR struct spi_dev_s *dev, int nbits);
-static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t ch);
-static void     spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
-                   FAR void *rxbuffer, size_t nwords);
+static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd);
+static void     spi_exchange(FAR struct spi_dev_s *dev,
+                             FAR const void *txbuffer, FAR void *rxbuffer,
+                             size_t nwords);
 #ifndef CONFIG_SPI_EXCHANGE
 static void     spi_sndblock(FAR struct spi_dev_s *dev,
-                   FAR const void *buffer, size_t nwords);
+                             FAR const void *buffer, size_t nwords);
 static void     spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer,
-                   size_t nwords);
+                              size_t nwords);
 #endif
 
 /****************************************************************************
@@ -185,8 +172,8 @@ static struct z16f_spi_s g_espi;
  ****************************************************************************/
 
 #ifdef CONFIG_Z16F_ESPI_REGDEBUG
-static bool spi_checkreg(FAR struct z16f_spi_s *priv, bool wr, uint16_t regval,
-                         uintptr_t regaddr)
+static bool spi_checkreg(FAR struct z16f_spi_s *priv, bool wr,
+                         uint16_t regval, uintptr_t regaddr)
 {
   if (wr      == priv->wr &&      /* Same kind of access? */
       regval  == priv->regval &&  /* Same value? */
@@ -353,7 +340,7 @@ static void spi_flush(FAR struct z16f_spi_s *priv)
  *   transfers.  The bus should be locked before the chip is selected. After
  *   locking the SPI bus, the caller should then also call the setfrequency,
  *   setbits, and setmode methods to make sure that the SPI is properly
- *   configured for the device.  If the SPI buss is being shared, then it
+ *   configured for the device.  If the SPI bus is being shared, then it
  *   may have been left in an incompatible state.
  *
  * Input Parameters:
@@ -398,7 +385,8 @@ static int spi_lock(FAR struct spi_dev_s *dev, bool lock)
  *
  ****************************************************************************/
 
-static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev, uint32_t frequency)
+static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev,
+                                 uint32_t frequency)
 {
   FAR struct z16f_spi_s *priv = (FAR struct z16f_spi_s *)dev;
   uint32_t actual;
@@ -406,7 +394,9 @@ static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev, uint32_t frequency)
 
   spiinfo("frequency=%d\n", frequency);
 
-  /* Check if the requested frequency is the same as the frequency selection */
+  /* Check if the requested frequency is the same as the frequency
+   * selection.
+   */
 
   if (priv->frequency == frequency)
     {
@@ -524,7 +514,7 @@ static void spi_setmode(FAR struct spi_dev_s *dev, enum spi_mode_e mode)
  *
  * Input Parameters:
  *   dev -  Device-specific state data
- *   nbits - The number of bits requests
+ *   nbits - The number of bits requested
  *
  * Returned Value:
  *   none
@@ -558,7 +548,9 @@ static void spi_setbits(FAR struct spi_dev_s *dev, int nbits)
       spi_putreg8(priv, regval, Z16F_ESPI_MODE);
       spiinfo("ESPI MODE: %02x\n", regval);
 
-      /* Save the selection so the subsequence re-configurations will be faster */
+      /* Save the selection so that subsequent re-configurations will be
+       * faster.
+       */
 
       priv->nbits = nbits;
     }
@@ -580,7 +572,7 @@ static void spi_setbits(FAR struct spi_dev_s *dev, int nbits)
  *
  ****************************************************************************/
 
-static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
+static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 {
   uint8_t txbyte;
   uint8_t rxbyte;
@@ -595,7 +587,7 @@ static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
   spi_exchange(dev, &txbyte, &rxbyte, 1);
 
   spiinfo("Sent %02x received %02x\n", txbyte, rxbyte);
-  return (uint16_t)rxbyte;
+  return (uint32_t)rxbyte;
 }
 
 /****************************************************************************
@@ -663,7 +655,7 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
    *   Save the final byte.
    */
 
-  for ( ; nwords > 0; nwords--)
+  for (; nwords > 0; nwords--)
     {
       /* Get the data to send (0xff if there is no data source). */
 
@@ -691,7 +683,7 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
 
       spi_putreg8(priv, data, Z16F_ESPI_DATA);
 
-      /* Wait for the read data to be available in the data regsiter */
+      /* Wait for the read data to be available in the data register. */
 
       while ((spi_getreg8(priv, Z16F_ESPI_STAT) & Z16F_ESPI_STAT_RDRF) == 0);
 
@@ -745,10 +737,10 @@ static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer,
  *   dev -    Device-specific state data
  *   buffer - A pointer to the buffer in which to receive data
  *   nwords - the length of data that can be received in the buffer in number
- *            of words.  The wordsize is determined by the number of bits-per-word
- *            selected for the SPI interface.  If nbits <= 8, the data is
- *            packed into uint8_t's; if nbits >8, the data is packed into
- *            uint16_t's
+ *            of words.  The wordsize is determined by the number of
+ *            bits-per-word selected for the SPI interface.  If nbits <= 8,
+ *            the data is packed into uint8_t's; if nbits >8, the data is
+ *            packed into uint16_t's
  *
  * Returned Value:
  *   None
@@ -803,8 +795,8 @@ FAR struct spi_dev_s *z16_spibus_initialize(int port)
       priv->spi.ops = &g_epsiops;
       nxsem_init(&priv->exclsem, 0, 1);
 
-      /* Set up the SPI pin configuration (board-specific logic is required to
-       * configure and manage all chip selects).
+      /* Set up the SPI pin configuration (board-specific logic is required
+       * to configure and manage all chip selects).
        *
        *   SCK  - PC3, Alternate function 1
        *   MOSI - PC4, Alternate function 1
@@ -824,14 +816,16 @@ FAR struct spi_dev_s *z16_spibus_initialize(int port)
       spi_putreg8(priv, 0x00, Z16F_ESPI_CTL);    /* Disabled the ESPI */
       spi_putreg8(priv, 0x00, Z16F_ESPI_DCR);    /* Disabled slave select; clear TEOF */
 
-      regval = Z16F_ESPI_MODE_SSIO | Z16F_ESPI_MODE_NUMBITS_8BITS | Z16F_ESPI_MODE_SSMD_SPI;
+      regval = Z16F_ESPI_MODE_SSIO | Z16F_ESPI_MODE_NUMBITS_8BITS |
+               Z16F_ESPI_MODE_SSMD_SPI;
       spi_putreg8(priv, regval, Z16F_ESPI_MODE); /* SPI mode, 8-bit */
 
-      regval = Z16F_ESPI_CTL_ESPIEN0 | Z16F_ESPI_CTL_MMEN | Z16F_ESPI_CTL_ESPIEN1;
+      regval = Z16F_ESPI_CTL_ESPIEN0 | Z16F_ESPI_CTL_MMEN |
+               Z16F_ESPI_CTL_ESPIEN1;
       spi_putreg8(priv, 0x00, Z16F_ESPI_CTL);    /* TX/RX mode, Master mode */
 
-      /* Make sure that we are all in agreement about the configuration and set
-       * the BRG for 400KHz operation.
+      /* Make sure that we are all in agreement about the configuration and
+       * set the BRG for 400KHz operation.
        */
 
       spi_setfrequency(&priv->spi, 400000);

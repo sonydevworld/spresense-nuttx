@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/net/loopback.c
  *
- *   Copyright (C) 2015-2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -54,6 +39,7 @@
 #include <nuttx/irq.h>
 #include <nuttx/wdog.h>
 #include <nuttx/wqueue.h>
+#include <nuttx/net/netconfig.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/ip.h>
 #include <nuttx/net/loopback.h>
@@ -62,23 +48,25 @@
 #  include <nuttx/net/pkt.h>
 #endif
 
-#ifdef CONFIG_NETDEV_LOOPBACK
+#ifdef CONFIG_NET_LOOPBACK
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* We need to have the work queue to handle SPI interrupts */
+/* We need to have the work queue to handle interrupts */
 
 #if !defined(CONFIG_SCHED_WORKQUEUE)
 #  error Worker thread support is required (CONFIG_SCHED_WORKQUEUE)
 #endif
 
-/* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per second */
+/* TX poll delay = 1 seconds.
+ * CLK_TCK is the number of clock ticks per second
+ */
 
 #define LO_WDDELAY   (1*CLK_TCK)
 
-/* This is a helper pointer for accessing the contents of the Ethernet header */
+/* This is a helper pointer for accessing the contents of the IP header */
 
 #define IPv4BUF ((FAR struct ipv4_hdr_s *)priv->lo_dev.d_buf)
 #define IPv6BUF ((FAR struct ipv6_hdr_s *)priv->lo_dev.d_buf)
@@ -95,7 +83,7 @@ struct lo_driver_s
 {
   bool lo_bifup;               /* true:ifup false:ifdown */
   bool lo_txdone;              /* One RX packet was looped back */
-  WDOG_ID lo_polldog;          /* TX poll timer */
+  struct wdog_s lo_polldog;    /* TX poll timer */
   struct work_s lo_work;       /* For deferring poll work to the work queue */
 
   /* This holds the information visible to the NuttX network */
@@ -108,7 +96,7 @@ struct lo_driver_s
  ****************************************************************************/
 
 static struct lo_driver_s g_loopback;
-static uint8_t g_iobuffer[MAX_NETDEV_PKTSIZE + CONFIG_NET_GUARDSIZE];
+static uint8_t g_iobuffer[NET_LO_PKTSIZE + CONFIG_NET_GUARDSIZE];
 
 /****************************************************************************
  * Private Function Prototypes
@@ -118,7 +106,7 @@ static uint8_t g_iobuffer[MAX_NETDEV_PKTSIZE + CONFIG_NET_GUARDSIZE];
 
 static int  lo_txpoll(FAR struct net_driver_s *dev);
 static void lo_poll_work(FAR void *arg);
-static void lo_poll_expiry(int argc, wdparm_t arg, ...);
+static void lo_poll_expiry(wdparm_t arg);
 
 /* NuttX callback functions */
 
@@ -171,7 +159,7 @@ static int lo_txpoll(FAR struct net_driver_s *dev)
        NETDEV_RXPACKETS(&priv->lo_dev);
 
 #ifdef CONFIG_NET_PKT
-      /* When packet sockets are enabled, feed the frame into the packet tap */
+      /* When packet sockets are enabled, feed the frame into the tap */
 
        pkt_input(&priv->lo_dev);
 #endif
@@ -190,7 +178,7 @@ static int lo_txpoll(FAR struct net_driver_s *dev)
 #ifdef CONFIG_NET_IPv6
       if ((IPv6BUF->vtc & IP_VERSION_MASK) == IPv6_VERSION)
         {
-          ninfo("Iv6 frame\n");
+          ninfo("IPv6 frame\n");
           NETDEV_RXIPV6(&priv->lo_dev);
           ipv6_input(&priv->lo_dev);
         }
@@ -248,7 +236,7 @@ static void lo_poll_work(FAR void *arg)
 
   /* Setup the watchdog poll timer again */
 
-  wd_start(priv->lo_polldog, LO_WDDELAY, lo_poll_expiry, 1, priv);
+  wd_start(&priv->lo_polldog, LO_WDDELAY, lo_poll_expiry, (wdparm_t)priv);
   net_unlock();
 }
 
@@ -259,8 +247,7 @@ static void lo_poll_work(FAR void *arg)
  *   Periodic timer handler.  Called from the timer interrupt handler.
  *
  * Input Parameters:
- *   argc - The number of available arguments
- *   arg  - The first argument
+ *   arg  - The argument
  *
  * Returned Value:
  *   None
@@ -270,7 +257,7 @@ static void lo_poll_work(FAR void *arg)
  *
  ****************************************************************************/
 
-static void lo_poll_expiry(int argc, wdparm_t arg, ...)
+static void lo_poll_expiry(wdparm_t arg)
 {
   FAR struct lo_driver_s *priv = (FAR struct lo_driver_s *)arg;
 
@@ -302,8 +289,8 @@ static int lo_ifup(FAR struct net_driver_s *dev)
 
 #ifdef CONFIG_NET_IPv4
   ninfo("Bringing up: %d.%d.%d.%d\n",
-        dev->d_ipaddr & 0xff, (dev->d_ipaddr >> 8) & 0xff,
-        (dev->d_ipaddr >> 16) & 0xff, dev->d_ipaddr >> 24);
+        (int)(dev->d_ipaddr & 0xff), (int)((dev->d_ipaddr >> 8) & 0xff),
+        (int)((dev->d_ipaddr >> 16) & 0xff), (int)(dev->d_ipaddr >> 24));
 #endif
 #ifdef CONFIG_NET_IPv6
   ninfo("Bringing up: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
@@ -315,8 +302,8 @@ static int lo_ifup(FAR struct net_driver_s *dev)
 
   /* Set and activate a timer process */
 
-  wd_start(priv->lo_polldog, LO_WDDELAY, lo_poll_expiry,
-           1, (wdparm_t)priv);
+  wd_start(&priv->lo_polldog, LO_WDDELAY,
+           lo_poll_expiry, (wdparm_t)priv);
 
   priv->lo_bifup = true;
   return OK;
@@ -344,7 +331,7 @@ static int lo_ifdown(FAR struct net_driver_s *dev)
 
   /* Cancel the TX poll timer and TX timeout timers */
 
-  wd_cancel(priv->lo_polldog);
+  wd_cancel(&priv->lo_polldog);
 
   /* Mark the device "down" */
 
@@ -383,7 +370,7 @@ static void lo_txavail_work(FAR void *arg)
           /* If so, then poll the network for new XMIT data */
 
           priv->lo_txdone = false;
-          devif_poll(&priv->lo_dev, lo_txpoll);
+          devif_timer(&priv->lo_dev, 0, lo_txpoll);
         }
       while (priv->lo_txdone);
     }
@@ -520,11 +507,7 @@ int localhost_initialize(void)
   priv->lo_dev.d_rmmac   = lo_rmmac;     /* Remove multicast MAC address */
 #endif
   priv->lo_dev.d_buf     = g_iobuffer;   /* Attach the IO buffer */
-  priv->lo_dev.d_private = (FAR void *)priv; /* Used to recover private state from dev */
-
-  /* Create a watchdog for timing polling for and timing of transmissions */
-
-  priv->lo_polldog       = wd_create();  /* Create periodic poll timer */
+  priv->lo_dev.d_private = priv;         /* Used to recover private state from dev */
 
   /* Register the loopabck device with the OS so that socket IOCTLs can b
    * performed.
@@ -552,4 +535,4 @@ int localhost_initialize(void)
   return lo_ifup(&priv->lo_dev);
 }
 
-#endif /* CONFIG_NETDEV_LOOPBACK */
+#endif /* CONFIG_NET_LOOPBACK */

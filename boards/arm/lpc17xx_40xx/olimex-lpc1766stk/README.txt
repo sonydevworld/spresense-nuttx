@@ -101,7 +101,7 @@ Olimex LPC1766-STK development board
 
   Simple UART1 is the more flexible UART and since the needs for a serial
   console are minimal, the more minimal UART0/RS232_0 is used for the NuttX
-  system console.  Of course, this can be changed by editting the NuttX
+  system console.  Of course, this can be changed by editing the NuttX
   configuration file as discussed below.
 
   The serial console is configured as follows (57600 8N1):
@@ -135,11 +135,11 @@ Olimex LPC1766-STK development board
    LDS176 controller but it is 100% compatible with the Philips PCF8833).
    So how do you tell which controller you have? Some message boards have
    suggested that the LCD display be disassembled and the controller chip
-   measured with a digital caliper – well that’s getting a bit extreme.
+   measured with a digital caliper well that's getting a bit extreme.
 
-  "Here’s what I know. The Olimex boards have both display controllers
-   possible; if the LCD has a GE-12 sticker on it, it’s a Philips PCF8833.
-   If it has a GE-8 sticker, it’s an Epson controller. The older Sparkfun
+  "Here's what I know. The Olimex boards have both display controllers
+   possible; if the LCD has a GE-12 sticker on it, it's a Philips PCF8833.
+   If it has a GE-8 sticker, it's an Epson controller. The older Sparkfun
    6100 displays were Epson, their web site indicates that the newer ones
    are an Epson clone. Sparkfun software examples sometimes refer to the
    Philips controller so the whole issue has become a bit murky. The
@@ -158,7 +158,7 @@ Olimex LPC1766-STK development board
   write only.
 
   STATUS:  The LCD driver was never properly integrated.  It was awkward
-  to use because it relied on a 9-bit SPI inteface (the 9th bit being
+  to use because it relied on a 9-bit SPI interface (the 9th bit being
   the command/data bit which is normally a discrete input).  All support
   for the Nokia 6100 was removed on May 19, 2018.  That obsoleted
   driver can be viewed in the
@@ -170,7 +170,7 @@ Olimex LPC1766-STK development board
   no longer believe that is the correct technical approach.  I now believe
   that the best solution would be to provide custom management of the 9th
   data bit inside of the low-level MCU driver, the LPC17 SPI driver in thisi
-  case, via a configration option on the low-level driver.
+  case, via a configuration option on the low-level driver.
 
 LEDs
 ^^^^
@@ -305,12 +305,12 @@ Using OpenOCD and GDB with an FT2232 JTAG emulator
 
     1. Install Cygwin (http://www.cygwin.com/).  My recommendation is to install
        everything.  There are many tools you will need and it is best just to
-       waste a little disk space and have everthing you need.  Everything will
+       waste a little disk space and have everything you need.  Everything will
        require a couple of gigbytes of disk space.
 
     2. Create a directory /home/OpenOCD.
 
-    3. Get the FT2232 drivr from http://www.ftdichip.com/Drivers/D2XX.htm and
+    3. Get the FT2232 driver from http://www.ftdichip.com/Drivers/D2XX.htm and
        extract it into /home/OpenOCD/ftd2xx
 
        $ pwd
@@ -379,7 +379,7 @@ Using OpenOCD and GDB with an FT2232 JTAG emulator
     compare that olimex.cfg file with configuration files in
     /usr/local/share/openocd/scripts/target (or /home/OpenOCD/openocd/tcl/target).
     As of this writing, there is no script for the lpc1766, but the
-    lpc1768 configurtion can be used after changing the flash size to
+    lpc1768 configuration can be used after changing the flash size to
     256Kb.  That is, change:
 
       flash bank $_FLASHNAME lpc2000 0x0 0x80000 0 0 $_TARGETNAME ...
@@ -420,7 +420,7 @@ Using OpenOCD and GDB with an FT2232 JTAG emulator
       (gdb) target remote localhost:3333
 
     NOTE:  The name of your GDB program may differ.  For example, with the
-    CodeSourcery toolchain, the ARM GDB would be called arm-none-eabi-gdb.
+    ARM EABI toolchain, the ARM GDB would be called arm-none-eabi-gdb.
 
     After starting GDB, you can load the NuttX ELF file:
 
@@ -584,7 +584,7 @@ Olimex LPC1766-STK Configuration Options
   also require CONFIG_NET and CONFIG_LPC17_40_ETHERNET.
 
     CONFIG_ETH0_PHY_KS8721 - Selects Micrel KS8721 PHY
-    CONFIG_LPC17_40_PHY_AUTONEG - Enable auto-negotion
+    CONFIG_LPC17_40_PHY_AUTONEG - Enable auto-negotiation
     CONFIG_LPC17_40_PHY_SPEED100 - Select 100Mbit vs. 10Mbit speed.
     CONFIG_LPC17_40_PHY_FDUPLEX - Select full (vs. half) duplex
 
@@ -725,7 +725,7 @@ Configuration Sub-Directories
 
     1. Support for FAT long file names is built-in but can easily be
        removed if you are concerned about Microsoft patent issues (see the
-       section "FAT Long File Names" in the top-level COPYING file).
+       section "FAT Long File Names" in the top-level NOTICE file).
 
        CONFIG_FS_FAT=y
        CONFIG_FAT_LCNAMES=y <-- Long file name support
@@ -780,7 +780,7 @@ Configuration Sub-Directories
 
        CONFIG_HOST_WINDOWS=y                   : Windows
        CONFIG_WINDOWS_CYGWIN=y                 : Cygwin environment on Windows
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery under Windows
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
     2. The mouse is really useless with no display and no cursor.  So this
        configuration is only suited for low-level testing.  It is also awkward
@@ -794,7 +794,7 @@ Configuration Sub-Directories
 
   nettest:
     This configuration directory may be used to enable networking using the
-    LPC17xx/LPC40xx's Ethernet controller. It uses apps/examples/nettest to excercise the
+    LPC17xx/LPC40xx's Ethernet controller. It uses apps/examples/nettest to exercise the
     TCP/IP network.
 
   nsh:
@@ -827,7 +827,7 @@ Configuration Sub-Directories
        FAT file system support for FAT long file names is built-in but
        can easily be removed if you are concerned about Microsoft patent
        issues (see the section "FAT Long File Names" in the top-level
-       COPYING file).
+       NOTICE file).
 
        CONFIG_FAT_LFN=y                    : Enables long file name support
 
@@ -888,12 +888,12 @@ Configuration Sub-Directories
 
     NOTES:
 
-    1. Uses the CodeSourcery EABI toolchain under Windows.  But that is
+    1. Uses the ARM EABI toolchain under Windows.  But that is
        easily reconfigured:
 
        CONFIG_HOST_WINDOWS=y                   : Windows
        CONFIG_HOST_WINDOWS_CYGWIN=y            : under Cygwin
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery toolchain
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
   STATUS:
     2015-06-02.  This configuration was added in an attempt to replace
@@ -927,7 +927,7 @@ Configuration Sub-Directories
     2015-06-02.  Do to issues introduced by recent versions of GCC, NXFLAT
       is not often usable.
 
-      See http://www.nuttx.org/doku.php?id=wiki:vfs:nxflat#toolchain_compatibility_problem
+      See https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=139630111
 
   usbserial:
     This configuration directory exercises the USB serial class
@@ -1065,7 +1065,7 @@ Configuration Sub-Directories
        binary data stream.
 
        If you don't have the rz command on your Linux box, the package to
-       install rzsz (or possibily lrzsz).
+       install rzsz (or possibly lrzsz).
 
        Then on the target:
 
@@ -1126,7 +1126,7 @@ Configuration Sub-Directories
        rz command.
 
        If you don't have the az command on your Linux box, the package to
-       install rzsz (or possibily lrzsz).
+       install rzsz (or possibly lrzsz).
 
     STATUS
       2013-7-15:  Testing against the Linux rz/sz commands.
@@ -1156,7 +1156,7 @@ Configuration Sub-Directories
         much better with hardware flow control disabled.
 
         At this lower BAUD, RX buffer sizes could probably be reduced; Or
-        perhaps the BAUD coud be increased.  My thought, however, is that
+        perhaps the BAUD could be increased.  My thought, however, is that
         tuning in such an unhealthy situation is not the approach:  The
         best thing to do would be to use the matching NuttX sz on the Linux
         host side.

@@ -1,41 +1,26 @@
-/************************************************************************************
+/****************************************************************************
  * drivers/timers/ds3231.c
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -52,10 +37,12 @@
 
 #ifdef CONFIG_RTC_DSXXXX
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
-/* Configuration ********************************************************************/
+ ****************************************************************************/
+
+/* Configuration ************************************************************/
+
 /* This RTC implementation supports only date/time RTC hardware */
 
 #ifndef CONFIG_RTC_DATETIME
@@ -77,11 +64,12 @@
 
 #define DS3231_I2C_ADDRESS 0x68
 
-/************************************************************************************
- * Priviate Types
- ************************************************************************************/
-/* This structure describes the state of the DS3231 chip.  Only a single RTC is
- * supported.
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+/* This structure describes the state of the DS3231 chip.
+ * Only a single RTC is supported.
  */
 
 struct ds3231_dev_s
@@ -89,26 +77,27 @@ struct ds3231_dev_s
   FAR struct i2c_master_s *i2c;  /* Contained reference to the I2C bus driver */
 };
 
-/************************************************************************************
+/****************************************************************************
  * Public Data
- ************************************************************************************/
+ ****************************************************************************/
 
 /* g_rtc_enabled is set true after the RTC has successfully initialized */
 
 volatile bool g_rtc_enabled = false;
 
-/************************************************************************************
+/****************************************************************************
  * Private Data
- ************************************************************************************/
+ ****************************************************************************/
+
 /* The state of the DS3231 chip.  Only a single RTC is supported */
 
 static struct ds3231_dev_s g_ds3231;
 
-/************************************************************************************
+/****************************************************************************
  * Private Functions
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: rtc_dumptime
  *
  * Description:
@@ -120,7 +109,7 @@ static struct ds3231_dev_s g_ds3231;
  * Returned Value:
  *   None
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_DEBUG_RTC_INFO
 static void rtc_dumptime(FAR struct tm *tp, FAR const char *msg)
@@ -132,17 +121,15 @@ static void rtc_dumptime(FAR struct tm *tp, FAR const char *msg)
   rtcinfo("  tm_mday: %08x\n", tp->tm_mday);
   rtcinfo("   tm_mon: %08x\n", tp->tm_mon);
   rtcinfo("  tm_year: %08x\n", tp->tm_year);
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
   rtcinfo("  tm_wday: %08x\n", tp->tm_wday);
   rtcinfo("  tm_yday: %08x\n", tp->tm_yday);
   rtcinfo(" tm_isdst: %08x\n", tp->tm_isdst);
-#endif
 }
 #else
 #  define rtc_dumptime(tp, msg)
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: rtc_bin2bcd
  *
  * Description:
@@ -154,7 +141,7 @@ static void rtc_dumptime(FAR struct tm *tp, FAR const char *msg)
  * Returned Value:
  *   The value in BCD representation
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static uint8_t rtc_bin2bcd(int value)
 {
@@ -169,7 +156,7 @@ static uint8_t rtc_bin2bcd(int value)
   return (msbcd << 4) | value;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: rtc_bcd2bin
  *
  * Description:
@@ -181,7 +168,7 @@ static uint8_t rtc_bin2bcd(int value)
  * Returned Value:
  *   The value in binary representation
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static int rtc_bcd2bin(uint8_t value)
 {
@@ -189,23 +176,25 @@ static int rtc_bcd2bin(uint8_t value)
   return tens + (value & 0x0f);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Public Functions
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: dsxxxx_rtc_initialize
  *
  * Description:
- *   Initialize the hardware RTC per the selected configuration.  This function is
- *   called once during the OS initialization sequence by board-specific logic.
+ *   Initialize the hardware RTC per the selected configuration.
+ *   This function is called once during the OS initialization sequence by
+ *   board-specific logic.
  *
- *   After dsxxxx_rtc_initialize() is called, the OS function clock_synchronize()
- *   should also be called to synchronize the system timer to a hardware RTC.  That
- *   operation is normally performed automatically by the system during clock
- *   initialization.  However, when an external RTC is used, the board logic will
- *   need to explicitly re-synchronize the system timer to the RTC when the RTC
- *   becomes available.
+ *   After dsxxxx_rtc_initialize() is called, the OS function
+ *   clock_synchronize() should also be called to synchronize the system
+ *   timer to a hardware RTC.  That operation is normally performed
+ *   automatically by the system during clock initialization.  However, when
+ *   an external RTC is used, the board logic will need to explicitly
+ *   re-synchronize the system timer to the RTC when the RTC becomes
+ *   available.
  *
  * Input Parameters:
  *   None
@@ -213,7 +202,7 @@ static int rtc_bcd2bin(uint8_t value)
  * Returned Value:
  *   Zero (OK) on success; a negated errno on failure
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 int dsxxxx_rtc_initialize(FAR struct i2c_master_s *i2c)
 {
@@ -224,20 +213,21 @@ int dsxxxx_rtc_initialize(FAR struct i2c_master_s *i2c)
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: up_rtc_getdatetime
  *
  * Description:
  *   Get the current date and time from the date/time RTC.  This interface
  *   is only supported by the date/time RTC hardware implementation.
- *   It is used to replace the system timer.  It is only used by the RTOS during
- *   initialization to set up the system time when CONFIG_RTC and CONFIG_RTC_DATETIME
- *   are selected (and CONFIG_RTC_HIRES is not).
+ *   It is used to replace the system timer.  It is only used by the RTOS
+ *   during initialization to set up the system time when CONFIG_RTC and
+ *   CONFIG_RTC_DATETIME are selected (and CONFIG_RTC_HIRES is not).
  *
- *   NOTE: Some date/time RTC hardware is capability of sub-second accuracy.  That
- *   sub-second accuracy is lost in this interface.  However, since the system time
- *   is reinitialized on each power-up/reset, there will be no timing inaccuracy in
- *   the long run.
+ *   NOTE:
+ *   Some date/time RTC hardware is capability of sub-second accuracy.
+ *   That sub-second accuracy is lost in this interface.  However, since the
+ *   system time is reinitialized on each power-up/reset, there will be no
+ *   timing inaccuracy in the long run.
  *
  * Input Parameters:
  *   tp - The location to return the high resolution time value.
@@ -245,7 +235,7 @@ int dsxxxx_rtc_initialize(FAR struct i2c_master_s *i2c)
  * Returned Value:
  *   Zero (OK) on success; a negated errno on failure
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 int up_rtc_getdatetime(FAR struct tm *tp)
 {
@@ -256,8 +246,9 @@ int up_rtc_getdatetime(FAR struct tm *tp)
   int tmp;
   int ret;
 
-  /* If this function is called before the RTC has been initialized (and it will be),
-   * then just return the data/time of the epoch, 12:00 am, Jan 1, 1970.
+  /* If this function is called before the RTC has been initialized
+   * (and it will be), then just return the data/time of the epoch,
+   * 12:00 am, Jan 1, 1970.
    */
 
   if (!g_rtc_enabled)
@@ -266,12 +257,9 @@ int up_rtc_getdatetime(FAR struct tm *tp)
       tp->tm_min  = 0;
       tp->tm_hour = 0;
 
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
       /* Jan 1, 1970 was a Thursday */
 
       tp->tm_wday = 4;
-#endif
-
       tp->tm_mday = 1;
       tp->tm_mon  = 0;
       tp->tm_year = 70;
@@ -313,7 +301,8 @@ int up_rtc_getdatetime(FAR struct tm *tp)
   msg[3].length    = 1;
 
   /* Perform the transfer.  The transfer may be performed repeatedly of the
-   * seconds values decreases, meaning that that was a rollover in the seconds.
+   * seconds values decreases, meaning that that was a rollover in the
+   * seconds.
    */
 
   do
@@ -329,6 +318,7 @@ int up_rtc_getdatetime(FAR struct tm *tp)
          (seconds & DSXXXX_TIME_SEC_BCDMASK));
 
   /* Format the return time */
+
   /* Return seconds (0-61) */
 
   tp->tm_sec = rtc_bcd2bin(buffer[0] & DSXXXX_TIME_SEC_BCDMASK);
@@ -341,11 +331,9 @@ int up_rtc_getdatetime(FAR struct tm *tp)
 
   tp->tm_hour = rtc_bcd2bin(buffer[2] & DSXXXX_TIME_HOUR24_BCDMASK);
 
- #if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
   /* Return the day of the week (0-6) */
 
   tp->tm_wday = (rtc_bcd2bin(buffer[3]) & DSXXXX_TIME_DAY_MASK) - 1;
-#endif
 
   /* Return the day of the month (1-31) */
 
@@ -369,8 +357,8 @@ int up_rtc_getdatetime(FAR struct tm *tp)
       tp->tm_year = tmp + 100;
     }
 #else
-  /* No century indicator.  The RTC will hold years since 1968 (a leap year like
-   * 2000)
+  /* No century indicator.
+   * The RTC will hold years since 1968 (a leap year like 2000)
    */
 
   tp->tm_year = tmp + 68;
@@ -380,12 +368,12 @@ int up_rtc_getdatetime(FAR struct tm *tp)
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: up_rtc_settime
  *
  * Description:
- *   Set the RTC to the provided time.  All RTC implementations must be able to
- *   set their time based on a standard timespec.
+ *   Set the RTC to the provided time.  All RTC implementations must be able
+ *   to set their time based on a standard timespec.
  *
  * Input Parameters:
  *   tp - the time to use
@@ -393,7 +381,7 @@ int up_rtc_getdatetime(FAR struct tm *tp)
  * Returned Value:
  *   Zero (OK) on success; a negated errno on failure
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 int up_rtc_settime(FAR const struct timespec *tp)
 {
@@ -406,8 +394,8 @@ int up_rtc_settime(FAR const struct timespec *tp)
   uint8_t year;
   int ret;
 
-  /* If this function is called before the RTC has been initialized then just return
-   * an error.
+  /* If this function is called before the RTC has been initialized then just
+   * return an error.
    */
 
   if (!g_rtc_enabled)
@@ -427,24 +415,17 @@ int up_rtc_settime(FAR const struct timespec *tp)
       newtime++;
     }
 
- #ifdef CONFIG_LIBC_LOCALTIME
-   if (localtime_r(&newtime, &newtm) == NULL)
-     {
-       rtcerr("ERROR: localtime_r failed\n");
-       return -EINVAL;
-     }
-#else
-   if (gmtime_r(&newtime, &newtm) == NULL)
-     {
-       rtcerr("ERROR: gmtime_r failed\n");
-       return -EINVAL;
-     }
-#endif
+  if (localtime_r(&newtime, &newtm) == NULL)
+    {
+      rtcerr("ERROR: localtime_r failed\n");
+      return -EINVAL;
+    }
 
   rtc_dumptime(&newtm, "New time");
 
   /* Construct the message */
-  /* Write starting with the seconds regiser */
+
+  /* Write starting with the seconds register */
 
   buffer[0] = DSXXXX_TIME_SECR;
 
@@ -462,11 +443,7 @@ int up_rtc_settime(FAR const struct timespec *tp)
 
   /* Save the day of the week (1-7) */
 
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
   buffer[4] = rtc_bin2bcd(newtm.tm_wday + 1);
-#else
-  buffer[4] = 1;
-#endif
 
   /* Save the day of the month (1-31) */
 

@@ -79,7 +79,8 @@
  *
  *   ------------------- ---------------------------- ------
  *   SYMBOL                  Meaning                  LED
- *   ------------------- ---------------------------- ------   */
+ *   ------------------- ---------------------------- ------
+ */
 
 #define LED_STARTED      0 /* NuttX has been started  OFF      */
 #define LED_HEAPALLOCATE 0 /* Heap has been allocated OFF      */
@@ -200,4 +201,4 @@ extern "C"
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif  /* __BOARDS_ARM_STM32L4_B_L475E_IOT01A_INCLUDE_BOARD_H */
+#endif /* __BOARDS_ARM_STM32L4_B_L475E_IOT01A_INCLUDE_BOARD_H */

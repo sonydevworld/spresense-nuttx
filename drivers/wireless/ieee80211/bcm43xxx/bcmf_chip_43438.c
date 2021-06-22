@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/wireless/bcm43xxx/ieee80211/bcmf_chip_43438.c
+ * drivers/wireless/ieee80211/bcm43xxx/bcmf_chip_43438.c
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
  *   Author:  Simon Piriou <spiriou31@gmail.com>
@@ -67,7 +67,7 @@ const struct bcmf_sdio_chip bcmf_43438_config_sdio =
 {
   /* General chip stats */
 
-  .ram_size = 512*1024,
+  .ram_size = 512 * 1024,
 
   /* Backplane architecture */
 
@@ -83,6 +83,7 @@ const struct bcmf_sdio_chip bcmf_43438_config_sdio =
   },
 
   /* Firmware images */
+
   /* TODO find something smarter than using image_len references */
 
   .nvram_image         = (FAR uint8_t *)ap6212_nvram_image,
@@ -96,3 +97,7 @@ const struct bcmf_sdio_chip bcmf_43438_config_sdio =
   .clm_blob_image_size = (FAR unsigned int *)&ap6212_clm_blob_len,
 #endif
 };
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/

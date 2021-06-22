@@ -3,6 +3,18 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
+config USBHOST_HAVE_ASYNCH
+	bool
+	default n
+
+menuconfig USBHOST
+	bool "USB Host Driver Support"
+	default n
+	---help---
+		USB host drivers.  See also include/nuttx/usb/usbhost.h
+
+if USBHOST
+
 config USBHOST_NPREALLOC
 	int "Number of pre-allocated class instances"
 	default 4
@@ -29,10 +41,6 @@ config USBHOST_ISOC_DISABLE
 	---help---
 		On some architectures, selecting this setting will reduce driver size
 		by disabling isochronous endpoint support
-
-config USBHOST_HAVE_ASYNCH
-	bool
-	default n
 
 config USBHOST_ASYNCH
 	bool "Asynchronous transfer support"
@@ -99,7 +107,17 @@ config USBHOST_MSC
 	depends on !BULK_DISABLE
 	---help---
 		Enable support for the mass storage class driver.  This also depends on
-		NFILE_DESCRIPTORS > 0 && SCHED_WORKQUEUE=y
+		SCHED_WORKQUEUE=y
+
+config USBHOST_MSC_NOTIFIER
+	bool "Support USB Mass Storage notifications"
+	default n
+	depends on USBHOST_MSC
+	select WQUEUE_NOTIFIER
+	---help---
+		Enable building of USB MSC notifier logic that will execute a worker
+		function on the low priority work queue when a mass storage device is
+		connected or disconnected.
 
 config USBHOST_CDCACM
 	bool "CDC/ACM support"
@@ -163,7 +181,7 @@ config USBHOST_CDCACM_BULKONLY
 		By default, both the CDC/ACM compliant protocol and the reduced
 		protocol are supported.  This option is then most useful for testing
 		purposes.  The interrupt IN control interface will not be used even
-		if it is available; nor will EP0 class requestes.
+		if it is available; nor will EP0 class requests.
 
 endchoice # CDC/ACM Protocol
 
@@ -250,9 +268,19 @@ config USBHOST_CDCACM_TXBUFSIZE
 	default 128
 	---help---
 		This is the size of the serial buffer that will be used to hold
-		data waiting for tranmission.
+		data waiting for transmission.
 
 endif # USBHOST_CDCACM
+
+config USBHOST_CDCMBIM
+	bool "CDC/MBIM support"
+	default n
+	depends on USBHOST_HAVE_ASYNCH && !USBHOST_BULK_DISABLE && !USBHOST_INT_DISABLE && EXPERIMENTAL
+	select USBHOST_ASYNCH
+	select NET_MBIM
+	---help---
+		Select this option to build in host support for CDC/MBIM network
+		devices.
 
 config USBHOST_HIDKBD
 	bool "HID Keyboard Class Support"
@@ -460,7 +488,7 @@ config HIDMOUSE_THRESHY
 
 		Default: 12
 
-if MOUSE_WHEEL
+if INPUT_MOUSE_WHEEL
 
 config HIDMOUSE_WMAX
 	int "Maximum wheel position"
@@ -495,7 +523,7 @@ config HIDMOUSE_WTHRESH
 
 		Default: 1
 
-endif # MOUSE_WHEEL
+endif # INPUT_MOUSE_WHEEL
 endif # USBHOST_HIDMOUSE
 
 config USBHOST_XBOXCONTROLLER
@@ -592,3 +620,96 @@ config USBHOST_TRACE_VERBOSE
 
 endif
 
+config USBHOST_FT232R
+	bool "FTDI FT232R support"
+	default n
+	depends on !USBHOST_BULK_DISABLE && !USBHOST_INT_DISABLE
+	select SERIAL_REMOVABLE
+	---help---
+		Select this option to build in host support for FTDI FT232R
+		serial devices.
+
+if USBHOST_FT232R
+
+config USBHOST_FT232R_RXDELAY
+	int "RX poll delay (MSec)"
+	default 200
+	---help---
+		When the CDC/ACM device is inactive, the host must poll it at this
+		rate in order to discover if it has serial data to send to us.
+
+config USBHOST_FT232R_TXDELAY
+	int "TX poll delay (MSec)"
+	default 200
+	---help---
+		When the appellation is inactive, the host must poll it at this
+		rate in order to discover if it has serial data to send to the
+		device.
+
+config USBHOST_FT232R_NPREALLOC
+	int "Preallocated state"
+	default 0
+	---help---
+		If this setting is zero, the FT232R driver will allocate
+		memory as needed for FT232R device state.  If this value is non-
+		zero, then it provides a number of preallocated FT232R state
+		structures.  This increases the static size of the code image, but
+		eliminates all, direct, run-time allocations by the driver.
+
+config USBHOST_FT232R_BAUD
+	int "Initialize FT232R BAUD"
+	default 115200
+
+config USBHOST_FT232R_PARITY
+	int "Initialize FT232R parity"
+	default 0
+	range 0 2
+	---help---
+		Initialize FT232R parity.  0=None, 1=Odd, 2=Even.  Default: None
+
+config USBHOST_FT232R_BITS
+	int "Initialize FT232R transfer size"
+	default 8
+	range 7 8
+	---help---
+		Initialize FT232R number of bits.  Default: 8
+
+config USBHOST_FT232R_2STOP
+	bool "FT232R use two stop bits"
+	default n
+	---help---
+		False = 1 stop bit, True = Two stop bits.  Default: 1 stop bit
+
+config USBHOST_FT232R_HWFLOWCTRL
+	bool "Use FT232R RTS/CTS"
+	default n
+	---help---
+		Enables the FT232R to use its flow control signals
+
+config USBHOST_FT232R_RXBUFSIZE
+	int "Serial RX buffer size"
+	default 128
+	---help---
+		This is the size of the serial buffer that will be used to hold
+		received data.
+
+config USBHOST_FT232R_TXBUFSIZE
+	int "Serial TX buffer size"
+	default 128
+	---help---
+		This is the size of the serial buffer that will be used to hold
+		data waiting for transmission.
+
+config USBHOST_FT232R_LATENCY
+	int "Latency Timer"
+	default 16
+	range 0 255
+	---help---
+		A timeout for UART to USB packet reception. The FT232R will
+		release its buffer for sending to the USB host once this timeout
+		occurs or the buffer is full. Measured in ms.
+
+endif # USBHOST_FT232R
+
+
+endif # USBHOST

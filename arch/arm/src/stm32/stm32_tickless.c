@@ -34,6 +34,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+
 /****************************************************************************
  * Tickless OS Support.
  *
@@ -41,7 +42,7 @@
  * is suppressed and the platform specific code is expected to provide the
  * following custom functions.
  *
- *   void arm_timer_initialize(void): Initializes the timer facilities.
+ *   void up_timer_initialize(void): Initializes the timer facilities.
  *     Called early in the initialization sequence (by up_initialize()).
  *   int up_timer_gettime(FAR struct timespec *ts):  Returns the current
  *     time from the platform specific time source.
@@ -56,6 +57,7 @@
  *     logic when the interval timer expires.
  *
  ****************************************************************************/
+
 /****************************************************************************
  * STM32 Timer Usage
  *
@@ -87,7 +89,7 @@
 #include <nuttx/arch.h>
 #include <debug.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "stm32_tim.h"
 
@@ -142,39 +144,39 @@ static struct stm32_tickless_s g_tickless;
  * Private Functions
  ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_getreg16
  *
  * Description:
  *   Get a 16-bit register value by offset
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline uint16_t stm32_getreg16(uint8_t offset)
 {
   return getreg16(g_tickless.base + offset);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_putreg16
  *
  * Description:
  *   Put a 16-bit register value by offset
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_putreg16(uint8_t offset, uint16_t value)
 {
   putreg16(value, g_tickless.base + offset);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_modifyreg16
  *
  * Description:
  *   Modify a 16-bit register value by offset
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_modifyreg16(uint8_t offset, uint16_t clearbits,
                                      uint16_t setbits)
@@ -182,45 +184,45 @@ static inline void stm32_modifyreg16(uint8_t offset, uint16_t clearbits,
   modifyreg16(g_tickless.base + offset, clearbits, setbits);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_tickless_enableint
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_tickless_enableint(int channel)
 {
   stm32_modifyreg16(STM32_BTIM_DIER_OFFSET, 0, 1 << channel);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_tickless_disableint
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_tickless_disableint(int channel)
 {
   stm32_modifyreg16(STM32_BTIM_DIER_OFFSET, 1 << channel, 0);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_tickless_ackint
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_tickless_ackint(int channel)
 {
   stm32_putreg16(STM32_BTIM_SR_OFFSET, ~(1 << channel));
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_tickless_getint
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline uint16_t stm32_tickless_getint(void)
 {
   return stm32_getreg16(STM32_BTIM_SR_OFFSET);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_tickless_setchannel
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32_tickless_setchannel(uint8_t channel)
 {
@@ -385,7 +387,7 @@ static int stm32_tickless_handler(int irq, void *context, void *arg)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: arm_timer_initialize
+ * Name: up_timer_initialize
  *
  * Description:
  *   Initializes all platform-specific timer facilities.  This function is
@@ -409,7 +411,7 @@ static int stm32_tickless_handler(int irq, void *context, void *arg)
  *
  ****************************************************************************/
 
-void arm_timer_initialize(void)
+void up_timer_initialize(void)
 {
   switch (CONFIG_STM32_TICKLESS_TIMER)
     {
@@ -590,7 +592,7 @@ void arm_timer_initialize(void)
  *
  * Description:
  *   Return the elapsed time since power-up (or, more correctly, since
- *   arm_timer_initialize() was called).  This function is functionally
+ *   up_timer_initialize() was called).  This function is functionally
  *   equivalent to:
  *
  *      int clock_gettime(clockid_t clockid, FAR struct timespec *ts);
@@ -795,8 +797,8 @@ int up_timer_cancel(FAR struct timespec *ts)
       return OK;
     }
 
-  /* Yes.. Get the timer counter and period registers and disable the compare interrupt.
-   *
+  /* Yes.. Get the timer counter and period registers and disable the compare
+   * interrupt.
    */
 
   tmrinfo("Cancelling...\n");

@@ -31,7 +31,7 @@ Refer to the http://www.st.com website for further information about this
 board (search keyword: 429i-disco)
 
 NOTE:  This port was based on the original discovery kit, STM32F429I-DISCO.
-That board has been superceded by the new STM32F429I-DISC1.
+That board has been superseded by the new STM32F429I-DISC1.
 
 Contents
 ========
@@ -294,31 +294,6 @@ the following lines in each Make.defs file:
   else
     ARCHCPUFLAGS = -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
   endif
-
-Configuration Changes
----------------------
-
-Below are all of the configuration changes that I had to make to boards/arm/stm32/stm32f429i-disco/nsh2
-in order to successfully build NuttX using the Atollic toolchain WITH FPU support:
-
-  -CONFIG_ARCH_FPU=n                       : Enable FPU support
-  +CONFIG_ARCH_FPU=y
-
-  -CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : Disable the CodeSourcery toolchain
-  +CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=n
-
-  -CONFIG_ARMV7M_TOOLCHAIN_ATOLLIC=n       : Enable the Atollic toolchain
-  +CONFIG_ARMV7M_TOOLCHAIN_ATOLLIC=y       :
-
-  -CONFIG_INTELHEX_BINARY=y                : Suppress generation FLASH download formats
-  +CONFIG_INTELHEX_BINARY=n                : (Only necessary with the "Lite" version)
-
-  -CONFIG_HAVE_CXX=y                       : Suppress generation of C++ code
-  +CONFIG_HAVE_CXX=n                       : (Only necessary with the "Lite" version)
-
-See the section above on Toolchains, NOTE 2, for explanations for some of
-the configuration settings.  Some of the usual settings are just not supported
-by the "Lite" version of the Atollic toolchain.
 
 FMC SDRAM
 =========
@@ -603,7 +578,7 @@ STM32F429I-DISCO-specific Configuration Options
 
     CONFIG_SDIO_DMA - Support DMA data transfers.  Requires CONFIG_STM32_SDIO
       and CONFIG_STM32_DMA2.
-    CONFIG_STM32_SDIO_PRI - Select SDIO interrupt prority.  Default: 128
+    CONFIG_STM32_SDIO_PRI - Select SDIO interrupt priority.  Default: 128
     CONFIG_STM32_SDIO_DMAPRIO - Select SDIO DMA interrupt priority.
       Default:  Medium
     CONFIG_STM32_SDIO_WIDTH_D1_ONLY - Select 1-bit transfer mode.  Default:
@@ -707,7 +682,7 @@ Where <subdir> is one of the following:
     STM32F429I-DISCO LittlevGL demo example.
 
     The ltdc is initialized during boot up.  Interaction with NSH is via
-    the serial console at 115200 8N1 baud.  From the nsh comand line
+    the serial console at 115200 8N1 baud.  From the nsh command line
     execute the lvgldemo example:
 
       nsh> lvgldemo
@@ -733,13 +708,13 @@ Where <subdir> is one of the following:
        b. Execute 'make menuconfig' in nuttx/ in order to start the
           reconfiguration process.
 
-    2. By default, this configuration uses the CodeSourcery toolchain
+    2. By default, this configuration uses the ARM EABI toolchain
        for Windows and builds under Cygwin (or probably MSYS).  That
        can easily be reconfigured, of course.
 
        CONFIG_HOST_WINDOWS=y                   : Builds under Windows
        CONFIG_WINDOWS_CYGWIN=y                 : Using Cygwin
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
     3. This example supports the PWM test (apps/examples/pwm) but this must
        be manually enabled by selecting:
@@ -855,7 +830,7 @@ Where <subdir> is one of the following:
        class driver:
 
        Device Drivers ->
-         CONFIG_USBDEV=n          : Make sure tht USB device support is disabled
+         CONFIG_USBDEV=n          : Make sure the USB device support is disabled
          CONFIG_USBHOST=y         : Enable USB host support
          CONFIG_USBHOST_ISOC_DISABLE=y
 
@@ -931,7 +906,7 @@ Where <subdir> is one of the following:
 
        Drivers -> USB Host Driver Support
          CONFIG_USBHOST_HUB=y     : Enable the hub class
-         CONFIG_USBHOST_ASYNCH=y  : Asynchonous I/O supported needed for hubs
+         CONFIG_USBHOST_ASYNCH=y  : Asynchronous I/O supported needed for hubs
 
        Board Selection ->
          CONFIG_STM32F429IDISCO_USBHOST_STACKSIZE=2048 (bigger than it needs to be)

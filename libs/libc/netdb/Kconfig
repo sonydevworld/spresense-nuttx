@@ -18,10 +18,21 @@ config LIBC_GAISTRERROR
 		of memory. If this option is not selected, gai_strerror() will still exist in
 		the build but it will not decode error values.
 
+config NETDB_BUFSIZE
+	int "gethostbyname/gethostbyaddr buffer size"
+	default 256
+
+config NETDB_MAX_IPADDR
+	int "Max number of IP addresses per host"
+	default 2 if NET_IPv4 && NET_IPv6
+	default 1
+	---help---
+		This setting determines the maximum number of IP addresses
+		stored to the name resolution cache for a given host.
+
 menuconfig NETDB_HOSTFILE
 	bool "Network host file support"
 	default n
-	depends on FS_READABLE
 	select LIBC_NETDB
 	---help---
 		Enable network host table look ups via gethostbyname() and
@@ -36,10 +47,6 @@ config NETDB_HOSTCONF_PATH
 config NETDB_MAX_ALTNAMES
 	int "Max number of alternate host names"
 	default 4
-
-config NETDB_BUFSIZE
-	int "gethostname() buffer size"
-	default 128
 
 endif # NETDB_HOSTFILE
 
@@ -69,7 +76,7 @@ config NETDB_DNSCLIENT_ENTRIES
 		cached and if the name mapping can be found in that cache, the
 		network query can be avoid.  Of course, this is only useful if you
 		query the same name often and if the IP address of the name is
-		stable.  If the IP address can change, then cachin DNS address
+		stable.  If the IP address can change, then caching DNS address
 		might have undesirable side-effects (see help for
 		CONFIG_NETDB_DNSCLIENT_LIFESEC).
 
@@ -96,18 +103,12 @@ config NETDB_DNSCLIENT_LIFESEC
 
 config NETDB_DNSCLIENT_MAXRESPONSE
 	int "Max response size"
-	default 96
+	default 256
 	---help---
 		This setting determines the maximum size of response message that
-		can be received by the DNS resolver.  The default is 96 but may
-		need to be larger on enterprise networks (perhaps 176).
-
-config NETDB_DNSCLIENT_MAXIP
-	int "Max number of IP addresses per host"
-	default 1
-	---help---
-		This setting determines the maximum number of IP addresses
-		stored to the name resolution cache for a given host.
+		can be received by the DNS resolver.  The default used to be 96,
+		which might be enough if you have a control on the DNS servers.
+		It may need to be larger on enterprise networks.
 
 config NETDB_DNSCLIENT_RECV_TIMEOUT
 	int "DNS receive timeout"
@@ -126,7 +127,6 @@ config NETDB_DNSCLIENT_RETRIES
 config NETDB_RESOLVCONF
 	bool "DNS resolver file support"
 	default n
-	depends on FS_READABLE
 	---help---
 		Enable DNS server look ups in resolver file like /etc/resolv.conf.
 
@@ -156,6 +156,14 @@ config NETDB_RESOLVCONF_NONSTDPORT
 
 endif # NETDB_RESOLVCONF
 
+config NETDB_DNSSERVER_NAMESERVERS
+	int "Max number of configured nameservers"
+	default 1
+	depends on !NETDB_RESOLVCONF
+	---help---
+		This setting determines how many nameservers there can be
+		in use concurrently.
+
 choice
 	prompt "DNS server address type"
 	default NETDB_DNSSERVER_IPv4 if NET_IPv4
@@ -167,7 +175,7 @@ config NETDB_DNSSERVER_NOADDR
 	bool "No default DNS server address"
 	---help---
 		There is not default DNS nameserver address.  Application must call
-		dns_add_server() at runtime to add the DNS server address.
+		dns_add_nameserver() at runtime to add the DNS server address.
 
 config NETDB_DNSSERVER_IPv4
 	bool "IPv4 DNS server address"
@@ -175,7 +183,7 @@ config NETDB_DNSSERVER_IPv4
 	---help---
 		An IPv4 default DNS nameserver address will be provided.  Application
 		may overwrite this start default server address by calling
-		dns_add_server() at runtime.
+		dns_add_nameserver() at runtime.
 
 config NETDB_DNSSERVER_IPv6
 	bool "IPv6 DNS server address"
@@ -183,7 +191,7 @@ config NETDB_DNSSERVER_IPv6
 	---help---
 		An IPv6 default DNS nameserver address will be provided.  Application
 		may overwrite this start default server address by calling
-		dns_add_server() at runtime.
+		dns_add_nameserver() at runtime.
 
 endchoice # DNS server address type
 
@@ -193,7 +201,7 @@ config NETDB_DNSSERVER_IPv4ADDR
 	depends on NETDB_DNSSERVER_IPv4
 	---help---
 		Default DNS server IPv4 address in host byte order.  Default value
-		10.0.0.0.1.  This may be changed via dns_add_nameserver().
+		10.0.0.1.  This may be changed via dns_add_nameserver().
 
 if NETDB_DNSSERVER_IPv6
 

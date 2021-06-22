@@ -50,7 +50,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Configuration ********************************************************************/
+/* Configuration ************************************************************/
 
 #define HAVE_MMCSD 1
 #if !defined(CONFIG_STM32_SDIO) || !defined(CONFIG_MMCSD) || \
@@ -58,10 +58,9 @@
 #  undef HAVE_MMCSD
 #endif
 
-/* LED.  User LD2: the green LED is a user LED connected to Arduino signal D13
- * corresponding to MCU I/O PA5 (pin 21) or PB13 (pin 34) depending on the
- * STM32
- * target.
+/* LED.  User LD2: the green LED is a user LED connected to Arduino signal
+ * D13 corresponding to MCU I/O PA5 (pin 21) or PB13 (pin 34) depending on
+ * the STM32 target.
  *
  * - When the I/O is HIGH value, the LED is on.
  * - When the I/O is LOW, the LED is off.
@@ -233,7 +232,7 @@ extern struct sdio_dev_s *g_sdio;
 #endif
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
@@ -250,7 +249,7 @@ extern struct sdio_dev_s *g_sdio;
  *   Otherwise CONFIG_BOARD_LATE_INITIALIZE=y:
  *     Called from board_late_initialize().
  *
- *   Otherise, bad news:  Never called
+ *   Otherwise, bad news:  Never called
  *
  ****************************************************************************/
 
@@ -289,18 +288,6 @@ int stm32_adc_setup(void);
 #endif
 
 /****************************************************************************
- * Name: stm32_qencoder_initialize
- *
- * Description:
- *   Initialize and register a qencoder
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_QENCODER
-int stm32_qencoder_initialize(FAR const char *devpath, int timer);
-#endif
-
-/****************************************************************************
  * Name: board_ajoy_initialize
  *
  * Description:
@@ -308,7 +295,7 @@ int stm32_qencoder_initialize(FAR const char *devpath, int timer);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_AJOYSTICK
+#ifdef CONFIG_INPUT_AJOYSTICK
 int board_ajoy_initialize(void);
 #endif
 

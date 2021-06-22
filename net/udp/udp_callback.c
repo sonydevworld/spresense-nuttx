@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/udp/udp_callback.c
  *
- *   Copyright (C) 2007-2009, 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -75,7 +60,6 @@
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_UDP_READAHEAD
 static uint16_t udp_datahandler(FAR struct net_driver_s *dev,
                                 FAR struct udp_conn_s *conn,
                                 FAR uint8_t *buffer, uint16_t buflen)
@@ -166,6 +150,7 @@ static uint16_t udp_datahandler(FAR struct net_driver_s *dev,
 
           net_ipv4addr_copy(src_addr4.sin_addr.s_addr,
                             net_ip4addr_conv32(ipv4->srcipaddr));
+          memset(src_addr4.sin_zero, 0, sizeof(src_addr4.sin_zero));
 
           src_addr_size = sizeof(src_addr4);
           src_addr = &src_addr4;
@@ -234,7 +219,7 @@ static uint16_t udp_datahandler(FAR struct net_driver_s *dev,
       return 0;
     }
 
-#ifdef CONFIG_UDP_NOTIFIER
+#ifdef CONFIG_NET_UDP_NOTIFIER
   /* Provided notification(s) that additional UDP read-ahead data is
    * available.
    */
@@ -245,7 +230,6 @@ static uint16_t udp_datahandler(FAR struct net_driver_s *dev,
   ninfo("Buffered %d bytes\n", buflen);
   return buflen;
 }
-#endif /* CONFIG_NET_UDP_READAHEAD */
 
 /****************************************************************************
  * Name: net_dataevent
@@ -260,11 +244,9 @@ net_dataevent(FAR struct net_driver_s *dev, FAR struct udp_conn_s *conn,
               uint16_t flags)
 {
   uint16_t ret;
-#ifdef CONFIG_NET_UDP_READAHEAD
   uint8_t *buffer = dev->d_appdata;
   int      buflen = dev->d_len;
   uint16_t recvlen;
-#endif
 
   ret = (flags & ~UDP_NEWDATA);
 
@@ -274,14 +256,12 @@ net_dataevent(FAR struct net_driver_s *dev, FAR struct udp_conn_s *conn,
 
   ninfo("No receive on connection\n");
 
-#ifdef CONFIG_NET_UDP_READAHEAD
   /* Save as the packet data as in the read-ahead buffer.  NOTE that
    * partial packets will not be buffered.
    */
 
   recvlen = udp_datahandler(dev, conn, buffer, buflen);
   if (recvlen < buflen)
-#endif
     {
       /* There is no handler to receive new data and there are no free
        * read-ahead buffers to retain the data -- drop the packet.

@@ -1,46 +1,31 @@
-/************************************************************************************
- * arch/arm/src/stm32/hardware/stm32f30xx_rcc.h
+/****************************************************************************
+ * arch/arm/src/stm32/hardware/stm32f30xxx_rcc.h
  *
- *   Copyright (C) 2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_STM32_HARDWARE_STM32F30XXX_RCC_H
 #define __ARCH_ARM_SRC_STM32_HARDWARE_STM32F30XXX_RCC_H
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
+ ****************************************************************************/
 
-/* Register Offsets *****************************************************************/
+/* Register Offsets *********************************************************/
 
 #define STM32_RCC_CR_OFFSET         0x0000  /* Clock control register */
 #define STM32_RCC_CFGR_OFFSET       0x0004  /* Clock configuration register */
@@ -56,7 +41,7 @@
 #define STM32_RCC_CFGR2_OFFSET      0x002c  /* Clock configuration register 2 */
 #define STM32_RCC_CFGR3_OFFSET      0x0030  /* Clock configuration register 3 */
 
-/* Register Addresses ***************************************************************/
+/* Register Addresses *******************************************************/
 
 #define STM32_RCC_CR                (STM32_RCC_BASE+STM32_RCC_CR_OFFSET)
 #define STM32_RCC_CFGR              (STM32_RCC_BASE+STM32_RCC_CFGR_OFFSET)
@@ -72,7 +57,7 @@
 #define STM32_RCC_CFGR2             (STM32_RCC_BASE+STM32_RCC_CFGR2_OFFSET)
 #define STM32_RCC_CFGR3             (STM32_RCC_BASE+STM32_RCC_CFGR3_OFFSET)
 
-/* Register Bitfield Definitions ****************************************************/
+/* Register Bitfield Definitions ********************************************/
 
 /* Clock control register */
 
@@ -96,22 +81,25 @@
 #  define RCC_CFGR_SW_HSI           (0 << RCC_CFGR_SW_SHIFT) /* 00: HSI selected as system clock */
 #  define RCC_CFGR_SW_HSE           (1 << RCC_CFGR_SW_SHIFT) /* 01: HSE selected as system clock */
 #  define RCC_CFGR_SW_PLL           (2 << RCC_CFGR_SW_SHIFT) /* 10: PLL selected as system clock */
+
 #define RCC_CFGR_SWS_SHIFT          (2)       /* Bits 3-2: System Clock Switch Status */
 #define RCC_CFGR_SWS_MASK           (3 << RCC_CFGR_SWS_SHIFT)
 #  define RCC_CFGR_SWS_HSI          (0 << RCC_CFGR_SWS_SHIFT) /* 00: HSI oscillator used as system clock */
 #  define RCC_CFGR_SWS_HSE          (1 << RCC_CFGR_SWS_SHIFT) /* 01: HSE oscillator used as system clock */
 #  define RCC_CFGR_SWS_PLL          (2 << RCC_CFGR_SWS_SHIFT) /* 10: PLL used as system clock */
+
 #define RCC_CFGR_HPRE_SHIFT         (4)       /* Bits 7-4: AHB prescaler */
 #define RCC_CFGR_HPRE_MASK          (0x0f << RCC_CFGR_HPRE_SHIFT)
-#  define RCC_CFGR_HPRE_SYSCLK      (0 << RCC_CFGR_HPRE_SHIFT) /* 0xxx: SYSCLK not divided */
-#  define RCC_CFGR_HPRE_SYSCLKd2    (8 << RCC_CFGR_HPRE_SHIFT) /* 1000: SYSCLK divided by 2 */
-#  define RCC_CFGR_HPRE_SYSCLKd4    (9 << RCC_CFGR_HPRE_SHIFT) /* 1001: SYSCLK divided by 4 */
+#  define RCC_CFGR_HPRE_SYSCLK      (0 << RCC_CFGR_HPRE_SHIFT)  /* 0xxx: SYSCLK not divided */
+#  define RCC_CFGR_HPRE_SYSCLKd2    (8 << RCC_CFGR_HPRE_SHIFT)  /* 1000: SYSCLK divided by 2 */
+#  define RCC_CFGR_HPRE_SYSCLKd4    (9 << RCC_CFGR_HPRE_SHIFT)  /* 1001: SYSCLK divided by 4 */
 #  define RCC_CFGR_HPRE_SYSCLKd8    (10 << RCC_CFGR_HPRE_SHIFT) /* 1010: SYSCLK divided by 8 */
 #  define RCC_CFGR_HPRE_SYSCLKd16   (11 << RCC_CFGR_HPRE_SHIFT) /* 1011: SYSCLK divided by 16 */
 #  define RCC_CFGR_HPRE_SYSCLKd64   (12 << RCC_CFGR_HPRE_SHIFT) /* 1100: SYSCLK divided by 64 */
 #  define RCC_CFGR_HPRE_SYSCLKd128  (13 << RCC_CFGR_HPRE_SHIFT) /* 1101: SYSCLK divided by 128 */
 #  define RCC_CFGR_HPRE_SYSCLKd256  (14 << RCC_CFGR_HPRE_SHIFT) /* 1110: SYSCLK divided by 256 */
 #  define RCC_CFGR_HPRE_SYSCLKd512  (15 << RCC_CFGR_HPRE_SHIFT) /* 1111: SYSCLK divided by 512 */
+
 #define RCC_CFGR_PPRE1_SHIFT        (8)       /* Bits 10-8: APB Low speed prescaler (APB1) */
 #define RCC_CFGR_PPRE1_MASK         (7 << RCC_CFGR_PPRE1_SHIFT)
 #  define RCC_CFGR_PPRE1_HCLK       (0 << RCC_CFGR_PPRE1_SHIFT) /* 0xx: HCLK not divided */
@@ -119,6 +107,7 @@
 #  define RCC_CFGR_PPRE1_HCLKd4     (5 << RCC_CFGR_PPRE1_SHIFT) /* 101: HCLK divided by 4 */
 #  define RCC_CFGR_PPRE1_HCLKd8     (6 << RCC_CFGR_PPRE1_SHIFT) /* 110: HCLK divided by 8 */
 #  define RCC_CFGR_PPRE1_HCLKd16    (7 << RCC_CFGR_PPRE1_SHIFT) /* 111: HCLK divided by 16 */
+
 #define RCC_CFGR_PPRE2_SHIFT        (11)      /* Bits 13-11: APB High speed prescaler (APB2) */
 #define RCC_CFGR_PPRE2_MASK         (7 << RCC_CFGR_PPRE2_SHIFT)
 #  define RCC_CFGR_PPRE2_HCLK       (0 << RCC_CFGR_PPRE2_SHIFT) /* 0xx: HCLK not divided */
@@ -126,6 +115,7 @@
 #  define RCC_CFGR_PPRE2_HCLKd4     (5 << RCC_CFGR_PPRE2_SHIFT) /* 101: HCLK divided by 4 */
 #  define RCC_CFGR_PPRE2_HCLKd8     (6 << RCC_CFGR_PPRE2_SHIFT) /* 110: HCLK divided by 8 */
 #  define RCC_CFGR_PPRE2_HCLKd16    (7 << RCC_CFGR_PPRE2_SHIFT) /* 111: HCLK divided by 16 */
+
 #define RCC_CFGR_PLLSRC             (1 << 16) /* Bit 16: PLL entry clock source */
 #define RCC_CFGR_PLLXTPRE           (1 << 17) /* Bit 17: HSE divider for PLL entry */
 #define RCC_CFGR_PLLMUL_SHIFT       (18)      /* Bits 21-18: PLL Multiplication Factor */
@@ -145,6 +135,7 @@
 #  define RCC_CFGR_PLLMUL_CLKx14    (12 << RCC_CFGR_PLLMUL_SHIFT) /* 1100: PLL input clock x 14 */
 #  define RCC_CFGR_PLLMUL_CLKx15    (13 << RCC_CFGR_PLLMUL_SHIFT) /* 1101: PLL input clock x 15 */
 #  define RCC_CFGR_PLLMUL_CLKx16    (14 << RCC_CFGR_PLLMUL_SHIFT) /* 111x: PLL input clock x 16 */
+
 #define RCC_CFGR_USBPRE             (1 << 22) /* Bit 22: USB prescaler */
 #define RCC_CFGR_I2SSRC             (1 << 23) /* Bit 23: I2S external clock source selection */
 #define RCC_CFGR_MCO_SHIFT          (24)      /* Bits 26-24: Microcontroller Clock Output */
@@ -156,6 +147,7 @@
 #  define RCC_CFGR_MCO_HSICLK       (5 << RCC_CFGR_MCO_SHIFT)  /* 101: HSI clock selected */
 #  define RCC_CFGR_MCO_HSECLK       (6 << RCC_CFGR_MCO_SHIFT)  /* 101: HSE clock selected */
 #  define RCC_CFGR_PLLCLKd2         (7 << RCC_CFGR_MCO_SHIFT)  /* 111: PLL clock divided by 2 selected */
+
 #define RCC_CFGR_MCOF               (1 << 28) /* Bit 23: Microcontroller Clock Output Flag */
 
 /* Clock interrupt register */
@@ -272,12 +264,14 @@
 #  define RCC_BDCR_LSEDRV_MEDLOW    (1 << RCC_BDCR_LSEDRV_SHIFT) /* 'Xtal mode' medium low driving capability */
 #  define RCC_BDCR_LSEDRV_MEDHIGH   (2 << RCC_BDCR_LSEDRV_SHIFT) /* 'Xtal mode' medium high driving capability */
 #  define RCC_BDCR_LSEDRV_HIGH      (3 << RCC_BDCR_LSEDRV_SHIFT) /* 'Xtal mode' higher driving capability */
+
 #define RCC_BDCR_RTCSEL_SHIFT       (8)       /* Bits 9:8: RTC clock source selection */
 #define RCC_BDCR_RTCSEL_MASK        (3 << RCC_BDCR_RTCSEL_SHIFT)
 #  define RCC_BDCR_RTCSEL_NOCLK     (0 << RCC_BDCR_RTCSEL_SHIFT) /* 00: No clock */
 #  define RCC_BDCR_RTCSEL_LSE       (1 << RCC_BDCR_RTCSEL_SHIFT) /* 01: LSE oscillator clock used as RTC clock */
 #  define RCC_BDCR_RTCSEL_LSI       (2 << RCC_BDCR_RTCSEL_SHIFT) /* 10: LSI oscillator clock used as RTC clock */
 #  define RCC_BDCR_RTCSEL_HSE       (3 << RCC_BDCR_RTCSEL_SHIFT) /* 11: HSE oscillator clock divided by 128 used as RTC clock */
+
 #define RCC_BDCR_RTCEN              (1 << 15) /* Bit 15: RTC clock enable */
 #define RCC_BDCR_BDRST              (1 << 16) /* Bit 16: Backup domain software reset */
 
@@ -326,6 +320,7 @@
 #  define RCC_CFGR2_PREDIVd14       (13 << RCC_CFGR2_PREDIV_SHIFT) /* 1101: HSE input to PLL divided by 14 */
 #  define RCC_CFGR2_PREDIVd15       (14 << RCC_CFGR2_PREDIV_SHIFT) /* 1110: HSE input to PLL divided by 15 */
 #  define RCC_CFGR2_PREDIVd16       (15 << RCC_CFGR2_PREDIV_SHIFT) /* 1111: HSE input to PLL divided by 16 */
+
 #define RCC_CFGR2_ADC12PRES_SHIFT   (4)       /* Bits 4-8: ADC12 prescaler */
 #define RCC_CFGR2_ADC12PRES_MASK    (31 << RCC_CFGR2_ADC12PRES_SHIFT)
 #  define RCC_CFGR2_ADC12DISABLED   (0 << RCC_CFGR2_ADC12PRES_SHIFT)  /* 0xxxx: ADC12 clock disabled */
@@ -341,6 +336,7 @@
 #  define RCC_CFGR2_ADC12PRESd64    (25 << RCC_CFGR2_ADC12PRES_SHIFT) /* 11001: PLL clock divided by 64 */
 #  define RCC_CFGR2_ADC12PRESd128   (26 << RCC_CFGR2_ADC12PRES_SHIFT) /* 11010: PLL clock divided by 128 */
 #  define RCC_CFGR2_ADC12PRESd256   (27 << RCC_CFGR2_ADC12PRES_SHIFT) /* 11011: PLL clock divided by 256 */
+
 #define RCC_CFGR2_ADC34PRES_SHIFT   (9)       /* Bits 9-13: ADC34 prescaler */
 #define RCC_CFGR2_ADC34PRES_MASK    (31 << RCC_CFGR2_ADC34PRES_SHIFT)
 #  define RCC_CFGR2_ADC34DISABLED   (0 << RCC_CFGR2_ADC34PRES_SHIFT)  /* 0xxxx: ADC34 clock disabled */
@@ -357,14 +353,19 @@
 #  define RCC_CFGR2_ADC34PRESd128   (26 << RCC_CFGR2_ADC34PRES_SHIFT) /* 11010: PLL clock divided by 128 */
 #  define RCC_CFGR2_ADC34PRESd256   (27 << RCC_CFGR2_ADC34PRES_SHIFT) /* 11011: PLL clock divided by 256 */
 
-/* Clock configuration register 2 */
+/* Clock configuration register 3 */
 
-#define RCC_CFGR3_USART1SW_SHIFT    (9)       /* Bits 0-1: USART1 clock source selection */
+/* otmar.goerlitz@hexagon.com, 2020-02-21: bit shift for USART1SW is 0;
+ * HSI bit pattern for all USARTxSW is 3
+ */
+
+#define RCC_CFGR3_USART1SW_SHIFT    (0)       /* Bits 0-1: USART1 clock source selection */
 #define RCC_CFGR3_USART1SW_MASK     (3 << RCC_CFGR3_USART1SW_SHIFT)
 #  define RCC_CFGR3_USART1SW_PCLK   (0 << RCC_CFGR3_USART1SW_SHIFT) /* PCLK */
 #  define RCC_CFGR3_USART1SW_SYSCLK (1 << RCC_CFGR3_USART1SW_SHIFT) /* System clock (SYSCLK) */
 #  define RCC_CFGR3_USART1SW_LSE    (2 << RCC_CFGR3_USART1SW_SHIFT) /* LSE clock */
-#  define RCC_CFGR3_USART1SW_HSI    (0 << RCC_CFGR3_USART1SW_SHIFT) /* HSI clock */
+#  define RCC_CFGR3_USART1SW_HSI    (3 << RCC_CFGR3_USART1SW_SHIFT) /* HSI clock */
+
 #define RCC_CFGR3_I2C1SW            (1 << 4)  /* Bit 4: I2C1 clock source selection */
 #define RCC_CFGR3_I2C2SW            (1 << 5)  /* Bit 5: I2C2 clock source selection */
 #define RCC_CFGR3_TIM1SW            (1 << 8)  /* Bit 8: Timer1 clock source selection */
@@ -374,25 +375,28 @@
 #  define RCC_CFGR3_USART2SW_PCLK   (0 << RCC_CFGR3_USART2SW_SHIFT) /* PCLK */
 #  define RCC_CFGR3_USART2SW_SYSCLK (1 << RCC_CFGR3_USART2SW_SHIFT) /* System clock (SYSCLK) */
 #  define RCC_CFGR3_USART2SW_LSE    (2 << RCC_CFGR3_USART2SW_SHIFT) /* LSE clock */
-#  define RCC_CFGR3_USART2SW_HSI    (0 << RCC_CFGR3_USART2SW_SHIFT) /* HSI clock */
+#  define RCC_CFGR3_USART2SW_HSI    (3 << RCC_CFGR3_USART2SW_SHIFT) /* HSI clock */
+
 #define RCC_CFGR3_USART3SW_SHIFT    (18)      /* Bits 18-19: USART3 clock source selection */
 #define RCC_CFGR3_USART3SW_MASK     (3 << RCC_CFGR3_USART3SW_SHIFT)
 #  define RCC_CFGR3_USART3SW_PCLK   (0 << RCC_CFGR3_USART3SW_SHIFT) /* PCLK */
 #  define RCC_CFGR3_USART3SW_SYSCLK (1 << RCC_CFGR3_USART3SW_SHIFT) /* System clock (SYSCLK) */
 #  define RCC_CFGR3_USART3SW_LSE    (2 << RCC_CFGR3_USART3SW_SHIFT) /* LSE clock */
-#  define RCC_CFGR3_USART3SW_HSI    (0 << RCC_CFGR3_USART3SW_SHIFT) /* HSI clock */
+#  define RCC_CFGR3_USART3SW_HSI    (3 << RCC_CFGR3_USART3SW_SHIFT) /* HSI clock */
+
 #define RCC_CFGR3_UART4SW_SHIFT     (20)      /* Bits 20-21: UART4 clock source selection */
 #define RCC_CFGR3_UART4SW_MASK      (3 << RCC_CFGR3_UART4SW_SHIFT)
 #  define RCC_CFGR3_UART4SW_PCLK    (0 << RCC_CFGR3_UART4SW_SHIFT) /* PCLK */
 #  define RCC_CFGR3_UART4SW_SYSCLK  (1 << RCC_CFGR3_UART4SW_SHIFT) /* System clock (SYSCLK) */
 #  define RCC_CFGR3_UART4SW_LSE     (2 << RCC_CFGR3_UART4SW_SHIFT) /* LSE clock */
-#  define RCC_CFGR3_UART4SW_HSI     (0 << RCC_CFGR3_UART4SW_SHIFT) /* HSI clock */
+#  define RCC_CFGR3_UART4SW_HSI     (3 << RCC_CFGR3_UART4SW_SHIFT) /* HSI clock */
+
 #define RCC_CFGR3_UART5SW_SHIFT     (22)      /* Bits 22-23: UART5 clock source selection */
 #define RCC_CFGR3_UART5SW_MASK      (3 << RCC_CFGR3_UART5SW_SHIFT)
 #  define RCC_CFGR3_UART5SW_PCLK    (0 << RCC_CFGR3_UART5SW_SHIFT) /* PCLK */
 #  define RCC_CFGR3_UART5SW_SYSCLK  (1 << RCC_CFGR3_UART5SW_SHIFT) /* System clock (SYSCLK) */
 #  define RCC_CFGR3_UART5SW_LSE     (2 << RCC_CFGR3_UART5SW_SHIFT) /* LSE clock */
-#  define RCC_CFGR3_UART5SW_HSI     (0 << RCC_CFGR3_UART5SW_SHIFT) /* HSI clock */
+#  define RCC_CFGR3_UART5SW_HSI     (3 << RCC_CFGR3_UART5SW_SHIFT) /* HSI clock */
 
 #endif /* __ARCH_ARM_SRC_STM32_HARDWARE_STM32F30XXX_RCC_H */
 

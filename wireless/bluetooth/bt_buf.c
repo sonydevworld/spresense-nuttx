@@ -1,5 +1,5 @@
 /****************************************************************************
- * wireless/bluetooth/bt_buf_s.c
+ * wireless/bluetooth/bt_buf.c
  * Bluetooth buffer management
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
@@ -12,30 +12,31 @@
  *   All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of the copyright holder nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ****************************************************************************/
 
 /****************************************************************************
@@ -110,7 +111,7 @@ static struct bt_buf_s *g_buf_free_irq;
 /* Pool of pre-allocated buffer structures */
 
 static struct bt_buf_s
-  g_buf_pool[CONFIG_BLUETOOTH_BUFFER_PREALLOC];
+g_buf_pool[CONFIG_BLUETOOTH_BUFFER_PREALLOC];
 
 static bool g_poolinit = false;
 
@@ -242,7 +243,7 @@ FAR struct bt_buf_s *bt_buf_alloc(enum bt_buf_type_e type,
    * then try the list of messages reserved for interrupt handlers
    */
 
-  flags = spin_lock_irqsave(); /* Always necessary in SMP mode */
+  flags = spin_lock_irqsave(NULL); /* Always necessary in SMP mode */
   if (up_interrupt_context())
     {
 #if CONFIG_BLUETOOTH_BUFFER_PREALLOC > CONFIG_BLUETOOTH_BUFFER_IRQRESERVE
@@ -253,7 +254,7 @@ FAR struct bt_buf_s *bt_buf_alloc(enum bt_buf_type_e type,
           buf            = g_buf_free;
           g_buf_free     = buf->flink;
 
-          spin_unlock_irqrestore(flags);
+          spin_unlock_irqrestore(NULL, flags);
           pool           = POOL_BUFFER_GENERAL;
         }
       else
@@ -266,13 +267,13 @@ FAR struct bt_buf_s *bt_buf_alloc(enum bt_buf_type_e type,
           buf            = g_buf_free_irq;
           g_buf_free_irq = buf->flink;
 
-          spin_unlock_irqrestore(flags);
+          spin_unlock_irqrestore(NULL, flags);
           pool           = POOL_BUFFER_IRQ;
         }
       else
 #endif
         {
-          spin_unlock_irqrestore(flags);
+          spin_unlock_irqrestore(NULL, flags);
           return NULL;
         }
     }
@@ -289,7 +290,7 @@ FAR struct bt_buf_s *bt_buf_alloc(enum bt_buf_type_e type,
           buf           = g_buf_free;
           g_buf_free    = buf->flink;
 
-          leave_critical_section(flags);
+          spin_unlock_irqrestore(NULL, flags);
           pool          = POOL_BUFFER_GENERAL;
         }
       else
@@ -299,8 +300,9 @@ FAR struct bt_buf_s *bt_buf_alloc(enum bt_buf_type_e type,
            * will have to allocate one from the kernel memory pool.
            */
 
-          leave_critical_section(flags);
-          buf = (FAR struct bt_buf_s *)kmm_malloc((sizeof (struct bt_buf_s)));
+          spin_unlock_irqrestore(NULL, flags);
+          buf = (FAR struct bt_buf_s *)
+                    kmm_malloc((sizeof (struct bt_buf_s)));
 
           /* Check if we successfully allocated the buffer structure */
 
@@ -363,7 +365,7 @@ FAR struct bt_buf_s *bt_buf_alloc(enum bt_buf_type_e type,
       buf->data = buf->frame->io_data + reserve_head;
     }
 
-  wlinfo("buf %p type %d reserve %u\n", buf, buf->type, reserve_head);
+  wlinfo("buf %p type %d reserve %zu\n", buf, buf->type, reserve_head);
   return buf;
 }
 
@@ -386,11 +388,15 @@ FAR struct bt_buf_s *bt_buf_alloc(enum bt_buf_type_e type,
 
 void bt_buf_release(FAR struct bt_buf_s *buf)
 {
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
   enum bt_buf_type_e type;
-  irqstate_t flags;
   uint16_t handle;
+#endif
+  irqstate_t flags;
 
   wlinfo("buf %p ref %u type %d\n", buf, buf->ref, buf->type);
+
+  DEBUGASSERT(buf->ref > 0);
 
   if (--buf->ref > 0)
     {
@@ -398,8 +404,10 @@ void bt_buf_release(FAR struct bt_buf_s *buf)
       return;
     }
 
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
   handle = buf->u.acl.handle;
   type   = buf->type;
+#endif
 
   /* Free the contained frame and return the container to the correct memory
    * pool.
@@ -422,10 +430,10 @@ void bt_buf_release(FAR struct bt_buf_s *buf)
        * list from interrupt handlers.
        */
 
-      flags      = spin_lock_irqsave();
+      flags      = spin_lock_irqsave(NULL);
       buf->flink = g_buf_free;
       g_buf_free = buf;
-      spin_unlock_irqrestore(flags);
+      spin_unlock_irqrestore(NULL, flags);
     }
   else
 #endif
@@ -441,10 +449,10 @@ void bt_buf_release(FAR struct bt_buf_s *buf)
        * list from interrupt handlers.
        */
 
-      flags          = spin_lock_irqsave();
+      flags          = spin_lock_irqsave(NULL);
       buf->flink     = g_buf_free_irq;
       g_buf_free_irq = buf;
-      spin_unlock_irqrestore(flags);
+      spin_unlock_irqrestore(NULL, flags);
     }
   else
 #endif
@@ -453,11 +461,12 @@ void bt_buf_release(FAR struct bt_buf_s *buf)
       /* Otherwise, deallocate it. */
 
       DEBUGASSERT(buf->pool == POOL_BUFFER_DYNAMIC);
-      sched_kfree(buf);
+      kmm_free(buf);
     }
 
   wlinfo("Buffer freed: %p\n", buf);
 
+#ifdef CONFIG_WIRELESS_BLUETOOTH_HOST
   if (type == BT_ACL_IN)
     {
       FAR struct bt_hci_cp_host_num_completed_packets_s *cp;
@@ -482,6 +491,7 @@ void bt_buf_release(FAR struct bt_buf_s *buf)
 
       bt_hci_cmd_send(BT_HCI_OP_HOST_NUM_COMPLETED_PACKETS, buf);
     }
+#endif
 }
 
 /****************************************************************************
@@ -523,7 +533,7 @@ FAR void *bt_buf_extend(FAR struct bt_buf_s *buf, size_t len)
 {
   FAR uint8_t *tail = bt_buf_tail(buf);
 
-  wlinfo("buf %p len %u\n", buf, len);
+  wlinfo("buf %p len %zu\n", buf, len);
 
   DEBUGASSERT(bt_buf_tailroom(buf) >= len);
 
@@ -574,7 +584,7 @@ void bt_buf_put_le16(FAR struct bt_buf_s *buf, uint16_t value)
 
 FAR void *bt_buf_provide(FAR struct bt_buf_s *buf, size_t len)
 {
-  wlinfo("buf %p len %u\n", buf, len);
+  wlinfo("buf %p len %zu\n", buf, len);
 
   DEBUGASSERT(buf != NULL && buf->frame != NULL &&
               bt_buf_headroom(buf) >= len);
@@ -601,7 +611,7 @@ FAR void *bt_buf_provide(FAR struct bt_buf_s *buf, size_t len)
 
 FAR void *bt_buf_consume(FAR struct bt_buf_s *buf, size_t len)
 {
-  wlinfo("buf %p len %u\n", buf, len);
+  wlinfo("buf %p len %zu\n", buf, len);
 
   DEBUGASSERT(buf->len >= len);
 
@@ -631,7 +641,7 @@ uint16_t bt_buf_get_le16(FAR struct bt_buf_s * buf)
   value = BT_GETUINT16((FAR uint8_t *)buf->data);
   bt_buf_consume(buf, sizeof(value));
 
-  return BT_LE162HOST(value);
+  return value;
 }
 
 /****************************************************************************

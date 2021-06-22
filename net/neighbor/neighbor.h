@@ -49,7 +49,6 @@
 
 #include <net/ethernet.h>
 
-#include <nuttx/clock.h>
 #include <nuttx/net/ip.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/sixlowpan.h>
@@ -121,7 +120,8 @@ void neighbor_add(FAR struct net_driver_s *dev, FAR net_ipv6addr_t ipaddr,
  *   ipaddr - The IPv6 address to use in the lookup;
  *   laddr  - Location to return the corresponding link layer address.
  *            This address may be NULL.  In that case, this function may be
- *            used simply to determine if the link layer address is available.
+ *            used simply to determine if the link layer address is
+ *            available.
  *
  * Returned Value:
  *   Zero (OK) if the link layer address is returned.  A negated errno value
@@ -210,7 +210,7 @@ unsigned int neighbor_snapshot(FAR struct neighbor_entry_s *snapshot,
  * Name: neighbor_dumpentry
  *
  * Description:
- *   Dump the conents of an entry Neighbor Table.
+ *   Dump the contents of an entry Neighbor Table.
  *
  * Input Parameters:
  *   msg      - Message to print with the entry
@@ -252,4 +252,3 @@ void neighbor_dumpipaddr(FAR const char *msg,
 
 #endif /* CONFIG_NET_IPv6 */
 #endif /* __NET_NEIGHBOR_NEIGHBOR_H */
-

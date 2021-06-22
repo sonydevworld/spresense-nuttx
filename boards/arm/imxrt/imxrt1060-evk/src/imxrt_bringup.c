@@ -1,36 +1,20 @@
 /****************************************************************************
  * boards/arm/imxrt/imxrt1060-evk/src/imxrt_bringup.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
- *            David Sidrane <david_s5@nscdg.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,20 +24,30 @@
 
 #include <nuttx/config.h>
 
-#include <sys/mount.h>
 #include <sys/types.h>
 #include <debug.h>
 
 #include <syslog.h>
+#include <nuttx/fs/fs.h>
 #include <nuttx/i2c/i2c_master.h>
 #include <nuttx/video/fb.h>
 #include <imxrt_lpi2c.h>
 #include <imxrt_lpspi.h>
+#include <nuttx/input/buttons.h>
 
 #ifdef CONFIG_IMXRT_USDHC
 #  include "imxrt_usdhc.h"
 #endif
 
+#ifdef CONFIG_USBMONITOR
+#  include <nuttx/usb/usbmonitor.h>
+#endif
+
+#ifdef CONFIG_PL2303
+#  include <nuttx/usb/pl2303.h>
+#endif
+
+#include "imxrt_enet.h"
 #include "imxrt1060-evk.h"
 
 #include <arch/board/board.h>  /* Must always be included last */
@@ -121,7 +115,10 @@ static int nsh_sdmmc_initialize(void)
                  "ERROR: Failed to bind SDIO to the MMC/SD driver: %d\n",
                  ret);
         }
+
+      imxrt_usdhc_set_sdio_card_isr(sdmmc, NULL, NULL);
     }
+
   return OK;
 }
 #else
@@ -152,7 +149,7 @@ int imxrt_bringup(void)
 #ifdef CONFIG_FS_PROCFS
   /* Mount the procfs file system */
 
-  ret = mount(NULL, "/proc", "procfs", 0, NULL);
+  ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: Failed to mount procfs at /proc: %d\n", ret);
@@ -181,6 +178,38 @@ int imxrt_bringup(void)
     }
 #endif
 
+#if defined(CONFIG_IMXRT_USBOTG) || defined(CONFIG_USBHOST)
+  ret = imxrt_usbhost_initialize();
+  if (ret != OK)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to start USB host services: %d\n", ret);
+      return ret;
+    }
+#endif
+
+#ifdef CONFIG_USBMONITOR
+  /* Start the USB Monitor */
+
+  ret = usbmonitor_start();
+  if (ret != OK)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to start USB monitor: %d\n", ret);
+    }
+#endif
+
+#if defined(CONFIG_IMXRT_ENET) && defined(CONFIG_NETDEV_LATEINIT)
+  ret = imxrt_netinitialize(0);
+#endif
+
+#ifdef CONFIG_IMXRT_FLEXCAN
+  ret = imxrt_can_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: imxrt_can_setup() failed: %d\n", ret);
+      return ret;
+    }
+#endif
+
 #ifdef CONFIG_DEV_GPIO
   /* Initialize the GPIO driver */
 
@@ -189,6 +218,16 @@ int imxrt_bringup(void)
     {
       syslog(LOG_ERR, "Failed to initialize GPIO Driver: %d\n", ret);
       return ret;
+    }
+#endif
+
+#ifdef CONFIG_IMXRT_ADC
+  /* Initialize ADC and register the ADC driver. */
+
+  ret = imxrt_adc_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: imxrt_adc_initialize() failed: %d\n", ret);
     }
 #endif
 
@@ -208,6 +247,23 @@ int imxrt_bringup(void)
   imxrt_lcd_initialize();
 #endif
 
+#ifdef CONFIG_INPUT_BUTTONS
+#ifdef CONFIG_INPUT_BUTTONS_LOWER
+  /* Register the BUTTON driver */
+
+  ret = btn_lower_initialize("/dev/buttons");
+  if (ret != OK)
+    {
+      syslog(LOG_ERR, "ERROR: btn_lower_initialize() failed: %d\n", ret);
+      return ret;
+    }
+#else
+  /* Enable BUTTON support for some other purpose */
+
+  board_button_initialize();
+#endif /* CONFIG_INPUT_BUTTONS_LOWER */
+#endif /* CONFIG_INPUT_BUTTONS */
+
 #ifdef CONFIG_VIDEO_FB
   /* Initialize and register the framebuffer driver */
 
@@ -216,6 +272,10 @@ int imxrt_bringup(void)
     {
       syslog(LOG_ERR, "ERROR: fb_register() failed: %d\n", ret);
     }
+#endif
+
+#ifdef CONFIG_PL2303
+  usbdev_serialinitialize(0);
 #endif
 
   UNUSED(ret);

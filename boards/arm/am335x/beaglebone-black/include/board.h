@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/am335x/beaglebone-black/include/board.h
  *
- *   Copyright (C) 2018 Petro Karashchenko. All rights reserved.
- *   Author: Petro Karashchenko <petro.karashchenko@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -93,7 +78,7 @@
  *
  *      SYMBOL            Value Meaning                       LED state
  *                                                          LED0 LED1 LED2
- *      ----------------- ----- -----------------------  ---- ---- ---------*
+ *      ----------------- ----- -----------------------  ---- ---- ---------
  */
 
 #define LED_STARTED         0   /* NuttX has been started   ON   OFF  OFF */
@@ -105,7 +90,7 @@
 #define LED_ASSERTION       3   /* An assertion failed      N/C  N/C  Soft glow */
 #define LED_PANIC           3   /* The system has crashed   N/C  N/C  2Hz Flashing */
 
-/*      LED_IDLE           ---  /* MCU is is sleep mode         Not used
+/*      LED_IDLE           ---     MCU is is sleep mode         Not used
  *
  * After booting, LED0 and 1 are not longer used by the system and can be
  * used for other purposes by the application (Of course, all LEDs are
@@ -122,13 +107,29 @@
  *
  * 1. UART0 is available on FT2232H USB to Serial Adapter.
  *
- *    FT2232H BDBUS1 Pin     UART0-RXD  UART0_RXD/SPI1_CS0/DCAN0_TX/I2C2_SDA/
- *                                      eCAP2_IN_PWM2_OUT/PR1_PRU1_PRU_R30_14/
- *                                      PR1_PRU1_PRU_R31_14/GPIO1_10
- *    FT2232H BDBUS0 Pin     UART0-TXD  UART0_TXD/SPI1_CS1/DCAN0_RX/I2C2_SCL/
- *                                      eCAP1_IN_PWM1_OUT/PR1_PRU1_PRU_R30_15/
- *                                      PR1_PRU1_PRU_R31_15/GPIO1_11
+ *    FT2232H BDBUS1 Pin    UART0-RXD  UART0_RXD/SPI1_CS0/DCAN0_TX/I2C2_SDA/
+ *                                     eCAP2_IN_PWM2_OUT/PR1_PRU1_PRU_R30_14/
+ *                                     PR1_PRU1_PRU_R31_14/GPIO1_10
+ *    FT2232H BDBUS0 Pin    UART0-TXD  UART0_TXD/SPI1_CS1/DCAN0_RX/I2C2_SCL/
+ *                                     eCAP1_IN_PWM1_OUT/PR1_PRU1_PRU_R30_15/
+ *                                     PR1_PRU1_PRU_R31_15/GPIO1_11
  */
+
+/* I2Cs *********************************************************************/
+
+#define GPIO_I2C1_SCL       GPIO_I2C1_SCL_2
+#define GPIO_I2C1_SCL       GPIO_I2C1_SDA_2
+
+#define GPIO_I2C2_SCL       GPIO_I2C2_SCL_1
+#define GPIO_I2C2_SCL       GPIO_I2C2_SDA_1
+
+/* CANs *********************************************************************/
+
+#define GPIO_DCAN0_RX       GPIO_DCAN0_RX_3
+#define GPIO_DCAN0_TX       GPIO_DCAN0_TX_3
+
+#define GPIO_DCAN1_RX       GPIO_DCAN1_RX_3
+#define GPIO_DCAN1_TX       GPIO_DCAN1_TX_3
 
 /****************************************************************************
  * Assembly Language Macros
@@ -138,4 +139,5 @@
   .macro  config_sdram
   .endm
 #endif /* __ASSEMBLY__ */
-#endif  /* __BOARDS_ARM_AM335X_BEAGLEBONE_BLACK_INCLUDE_BOARD_H */
+
+#endif /* __BOARDS_ARM_AM335X_BEAGLEBONE_BLACK_INCLUDE_BOARD_H */

@@ -1,36 +1,20 @@
 /****************************************************************************
  * sched/task/task_setup.c
  *
- *   Copyright (C) 2007-2014, 2016-2017, 2019 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -48,6 +32,7 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/sched.h>
 #include <nuttx/signal.h>
 
 #include "sched/sched.h"
@@ -78,7 +63,7 @@ static const char g_noname[] = "<noname>";
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nxtask_assignpid
+ * Name: nxtask_assign_pid
  *
  * Description:
  *   This function assigns the next unique task ID to a task.
@@ -91,17 +76,23 @@ static const char g_noname[] = "<noname>";
  *
  ****************************************************************************/
 
-static int nxtask_assignpid(FAR struct tcb_s *tcb)
+static int nxtask_assign_pid(FAR struct tcb_s *tcb)
 {
   pid_t next_pid;
   int   hash_ndx;
   int   tries;
+  int   ret = ERROR;
 
-  /* Disable pre-emption.  This should provide sufficient protection
-   * for the following operation.
+  /* NOTE:
+   * ERROR means that the g_pidhash[] table is completely full.
+   * We cannot allow another task to be started.
    */
 
-  sched_lock();
+  /* Protect the following operation with a critical section
+   * because g_pidhash is accessed from an interrupt context
+   */
+
+  irqstate_t flags = enter_critical_section();
 
   /* We'll try every allowable pid */
 
@@ -136,17 +127,15 @@ static int nxtask_assignpid(FAR struct tcb_s *tcb)
 #endif
           tcb->pid = next_pid;
 
-          sched_unlock();
-          return OK;
+          ret = OK;
+          goto out;
         }
     }
 
-  /* If we get here, then the g_pidhash[] table is completely full.
-   * We cannot allow another task to be started.
-   */
+out:
 
-  sched_unlock();
-  return ERROR;
+  leave_critical_section(flags);
+  return ret;
 }
 
 /****************************************************************************
@@ -182,7 +171,7 @@ static inline void nxtask_inherit_affinity(FAR struct tcb_s *tcb)
 #endif
 
 /****************************************************************************
- * Name: nxtask_saveparent
+ * Name: nxtask_save_parent
  *
  * Description:
  *   Save the task ID of the parent task in the child task's group and
@@ -203,7 +192,7 @@ static inline void nxtask_inherit_affinity(FAR struct tcb_s *tcb)
  ****************************************************************************/
 
 #ifdef CONFIG_SCHED_HAVE_PARENT
-static inline void nxtask_saveparent(FAR struct tcb_s *tcb, uint8_t ttype)
+static inline void nxtask_save_parent(FAR struct tcb_s *tcb, uint8_t ttype)
 {
   DEBUGASSERT(tcb != NULL && tcb->group != NULL);
 
@@ -222,19 +211,12 @@ static inline void nxtask_saveparent(FAR struct tcb_s *tcb, uint8_t ttype)
 
       DEBUGASSERT(rtcb != NULL && rtcb->group != NULL);
 
-#ifdef HAVE_GROUP_MEMBERS
-      /* Save the ID of the parent tasks' task group in the child's task
+      /* Save the PID of the parent tasks' task group in the child's task
        * group.  Copy the ID from the parent's task group structure to
        * child's task group.
        */
 
-      tcb->group->tg_pgrpid = rtcb->group->tg_grpid;
-
-#else
-      /* Save the parent task's ID in the child task's group. */
-
-      tcb->group->tg_ppid = rtcb->pid;
-#endif
+      tcb->group->tg_ppid = rtcb->group->tg_pid;
 
 #ifdef CONFIG_SCHED_CHILD_STATUS
       /* Tasks can also suppress retention of their child status by applying
@@ -249,13 +231,13 @@ static inline void nxtask_saveparent(FAR struct tcb_s *tcb, uint8_t ttype)
            * the parent TCB.  There should not be.
            */
 
-          child = group_findchild(rtcb->group, tcb->pid);
+          child = group_find_child(rtcb->group, tcb->pid);
           DEBUGASSERT(child == NULL);
           if (child == NULL)
             {
               /* Allocate a new status structure  */
 
-              child = group_allocchild();
+              child = group_alloc_child();
             }
 
           /* Did we successfully find/allocate the child status structure? */
@@ -271,7 +253,7 @@ static inline void nxtask_saveparent(FAR struct tcb_s *tcb, uint8_t ttype)
 
               /* Add the entry into the group's list of children */
 
-              group_addchild(rtcb->group, child);
+              group_add_child(rtcb->group, child);
             }
         }
 
@@ -287,11 +269,11 @@ static inline void nxtask_saveparent(FAR struct tcb_s *tcb, uint8_t ttype)
     }
 }
 #else
-#  define nxtask_saveparent(tcb,ttype)
+#  define nxtask_save_parent(tcb,ttype)
 #endif
 
 /****************************************************************************
- * Name: nxtask_dupdspace
+ * Name: nxtask_dup_dspace
  *
  * Description:
  *   When a new task or thread is created from a PIC module, then that
@@ -311,14 +293,14 @@ static inline void nxtask_saveparent(FAR struct tcb_s *tcb, uint8_t ttype)
  ****************************************************************************/
 
 #ifdef CONFIG_PIC
-static inline void nxtask_dupdspace(FAR struct tcb_s *tcb)
+static inline void nxtask_dup_dspace(FAR struct tcb_s *tcb)
 {
   FAR struct tcb_s *rtcb = this_task();
   if (rtcb->dspace != NULL)
     {
       /* Copy the D-Space structure reference and increment the reference
        * count on the memory.  The D-Space memory will persist until the
-       * last thread exits (see sched_releasetcb()).
+       * last thread exits (see nxsched_release_tcb()).
        */
 
       tcb->dspace = rtcb->dspace;
@@ -326,18 +308,18 @@ static inline void nxtask_dupdspace(FAR struct tcb_s *tcb)
     }
 }
 #else
-#  define nxtask_dupdspace(tcb)
+#  define nxtask_dup_dspace(tcb)
 #endif
 
 /****************************************************************************
- * Name: nxthread_schedsetup
+ * Name: nxthread_setup_scheduler
  *
  * Description:
  *   This functions initializes the common portions of the Task Control Block
  *   (TCB) in preparation for starting a new thread.
  *
- *   nxthread_schedsetup() is called from nxtask_schedsetup() and
- *   pthread_schedsetup().
+ *   nxthread_setup_scheduler() is called from nxtask_setup_scheduler() and
+ *   pthread_setup_scheduler().
  *
  * Input Parameters:
  *   tcb        - Address of the new task's TCB
@@ -354,15 +336,15 @@ static inline void nxtask_dupdspace(FAR struct tcb_s *tcb)
  *
  ****************************************************************************/
 
-static int nxthread_schedsetup(FAR struct tcb_s *tcb, int priority,
-                               start_t start, CODE void *entry,
-                               uint8_t ttype)
+static int nxthread_setup_scheduler(FAR struct tcb_s *tcb, int priority,
+                                    start_t start, CODE void *entry,
+                                    uint8_t ttype)
 {
   int ret;
 
   /* Assign a unique task ID to the task. */
 
-  ret = nxtask_assignpid(tcb);
+  ret = nxtask_assign_pid(tcb);
   if (ret == OK)
     {
       /* Save task priority and entry point in the TCB */
@@ -383,6 +365,16 @@ static int nxthread_schedsetup(FAR struct tcb_s *tcb, int priority,
       tcb->flags         &= ~TCB_FLAG_TTYPE_MASK;
       tcb->flags         |= ttype;
 
+      /* Set the appropriate scheduling policy in the TCB */
+
+      tcb->flags         &= ~TCB_FLAG_POLICY_MASK;
+#if CONFIG_RR_INTERVAL > 0
+      tcb->flags         |= TCB_FLAG_SCHED_RR;
+      tcb->timeslice      = MSEC2TICK(CONFIG_RR_INTERVAL);
+#else
+      tcb->flags         |= TCB_FLAG_SCHED_FIFO;
+#endif
+
 #ifdef CONFIG_CANCELLATION_POINTS
       /* Set the deferred cancellation type */
 
@@ -393,7 +385,7 @@ static int nxthread_schedsetup(FAR struct tcb_s *tcb, int priority,
        * a child status structure.
        */
 
-      nxtask_saveparent(tcb, ttype);
+      nxtask_save_parent(tcb, ttype);
 
 #ifdef CONFIG_SMP
       /* exec(), task_create(), and vfork() all inherit the affinity mask
@@ -423,7 +415,7 @@ static int nxthread_schedsetup(FAR struct tcb_s *tcb, int priority,
        * state setup will take the PIC address base into account.
        */
 
-      nxtask_dupdspace(tcb);
+      nxtask_dup_dspace(tcb);
 
       /* Initialize the processor-specific portion of the TCB */
 
@@ -441,7 +433,7 @@ static int nxthread_schedsetup(FAR struct tcb_s *tcb, int priority,
 }
 
 /****************************************************************************
- * Name: nxtask_namesetup
+ * Name: nxtask_setup_name
  *
  * Description:
  *   Assign the task name.
@@ -456,8 +448,8 @@ static int nxthread_schedsetup(FAR struct tcb_s *tcb, int priority,
  ****************************************************************************/
 
 #if CONFIG_TASK_NAME_SIZE > 0
-static void nxtask_namesetup(FAR struct task_tcb_s *tcb,
-                             FAR const char *name)
+static void nxtask_setup_name(FAR struct task_tcb_s *tcb,
+                              FAR const char *name)
 {
   /* Give a name to the unnamed tasks */
 
@@ -472,17 +464,17 @@ static void nxtask_namesetup(FAR struct task_tcb_s *tcb,
   tcb->cmn.name[CONFIG_TASK_NAME_SIZE] = '\0';
 }
 #else
-#  define nxtask_namesetup(t,n)
+#  define nxtask_setup_name(t,n)
 #endif /* CONFIG_TASK_NAME_SIZE */
 
 /****************************************************************************
- * Name: nxtask_stackargsetup
+ * Name: nxtask_setup_stackargs
  *
  * Description:
- *   This functions is called only from nxtask_argsetup()  It will allocate
- *   space on the new task's stack and will copy the argv[] array and all
- *   strings to the task's stack where it is readily accessible to the
- *   task.  Data on the stack, on the other hand, is guaranteed to be
+ *   This functions is called only from nxtask_setup_arguments()  It will
+ *   allocate space on the new task's stack and will copy the argv[] array
+ *   and all strings to the task's stack where it is readily accessible to
+ *   the task.  Data on the stack, on the other hand, is guaranteed to be
  *   accessible no matter what privilege mode the task runs in.
  *
  * Input Parameters:
@@ -496,8 +488,8 @@ static void nxtask_namesetup(FAR struct task_tcb_s *tcb,
  *
  ****************************************************************************/
 
-static inline int nxtask_stackargsetup(FAR struct task_tcb_s *tcb,
-                                       FAR char * const argv[])
+static inline int nxtask_setup_stackargs(FAR struct task_tcb_s *tcb,
+                                         FAR char * const argv[])
 {
   FAR char **stackargv;
   FAR const char *name;
@@ -601,7 +593,7 @@ static inline int nxtask_stackargsetup(FAR struct task_tcb_s *tcb,
     }
 
   /* Put a terminator entry at the end of the argv[] array.  Then save the
-   * argv[] arry pointer in the TCB where it will be recovered later by
+   * argv[] array pointer in the TCB where it will be recovered later by
    * nxtask_start().
    */
 
@@ -616,13 +608,14 @@ static inline int nxtask_stackargsetup(FAR struct task_tcb_s *tcb,
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nxtask_schedsetup
+ * Name: nxtask_setup_scheduler
  *
  * Description:
  *   This functions initializes a Task Control Block (TCB) in preparation
  *   for starting a new task.
  *
- *   nxtask_schedsetup() is called from task_init() and nxtask_start().
+ *   nxtask_setup_scheduler() is called from nxtask_init() and
+ *   nxtask_start().
  *
  * Input Parameters:
  *   tcb        - Address of the new task's TCB
@@ -639,23 +632,23 @@ static inline int nxtask_stackargsetup(FAR struct task_tcb_s *tcb,
  *
  ****************************************************************************/
 
-int nxtask_schedsetup(FAR struct task_tcb_s *tcb, int priority, start_t start,
-                      main_t main, uint8_t ttype)
+int nxtask_setup_scheduler(FAR struct task_tcb_s *tcb, int priority,
+                           start_t start, main_t main, uint8_t ttype)
 {
   /* Perform common thread setup */
 
-  return nxthread_schedsetup((FAR struct tcb_s *)tcb, priority, start,
-                             (CODE void *)main, ttype);
+  return nxthread_setup_scheduler((FAR struct tcb_s *)tcb, priority,
+                                  start, (CODE void *)main, ttype);
 }
 
 /****************************************************************************
- * Name: pthread_schedsetup
+ * Name: pthread_setup_scheduler
  *
  * Description:
  *   This functions initializes a Task Control Block (TCB) in preparation
  *   for starting a new pthread.
  *
- *   pthread_schedsetup() is called from pthread_create(),
+ *   pthread_setup_scheduler() is called from pthread_create(),
  *
  * Input Parameters:
  *   tcb      - Address of the new task's TCB
@@ -673,26 +666,27 @@ int nxtask_schedsetup(FAR struct task_tcb_s *tcb, int priority, start_t start,
  ****************************************************************************/
 
 #ifndef CONFIG_DISABLE_PTHREAD
-int pthread_schedsetup(FAR struct pthread_tcb_s *tcb, int priority,
-                       start_t start, pthread_startroutine_t entry)
+int pthread_setup_scheduler(FAR struct pthread_tcb_s *tcb, int priority,
+                            start_t start, pthread_startroutine_t entry)
 {
   /* Perform common thread setup */
 
-  return nxthread_schedsetup((FAR struct tcb_s *)tcb, priority, start,
-                             (CODE void *)entry, TCB_FLAG_TTYPE_PTHREAD);
+  return nxthread_setup_scheduler((FAR struct tcb_s *)tcb, priority,
+                                  start, (CODE void *)entry,
+                                  TCB_FLAG_TTYPE_PTHREAD);
 }
 #endif
 
 /****************************************************************************
- * Name: nxtask_argsetup
+ * Name: nxtask_setup_arguments
  *
  * Description:
  *   This functions sets up parameters in the Task Control Block (TCB) in
  *   preparation for starting a new thread.
  *
- *   nxtask_argsetup() is called only from task_init() and nxtask_start() to
- *   create a new task.  In the "normal" case, the argv[] array is a
- *   structure in the TCB, the arguments are cloned via strdup.
+ *   nxtask_setup_arguments() is called only from nxtask_init() and
+ *   nxtask_start() to create a new task.  In the "normal" case, the argv[]
+ *   array is a structure in the TCB, the arguments are cloned via strdup.
  *
  *   In the kernel build case, the argv[] array and all strings are copied
  *   to the task's stack.  This is done because the TCB (and kernel allocated
@@ -712,17 +706,17 @@ int pthread_schedsetup(FAR struct pthread_tcb_s *tcb, int priority,
  *
  ****************************************************************************/
 
-int nxtask_argsetup(FAR struct task_tcb_s *tcb, FAR const char *name,
-                    FAR char * const argv[])
+int nxtask_setup_arguments(FAR struct task_tcb_s *tcb, FAR const char *name,
+                           FAR char * const argv[])
 {
   /* Setup the task name */
 
-  nxtask_namesetup(tcb, name);
+  nxtask_setup_name(tcb, name);
 
   /* Copy the argv[] array and all strings are to the task's stack.  Data on
    * the stack is guaranteed to be accessible by the ask no matter what
    * privilege mode the task runs in.
    */
 
-  return nxtask_stackargsetup(tcb, argv);
+  return nxtask_setup_stackargs(tcb, argv);
 }

@@ -1,36 +1,20 @@
 /****************************************************************************
  * drivers/usbhost/usbhost_cdcacm.c
  *
- *   Copyright (C) 2015-2017, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -303,7 +287,8 @@ struct usbhost_freestate_s
 
 /* Semaphores */
 
-static void usbhost_takesem(FAR sem_t *sem);
+static int usbhost_takesem(FAR sem_t *sem);
+static void usbhost_forcetake(FAR sem_t *sem);
 #define usbhost_givesem(s) nxsem_post(s);
 
 /* Memory allocation services */
@@ -374,7 +359,8 @@ static int  usbhost_setup(FAR struct uart_dev_s *uartdev);
 static void usbhost_shutdown(FAR struct uart_dev_s *uartdev);
 static int  usbhost_attach(FAR struct uart_dev_s *uartdev);
 static void usbhost_detach(FAR struct uart_dev_s *uartdev);
-static int  usbhost_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
+static int  usbhost_ioctl(FAR struct file *filep, int cmd,
+              unsigned long arg);
 static void usbhost_rxint(FAR struct uart_dev_s *uartdev, bool enable);
 static bool usbhost_rxavailable(FAR struct uart_dev_s *uartdev);
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
@@ -394,7 +380,7 @@ static bool usbhost_txempty(FAR struct uart_dev_s *uartdev);
  * device.
  */
 
-static const struct usbhost_id_s g_id[2] =
+static const struct usbhost_id_s g_id[4] =
 {
   {
     USB_CLASS_CDC,          /* base     */
@@ -409,6 +395,20 @@ static const struct usbhost_id_s g_id[2] =
     CDC_PROTO_ATM,          /* proto    */
     0,                      /* vid      */
     0                       /* pid      */
+  },
+  {
+    USB_CLASS_VENDOR_SPEC,  /* base     */
+    CDC_SUBCLASS_NONE,      /* subclass */
+    CDC_PROTO_NONE,         /* proto    */
+    0x2c7c,                 /* vid      */
+    0x0125                  /* pid      */
+  },
+  {
+    USB_CLASS_VENDOR_SPEC,  /* base     */
+    CDC_SUBCLASS_ACM,       /* subclass */
+    CDC_PROTO_NONE,         /* proto    */
+    0x2c7c,                 /* vid      */
+    0x0125                  /* pid      */
   }
 };
 
@@ -418,7 +418,7 @@ static struct usbhost_registry_s g_cdcacm =
 {
   NULL,                   /* flink    */
   usbhost_create,         /* create   */
-  2,                      /* nids     */
+  4,                      /* nids     */
   &g_id[0]                /* id[]     */
 };
 
@@ -455,7 +455,9 @@ static struct usbhost_cdcacm_s g_prealloc[CONFIG_USBHOST_CDCACM_NPREALLOC];
 static FAR struct usbhost_freestate_s *g_freelist;
 #endif
 
-/* This is a bitmap that is used to allocate device minor numbers /dev/ttyACM[n]. */
+/* This is a bitmap that is used to allocate device
+ * minor numbers /dev/ttyACM[n].
+ */
 
 static uint32_t g_devinuse;
 
@@ -472,9 +474,37 @@ static uint32_t g_devinuse;
  *
  ****************************************************************************/
 
-static void usbhost_takesem(FAR sem_t *sem)
+static int usbhost_takesem(FAR sem_t *sem)
 {
-  nxsem_wait_uninterruptible(sem);
+  return nxsem_wait_uninterruptible(sem);
+}
+
+/****************************************************************************
+ * Name: usbhost_forcetake
+ *
+ * Description:
+ *   This is just another wrapper but this one continues even if the thread
+ *   is canceled.  This must be done in certain conditions where were must
+ *   continue in order to clean-up resources.
+ *
+ ****************************************************************************/
+
+static void usbhost_forcetake(FAR sem_t *sem)
+{
+  int ret;
+
+  do
+    {
+      ret = nxsem_wait_uninterruptible(sem);
+
+      /* The only expected error would -ECANCELED meaning that the
+       * parent thread has been canceled.  We have to continue and
+       * terminate the poll in this case.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -ECANCELED);
+    }
+  while (ret < 0);
 }
 
 /****************************************************************************
@@ -571,12 +601,12 @@ static void usbhost_freeclass(FAR struct usbhost_cdcacm_s *usbclass)
 {
   DEBUGASSERT(usbclass != NULL);
 
-  /* Free the class instance (calling sched_kfree() in case we are executing
+  /* Free the class instance (calling kmm_free() in case we are executing
    * from an interrupt handler.
    */
 
   uinfo("Freeing: %p\n", usbclass);
-  sched_kfree(usbclass);
+  kmm_free(usbclass);
 }
 #endif
 
@@ -969,7 +999,8 @@ static void usbhost_txdata_work(FAR void *arg)
            * the device is disconnected).
            */
 
-          uerr("ERROR: DRVR_TRANSFER for packet failed: %d\n", (int)nwritten);
+          uerr("ERROR: DRVR_TRANSFER for packet failed: %d\n",
+               (int)nwritten);
           break;
         }
     }
@@ -1080,7 +1111,9 @@ static void usbhost_rxdata_work(FAR void *arg)
   while (priv->rxena && !priv->disconnected)
 #endif
     {
-      /* Stop now if there is no room for another character in the RX buffer. */
+      /* Stop now if there is no room for another
+       * character in the RX buffer.
+       */
 
       if (nexthead == rxbuf->tail)
         {
@@ -1301,8 +1334,8 @@ static void usbhost_destroy(FAR void *arg)
  *   desclen - The length in bytes of the configuration descriptor.
  *
  * Returned Value:
- *   On success, zero (OK) is returned. On a failure, a negated errno value is
- *   returned indicating the nature of the failure
+ *   On success, zero (OK) is returned. On a failure, a negated errno value
+ *   is returned indicating the nature of the failure
  *
  * Assumptions:
  *   This function will *not* be called from an interrupt handler.
@@ -1372,7 +1405,8 @@ static int usbhost_cfgdesc(FAR struct usbhost_cdcacm_s *priv,
 
         case USB_DESC_TYPE_INTERFACE:
           {
-            FAR struct usb_ifdesc_s *ifdesc = (FAR struct usb_ifdesc_s *)configdesc;
+            FAR struct usb_ifdesc_s *ifdesc =
+              (FAR struct usb_ifdesc_s *)configdesc;
 
             uinfo("Interface descriptor: class: %d subclass: %d proto: %d\n",
                   ifdesc->classid, ifdesc->subclass, ifdesc->protocol);
@@ -1380,7 +1414,8 @@ static int usbhost_cfgdesc(FAR struct usbhost_cdcacm_s *priv,
 
             /* Check for the CDC/ACM data interface */
 
-            if (ifdesc->classid == USB_CLASS_CDC_DATA &&
+            if ((ifdesc->classid == USB_CLASS_CDC_DATA ||
+                ifdesc->classid == USB_CLASS_VENDOR_SPEC) &&
                 (found & USBHOST_DATAIF_FOUND) == 0)
               {
                 /* Save the data interface number and mark that the data
@@ -1418,7 +1453,8 @@ static int usbhost_cfgdesc(FAR struct usbhost_cdcacm_s *priv,
 
         case USB_DESC_TYPE_ENDPOINT:
           {
-            FAR struct usb_epdesc_s *epdesc = (FAR struct usb_epdesc_s *)configdesc;
+            FAR struct usb_epdesc_s *epdesc =
+              (FAR struct usb_epdesc_s *)configdesc;
 
             uinfo("Endpoint descriptor: currif: %02x attr: %02x\n",
                   currif, epdesc->attr);
@@ -1427,7 +1463,8 @@ static int usbhost_cfgdesc(FAR struct usbhost_cdcacm_s *priv,
             /* Check for a bulk endpoint. */
 
             if (currif == USBHOST_DATAIF_FOUND &&
-                (epdesc->attr & USB_EP_ATTR_XFERTYPE_MASK) == USB_EP_ATTR_XFER_BULK)
+                (epdesc->attr & USB_EP_ATTR_XFERTYPE_MASK) ==
+                USB_EP_ATTR_XFER_BULK)
               {
                 /* Yes.. it is a bulk endpoint.  IN or OUT? */
 
@@ -1451,11 +1488,13 @@ static int usbhost_cfgdesc(FAR struct usbhost_cdcacm_s *priv,
                     /* Save the bulk OUT endpoint information */
 
                     boutdesc.hport        = hport;
-                    boutdesc.addr         = epdesc->addr & USB_EP_ADDR_NUMBER_MASK;
+                    boutdesc.addr         = epdesc->addr &
+                                            USB_EP_ADDR_NUMBER_MASK;
                     boutdesc.in           = false;
                     boutdesc.xfrtype      = USB_EP_ATTR_XFER_BULK;
                     boutdesc.interval     = epdesc->interval;
-                    boutdesc.mxpacketsize = usbhost_getle16(epdesc->mxpacketsize);
+                    boutdesc.mxpacketsize =
+                      usbhost_getle16(epdesc->mxpacketsize);
 
                     uinfo("Bulk OUT EP addr:%d mxpacketsize:%d\n",
                           boutdesc.addr, boutdesc.mxpacketsize);
@@ -1480,11 +1519,14 @@ static int usbhost_cfgdesc(FAR struct usbhost_cdcacm_s *priv,
                     /* Save the bulk IN endpoint information */
 
                     bindesc.hport        = hport;
-                    bindesc.addr         = epdesc->addr & USB_EP_ADDR_NUMBER_MASK;
+                    bindesc.addr         = epdesc->addr &
+                                           USB_EP_ADDR_NUMBER_MASK;
                     bindesc.in           = 1;
                     bindesc.xfrtype      = USB_EP_ATTR_XFER_BULK;
                     bindesc.interval     = epdesc->interval;
-                    bindesc.mxpacketsize = usbhost_getle16(epdesc->mxpacketsize);
+                    bindesc.mxpacketsize =
+                      usbhost_getle16(epdesc->mxpacketsize);
+
                     uinfo("Bulk IN EP addr:%d mxpacketsize:%d\n",
                           bindesc.addr, bindesc.mxpacketsize);
                   }
@@ -1494,7 +1536,8 @@ static int usbhost_cfgdesc(FAR struct usbhost_cdcacm_s *priv,
             /* Check for an interrupt IN endpoint. */
 
             else if (currif == USBHOST_CTRLIF_FOUND &&
-                     (epdesc->attr & USB_EP_ATTR_XFERTYPE_MASK) == USB_EP_ATTR_XFER_INT)
+                     (epdesc->attr & USB_EP_ATTR_XFERTYPE_MASK) ==
+                     USB_EP_ATTR_XFER_INT)
               {
                 /* Yes.. it is a interrupt endpoint.  IN or OUT? */
 
@@ -1523,11 +1566,13 @@ static int usbhost_cfgdesc(FAR struct usbhost_cdcacm_s *priv,
                     /* Save the bulk OUT endpoint information */
 
                     iindesc.hport        = hport;
-                    iindesc.addr         = epdesc->addr & USB_EP_ADDR_NUMBER_MASK;
+                    iindesc.addr         = epdesc->addr &
+                                           USB_EP_ADDR_NUMBER_MASK;
                     iindesc.in           = false;
                     iindesc.xfrtype      = USB_EP_ATTR_XFER_INT;
                     iindesc.interval     = epdesc->interval;
-                    iindesc.mxpacketsize = usbhost_getle16(epdesc->mxpacketsize);
+                    iindesc.mxpacketsize =
+                      usbhost_getle16(epdesc->mxpacketsize);
 
                     uinfo("Interrupt IN EP addr:%d mxpacketsize:%d\n",
                           boutdesc.addr, boutdesc.mxpacketsize);
@@ -1562,7 +1607,7 @@ static int usbhost_cfgdesc(FAR struct usbhost_cdcacm_s *priv,
     }
 
   /* Sanity checking... did we find all of things that we needed for the
-   * basic CDC/ACM data itnerface? NOTE: that the Control interface with
+   * basic CDC/ACM data interface? NOTE: that the Control interface with
    * the Interrupt IN endpoint is optional.
    */
 
@@ -1690,7 +1735,7 @@ static void usbhost_putle32(FAR uint8_t *dest, uint32_t val)
   /* Little endian means LS halfword first in byte stream */
 
   usbhost_putle16(dest, (uint16_t)(val & 0xffff));
-  usbhost_putle16(dest+2, (uint16_t)(val >> 16));
+  usbhost_putle16(dest + 2, (uint16_t)(val >> 16));
 }
 #endif
 
@@ -1849,12 +1894,13 @@ static void usbhost_free_buffers(FAR struct usbhost_cdcacm_s *priv)
  * Name: usbhost_create
  *
  * Description:
- *   This function implements the create() method of struct usbhost_registry_s.
- *   The create() method is a callback into the class implementation.  It is
- *   used to (1) create a new instance of the USB host class state and to (2)
- *   bind a USB host driver "session" to the class instance.  Use of this
- *   create() method will support environments where there may be multiple
- *   USB ports and multiple USB devices simultaneously connected.
+ *   This function implements the create() method of struct
+ *   usbhost_registry_s.  The create() method is a callback into the class
+ *   implementation.  It is used to (1) create a new instance of the USB
+ *   host class state and to (2) bind a USB host driver "session" to the
+ *   class instance.  Use of this create() method will support environments
+ *   where there may be multiple USB ports and multiple USB devices
+ *   simultaneously connected.
  *
  * Input Parameters:
  *   hport - The hub port that manages the new class instance.
@@ -1890,17 +1936,21 @@ usbhost_create(FAR struct usbhost_hubport_s *hport,
 
       if (usbhost_devno_alloc(priv) == OK)
         {
-         /* Initialize class method function pointers */
+          /* Initialize class method function pointers */
 
           priv->usbclass.hport        = hport;
           priv->usbclass.connect      = usbhost_connect;
           priv->usbclass.disconnected = usbhost_disconnected;
 
-          /* The initial reference count is 1... One reference is held by the driver */
+          /* The initial reference count is 1...
+           * One reference is held by the driver
+           */
 
           priv->crefs = 1;
 
-          /* Initialize semaphores (this works okay in the interrupt context) */
+          /* Initialize semaphores
+           * (this works okay in the interrupt context)
+           */
 
           nxsem_init(&priv->exclsem, 0, 1);
 
@@ -1962,8 +2012,8 @@ usbhost_create(FAR struct usbhost_hubport_s *hport,
  *   desclen - The length in bytes of the configuration descriptor.
  *
  * Returned Value:
- *   On success, zero (OK) is returned. On a failure, a negated errno value is
- *   returned indicating the nature of the failure
+ *   On success, zero (OK) is returned. On a failure, a negated errno value
+ *   is returned indicating the nature of the failure
  *
  *   NOTE that the class instance remains valid upon return with a failure.
  *   It is the responsibility of the higher level enumeration logic to call
@@ -1979,7 +2029,8 @@ usbhost_create(FAR struct usbhost_hubport_s *hport,
 static int usbhost_connect(FAR struct usbhost_class_s *usbclass,
                            FAR const uint8_t *configdesc, int desclen)
 {
-  FAR struct usbhost_cdcacm_s *priv = (FAR struct usbhost_cdcacm_s *)usbclass;
+  FAR struct usbhost_cdcacm_s *priv =
+    (FAR struct usbhost_cdcacm_s *)usbclass;
 #ifdef HAVE_INTIN_ENDPOINT
   FAR struct usbhost_hubport_s *hport;
 #endif
@@ -1997,7 +2048,11 @@ static int usbhost_connect(FAR struct usbhost_class_s *usbclass,
 
   /* Get exclusive access to the device structure */
 
-  usbhost_takesem(&priv->exclsem);
+  ret = usbhost_takesem(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Increment the reference count.  This will prevent usbhost_destroy() from
    * being called asynchronously if the device is removed.
@@ -2112,7 +2167,8 @@ errout:
 
 static int usbhost_disconnected(FAR struct usbhost_class_s *usbclass)
 {
-  FAR struct usbhost_cdcacm_s *priv = (FAR struct usbhost_cdcacm_s *)usbclass;
+  FAR struct usbhost_cdcacm_s *priv =
+    (FAR struct usbhost_cdcacm_s *)usbclass;
   FAR struct usbhost_hubport_s *hport;
   irqstate_t flags;
   int ret;
@@ -2199,6 +2255,7 @@ static int usbhost_disconnected(FAR struct usbhost_class_s *usbclass)
 /****************************************************************************
  * Serial Lower-Half Interfaces
  ****************************************************************************/
+
 /****************************************************************************
  * Name: usbhost_setup
  *
@@ -2221,7 +2278,11 @@ static int usbhost_setup(FAR struct uart_dev_s *uartdev)
   /* Make sure that we have exclusive access to the private data structure */
 
   DEBUGASSERT(priv->crefs > 0 && priv->crefs < USBHOST_MAX_CREFS);
-  usbhost_takesem(&priv->exclsem);
+  ret = usbhost_takesem(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Check if the CDC/ACM device is still connected.  We need to disable
    * interrupts momentarily to assure that there are no asynchronous
@@ -2272,7 +2333,7 @@ static void usbhost_shutdown(FAR struct uart_dev_s *uartdev)
   /* Decrement the reference count on the block driver */
 
   DEBUGASSERT(priv->crefs > 1);
-  usbhost_takesem(&priv->exclsem);
+  usbhost_forcetake(&priv->exclsem);
   priv->crefs--;
 
   /* Release the semaphore.  The following operations when crefs == 1 are
@@ -2331,8 +2392,8 @@ static int usbhost_attach(FAR struct uart_dev_s *uartdev)
  *
  * Description:
  *   Detach USART interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception
- *   is the serial console which is never shutdown.
+ *   closed normally just before the shutdown method is called.  The
+ *   exception is the serial console which is never shutdown.
  *
  ****************************************************************************/
 
@@ -2379,7 +2440,12 @@ static int usbhost_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     {
       /* Process the IOCTL by command */
 
-      usbhost_takesem(&priv->exclsem);
+      ret = usbhost_takesem(&priv->exclsem);
+      if (ret < 0)
+        {
+          return ret;
+        }
+
       switch (cmd)
         {
 #ifdef CONFIG_SERIAL_TIOCSERGSTRUCT
@@ -2608,7 +2674,6 @@ static void usbhost_rxint(FAR struct uart_dev_s *uartdev, bool enable)
 
 static bool usbhost_rxavailable(FAR struct uart_dev_s *uartdev)
 {
-
   FAR struct usbhost_cdcacm_s *priv;
 
   DEBUGASSERT(uartdev && uartdev->priv);
@@ -2817,4 +2882,4 @@ int usbhost_cdcacm_initialize(void)
   return usbhost_registerclass(&g_cdcacm);
 }
 
-#endif  /* CONFIG_USBHOST_CDCACM */
+#endif /* CONFIG_USBHOST_CDCACM */

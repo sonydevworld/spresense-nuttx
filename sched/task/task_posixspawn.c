@@ -1,35 +1,20 @@
 /****************************************************************************
  * sched/task/task_posixspawn.c
  *
- *   Copyright (C) 2013, 2018-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -120,10 +105,10 @@ static int nxposix_spawn_exec(FAR pid_t *pidp, FAR const char *path,
 
   /* Start the task */
 
-  pid = exec(path, (FAR char * const *)argv, symtab, nsymbols);
+  pid = exec_spawn(path, (FAR char * const *)argv, symtab, nsymbols, attr);
   if (pid < 0)
     {
-      ret = get_errno();
+      ret = -pid;
       serr("ERROR: exec failed: %d\n", ret);
       goto errout;
     }
@@ -276,9 +261,9 @@ static int nxposix_spawn_proxy(int argc, FAR char *argv[])
  *       value.
  *     - POSIX_SPAWN_SETSCHEDULER: Set the new task's scheduler policy to
  *       the sched_policy value.
- *     - POSIX_SPAWN_RESETIDS: Resetting of the effective user ID of the child
- *       process is not supported.  NuttX does not support effective user
- *       IDs.
+ *     - POSIX_SPAWN_RESETIDS: Resetting of the effective user ID of the
+ *       child process is not supported.  NuttX does not support effective
+ *       user IDs.
  *     - POSIX_SPAWN_SETSIGMASK: Set the new task's signal mask.
  *     - POSIX_SPAWN_SETSIGDEF:  Resetting signal default actions is not
  *       supported.  NuttX does not support default signal actions.
@@ -327,12 +312,12 @@ static int nxposix_spawn_proxy(int argc, FAR char *argv[])
 int posix_spawnp(FAR pid_t *pid, FAR const char *path,
                  FAR const posix_spawn_file_actions_t *file_actions,
                  FAR const posix_spawnattr_t *attr,
-                 FAR char *const argv[], FAR char *const envp[])
+                 FAR char * const argv[], FAR char * const envp[])
 #else
 int posix_spawn(FAR pid_t *pid, FAR const char *path,
                 FAR const posix_spawn_file_actions_t *file_actions,
                 FAR const posix_spawnattr_t *attr,
-                FAR char *const argv[], FAR char *const envp[])
+                FAR char * const argv[], FAR char * const envp[])
 #endif
 {
   struct sched_param param;
@@ -358,10 +343,10 @@ int posix_spawn(FAR pid_t *pid, FAR const char *path,
       return nxposix_spawn_exec(pid, path, attr, argv);
     }
 
-  /* Otherwise, we will have to go through an intermediary/proxy task in order
-   * to perform the I/O redirection.  This would be a natural place to fork().
-   * However, true fork() behavior requires an MMU and most implementations
-   * of vfork() are not capable of these operations.
+  /* Otherwise, we will have to go through an intermediary/proxy task in
+   * order to perform the I/O redirection.  This would be a natural place
+   * to fork().  However, true fork() behavior requires an MMU and most
+   * implementations of vfork() are not capable of these operations.
    *
    * Even without fork(), we can still do the job, but parameter passing is
    * messier.  Unfortunately, there is no (clean) way to pass binary values
@@ -371,7 +356,12 @@ int posix_spawn(FAR pid_t *pid, FAR const char *path,
 
   /* Get exclusive access to the global parameter structure */
 
-  spawn_semtake(&g_spawn_parmsem);
+  ret = spawn_semtake(&g_spawn_parmsem);
+  if (ret < 0)
+    {
+      serr("ERROR: spawn_semtake failed: %d\n", ret);
+      return -ret;
+    }
 
   /* Populate the parameter structure */
 
@@ -384,10 +374,10 @@ int posix_spawn(FAR pid_t *pid, FAR const char *path,
 
   /* Get the priority of this (parent) task */
 
-  ret = nxsched_getparam(0, &param);
+  ret = nxsched_get_param(0, &param);
   if (ret < 0)
     {
-      serr("ERROR: nxsched_getparam failed: %d\n", ret);
+      serr("ERROR: nxsched_get_param failed: %d\n", ret);
       spawn_semgive(&g_spawn_parmsem);
       return -ret;
     }
@@ -420,14 +410,24 @@ int posix_spawn(FAR pid_t *pid, FAR const char *path,
   /* Wait for the proxy to complete its job */
 
 #ifdef CONFIG_SCHED_WAITPID
-  ret = waitpid(proxy, &status, 0);
+  /* REVISIT: This should not call waitpid() directly.  waitpid is a
+   * cancellation point and modifies the errno value.  It is inappropriate
+   * for use within the OS.
+   */
+
+  ret = nx_waitpid(proxy, &status, 0);
   if (ret < 0)
     {
-      serr("ERROR: waitpid() failed: %d\n", errno);
+      serr("ERROR: waitpid() failed: %d\n", ret);
       goto errout_with_lock;
     }
 #else
-  spawn_semtake(&g_spawn_execsem);
+  ret = spawn_semtake(&g_spawn_execsem);
+  if (ret < 0)
+    {
+      serr("ERROR: spawn_semtake() failed: %d\n", ret);
+      goto errout_with_lock;
+    }
 #endif
 
   /* Get the result and relinquish our access to the parameter structure */

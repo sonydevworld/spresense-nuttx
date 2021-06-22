@@ -4,10 +4,6 @@
  *   Copyright (C) 2013-2014, 2016-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
- * References:
- *   SAMA5D3 Series Data Sheet
- *   Atmel NoOS sample code.
- *
  * The Atmel sample code has a BSD compatible license that requires this
  * copyright notice:
  *
@@ -42,6 +38,11 @@
  *
  ****************************************************************************/
 
+/* References:
+ *   SAMA5D3 Series Data Sheet
+ *   Atmel NoOS sample code.
+ */
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -49,6 +50,7 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <errno.h>
@@ -63,7 +65,7 @@
 #include <nuttx/irq.h>
 #include <arch/board/board.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "hardware/sam_pmc.h"
 #include "hardware/sam_pinmap.h"
@@ -78,7 +80,8 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-/* Configuration ***************************************************************/
+
+/* Configuration ************************************************************/
 
 #ifndef CONFIG_SAMA5_TWI0_FREQUENCY
 #  define CONFIG_SAMA5_TWI0_FREQUENCY 100000
@@ -100,12 +103,14 @@
 #  undef CONFIG_SAMA5_TWI_REGDEBUG
 #endif
 
-/* Driver internal definitions *************************************************/
-/* If verbose I2C debug output is enabled, then allow more time before we declare
- * a timeout.  The debug output from twi_interrupt will really slow things down!
+/* Driver internal definitions **********************************************/
+
+/* If verbose I2C debug output is enabled, then allow more time before we
+ * declare a timeout.  The debug output from twi_interrupt will really slow
+ * things down!
  *
- * With a very slow clock (say 100,000 Hz), less than 100 usec would be required
- * to transfer on byte.  So these define a "long" timeout.
+ * With a very slow clock (say 100,000 Hz), less than 100 usec would be
+ * required to transfer on byte.  So these define a "long" timeout.
  */
 
 #ifdef CONFIG_DEBUG_I2C_INFO
@@ -131,6 +136,7 @@
 /****************************************************************************
  * Private Types
  ****************************************************************************/
+
 /* Invariant attributes of a TWI bus */
 
 struct twi_attr_s
@@ -157,17 +163,17 @@ struct twi_dev_s
 
   sem_t               exclsem;    /* Only one thread can access at a time */
   sem_t               waitsem;    /* Wait for TWI transfer completion */
-  WDOG_ID             timeout;    /* Watchdog to recover from bus hangs */
+  struct wdog_s       timeout;    /* Watchdog to recover from bus hangs */
   volatile int        result;     /* The result of the transfer */
   volatile int        xfrd;       /* Number of bytes transfers */
 
   /* Debug stuff */
 
 #ifdef CONFIG_SAMA5_TWI_REGDEBUG
-   bool               wrlast;     /* Last was a write */
-   uint32_t           addrlast;   /* Last address */
-   uint32_t           vallast;    /* Last value */
-   int                ntimes;     /* Number of times */
+  bool                wrlast;     /* Last was a write */
+  uint32_t            addrlast;   /* Last address */
+  uint32_t            vallast;    /* Last value */
+  int                 ntimes;     /* Number of times */
 #endif
 };
 
@@ -177,7 +183,7 @@ struct twi_dev_s
 
 /* Low-level helper functions */
 
-static void twi_takesem(sem_t *sem);
+static int  twi_takesem(sem_t *sem);
 #define     twi_givesem(sem) (nxsem_post(sem))
 
 #ifdef CONFIG_SAMA5_TWI_REGDEBUG
@@ -202,7 +208,7 @@ static inline void twi_putrel(struct twi_dev_s *priv, unsigned int offset,
 static int  twi_wait(struct twi_dev_s *priv, unsigned int size);
 static void twi_wakeup(struct twi_dev_s *priv, int result);
 static int  twi_interrupt(int irq, FAR void *context, FAR void *arg);
-static void twi_timeout(int argc, uint32_t arg, ...);
+static void twi_timeout(wdparm_t arg);
 
 static void twi_startread(struct twi_dev_s *priv, struct i2c_msg_s *msg);
 static void twi_startwrite(struct twi_dev_s *priv, struct i2c_msg_s *msg);
@@ -290,14 +296,14 @@ static const struct i2c_ops_s g_twiops =
 };
 
 /****************************************************************************
- * Low-level Helpers
+ * Private Functions
  ****************************************************************************/
+
 /****************************************************************************
  * Name: twi_takesem
  *
  * Description:
- *   Take the wait semaphore (handling false alarm wake-ups due to the receipt
- *   of signals).
+ *   Take the wait semaphore.  May be interrupted by a signal.
  *
  * Input Parameters:
  *   dev - Instance of the SDIO device driver state structure.
@@ -307,9 +313,9 @@ static const struct i2c_ops_s g_twiops =
  *
  ****************************************************************************/
 
-static void twi_takesem(sem_t *sem)
+static int twi_takesem(sem_t *sem)
 {
-  nxsem_wait_uninterruptible(sem);
+  return nxsem_wait(sem);
 }
 
 /****************************************************************************
@@ -417,7 +423,8 @@ static void twi_putabs(struct twi_dev_s *priv, uintptr_t address,
  *
  ****************************************************************************/
 
-static inline uint32_t twi_getrel(struct twi_dev_s *priv, unsigned int offset)
+static inline uint32_t twi_getrel(struct twi_dev_s *priv,
+                                  unsigned int offset)
 {
   return twi_getabs(priv, priv->attr->base + offset);
 }
@@ -455,12 +462,14 @@ static inline void twi_putrel(struct twi_dev_s *priv, unsigned int offset,
 static int twi_wait(struct twi_dev_s *priv, unsigned int size)
 {
   uint32_t timeout;
+  int ret;
 
   /* Calculate a timeout value based on the size of the transfer
    *
    *   ticks = msec-per-byte * bytes / msec-per-tick
    *
-   * There is no concern about arithmetic overflow for reasonable transfer sizes.
+   * There is no concern about arithmetic overflow for reasonable transfer
+   * sizes.
    */
 
   timeout = MSEC2TICK(TWI_TIMEOUT_MSPB);
@@ -469,20 +478,26 @@ static int twi_wait(struct twi_dev_s *priv, unsigned int size)
       timeout = 1;
     }
 
-  /* Then start the timeout.  This timeout is needed to avoid hangs if/when an
-   * TWI transfer stalls.
+  /* Then start the timeout.  This timeout is needed to avoid hangs if/when
+   * a TWI transfer stalls.
    */
 
-  wd_start(priv->timeout, timeout, twi_timeout, 1, (uint32_t)priv);
+  wd_start(&priv->timeout, timeout, twi_timeout, (wdparm_t)priv);
 
   /* Wait for either the TWI transfer or the timeout to complete */
 
   do
     {
       i2cinfo("TWI%d Waiting...\n", priv->attr->twi);
-      twi_takesem(&priv->waitsem);
+      ret = twi_takesem(&priv->waitsem);
       i2cinfo("TWI%d Awakened with result: %d\n",
               priv->attr->twi, priv->result);
+
+      if (ret < 0)
+        {
+          wd_cancel(&priv->timeout);
+          return ret;
+        }
     }
   while (priv->result == -EBUSY);
 
@@ -505,7 +520,7 @@ static void twi_wakeup(struct twi_dev_s *priv, int result)
 {
   /* Cancel any pending timeout */
 
-  wd_cancel(priv->timeout);
+  wd_cancel(&priv->timeout);
 
   /* Disable any further TWI interrupts */
 
@@ -542,7 +557,7 @@ static int twi_interrupt(int irq, FAR void *context, FAR void *arg)
   imr     = twi_getrel(priv, SAM_TWI_IMR_OFFSET);
   pending = sr & imr;
 
-  i2cinfo("TWI%d pending: %08x\n", priv->attr->twi, pending);
+  i2cinfo("TWI%d pending: %08" PRIx32 "\n", priv->attr->twi, pending);
 
   /* Byte received */
 
@@ -638,7 +653,8 @@ static int twi_interrupt(int irq, FAR void *context, FAR void *arg)
     {
       /* Wake up the thread with an I/O error indication */
 
-      i2cerr("ERROR: TWI%d pending: %08x\n", priv->attr->twi, pending);
+      i2cerr("ERROR: TWI%d pending: %08" PRIx32 "\n",
+             priv->attr->twi, pending);
       twi_wakeup(priv, -EIO);
     }
 
@@ -656,7 +672,7 @@ static int twi_interrupt(int irq, FAR void *context, FAR void *arg)
  *
  ****************************************************************************/
 
-static void twi_timeout(int argc, uint32_t arg, ...)
+static void twi_timeout(wdparm_t arg)
 {
   struct twi_dev_s *priv = (struct twi_dev_s *)arg;
 
@@ -720,7 +736,8 @@ static void twi_startwrite(struct twi_dev_s *priv, struct i2c_msg_s *msg)
   /* Set slave address and number of internal address bytes. */
 
   twi_putrel(priv, SAM_TWI_MMR_OFFSET, 0);
-  twi_putrel(priv, SAM_TWI_MMR_OFFSET, TWI_MMR_IADRSZ_NONE | TWI_MMR_DADR(msg->addr));
+  twi_putrel(priv, SAM_TWI_MMR_OFFSET,
+             TWI_MMR_IADRSZ_NONE | TWI_MMR_DADR(msg->addr));
 
   /* Set internal address bytes (not used) */
 
@@ -797,18 +814,22 @@ static int twi_transfer(FAR struct i2c_master_s *dev,
 
   /* Get exclusive access to the device */
 
-  twi_takesem(&priv->exclsem);
+  ret = twi_takesem(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Setup the message transfer */
 
   priv->msg  = msgs;
   priv->msgc = count;
 
- /* Configure the I2C frequency.
-  * REVISIT: Note that the frequency is set only on the first message.
-  * This could be extended to support different transfer frequencies for
-  * each message segment.
-  */
+  /* Configure the I2C frequency.
+   * REVISIT: Note that the frequency is set only on the first message.
+   * This could be extended to support different transfer frequencies for
+   * each message segment.
+   */
 
   twi_setfrequency(priv, msgs->frequency);
 
@@ -835,7 +856,7 @@ static int twi_transfer(FAR struct i2c_master_s *dev,
   return ret;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: twi_reset
  *
  * Description:
@@ -847,7 +868,7 @@ static int twi_transfer(FAR struct i2c_master_s *dev,
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_I2C_RESET
 static int twi_reset(FAR struct i2c_master_s *dev)
@@ -863,7 +884,11 @@ static int twi_reset(FAR struct i2c_master_s *dev)
 
   /* Get exclusive access to the TWI device */
 
-  twi_takesem(&priv->exclsem);
+  ret = twi_takesem(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Disable TWI interrupts */
 
@@ -1056,8 +1081,8 @@ static void twi_setfrequency(struct twi_dev_s *priv, uint32_t frequency)
  *
  * Description:
  *   Initialize/Re-initialize the TWI peripheral.  This logic performs only
- *   repeatable initialization after either (1) the one-time initialization, or
- *   (2) after each bus reset.
+ *   repeatable initialization after either (1) the one-time initialization,
+ *   or (2) after each bus reset.
  *
  ****************************************************************************/
 
@@ -1235,22 +1260,13 @@ struct i2c_master_s *sam_i2cbus_initialize(int bus)
 
   flags = enter_critical_section();
 
-  /* Allocate a watchdog timer */
-
-  priv->timeout = wd_create();
-  if (priv->timeout == NULL)
-    {
-      ierr("ERROR: Failed to allocate a timer\n");
-      goto errout_with_irq;
-    }
-
   /* Attach Interrupt Handler */
 
   ret = irq_attach(priv->attr->irq, twi_interrupt, priv);
   if (ret < 0)
     {
       ierr("ERROR: Failed to attach irq %d\n", priv->attr->irq);
-      goto errout_with_wdog;
+      goto errout_with_lock;
     }
 
   /* Initialize the TWI driver structure */
@@ -1266,7 +1282,7 @@ struct i2c_master_s *sam_i2cbus_initialize(int bus)
    * priority inheritance enabled.
    */
 
-  nxsem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&priv->waitsem, SEM_PRIO_NONE);
 
   /* Perform repeatable TWI hardware initialization */
 
@@ -1274,11 +1290,7 @@ struct i2c_master_s *sam_i2cbus_initialize(int bus)
   leave_critical_section(flags);
   return &priv->dev;
 
-errout_with_wdog:
-  wd_delete(priv->timeout);
-  priv->timeout = NULL;
-
-errout_with_irq:
+errout_with_lock:
   leave_critical_section(flags);
   return NULL;
 }
@@ -1306,10 +1318,9 @@ int sam_i2cbus_uninitialize(FAR struct i2c_master_s *dev)
   nxsem_destroy(&priv->exclsem);
   nxsem_destroy(&priv->waitsem);
 
-  /* Free the watchdog timer */
+  /* Cancel the watchdog timer */
 
-  wd_delete(priv->timeout);
-  priv->timeout = NULL;
+  wd_cancel(&priv->timeout);
 
   /* Detach Interrupt Handler */
 

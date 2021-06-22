@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/samv7/sam_spi_slave.c
  *
- *   Copyright (C) 2015, 2017 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -52,7 +37,7 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/spi/slave.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "sam_config.h"
 #include "sam_gpio.h"
@@ -68,6 +53,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
 
 #ifndef CONFIG_SAMV7_SPI_SLAVE_QSIZE
@@ -110,10 +96,10 @@ struct sam_spidev_s
   /* Debug stuff */
 
 #ifdef CONFIG_SAMV7_SPI_REGDEBUG
-   bool     wrlast;            /* Last was a write */
-   uint32_t addresslast;       /* Last address */
-   uint32_t valuelast;         /* Last value */
-   int      ntimes;            /* Number of times */
+  bool     wrlast;             /* Last was a write */
+  uint32_t addresslast;        /* Last address */
+  uint32_t valuelast;          /* Last value */
+  int      ntimes;             /* Number of times */
 #endif
 };
 
@@ -141,7 +127,8 @@ static void     spi_dumpregs(struct sam_spidev_s *priv, const char *msg);
 # define        spi_dumpregs(priv,msg)
 #endif
 
-static void     spi_semtake(struct sam_spidev_s *priv);
+static int      spi_semtake(struct sam_spidev_s *priv);
+static void     spi_semtake_noncancelable(struct sam_spidev_s *priv);
 #define         spi_semgive(priv) (nxsem_post(&(priv)->spisem))
 
 /* Interrupt Handling */
@@ -162,7 +149,8 @@ static void     spi_bind(struct spi_sctrlr_s *sctrlr,
                   struct spi_sdev_s *sdev, enum spi_smode_e mode,
                   int nbits);
 static void     spi_unbind(struct spi_sctrlr_s *sctrlr);
-static int      spi_enqueue(struct spi_sctrlr_s *sctrlr, uint16_t data);
+static int      spi_enqueue(struct spi_sctrlr_s *sctrlr,
+                  FAR const void *data, size_t nwords);
 static bool     spi_qfull(struct spi_sctrlr_s *sctrlr);
 static void     spi_qflush(struct spi_sctrlr_s *sctrlr);
 
@@ -348,7 +336,7 @@ static void spi_dumpregs(struct sam_spidev_s *priv, const char *msg)
  *
  * Description:
  *   Take the semaphore that enforces mutually exclusive access to SPI
- *   resources, handling any exceptional conditions
+ *   resources.  May return ECANCELED if the calling thread was canceled.
  *
  * Input Parameters:
  *   priv - A reference to the MCAN peripheral state
@@ -358,9 +346,39 @@ static void spi_dumpregs(struct sam_spidev_s *priv, const char *msg)
  *
  ****************************************************************************/
 
-static void spi_semtake(struct sam_spidev_s *priv)
+static int spi_semtake(struct sam_spidev_s *priv)
 {
-  nxsem_wait_uninterruptible(&priv->spisem);
+  return nxsem_wait_uninterruptible(&priv->spisem);
+}
+
+/****************************************************************************
+ * Name: spi_semtake_noncancelable
+ *
+ * Description:
+ *   Take the semaphore that enforces mutually exclusive access to SPI
+ *   resources, handling any exceptional conditions.  Always successful.
+ *
+ * Input Parameters:
+ *   priv - A reference to the MCAN peripheral state
+ *
+ * Returned Value:
+ *  None
+ *
+ ****************************************************************************/
+
+static void spi_semtake_noncancelable(struct sam_spidev_s *priv)
+{
+  int ret;
+
+  do
+    {
+      ret = nxsem_wait_uninterruptible(&priv->spisem);
+
+      /* ECANCELED is the only error expected here */
+
+      DEBUGASSERT(ret == OK || ret == -ECANCELED);
+    }
+  while (ret < 0);
 }
 
 /****************************************************************************
@@ -409,7 +427,7 @@ static int spi_interrupt(int irq, void *context, FAR void *arg)
           return OK;
         }
 
-      /* TThe SPI waits until NSS goes active before receiving the serial
+      /* The SPI waits until NSS goes active before receiving the serial
        * clock from an external master. When NSS falls, the clock is
        * validated and the data is loaded in the SPI_RDR depending on the
        * BITS field configured in the SPI_CSR0.  These bits are processed
@@ -458,7 +476,8 @@ static int spi_interrupt(int irq, void *context, FAR void *arg)
            */
 
           regval = spi_getreg(priv, SAM_SPI_RDR_OFFSET);
-          data   = (uint16_t)((regval & SPI_RDR_RD_MASK) >> SPI_RDR_RD_SHIFT);
+          data   = (uint16_t)
+            ((regval & SPI_RDR_RD_MASK) >> SPI_RDR_RD_SHIFT);
 
           /* Enable TXDR/OVRE interrupts */
 
@@ -467,7 +486,8 @@ static int spi_interrupt(int irq, void *context, FAR void *arg)
 
           /* Report the receipt of data to the SPI device driver */
 
-          SPI_SDEV_RECEIVE(priv->sdev, data);
+          SPI_SDEV_RECEIVE(priv->sdev, (const uint16_t *)&data,
+                           sizeof(data));
         }
 
       /* When a transfer starts, the data shifted out is the data present
@@ -482,7 +502,8 @@ static int spi_interrupt(int irq, void *context, FAR void *arg)
        * i.e., NSS falls and there is a valid clock on the SPCK pin. When
        * the transfer occurs, the last data written in the SPI_TDR is
        * transferred in the Shift register and the TDRE flag rises. This
-       * enables frequent updates of critical variables with single transfers.
+       * enables frequent updates of critical variables with single
+       * transfers.
        *
        * Then, new data is loaded in the Shift register from the SPI_TDR. If
        * no character is ready to be transmitted, i.e., no character has been
@@ -564,7 +585,7 @@ static uint16_t spi_dequeue(struct sam_spidev_s *priv)
 
   if (priv->head != priv->tail)
     {
-      /* No, take the oldest value from the tail of the cicular buffer */
+      /* No, take the oldest value from the tail of the circular buffer */
 
       ret = priv->outq[priv->tail];
 
@@ -596,7 +617,7 @@ static uint16_t spi_dequeue(struct sam_spidev_s *priv)
 
       ret = priv->outval;
 
-      /* Disable further TXDR/OVRE interrupts until spi_enqueue() is called. */
+      /* Disable further TXDR/OVRE interrupts until spi_enqueue() is called */
 
       regval = (SPI_INT_TDRE | SPI_INT_UNDES);
       spi_putreg(priv, regval, SAM_SPI_IDR_OFFSET);
@@ -682,7 +703,7 @@ static void spi_setmode(struct sam_spidev_s *priv, enum spi_smode_e mode)
  *
  * Input Parameters:
  *   priv   - SPI device data structure
- *   nbits  - The number of bits requests
+ *   nbits  - The number of bits requested
  *
  * Returned Value:
  *   none
@@ -709,7 +730,9 @@ static void spi_setbits(struct sam_spidev_s *priv, int nbits)
 
       spiinfo("csr0=%08x\n", regval);
 
-      /* Save the selection so the subsequence re-configurations will be faster */
+      /* Save the selection so that subsequent re-configurations will be
+       * faster.
+       */
 
       priv->nbits = nbits;
     }
@@ -743,6 +766,8 @@ static void spi_bind(struct spi_sctrlr_s *sctrlr,
 {
   struct sam_spidev_s *priv = (struct sam_spidev_s *)sctrlr;
   uint32_t regval;
+  int ret;
+  FAR const void *data;
 
   spiinfo("sdev=%p mode=%d nbits=%d\n", sdv, mode, nbits);
 
@@ -750,7 +775,16 @@ static void spi_bind(struct spi_sctrlr_s *sctrlr,
 
   /* Get exclusive access to the SPI device */
 
-  spi_semtake(priv);
+  ret = spi_semtake(priv);
+  if (ret < 0)
+    {
+      /* REVISIT:  No mechanism to report error.  This error should only
+       * occur if the calling task was canceled.
+       */
+
+      spierr("RROR: spi_semtake failed: %d\n", ret);
+      return;
+    }
 
   /* Bind the SPI slave device interface instance to the SPI slave
    * controller interface.
@@ -783,7 +817,8 @@ static void spi_bind(struct spi_sctrlr_s *sctrlr,
    * be shifted out the SPI clock is detected.
    */
 
-  priv->outval = SPI_SDEV_GETDATA(sdev);
+  SPI_SDEV_GETDATA(sdev, &data);
+  priv->outval = *(const uint16_t *)data;
   spi_putreg(priv, priv->outval, SAM_SPI_TDR_OFFSET);
 
   /* Setup to begin normal SPI operation */
@@ -852,7 +887,7 @@ static void spi_unbind(struct spi_sctrlr_s *sctrlr)
 
   /* Get exclusive access to the SPI device */
 
-  spi_semtake(priv);
+  spi_semtake_noncancelable(priv);
 
   /* Disable SPI interrupts (still enabled at the NVIC) */
 
@@ -895,7 +930,8 @@ static void spi_unbind(struct spi_sctrlr_s *sctrlr)
  *
  ****************************************************************************/
 
-static int spi_enqueue(struct spi_sctrlr_s *sctrlr, uint16_t data)
+static int spi_enqueue(struct spi_sctrlr_s *sctrlr, FAR const void *data,
+                       size_t nwords)
 {
   struct sam_spidev_s *priv = (struct sam_spidev_s *)sctrlr;
   irqstate_t flags;
@@ -903,12 +939,16 @@ static int spi_enqueue(struct spi_sctrlr_s *sctrlr, uint16_t data)
   int next;
   int ret;
 
-  spiinfo("data=%04x\n", data);
+  spiinfo("data=%04x\n", *(const uint16_t *)data);
   DEBUGASSERT(priv != NULL && priv->sdev != NULL);
 
   /* Get exclusive access to the SPI device */
 
-  spi_semtake(priv);
+  ret = spi_semtake(priv);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Check if this word would overflow the circular buffer
    *
@@ -933,7 +973,7 @@ static int spi_enqueue(struct spi_sctrlr_s *sctrlr, uint16_t data)
        * be overwritten.
        */
 
-      priv->outq[priv->head] = data;
+      priv->outq[priv->head] = *(const uint16_t *)data;
       priv->head = next;
       ret = OK;
 
@@ -972,14 +1012,24 @@ static bool spi_qfull(struct spi_sctrlr_s *sctrlr)
 {
   struct sam_spidev_s *priv = (struct sam_spidev_s *)sctrlr;
   irqstate_t flags;
+  bool bret;
+  int ret;
   int next;
-  bool ret;
 
   DEBUGASSERT(priv != NULL && priv->sdev != NULL);
 
   /* Get exclusive access to the SPI device */
 
-  spi_semtake(priv);
+  ret = spi_semtake(priv);
+  if (ret < 0)
+    {
+      /* REVISIT:  No mechanism to report error.  This error should only
+       * occurr if the calling task was canceled.
+       */
+
+      spierr("RROR: spi_semtake failed: %d\n", ret);
+      return true;
+    }
 
   /* Check if another word would overflow the circular buffer
    *
@@ -993,10 +1043,10 @@ static bool spi_qfull(struct spi_sctrlr_s *sctrlr)
       next = 0;
     }
 
-  ret = (next == priv->tail);
+  bret = (next == priv->tail);
   leave_critical_section(flags);
   spi_semgive(priv);
-  return ret;
+  return bret;
 }
 
 /****************************************************************************
@@ -1026,7 +1076,7 @@ static void spi_qflush(struct spi_sctrlr_s *sctrlr)
 
   /* Get exclusive access to the SPI device */
 
-  spi_semtake(priv);
+  spi_semtake_noncancelable(priv);
 
   /* Mark the buffer empty, momentarily disabling interrupts */
 
