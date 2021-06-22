@@ -574,6 +574,19 @@ static uint32_t cisif_reg_read(uint16_t reg)
   return getreg32(CXD56_CISIF_BASE + reg);
 }
 
+static bool is_uncompressed(uint32_t fmt)
+{
+  bool ret = false;
+
+  if ((fmt == IMGDATA_PIX_FMT_UYVY) ||
+      (fmt == IMGDATA_PIX_FMT_RGB565))
+    {
+      ret = true;
+    }
+
+  return ret;
+}
+
 /****************************************************************************
  * cisif_check_param
  ****************************************************************************/
@@ -588,6 +601,7 @@ static int cisif_check_param(cisif_param_t *p)
   switch (p->format)
     {
       case IMGDATA_PIX_FMT_UYVY:
+      case IMGDATA_PIX_FMT_RGB565:
       case IMGDATA_PIX_FMT_JPEG:
       case IMGDATA_PIX_FMT_JPEG_WITH_SUBIMG:
         break;
@@ -615,7 +629,7 @@ static int cisif_check_param(cisif_param_t *p)
         }
     }
 
-  if (p->format != IMGDATA_PIX_FMT_UYVY)
+  if (!is_uncompressed(p->format))
     {
       if (p->jpg_param.notify_func != NULL)
         {
@@ -865,7 +879,7 @@ static int cxd56_cisif_start_capture
   param.format = fmt[IMGDATA_FMT_MAIN].pixelformat;
   if (param.format != IMGDATA_PIX_FMT_JPEG)
     {
-      if (param.format == IMGDATA_PIX_FMT_UYVY)
+      if (is_uncompressed(param.format))
         {
           yuv->hsize = fmt[IMGDATA_FMT_MAIN].width;
           yuv->vsize = fmt[IMGDATA_FMT_MAIN].height;
@@ -888,6 +902,8 @@ static int cxd56_cisif_start_capture
   switch (param.format)
     {
       case IMGDATA_PIX_FMT_UYVY:
+      case IMGDATA_PIX_FMT_RGB565:
+
         cisif_set_yuv_param(yuv);
 
         mode = MODE_YUV_TRS_EN;
@@ -1024,6 +1040,7 @@ static int cxd56_cisif_validate_frame_setting
   switch (datafmt[IMGDATA_FMT_MAIN].pixelformat)
     {
       case IMGDATA_PIX_FMT_UYVY:                /* YUV 4:2:2 */
+      case IMGDATA_PIX_FMT_RGB565:              /* RGB565 */
 
         ret = cisif_chk_yuvfrmsize(datafmt[IMGDATA_FMT_MAIN].width,
                                    datafmt[IMGDATA_FMT_MAIN].height);
@@ -1038,7 +1055,7 @@ static int cxd56_cisif_validate_frame_setting
       case IMGDATA_PIX_FMT_JPEG_WITH_SUBIMG:    /* JPEG + YUV 4:2:2 */
 
         if ((nr_datafmt == 2) &&
-            (datafmt[IMGDATA_FMT_SUB].pixelformat != IMGDATA_PIX_FMT_UYVY))
+            !is_uncompressed(datafmt[IMGDATA_FMT_SUB].pixelformat))
           {
             /* Unsupported pixel format */
 
