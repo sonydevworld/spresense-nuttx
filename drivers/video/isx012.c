@@ -134,24 +134,6 @@
 
 #define ISX012_ELEMS_3APARAM         (3)
 
-#ifdef CONFIG_DEBUG_IMAGER_ERROR
-#define imagererr(format, ...)     _err(format, ##__VA_ARGS__)
-#else
-#define imagererr(x...)
-#endif
-
-#ifdef CONFIG_DEBUG_IMAGER_WARN
-#define imagerwarn(format, ...)   _warn(format, ##__VA_ARGS__)
-#else
-#define imagerwarn(x...)
-#endif
-
-#ifdef CONFIG_DEBUG_IMAGER_INFO
-#define imagerinfo(format, ...)   _info(format, ##__VA_ARGS__)
-#else
-#define imagerinfo(x...)
-#endif
-
 #define VALIDATE_VALUE(val, min, max, step) (((val >= min) && \
                                               (val <= max) && \
                                               (((val - min) % step) == 0) ? \
@@ -666,7 +648,7 @@ static uint16_t isx012_getreg(isx012_dev_t *priv,
   ret = i2c_write(priv->i2c, &config, (uint8_t *)buffer, 2);
   if (ret < 0)
     {
-      imagererr("i2c_write failed: %d\n", ret);
+      verr("i2c_write failed: %d\n", ret);
       return 0;
     }
 
@@ -675,7 +657,7 @@ static uint16_t isx012_getreg(isx012_dev_t *priv,
   ret = i2c_read(priv->i2c, &config, (uint8_t *)buffer, regsize);
   if (ret < 0)
     {
-      imagererr("i2c_read failed: %d\n", ret);
+      verr("i2c_read failed: %d\n", ret);
       return 0;
     }
 
@@ -710,7 +692,7 @@ static int isx012_putreg(isx012_dev_t *priv,
                  (uint8_t *)buffer, regsize + 2);
   if (ret < 0)
     {
-      imagererr("i2c_write failed: %d\n", ret);
+      verr("i2c_write failed: %d\n", ret);
     }
 
   return ret;
@@ -729,7 +711,7 @@ static int isx012_putreglist(isx012_dev_t *priv,
                           entry->regval, entry->regsize);
       if (ret < 0)
         {
-          imagererr("isx012_putreg failed: %d\n", ret);
+          verr("isx012_putreg failed: %d\n", ret);
           return ret;
         }
     }
@@ -1176,7 +1158,7 @@ int init_isx012(FAR struct isx012_dev_s *priv)
   ret = isx012_chipid(priv);
   if (ret < 0)
     {
-      imagererr("isx012_chipid failed: %d\n", ret);
+      verr("isx012_chipid failed: %d\n", ret);
       board_isx012_set_reset();
       return ret;
     }
@@ -1188,7 +1170,7 @@ int init_isx012(FAR struct isx012_dev_s *priv)
                              DEVICE_STATE_WAIT_TIME, DEVICE_STATE_TIMEOUT);
   if (ret != OK)
     {
-      imagererr("OM_CHANGED_STS(PreSleep) is Not occurred: %d\n", ret);
+      verr("OM_CHANGED_STS(PreSleep) is Not occurred: %d\n", ret);
       return ret;
     }
 
@@ -1202,7 +1184,7 @@ int init_isx012(FAR struct isx012_dev_s *priv)
   ret = isx012_putreglist(priv, g_isx012_presleep, ISX012_PRESLEEP_NENTRIES);
   if (ret != OK)
     {
-      imagererr("isx012_putreglist(INCK_SET) failed: %d\n", ret);
+      verr("isx012_putreglist(INCK_SET) failed: %d\n", ret);
       return ret;
     }
 
@@ -1212,7 +1194,7 @@ int init_isx012(FAR struct isx012_dev_s *priv)
                              DEVICE_STATE_WAIT_TIME, DEVICE_STATE_TIMEOUT);
   if (ret != OK)
     {
-      imagererr("OM_CHANGED_STS(Sleep) is Not occurred: %d\n", ret);
+      verr("OM_CHANGED_STS(Sleep) is Not occurred: %d\n", ret);
       return ret;
     }
 #endif
@@ -1225,7 +1207,7 @@ int init_isx012(FAR struct isx012_dev_s *priv)
   ret = isx012_putreglist(priv, g_isx012_def_init, ISX012_RESET_NENTRIES);
   if (ret < 0)
     {
-      imagererr("isx012_putreglist failed: %d\n", ret);
+      verr("isx012_putreglist failed: %d\n", ret);
       board_isx012_set_reset();
       return ret;
     }
@@ -1235,7 +1217,7 @@ int init_isx012(FAR struct isx012_dev_s *priv)
   ret = isx012_set_shd(priv);
   if (ret < 0)
     {
-      imagererr("isx012_set_shd failed: %d\n", ret);
+      verr("isx012_set_shd failed: %d\n", ret);
       board_isx012_set_reset();
       return ret;
     }
@@ -1251,14 +1233,14 @@ static int isx012_init(void)
   ret = board_isx012_power_on();
   if (ret < 0)
     {
-      imagererr("Failed to power on %d\n", ret);
+      verr("Failed to power on %d\n", ret);
       return ret;
     }
 
   ret = init_isx012(priv);
   if (ret < 0)
     {
-      imagererr("Failed to init_isx012 %d\n", ret);
+      verr("Failed to init_isx012 %d\n", ret);
       board_isx012_set_reset();
       board_isx012_power_off();
       return ret;
@@ -1283,7 +1265,7 @@ static int isx012_uninit(void)
   ret = board_isx012_power_off();
   if (ret < 0)
     {
-      imagererr("Failed to power off %d\n", ret);
+      verr("Failed to power off %d\n", ret);
       return ret;
     }
 
@@ -2694,7 +2676,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
   ret = isx012_putreg(priv, SHD_EN, 0x50, 1);
   if (ret < 0)
     {
-      imagererr("isx012_putreg(disable CXC/SHD) failed: %d\n", ret);
+      verr("isx012_putreg(disable CXC/SHD) failed: %d\n", ret);
       return ret;
     }
 
@@ -2703,7 +2685,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
   ret = isx012_putreg(priv, CXC_VALID, 0x8282, 2);
   if (ret < 0)
     {
-      imagererr("isx012_putreg(CXC_VALID) failed: %d\n", ret);
+      verr("isx012_putreg(CXC_VALID) failed: %d\n", ret);
       return ret;
     }
 
@@ -2719,7 +2701,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
                               1);
           if (ret < 0)
             {
-              imagererr("isx012_putreg(CXC R Gb) failed: %d\n", ret);
+              verr("isx012_putreg(CXC R Gb) failed: %d\n", ret);
               return ret;
             }
         }
@@ -2737,7 +2719,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
                               1);
           if (ret < 0)
             {
-              imagererr("isx012_putreg(CXC G Rb) failed: %d\n", ret);
+              verr("isx012_putreg(CXC G Rb) failed: %d\n", ret);
               return ret;
             }
         }
@@ -2748,7 +2730,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
   ret = isx012_putreg(priv, SHD_VALID, 0x9191, 2);
   if (ret < 0)
     {
-      imagererr("isx012_putreg(SHD_VALID) failed: %d\n", ret);
+      verr("isx012_putreg(SHD_VALID) failed: %d\n", ret);
       return ret;
     }
 
@@ -2764,7 +2746,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
                               1);
           if (ret < 0)
             {
-              imagererr("isx012_putreg(SHD R Gb) failed: %d\n", ret);
+              verr("isx012_putreg(SHD R Gb) failed: %d\n", ret);
               return ret;
             }
         }
@@ -2782,7 +2764,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
                               1);
           if (ret < 0)
             {
-              imagererr("isx012_putreg(SHD G Rb) failed: %d\n", ret);
+              verr("isx012_putreg(SHD G Rb) failed: %d\n", ret);
               return ret;
             }
         }
@@ -2800,7 +2782,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
                               1);
           if (ret < 0)
             {
-              imagererr("isx012_putreg(SHD R1) failed: %d\n", ret);
+              verr("isx012_putreg(SHD R1) failed: %d\n", ret);
               return ret;
             }
         }
@@ -2818,7 +2800,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
                               1);
           if (ret < 0)
             {
-              imagererr("isx012_putreg(SHD R2) failed: %d\n", ret);
+              verr("isx012_putreg(SHD R2) failed: %d\n", ret);
               return ret;
             }
         }
@@ -2836,7 +2818,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
                               1);
           if (ret < 0)
             {
-              imagererr("isx012_putreg(SHD B2) failed: %d\n", ret);
+              verr("isx012_putreg(SHD B2) failed: %d\n", ret);
               return ret;
             }
         }
@@ -2848,7 +2830,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
                           ISX012_SHD_THRESHOLDS_NENTRIES);
   if (ret < 0)
     {
-      imagererr("isx012_putreglist failed(SHD thresholds): %d\n", ret);
+      verr("isx012_putreglist failed(SHD thresholds): %d\n", ret);
       board_isx012_set_reset();
       return ret;
     }
@@ -2858,7 +2840,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
   ret = isx012_putreglist(priv, g_isx012_shd_wb, ISX012_SHD_WB_NENTRIES);
   if (ret < 0)
     {
-      imagererr("isx012_putreglist(SHD white balance) failed: %d\n", ret);
+      verr("isx012_putreglist(SHD white balance) failed: %d\n", ret);
       board_isx012_set_reset();
       return ret;
     }
@@ -2868,7 +2850,7 @@ static int isx012_set_shd(FAR isx012_dev_t *priv)
   ret = isx012_putreg(priv, SHD_EN, 0x57, 1);
   if (ret < 0)
     {
-      imagererr("isx012_putreg(enable CXC/SHD) failed: %d\n", ret);
+      verr("isx012_putreg(enable CXC/SHD) failed: %d\n", ret);
       return ret;
     }
 
