@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/cxd56xx/cxd56_delay.c
+ * arch/arm/src/cxd56xx/cxd56_modtext.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -23,92 +23,83 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+
 #include <sys/types.h>
-#include <nuttx/arch.h>
-
 #include <stdint.h>
+#include <string.h>
+#include <assert.h>
+#include <debug.h>
 
-#include "cxd56_clock.h"
+#include <nuttx/arch.h>
+#include <nuttx/kmalloc.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_CXD56_USE_SYSBUS
-#  define CXD56XX_LOOPSPERMSEC_156MHZ 15533ull
-#else
-#  define CXD56XX_LOOPSPERMSEC_156MHZ 7428ull
-#endif
-
-#define CXD56XX_LOOPSPERMSEC_BY_CLOCK(clock) \
-  (uint32_t)(CXD56XX_LOOPSPERMSEC_156MHZ * (clock) / 156000000ull)
-
-/* Adjust manually to be up_udelay(1000) is neary equal with up_udelay(999) */
-
-#ifdef CONFIG_CXD56_USE_SYSBUS
-#  define CXD56XX_LOOPSPERUSEC_ADJUST 1010ul;
-#else
-#  define CXD56XX_LOOPSPERUSEC_ADJUST 810ul;
-#endif
+#define SYSBUS_ADDRESS_OFFSET 0x20000000
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_mdelay
- *
- * Description:
- *   Delay inline for the requested number of milliseconds.
- *   *** NOT multi-tasking friendly ***
- *
+ * Name: up_module_text_init()
  ****************************************************************************/
 
-void up_mdelay(unsigned int milliseconds)
+void up_module_text_init()
 {
-  volatile unsigned int i;
-  volatile unsigned int j;
-  uint32_t clock = cxd56_get_cpu_baseclk();
-  uint32_t loops = CXD56XX_LOOPSPERMSEC_BY_CLOCK(clock);
-
-  for (i = 0; i < milliseconds; i++)
-    {
-      for (j = 0; j < loops; j++)
-        {
-        }
-    }
 }
 
 /****************************************************************************
- * Name: up_udelay
- *
- * Description:
- *   Delay inline for the requested number of microseconds.  NOTE:  Because
- *   of all of the setup, several microseconds will be lost before the actual
- *   timing loop begins.  Thus, the delay will always be a few microseconds
- *   longer than requested.
- *
- *   *** NOT multi-tasking friendly ***
- *
+ * Name: up_module_text_memalign()
  ****************************************************************************/
 
-void up_udelay(useconds_t microseconds)
+FAR void *up_module_text_memalign(size_t align, size_t size)
 {
-  volatile unsigned int i;
-  volatile unsigned int j;
-  uint32_t clock = cxd56_get_cpu_baseclk();
-  uint32_t loops = CXD56XX_LOOPSPERMSEC_BY_CLOCK(clock);
-  uint32_t milliseconds = microseconds / 1000;
+  FAR void *ret;
+  ret = (FAR void *)kmm_malloc(size);
 
-  for (i = 0; i < milliseconds; i++)
+#ifdef CONFIG_CXD56_USE_SYSBUS
+  if (ret)
     {
-      for (j = 0; j < loops; j++)
-        {
-        }
-    }
+      binfo("** ret=%p \n", ret);
 
-  loops = loops * (microseconds % 1000) / CXD56XX_LOOPSPERUSEC_ADJUST;
-  for (i = 0; i < loops; i++)
-    {
+      /* NOTE:
+       * kmm_malloc() will return the address in SYSBUS.
+       * So convert the address to I/D BUS.
+       */
+
+      ret -= SYSBUS_ADDRESS_OFFSET;
+
+      binfo("** mapped to %p \n", ret);
     }
+#endif
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: up_module_text_free()
+ ****************************************************************************/
+
+void up_module_text_free(FAR void *p)
+{
+#ifdef CONFIG_CXD56_USE_SYSBUS
+  if (p)
+    {
+      binfo("** p=%p \n", p);
+
+      /* NOTE:
+       * The address p will be in I/D BUS.
+       * So convert the address to SYSBUS.
+       */
+
+      p += SYSBUS_ADDRESS_OFFSET;
+
+      binfo("** mapped to %p \n", p);
+    }
+#endif
+
+  kmm_free(p);
 }
