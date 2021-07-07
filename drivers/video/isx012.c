@@ -1020,23 +1020,27 @@ static int isx012_change_camera_mode(isx012_dev_t *priv, uint8_t mode)
       return ret;
     }
 
-  isx012_putreg(priv, INTCLR0, CM_CHANGED_STS, 1);
-
-  ret = isx012_putreg(priv, MODESEL, mode, sizeof(mode));
-  if (ret < 0)
+  if (mode != isx012_getreg(priv, MODESEL, sizeof(mode)))
     {
-      return ret;
-    }
+      isx012_putreg(priv, INTCLR0, CM_CHANGED_STS, 1);
 
-  /* Wait CM_CHANGED */
+      ret = isx012_putreg(priv, MODESEL, mode, sizeof(mode));
+      if (ret < 0)
+        {
+          return ret;
+        }
 
-  ret = isx012_chk_int_state(priv, CM_CHANGED_STS,
-                                   CAMERA_MODE_DELAY_TIME,
-                                   CAMERA_MODE_WAIT_TIME,
-                                   CAMERA_MODE_TIMEOUT);
-  if (ret != 0)
-    {
-      return ret;
+      /* Wait CM_CHANGED */
+
+      ret = isx012_chk_int_state(priv,
+                                 CM_CHANGED_STS,
+                                 CAMERA_MODE_DELAY_TIME,
+                                 CAMERA_MODE_WAIT_TIME,
+                                 CAMERA_MODE_TIMEOUT);
+      if (ret != 0)
+        {
+          return ret;
+        }
     }
 
 #ifdef ISX012_FRAME_SKIP_EN
