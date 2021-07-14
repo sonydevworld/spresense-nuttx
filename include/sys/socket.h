@@ -267,6 +267,11 @@
 #define SCM_CREDENTIALS 0x02    /* rw: struct ucred */
 #define SCM_SECURITY    0x03    /* rw: security label */
 
+/* Network socket control */
+
+#define DENY_INET_SOCK_ENABLE  0x01   /* Deny to create INET socket */
+#define DENY_INET_SOCK_DISABLE 0x02   /* Not deny to create INET socket */
+
 /****************************************************************************
  * Type Definitions
  ****************************************************************************/
