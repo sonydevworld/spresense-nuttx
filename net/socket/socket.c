@@ -107,9 +107,9 @@ int psock_socket(int domain, int type, int protocol,
        */
 
       ret = g_usrsock_sockif.si_setup(psock, protocol);
-      if (ret == -ENETDOWN)
+      if (ret == -EPROTONOSUPPORT)
         {
-          /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
+          /* -EPROTONOSUPPORT means that USRSOCK daemon is not running.  Attempt to
            * open socket with kernel networking stack.
            */
 
