@@ -107,33 +107,45 @@ int psock_socket(int domain, int type, int protocol,
        */
 
       ret = g_usrsock_sockif.si_setup(psock, protocol);
-      psock->s_sockif = &g_usrsock_sockif;
-    }
-  else
-#endif /* CONFIG_NET_USRSOCK */
-    {
-      /* Get the socket interface */
-
-      sockif = net_sockif(domain, type, protocol);
-      if (sockif == NULL)
+      if (ret == -ENETDOWN)
         {
-          nerr("ERROR: socket address family unsupported: %d\n", domain);
-          return -EAFNOSUPPORT;
+          /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
+           * open socket with kernel networking stack.
+           */
         }
-
-      /* The remaining of the socket initialization depends on the address
-       * family.
-       */
-
-      DEBUGASSERT(sockif->si_setup != NULL);
-      psock->s_sockif = sockif;
-
-      ret = sockif->si_setup(psock, protocol);
-      if (ret < 0)
+      else
         {
-          nerr("ERROR: socket si_setup() failed: %d\n", ret);
+          psock->s_sockif = &g_usrsock_sockif;
+
+          /* The socket has been successfully initialized */
+
+          psock->s_flags |= _SF_INITD;
+
           return ret;
         }
+    }
+#endif /* CONFIG_NET_USRSOCK */
+  /* Get the socket interface */
+
+  sockif = net_sockif(domain, type, protocol);
+  if (sockif == NULL)
+    {
+      nerr("ERROR: socket address family unsupported: %d\n", domain);
+      return -EAFNOSUPPORT;
+    }
+
+  /* The remaining of the socket initialization depends on the address
+   * family.
+   */
+
+  DEBUGASSERT(sockif->si_setup != NULL);
+  psock->s_sockif = sockif;
+
+  ret = sockif->si_setup(psock, protocol);
+  if (ret < 0)
+    {
+      nerr("ERROR: socket si_setup() failed: %d\n", ret);
+      return ret;
     }
 
   /* The socket has been successfully initialized */
