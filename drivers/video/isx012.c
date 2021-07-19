@@ -816,9 +816,10 @@ static int isx012_set_mode_param(isx012_dev_t *priv,
   int fps_val = isx012_replace_frameinterval_to_regval(interval);
   uint16_t fps_addr;
   uint16_t fmt_addr;
-  uint16_t mode_addr;
+  uint16_t smode_addr;
   uint16_t hsize_addr;
   uint16_t vsize_addr;
+  uint8_t  smode;
   uint8_t  mode;
 
   /* Get register address for type  */
@@ -838,26 +839,29 @@ static int isx012_set_mode_param(isx012_dev_t *priv,
 
           fps_addr   = FPSTYPE_MOVIE;
           fmt_addr   = OUTFMT_MOVIE;
-          mode_addr  = SENSMODE_MOVIE;
+          smode_addr = SENSMODE_MOVIE;
           hsize_addr = HSIZE_MOVIE;
           vsize_addr = VSIZE_MOVIE;
+          mode       = REGVAL_MODESEL_MOV;
         }
       else
         {
           fps_addr   = FPSTYPE_MONI;
           fmt_addr   = OUTFMT_MONI;
-          mode_addr  = SENSMODE_MONI;
+          smode_addr = SENSMODE_MONI;
           hsize_addr = HSIZE_MONI;
           vsize_addr = VSIZE_MONI;
+          mode       = REGVAL_MODESEL_MON;
         }
     }
   else
     {
       fps_addr   = FPSTYPE_CAP;
       fmt_addr   = OUTFMT_CAP;
-      mode_addr  = SENSMODE_CAP;
+      smode_addr = SENSMODE_CAP;
       hsize_addr = HSIZE_CAP;
       vsize_addr = VSIZE_CAP;
+      mode       = REGVAL_MODESEL_CAP;
     }
 
   ret = isx012_putreg(priv, fps_addr, fps_val, sizeof(uint8_t));
@@ -875,23 +879,23 @@ static int isx012_set_mode_param(isx012_dev_t *priv,
   switch (fps_val)
     {
       case REGVAL_FPSTYPE_120FPS:
-        mode = REGVAL_SENSMODE_1_8;
+        smode = REGVAL_SENSMODE_1_8;
         break;
 
       case REGVAL_FPSTYPE_60FPS:
-        mode = REGVAL_SENSMODE_1_4;
+        smode = REGVAL_SENSMODE_1_4;
         break;
 
       case REGVAL_FPSTYPE_30FPS:
-        mode = REGVAL_SENSMODE_1_2;
+        smode = REGVAL_SENSMODE_1_2;
         break;
 
       default:
-        mode = REGVAL_SENSMODE_ALLPIX;
+        smode = REGVAL_SENSMODE_ALLPIX;
         break;
     }
 
-  ret = isx012_putreg(priv, mode_addr, mode, sizeof(uint8_t));
+  ret = isx012_putreg(priv, smode_addr, smode, sizeof(uint8_t));
   if (ret < 0)
     {
       return ret;
