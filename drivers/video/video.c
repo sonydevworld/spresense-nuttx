@@ -1222,9 +1222,11 @@ static int validate_frame_setting(enum v4l2_buf_type type,
    * image sensor driver support.
    */
 
-  convert_to_imgdatafmt(vfmt, df);
+  convert_to_imgdatafmt(&vfmt[VIDEO_FMT_MAIN], &df[IMGDATA_FMT_MAIN]);
+  convert_to_imgdatafmt(&vfmt[VIDEO_FMT_SUB], &df[IMGDATA_FMT_SUB]);
   convert_to_imgdatainterval(interval, &di);
-  convert_to_imgsensorfmt(vfmt, sf);
+  convert_to_imgsensorfmt(&vfmt[VIDEO_FMT_MAIN], &sf[IMGSENSOR_FMT_MAIN]);
+  convert_to_imgsensorfmt(&vfmt[VIDEO_FMT_SUB], &sf[IMGSENSOR_FMT_SUB]);
   convert_to_imgsensorinterval(interval, &si);
 
   ret = g_video_sensor_ops->validate_frame_setting(type, nr_fmt, sf, &si);
