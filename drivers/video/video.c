@@ -2031,7 +2031,7 @@ static int video_s_ext_ctrls(FAR struct video_mng_s *priv,
        cnt < ctrls->count;
        cnt++, control++)
     {
-      if ((ctrls->ctrl_class == V4L2_CTRL_CLASS_CAMERA) ||
+      if ((ctrls->ctrl_class == V4L2_CTRL_CLASS_CAMERA) &&
           (control->id == V4L2_CID_SCENE_MODE))
         {
           ret = reflect_scene_parameter(control->value);
