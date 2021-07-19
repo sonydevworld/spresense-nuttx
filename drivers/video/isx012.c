@@ -2376,7 +2376,7 @@ static int isx012_set_value(uint32_t id,
           }
 
         ret = isx012_putreg(priv,
-                            ISX012_SIZE_SHARPNESS,
+                            ISX012_REG_SHARPNESS,
                             value.value32,
                             ISX012_SIZE_SHARPNESS);
         break;
