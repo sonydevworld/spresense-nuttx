@@ -67,6 +67,10 @@
 #  include <nuttx/wireless/pktradio.h>
 #endif
 
+#ifdef CONFIG_NETDEV_MODEM_LTE_IOCTL
+#  include <nuttx/wireless/lte/lte_ioctl.h>
+#endif
+
 #include "arp/arp.h"
 #include "socket/socket.h"
 #include "netdev/netdev.h"
@@ -1600,6 +1604,13 @@ ssize_t net_ioctl_arglen(int cmd)
         if (WL_IBLUETOOTHCMD(cmd))
           {
             return sizeof(struct btreq_s);
+          }
+#  endif
+
+#  ifdef CONFIG_NETDEV_MODEM_LTE_IOCTL
+        if (WL_ISLTECMD(cmd))
+          {
+            return sizeof(struct lte_ioctl_data_s);
           }
 #  endif
 #endif
