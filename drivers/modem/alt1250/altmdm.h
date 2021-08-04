@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/cxd56xx/spresense/src/cxd56_altmdm_power.c
+ * drivers/modem/alt1250/altmdm.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,69 +18,43 @@
  *
  ****************************************************************************/
 
+#ifndef __DRIVERS_MODEM_ALT1250_ALTMDM_H__
+#define __DRIVERS_MODEM_ALT1250_ALTMDM_H__
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
-#if defined(CONFIG_MODEM_ALTMDM)
-
-#include <stdio.h>
-#include <debug.h>
-#include <errno.h>
-
-#include <nuttx/board.h>
+#include <nuttx/modem/alt1250.h>
 #include <nuttx/spi/spi.h>
-#include <nuttx/modem/altmdm.h>
-#include <arch/board/board.h>
-#include "cxd56_gpio.h"
-#include "cxd56_pinconfig.h"
 
 /****************************************************************************
- * Public Functions
+ * Pre-processor Definitions
  ****************************************************************************/
+
+#define ALTMDM_RETURN_RESET_V1  (-1)
+#define ALTMDM_RETURN_NOTREADY  (-2)
+#define ALTMDM_RETURN_CANCELED  (-3)
+#define ALTMDM_RETURN_RESET_V4  (-4)
+#define ALTMDM_RETURN_RESET_PKT (-5)
+#define ALTMDM_RETURN_EXIT      (-6)
 
 /****************************************************************************
- * Name: board_altmdm_poweron
- *
- * Description:
- *   Power on the Altair modem device on the board.
- *
+ * Public Function Prototypes
  ****************************************************************************/
 
-void board_altmdm_poweron(void)
-{
-  /* Power on altair modem device */
+int altmdm_init(FAR struct spi_dev_s *spidev,
+  FAR const struct alt1250_lower_s *lower);
+int altmdm_fin(void);
+int altmdm_read(FAR uint8_t *buff, int sz);
+int altmdm_write(FAR uint8_t *buff, int sz);
+int altmdm_take_wlock(void);
+int altmdm_give_wlock(void);
+int altmdm_poweron(void);
+int altmdm_poweroff(void);
+int altmdm_reset(void);
+uint32_t altmdm_get_reset_reason(void);
+uint8_t altmdm_get_version(void);
 
-  cxd56_gpio_config(ALTMDM_SHUTDOWN, false);
-  cxd56_gpio_write(ALTMDM_SHUTDOWN, true);
-
-  cxd56_gpio_config(ALTMDM_LTE_POWER_BUTTON, false);
-  cxd56_gpio_write(ALTMDM_LTE_POWER_BUTTON, true);
-
-  board_power_control(POWER_LTE, true);
-}
-
-/****************************************************************************
- * Name: board_altmdm_poweroff
- *
- * Description:
- *   Power off the Altair modem device on the board.
- *
- ****************************************************************************/
-
-void board_altmdm_poweroff(void)
-{
-  /* Power off Altair modem device */
-
-  cxd56_gpio_write(ALTMDM_SHUTDOWN, true);
-
-  board_power_control(POWER_LTE, false);
-
-  cxd56_gpio_write(ALTMDM_SHUTDOWN, false);
-  cxd56_gpio_write(ALTMDM_LTE_POWER_BUTTON, false);
-}
-
-#endif
-
+#endif  /* __DRIVERS_MODEM_ALT1250_ALTMDM_H__ */

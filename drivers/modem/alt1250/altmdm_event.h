@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/modem/altair/altmdm_pm_state.h
+ * drivers/modem/alt1250/altmdm_event.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,54 +18,39 @@
  *
  ****************************************************************************/
 
-#ifndef __DRIVERS_MODEM_ALTMDM_ALTMDM_PM_STATE_H
-#define __DRIVERS_MODEM_ALTMDM_ALTMDM_PM_STATE_H
-
-#if defined(CONFIG_MODEM_ALTMDM)
+#ifndef __DRIVERS_MODEM_ALT1250_ALTMDM_EVENT_H__
+#define __DRIVERS_MODEM_ALT1250_ALTMDM_EVENT_H__
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Included Files
  ****************************************************************************/
 
-#define MODEM_PM_INTERNAL_STATE_SLEEP          (0)
-#define MODEM_PM_INTERNAL_STATE_GOING_TO_WAKE  (1)
-#define MODEM_PM_INTERNAL_STATE_WAKE           (2)
-#define MODEM_PM_INTERNAL_STATE_GOING_TO_SLEEP (3)
-#define MODEM_PM_INTERNAL_STATE_MAX            (4)
+#include <nuttx/config.h>
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <semaphore.h>
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+struct altmdm_event_s
+{
+  sem_t sem;
+  uint32_t event;
+};
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-/****************************************************************************
- * Name: altmdm_pm_getstate
- *
- * Description:
- *   Get current modem state.
- *
- ****************************************************************************/
+int altmdm_event_init(FAR struct altmdm_event_s *evt);
+int altmdm_event_destroy(FAR struct altmdm_event_s *evt);
+uint32_t altmdm_event_wait(FAR struct altmdm_event_s *evt,
+  uint32_t event, bool with_clear, int timeout_ms);
+int altmdm_event_set(FAR struct altmdm_event_s *evt, uint32_t event);
+int altmdm_event_clear(FAR struct altmdm_event_s *evt, uint32_t event);
+uint32_t altmdm_event_refer(FAR struct altmdm_event_s *evt);
 
-uint32_t altmdm_pm_getstate(void);
-
-/****************************************************************************
- * Name: altmdm_pm_getinternalstate
- *
- * Description:
- *   Get internal modem state.
- *
- ****************************************************************************/
-
-uint32_t altmdm_pm_getinternalstate(void);
-
-/****************************************************************************
- * Name: altmdm_pm_setinternalstate
- *
- * Description:
- *   Set internal modem state.
- *
- ****************************************************************************/
-
-void altmdm_pm_setinternalstate(uint32_t state);
-
-#endif
-#endif /* __DRIVERS_MODEM_ALTMDM_ALTMDM_PM_STATE_H */
+#endif  /* __DRIVERS_MODEM_ALT1250_ALTMDM_EVENT_H__ */
