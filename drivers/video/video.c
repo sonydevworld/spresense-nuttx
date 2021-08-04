@@ -1715,44 +1715,59 @@ static int video_query_ext_ctrl(FAR struct v4l2_query_ext_ctrl *attr)
       return -EINVAL;
     }
 
-  ret = g_video_sensor_ops->get_supported_value
-          (VIDEO_ID(attr->ctrl_class, attr->id),
-           &value);
-  if (ret < 0)
+  if ((attr->ctrl_class == V4L2_CTRL_CLASS_CAMERA) &&
+      (attr->id == V4L2_CID_SCENE_MODE))
     {
-      return ret;
+      /* Scene mode is processed in only video driver. */
+
+      attr->type          = V4L2_CTRL_TYPE_INTEGER_MENU;
+      attr->minimum       = 0;
+      attr->maximum       = VIDEO_SCENE_MAX - 1;
+      attr->step          = 1;
+      attr->default_value = 0;
+      strncpy(attr->name, "Scene Mode", 32);
     }
-
-  attr->type = value.type;
-
-  switch (value.type)
+  else
     {
-      case IMGSENSOR_CTRL_TYPE_INTEGER_MENU:
-        attr->minimum       = 0;
-        attr->maximum       = disc->nr_values - 1;
-        attr->step          = 1;
-        attr->default_value = disc->default_value;
-        break;
+      ret = g_video_sensor_ops->get_supported_value
+              (VIDEO_ID(attr->ctrl_class, attr->id),
+               &value);
+      if (ret < 0)
+        {
+          return ret;
+        }
 
-      case IMGSENSOR_CTRL_TYPE_U8:
-      case IMGSENSOR_CTRL_TYPE_U16:
-      case IMGSENSOR_CTRL_TYPE_U32:
-        attr->minimum = elem->minimum;
-        attr->maximum = elem->maximum;
-        attr->step    = elem->step;
-        attr->elems   = elem->nr_elems;
-        break;
+      attr->type = value.type;
 
-      default:
-        attr->minimum       = range->minimum;
-        attr->maximum       = range->maximum;
-        attr->step          = range->step;
-        attr->default_value = range->default_value;
-        break;
+      switch (value.type)
+        {
+          case IMGSENSOR_CTRL_TYPE_INTEGER_MENU:
+            attr->minimum       = 0;
+            attr->maximum       = disc->nr_values - 1;
+            attr->step          = 1;
+            attr->default_value = disc->default_value;
+            break;
+
+          case IMGSENSOR_CTRL_TYPE_U8:
+          case IMGSENSOR_CTRL_TYPE_U16:
+          case IMGSENSOR_CTRL_TYPE_U32:
+            attr->minimum = elem->minimum;
+            attr->maximum = elem->maximum;
+            attr->step    = elem->step;
+            attr->elems   = elem->nr_elems;
+            break;
+
+          default:
+            attr->minimum       = range->minimum;
+            attr->maximum       = range->maximum;
+            attr->step          = range->step;
+            attr->default_value = range->default_value;
+            break;
+        }
+
+      set_parameter_name(VIDEO_ID(attr->ctrl_class, attr->id),
+                         attr->name);
     }
-
-  set_parameter_name(VIDEO_ID(attr->ctrl_class, attr->id),
-                     attr->name);
 
   return OK;
 }
@@ -1774,27 +1789,44 @@ static int video_querymenu(FAR struct v4l2_querymenu *menu)
       return -EINVAL;
     }
 
-  ret = g_video_sensor_ops->get_supported_value
-          (VIDEO_ID(menu->ctrl_class, menu->id),
-           &value);
-  if (ret < 0)
+  if ((menu->ctrl_class == V4L2_CTRL_CLASS_CAMERA) &&
+      (menu->id == V4L2_CID_SCENE_MODE))
     {
-      return ret;
-    }
+      /* Scene mode is processed in only video driver. */
 
-  if (value.type != IMGSENSOR_CTRL_TYPE_INTEGER_MENU)
+      if (menu->index > VIDEO_SCENE_MAX - 1)
+        {
+          return -EINVAL;
+        }
+
+      menu->value = g_video_scene_parameter[menu->index].mode;
+    }
+  else
     {
-      /* VIDIOC_QUERYMENU is used only for IMGSENSOR_CTRL_TYPE_INTEGER_MENU */
+      ret = g_video_sensor_ops->get_supported_value
+              (VIDEO_ID(menu->ctrl_class, menu->id),
+               &value);
+      if (ret < 0)
+        {
+          return ret;
+        }
 
-      return -EINVAL;
+      if (value.type != IMGSENSOR_CTRL_TYPE_INTEGER_MENU)
+        {
+          /* VIDIOC_QUERYMENU is used only for
+           * IMGSENSOR_CTRL_TYPE_INTEGER_MENU.
+           */
+
+          return -EINVAL;
+        }
+
+      if (menu->index >= value.u.discrete.nr_values)
+        {
+          return -EINVAL;
+        }
+
+      menu->value = value.u.discrete.values[menu->index];
     }
-
-  if (menu->index >= value.u.discrete.nr_values)
-    {
-      return -EINVAL;
-    }
-
-  menu->value = value.u.discrete.values[menu->index];
 
   return OK;
 }
