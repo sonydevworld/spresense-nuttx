@@ -1644,6 +1644,8 @@ int altmdm_write(FAR uint8_t *buff, int sz)
   bool should_wait = true;
   uint32_t ret;
 
+  sz = (sz > get_spipayload_maxsize()) ? get_spipayload_maxsize() : sz;
+
   do
     {
       if (!is_vp_valid())

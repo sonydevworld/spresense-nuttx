@@ -524,6 +524,8 @@ static int ioctl_send(FAR struct alt1250_dev_s *priv,
   uint16_t cid;
   uint16_t tid;
   FAR uint8_t *payload;
+  int remainlen;
+  int pos;
 
   m_info("send request: command ID=0x%08lx\n", req->cmdid);
 
@@ -556,8 +558,38 @@ static int ioctl_send(FAR struct alt1250_dev_s *priv,
                   add_list(&priv->waitlist, req);
                 }
 
-              ret = altmdm_write(g_sendbuff, get_pktlen(
-                      altver, (uint16_t)ret));
+              remainlen = get_pktlen(altver, (uint16_t)ret);
+              pos = 0;
+
+              /* If the modem sleeps during the split transmission,
+               * the receive buffer of the modem will be cleared.
+               * Therefore, split packets sent before sleep will be
+               * discarded. To avoid this, do not enter sleep state
+               * until all the packets have been sent.
+               */
+
+              altmdm_take_wlock();
+
+              do
+                {
+                  ret = altmdm_write(&g_sendbuff[pos], remainlen);
+                  if (ret < 0)
+                    {
+                      break;
+                    }
+                  else
+                    {
+                      m_info(
+                        "write success: size=%d, cid=0x%04x tid=0x%04x\n",
+                        ret, cid, tid);
+                      remainlen -= ret;
+                      pos += ret;
+                    }
+                }
+              while (remainlen > 0);
+
+              altmdm_give_wlock();
+
               if (ret < 0)
                 {
                   m_err("altmdm_write() failed: %d\n", ret);
