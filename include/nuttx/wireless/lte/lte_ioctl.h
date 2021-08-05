@@ -107,6 +107,10 @@
 #define LTE_CMDID_TAKEWLOCK                      _CMDGRP_POWER(0x2c)
 #define LTE_CMDID_GIVEWLOCK                      _CMDGRP_POWER(0x2d)
 #define LTE_CMDID_SENDATCMD                      _CMDGRP_NORMAL(0x2e)
+#define LTE_CMDID_INJECTIMAGE                    _CMDGRP_NORMAL(0x2f)
+#define LTE_CMDID_GETIMAGELEN                    _CMDGRP_NORMAL(0x30)
+#define LTE_CMDID_EXEUPDATE                      _CMDGRP_NORMAL(0x31)
+#define LTE_CMDID_GETUPDATERES                   _CMDGRP_NORMAL(0x32)
 
 #define LTE_CMDID_ACCEPT                         _CMDGRP_NORMAL(0x50)
 #define LTE_CMDID_BIND                           _CMDGRP_NORMAL(0x51)
