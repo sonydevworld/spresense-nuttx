@@ -318,7 +318,7 @@ psock_dgram_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
         {
           /* Read 32 bytes into the bit bucket */
 
-          readlen = MIN(remaining, 32);
+          tmplen = MIN(remaining, 32);
           ret     = psock_fifo_read(psock, bitbucket, &tmplen);
           if (ret < 0)
             {
@@ -331,6 +331,7 @@ psock_dgram_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
 
           DEBUGASSERT(tmplen <= remaining);
           remaining -= tmplen;
+          readlen += tmplen;
         }
       while (remaining > 0);
     }
