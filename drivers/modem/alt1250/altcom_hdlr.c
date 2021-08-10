@@ -3292,7 +3292,7 @@ static int32_t getphone_pkt_parse(FAR uint8_t *pktbuf,
 {
   FAR int32_t *ret = (FAR int32_t *)arg[0];
   FAR uint8_t *errcause = (FAR uint8_t *)arg[1];
-  FAR int8_t *phoneno = (FAR int8_t *)arg[2];
+  FAR char *phoneno = (FAR char *)arg[2];
   FAR struct apicmd_cmddat_phonenores_s *in =
     (FAR struct apicmd_cmddat_phonenores_s *)pktbuf;
 
@@ -3300,9 +3300,23 @@ static int32_t getphone_pkt_parse(FAR uint8_t *pktbuf,
   *errcause = in->errcause;
   if (0 == *ret)
     {
-      strncpy((FAR char *)phoneno, (FAR const char *)in->phoneno,
-              LTE_PHONENO_LEN);
-      phoneno[LTE_PHONENO_LEN - 1] = '\0';
+      if (arglen > 3)
+        {
+          FAR size_t *len = (FAR size_t *)arg[3];
+
+          /* Is it enough length to include Null terminate?
+           * The length of LTE_PHONENO_LEN includes the
+           * null terminator.
+           */
+
+          if (*len < strnlen((FAR const char *)in->phoneno,
+            LTE_PHONENO_LEN))
+            {
+              return -ENOBUFS;
+            }
+        }
+
+      strncpy(phoneno, (FAR const char *)in->phoneno, LTE_PHONENO_LEN);
     }
 
   return 0;
@@ -3314,7 +3328,7 @@ static int32_t getimsi_pkt_parse(FAR uint8_t *pktbuf,
 {
   FAR int32_t *ret = (FAR int32_t *)arg[0];
   FAR uint8_t *errcause = (FAR uint8_t *)arg[1];
-  FAR int8_t *imsi = (FAR int8_t *)arg[2];
+  FAR char *imsi = (FAR char *)arg[2];
   FAR struct apicmd_cmddat_getimsires_s *in =
     (FAR struct apicmd_cmddat_getimsires_s *)pktbuf;
 
@@ -3322,9 +3336,23 @@ static int32_t getimsi_pkt_parse(FAR uint8_t *pktbuf,
   *errcause = in->errcause;
   if (0 == *ret)
     {
-      strncpy((FAR char *)imsi, (FAR const char *)in->imsi,
-              APICMD_IMSI_LEN);
-      imsi[APICMD_IMSI_LEN - 1] = '\0';
+      if (arglen > 3)
+        {
+          FAR size_t *len = (FAR size_t *)arg[3];
+
+          /* Is it enough length to include Null terminate?
+           * The length of APICMD_IMSI_LEN includes the
+           * null terminator.
+           */
+
+          if (*len < strnlen((FAR const char *)in->imsi,
+            APICMD_IMSI_LEN))
+            {
+              return -ENOBUFS;
+            }
+        }
+
+      strncpy(imsi, (FAR const char *)in->imsi, APICMD_IMSI_LEN);
     }
 
   return 0;
@@ -3335,16 +3363,29 @@ static int32_t getimei_pkt_parse(FAR uint8_t *pktbuf,
                           size_t arglen)
 {
   FAR int32_t *ret = (FAR int32_t *)arg[0];
-  FAR int8_t *imei = (FAR int8_t *)arg[1];
+  FAR char *imei = (FAR char *)arg[1];
   FAR struct apicmd_cmddat_getimeires_s *in =
     (FAR struct apicmd_cmddat_getimeires_s *)pktbuf;
 
   *ret = (LTE_RESULT_OK == in->result) ? 0 : -EPROTO;
   if (0 == *ret)
     {
-      strncpy((FAR char *)imei, (FAR const char *)in->imei,
-              LTE_IMEI_LEN);
-      imei[LTE_IMEI_LEN - 1] = '\0';
+      if (arglen > 2)
+        {
+          FAR size_t *len = (FAR size_t *)arg[2];
+
+          /* Is it enough length to include Null terminate?
+           * The length of LTE_IMEI_LEN includes the
+           * null terminator.
+           */
+
+          if (*len < strnlen((FAR const char *)in->imei, LTE_IMEI_LEN))
+            {
+              return -ENOBUFS;
+            }
+        }
+
+      strncpy(imei, (FAR const char *)in->imei, LTE_IMEI_LEN);
     }
 
   return 0;
@@ -3448,7 +3489,7 @@ static int32_t getoper_pkt_parse(FAR uint8_t *pktbuf,
                           size_t arglen)
 {
   FAR int32_t *ret = (FAR int32_t *)arg[0];
-  FAR int8_t *oper = (FAR int8_t *)arg[1];
+  FAR char *oper = (FAR char *)arg[1];
 
   if (altver == ALTCOM_CMD_VER_V1)
     {
@@ -3458,9 +3499,23 @@ static int32_t getoper_pkt_parse(FAR uint8_t *pktbuf,
       *ret = (LTE_RESULT_OK == in->result) ? 0 : -EPROTO;
       if (0 == *ret)
         {
-          strncpy((FAR char *)oper, (FAR const char *)in->oper,
-            LTE_OPERATOR_LEN);
-          oper[LTE_OPERATOR_LEN - 1] = '\0';
+          if (arglen > 2)
+            {
+              FAR size_t *len = (FAR size_t *)arg[2];
+
+              /* Is it enough length to include Null terminate?
+               * The length of LTE_OPERATOR_LEN includes the
+               * null terminator.
+               */
+
+              if (*len < strnlen((FAR const char *)in->oper,
+                LTE_OPERATOR_LEN))
+                {
+                  return -ENOBUFS;
+                }
+            }
+
+          strncpy(oper, (FAR const char *)in->oper, LTE_OPERATOR_LEN);
         }
     }
   else if (altver == ALTCOM_CMD_VER_V4)
@@ -3471,9 +3526,23 @@ static int32_t getoper_pkt_parse(FAR uint8_t *pktbuf,
       *ret = (LTE_RESULT_OK == in->result) ? 0 : -EPROTO;
       if (0 == *ret)
         {
-          strncpy((FAR char *)oper, (FAR const char *)in->oper,
-            LTE_OPERATOR_LEN);
-          oper[LTE_OPERATOR_LEN - 1] = '\0';
+          if (arglen > 2)
+            {
+              FAR size_t *len = (FAR size_t *)arg[2];
+
+              /* Is it enough length to include Null terminate?
+               * The length of LTE_OPERATOR_LEN includes the
+               * null terminator.
+               */
+
+              if (*len < strnlen((FAR const char *)in->oper,
+                LTE_OPERATOR_LEN))
+                {
+                  return -ENOBUFS;
+                }
+            }
+
+          strncpy(oper, (FAR const char *)in->oper, LTE_OPERATOR_LEN);
         }
     }
 

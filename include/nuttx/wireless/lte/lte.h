@@ -539,9 +539,29 @@
 #define LTE_SIMINFO_IMSI_LEN  (15)  /* Maximum length of IMSI */
 #define LTE_SIMINFO_GID_LEN   (128) /* Maximum length of GID */
 
-#define LTE_PHONENO_LEN  (41)  /* Maximum length of phone number */
-#define LTE_IMEI_LEN     (16)  /* Maximum length of IMEI */
-#define LTE_OPERATOR_LEN (17)  /* Maximum length of network operator */
+/* Maximum length of phone number
+ * that includes a null terminater
+ */
+
+#define LTE_PHONENO_LEN  (41)
+
+/* Maximum length of IMEI
+ * that includes a null terminater
+ */
+
+#define LTE_IMEI_LEN     (16)
+
+/* Maximum length of network operator
+ * that includes a null terminater
+ */
+
+#define LTE_OPERATOR_LEN (17)
+
+/* Maximum length of IMSI
+ * that includes a null terminater
+ */
+
+#define LTE_IMSI_LEN (LTE_SIMINFO_IMSI_LEN + 1)
 
 /* Indicates that the global cell ID can be referenced */
 
