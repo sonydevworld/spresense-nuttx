@@ -3266,7 +3266,7 @@ static int32_t getver_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_version_t *version = (FAR lte_version_t *)arg[1];
   FAR struct apicmd_cmddat_getverres_s *in =
     (FAR struct apicmd_cmddat_getverres_s *)pktbuf;
@@ -3286,7 +3286,7 @@ static int32_t getphone_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR uint8_t *errcause = (FAR uint8_t *)arg[1];
   FAR char *phoneno = (FAR char *)arg[2];
   FAR struct apicmd_cmddat_phonenores_s *in =
@@ -3322,7 +3322,7 @@ static int32_t getimsi_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR uint8_t *errcause = (FAR uint8_t *)arg[1];
   FAR char *imsi = (FAR char *)arg[2];
   FAR struct apicmd_cmddat_getimsires_s *in =
@@ -3358,7 +3358,7 @@ static int32_t getimei_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR char *imei = (FAR char *)arg[1];
   FAR struct apicmd_cmddat_getimeires_s *in =
     (FAR struct apicmd_cmddat_getimeires_s *)pktbuf;
@@ -3391,7 +3391,7 @@ static int32_t getpinset_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_getpin_t *pinset = (FAR lte_getpin_t *)arg[1];
   FAR struct apicmd_cmddat_getpinsetres_s *in =
     (FAR struct apicmd_cmddat_getpinsetres_s *)pktbuf;
@@ -3411,7 +3411,7 @@ static int32_t setpinlock_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR uint8_t *attemptsleft = (FAR uint8_t *)arg[1];
   FAR struct apicmd_cmddat_setpinlockres_s *in =
     (FAR struct apicmd_cmddat_setpinlockres_s *)pktbuf;
@@ -3429,7 +3429,7 @@ static int32_t setpincode_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR uint8_t *attemptsleft = (FAR uint8_t *)arg[1];
   FAR struct apicmd_cmddat_setpincoderes_s *in =
     (FAR struct apicmd_cmddat_setpincoderes_s *)pktbuf;
@@ -3447,7 +3447,7 @@ static int32_t enterpin_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR uint8_t *simstat = (FAR uint8_t *)arg[1];
   FAR uint8_t *attemptsleft = (FAR uint8_t *)arg[2];
   FAR struct apicmd_cmddat_enterpinres_s *in =
@@ -3464,7 +3464,7 @@ static int32_t getltime_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_localtime_t *localtime = (FAR lte_localtime_t *)arg[1];
   FAR struct apicmd_cmddat_getltimeres_s *in =
     (FAR struct apicmd_cmddat_getltimeres_s *)pktbuf;
@@ -3484,7 +3484,7 @@ static int32_t getoper_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR char *oper = (FAR char *)arg[1];
 
   if (altver == ALTCOM_CMD_VER_V1)
@@ -3549,7 +3549,7 @@ static int32_t setrepqual_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR struct apicmd_cmddat_setrepquality_res_s *in =
     (FAR struct apicmd_cmddat_setrepquality_res_s *)pktbuf;
 
@@ -3562,7 +3562,7 @@ static int32_t setrepcell_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR struct apicmd_cmddat_setrepcellinfo_res_s *in =
     (FAR struct apicmd_cmddat_setrepcellinfo_res_s *)pktbuf;
 
@@ -3575,7 +3575,7 @@ static int32_t setrepevt_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
 
   if (altver == ALTCOM_CMD_VER_V1)
     {
@@ -3750,7 +3750,7 @@ static int32_t getedrx_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_edrx_setting_t *settings = (FAR lte_edrx_setting_t *)arg[1];
   FAR struct apicmd_cmddat_getedrxres_s *in =
     (FAR struct apicmd_cmddat_getedrxres_s *)pktbuf;
@@ -3778,7 +3778,7 @@ static int32_t setedrx_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR struct apicmd_cmddat_setedrxres_s *in =
     (FAR struct apicmd_cmddat_setedrxres_s *)pktbuf;
 
@@ -3791,7 +3791,7 @@ static int32_t getpsm_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_psm_setting_t *settings = (FAR lte_psm_setting_t *)arg[1];
   FAR bool *is_getpsmevt =  (FAR bool *)arg[2];
 
@@ -3820,7 +3820,7 @@ static int32_t setpsm_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR struct apicmd_cmddat_setpsmres_s *in =
     (FAR struct apicmd_cmddat_setpsmres_s *)pktbuf;
 
@@ -3833,7 +3833,7 @@ static int32_t getce_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_ce_setting_t *settings = (FAR lte_ce_setting_t *)arg[1];
   FAR struct apicmd_cmddat_getceres_s *in =
     (FAR struct apicmd_cmddat_getceres_s *)pktbuf;
@@ -3853,7 +3853,7 @@ static int32_t setce_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR struct apicmd_cmddat_setceres_s *in =
     (FAR struct apicmd_cmddat_setceres_s *)pktbuf;
 
@@ -3866,7 +3866,7 @@ static int32_t radioon_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR struct apicmd_cmddat_radioonres_s *in =
     (FAR struct apicmd_cmddat_radioonres_s *)pktbuf;
 
@@ -3879,7 +3879,7 @@ static int32_t radiooff_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR struct apicmd_cmddat_radiooffres_s *in =
     (FAR struct apicmd_cmddat_radiooffres_s *)pktbuf;
 
@@ -3892,7 +3892,7 @@ static int32_t actpdn_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_pdn_t *pdn = (FAR lte_pdn_t *)arg[1];
 
   if (altver == ALTCOM_CMD_VER_V1)
@@ -3937,7 +3937,7 @@ static int32_t deactpdn_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR struct apicmd_cmddat_deactivatepdnres_s *in =
     (FAR struct apicmd_cmddat_deactivatepdnres_s *)pktbuf;
 
@@ -3950,7 +3950,7 @@ static int32_t getnetinfo_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_netinfo_t *info = (FAR lte_netinfo_t *)arg[1];
   FAR uint8_t *pdn_num = (FAR uint8_t *)arg[2];
 
@@ -3988,7 +3988,7 @@ static int32_t getimscap_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR bool *imscap = (FAR bool *)arg[1];
   FAR struct apicmd_cmddat_getimscapres_s *in =
     (FAR struct apicmd_cmddat_getimscapres_s *)pktbuf;
@@ -4007,7 +4007,7 @@ static int32_t setrepnet_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR struct apicmd_cmddat_set_repnetinfores_s *in =
     (FAR struct apicmd_cmddat_set_repnetinfores_s *)pktbuf;
 
@@ -4084,7 +4084,7 @@ static int32_t getsiminfo_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_siminfo_t *siminfo = (FAR lte_siminfo_t *)arg[1];
   FAR struct apicmd_cmddat_getsiminfo_res_s *in =
     (FAR struct apicmd_cmddat_getsiminfo_res_s *)pktbuf;
@@ -4105,7 +4105,7 @@ static int32_t getdedrx_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_edrx_setting_t *settings = (FAR lte_edrx_setting_t *)arg[1];
   FAR struct apicmd_cmddat_getdynamicedrxres_s *in =
     (FAR struct apicmd_cmddat_getdynamicedrxres_s *)pktbuf;
@@ -4133,7 +4133,7 @@ static int32_t getdpsm_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_psm_setting_t *settings = (FAR lte_psm_setting_t *)arg[1];
   FAR struct apicmd_cmddat_getdynamicpsmres_s *in =
     (FAR struct apicmd_cmddat_getdynamicpsmres_s *)pktbuf;
@@ -4161,7 +4161,7 @@ static int32_t getqual_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_quality_t *quality = (FAR lte_quality_t *)arg[1];
 
   if (altver == ALTCOM_CMD_VER_V1)
@@ -4196,7 +4196,7 @@ static int32_t actpdncancel_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR struct apicmd_cmddat_activatepdn_cancel_res_s *in =
     (FAR struct apicmd_cmddat_activatepdn_cancel_res_s *)pktbuf;
 
@@ -4215,7 +4215,7 @@ static int32_t getcell_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_cellinfo_t *cellinfo = (FAR lte_cellinfo_t *)arg[1];
 
   if (altver == ALTCOM_CMD_VER_V4)
@@ -4237,7 +4237,7 @@ static int32_t getrat_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
   FAR lte_ratinfo_t *ratinfo = (FAR lte_ratinfo_t *)arg[1];
 
   if (altver == ALTCOM_CMD_VER_V4)
@@ -4266,7 +4266,7 @@ static int32_t setrat_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR int *ret = (FAR int *)arg[0];
 
   if (altver == ALTCOM_CMD_VER_V4)
     {
