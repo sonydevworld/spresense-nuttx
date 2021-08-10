@@ -630,7 +630,7 @@ int32_t altcombs_set_pdninfo(struct apicmd_pdnset_s *cmd_pdn,
   for (i = 0; i < lte_pdn->ipaddr_num; i++)
     {
       lte_pdn->address[i].ip_type = cmd_pdn->ip_address[i].iptype;
-      strncpy((FAR char *)lte_pdn->address[i].address,
+      strncpy(lte_pdn->address[i].address,
               (FAR char *)cmd_pdn->ip_address[i].address,
               LTE_IPADDR_MAX_LEN - 1);
     }
@@ -666,7 +666,7 @@ int32_t altcombs_set_pdninfo_v4(FAR struct apicmd_pdnset_v4_s *cmd_pdn,
   for (i = 0; i < lte_pdn->ipaddr_num; i++)
     {
       lte_pdn->address[i].ip_type = cmd_pdn->ip_address[i].iptype;
-      strncpy((FAR char *)lte_pdn->address[i].address,
+      strncpy(lte_pdn->address[i].address,
               (FAR char *)cmd_pdn->ip_address[i].address,
               LTE_IPADDR_MAX_LEN - 1);
     }
@@ -1242,9 +1242,9 @@ static void getver_parse_response(FAR struct apicmd_cmddat_getverres_s *resp,
                                   FAR lte_version_t *version)
 {
   memset(version, 0, sizeof(version));
-  strncpy((FAR char *)version->bb_product,
+  strncpy(version->bb_product,
           (FAR const char *)resp->bb_product, LTE_VER_BB_PRODUCT_LEN - 1);
-  strncpy((FAR char *)version->np_package,
+  strncpy(version->np_package,
           (FAR const char *)resp->np_package, LTE_VER_NP_PACKAGE_LEN - 1);
 }
 
@@ -1649,14 +1649,13 @@ static int32_t setpinlock_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
   FAR bool *enable = (FAR bool *)arg[0];
-  FAR int8_t *pincode = (FAR int8_t *)arg[1];
+  FAR char *pincode = (FAR char *)arg[1];
 
   FAR struct apicmd_cmddat_setpinlock_s *out =
     (FAR struct apicmd_cmddat_setpinlock_s *)pktbuf;
 
   out->mode = *enable;
-  strncpy((FAR char *)out->pincode,
-          (FAR char *)pincode, sizeof(out->pincode));
+  strncpy((FAR char *)out->pincode, pincode, sizeof(out->pincode));
 
   size = sizeof(struct apicmd_cmddat_setpinlock_s);
 
@@ -1682,8 +1681,8 @@ static int32_t setpincode_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
   FAR int8_t *target_pin = (FAR int8_t *)arg[0];
-  FAR int8_t *pincode = (FAR int8_t *)arg[1];
-  FAR int8_t *new_pincode = (FAR int8_t *)arg[2];
+  FAR char *pincode = (FAR char *)arg[1];
+  FAR char *new_pincode = (FAR char *)arg[2];
 
   FAR struct apicmd_cmddat_setpincode_s *out =
     (FAR struct apicmd_cmddat_setpincode_s *)pktbuf;
@@ -1697,11 +1696,9 @@ static int32_t setpincode_pkt_compose(FAR void **arg,
       out->chgtype = APICMD_SETPINCODE_CHGTYPE_PIN2;
     }
 
-  strncpy((FAR char *)out->pincode,
-          (FAR char *)pincode, sizeof(out->pincode));
+  strncpy((FAR char *)out->pincode, pincode, sizeof(out->pincode));
 
-  strncpy((FAR char *)out->newpincode,
-          (FAR char *)new_pincode, sizeof(out->newpincode));
+  strncpy((FAR char *)out->newpincode, new_pincode, sizeof(out->newpincode));
 
   size = sizeof(struct apicmd_cmddat_setpincode_s);
 
@@ -1726,19 +1723,18 @@ static int32_t enterpin_pkt_compose(FAR void **arg,
                           const size_t pktsz, FAR uint16_t *altcid)
 {
   int32_t size = 0;
-  FAR int8_t *pincode = (FAR int8_t *)arg[0];
-  FAR int8_t *new_pincode = (FAR int8_t *)arg[1];
+  FAR char *pincode = (FAR char *)arg[0];
+  FAR char *new_pincode = (FAR char *)arg[1];
 
   FAR struct apicmd_cmddat_enterpin_s *out =
     (FAR struct apicmd_cmddat_enterpin_s *)pktbuf;
 
-  strncpy((FAR char *)out->pincode,
-          (FAR char *)pincode, sizeof(out->pincode));
+  strncpy((FAR char *)out->pincode, pincode, sizeof(out->pincode));
   if (new_pincode)
     {
       out->newpincodeuse = APICMD_ENTERPIN_NEWPINCODE_USE;
       strncpy((FAR char *)out->newpincode,
-              (FAR char *)new_pincode, sizeof(out->newpincode));
+              new_pincode, sizeof(out->newpincode));
     }
 
   size = sizeof(struct apicmd_cmddat_enterpin_s);
