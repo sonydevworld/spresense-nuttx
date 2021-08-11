@@ -3110,7 +3110,7 @@ static int32_t injectimage_pkt_compose(FAR void **arg,
   FAR struct ltefw_injectdata_s *inject_data =
     (FAR struct ltefw_injectdata_s *)arg[0];
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_fw_injectdeltaimg_s *out =
        (FAR struct apicmd_cmddat_fw_injectdeltaimg_s *)pktbuf;
@@ -3123,7 +3123,7 @@ static int32_t injectimage_pkt_compose(FAR void **arg,
       memcpy(out->data, inject_data->data, len);
       size = sizeof(struct apicmd_cmddat_fw_injectdeltaimg_s);
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_fw_injectdeltaimg_v4_s *out =
        (FAR struct apicmd_cmddat_fw_injectdeltaimg_v4_s *)pktbuf;
@@ -3150,11 +3150,11 @@ static int32_t getimagelen_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_FW_GETDELTAIMGLEN;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_FW_GETDELTAIMGLEN_V4;
     }
@@ -3172,11 +3172,11 @@ static int32_t execupdate_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_FW_EXECDELTAUPDATE;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_FW_EXECDELTAUPDATE_V4;
     }
@@ -3194,11 +3194,11 @@ static int32_t getupdateres_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_FW_GETUPDATERESULT;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_FW_GETUPDATERESULT_V4;
     }
