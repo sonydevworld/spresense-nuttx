@@ -539,9 +539,29 @@
 #define LTE_SIMINFO_IMSI_LEN  (15)  /* Maximum length of IMSI */
 #define LTE_SIMINFO_GID_LEN   (128) /* Maximum length of GID */
 
-#define LTE_PHONENO_LEN  (41)  /* Maximum length of phone number */
-#define LTE_IMEI_LEN     (16)  /* Maximum length of IMEI */
-#define LTE_OPERATOR_LEN (17)  /* Maximum length of network operator */
+/* Maximum length of phone number
+ * that includes a null terminater
+ */
+
+#define LTE_PHONENO_LEN  (41)
+
+/* Maximum length of IMEI
+ * that includes a null terminater
+ */
+
+#define LTE_IMEI_LEN     (16)
+
+/* Maximum length of network operator
+ * that includes a null terminater
+ */
+
+#define LTE_OPERATOR_LEN (17)
+
+/* Maximum length of IMSI
+ * that includes a null terminater
+ */
+
+#define LTE_IMSI_LEN (LTE_SIMINFO_IMSI_LEN + 1)
 
 /* Indicates that the global cell ID can be referenced */
 
@@ -669,11 +689,11 @@ typedef struct lte_version
 {
   /* BB product version. It is terminated with '\0'. */
 
-  int8_t bb_product[LTE_VER_BB_PRODUCT_LEN];
+  char bb_product[LTE_VER_BB_PRODUCT_LEN];
 
   /* NP package version. It is terminated with '\0'. */
 
-  int8_t np_package[LTE_VER_NP_PACKAGE_LEN];
+  char np_package[LTE_VER_NP_PACKAGE_LEN];
 } lte_version_t;
 
 /* Definition of PIN setting information.
@@ -1050,7 +1070,7 @@ typedef struct lte_apn_setting
    * Maximum length is LTE_APN_LEN including '\0'.
    */
 
-  int8_t   *apn;
+  char   *apn;
 
   /* Type of IP for APN. Definition is as below.
    * - LTE_APN_IPTYPE_IP
@@ -1088,13 +1108,13 @@ typedef struct lte_apn_setting
    * Maximum length is LTE_APN_USER_NAME_LEN including '\0'.
    */
 
-  int8_t   *user_name;
+  char   *user_name;
 
   /* Password. It is terminated with '\0'.
    * Maximum length is LTE_APN_PASSWD_LEN including '\0'.
    */
 
-  int8_t   *password;
+  char   *password;
 } lte_apn_setting_t;
 
 /* Definition of ip address used in lte_pdn_t.
@@ -1113,7 +1133,7 @@ typedef struct lte_ipaddr
    * eg. (IPv4) 192.0.2.1, (IPv6) 2001:db8:85a3:0:0:8a2e:370:7334
    */
 
-  int8_t  address[LTE_IPADDR_MAX_LEN];
+  char  address[LTE_IPADDR_MAX_LEN];
 } lte_ipaddr_t;
 
 /* Definition of pdn information used in activate_pdn_cb_t.
@@ -1289,7 +1309,7 @@ typedef struct lte_error_info
 
   /* Error string use debug only */
 
-  uint8_t err_string[LTE_ERROR_STRING_MAX_LEN];
+  char err_string[LTE_ERROR_STRING_MAX_LEN];
 } lte_errinfo_t;
 
 /* Definition of CE settings used in lte_set_ce().
@@ -1335,7 +1355,7 @@ typedef struct lte_siminfo
    * LTE_SIMINFO_GETOPT_MCCMNC is set in option field.
    */
 
-  uint8_t  mcc[LTE_MCC_DIGIT];
+  char  mcc[LTE_MCC_DIGIT];
 
   /* Digit number of Mobile Network Code(2-3). It can be referenced when
    * LTE_SIMINFO_GETOPT_MCCMNC is set in option field.
@@ -1347,7 +1367,7 @@ typedef struct lte_siminfo
    * LTE_SIMINFO_GETOPT_MCCMNC is set in option field.
    */
 
-  uint8_t  mnc[LTE_MNC_DIGIT_MAX];
+  char  mnc[LTE_MNC_DIGIT_MAX];
 
   /* Length of Service provider name. It can be referenced when
    * LTE_SIMINFO_GETOPT_SPN is set in option field.
@@ -1359,7 +1379,7 @@ typedef struct lte_siminfo
    * LTE_SIMINFO_GETOPT_SPN is set in option field.
    */
 
-  uint8_t  spn[LTE_SIMINFO_SPN_LEN];
+  char  spn[LTE_SIMINFO_SPN_LEN];
 
   /* Length of ICCID. It can be referenced when
    * LTE_SIMINFO_GETOPT_ICCID is set in option field.
@@ -1384,7 +1404,7 @@ typedef struct lte_siminfo
    * LTE_SIMINFO_GETOPT_IMSI is set in option field.
    */
 
-  uint8_t  imsi[LTE_SIMINFO_IMSI_LEN];
+  char  imsi[LTE_SIMINFO_IMSI_LEN];
 
   /* Length of GID1. It can be referenced when
    * LTE_SIMINFO_GETOPT_GID1 is set in option field.
@@ -1396,7 +1416,7 @@ typedef struct lte_siminfo
    * LTE_SIMINFO_GETOPT_GID1 is set in option field.
    */
 
-  uint8_t  gid1[LTE_SIMINFO_GID_LEN];
+  char  gid1[LTE_SIMINFO_GID_LEN];
 
   /* Length of GID2. It can be referenced when
    * LTE_SIMINFO_GETOPT_GID2 is set in option field.
@@ -1408,7 +1428,7 @@ typedef struct lte_siminfo
    * LTE_SIMINFO_GETOPT_GID2 is set in option field.
    */
 
-  uint8_t  gid2[LTE_SIMINFO_GID_LEN];
+  char  gid2[LTE_SIMINFO_GID_LEN];
 } lte_siminfo_t;
 
 /* Definition of parameters for RAT information.
@@ -1499,7 +1519,7 @@ typedef void (*get_ver_cb_t)(uint32_t result, lte_version_t *version);
  */
 
 typedef void (*get_phoneno_cb_t)(uint32_t result, uint8_t errcause,
-                                 int8_t *phoneno);
+                                 char *phoneno);
 
 /* Definition of callback function.
  *
@@ -1520,7 +1540,7 @@ typedef void (*get_phoneno_cb_t)(uint32_t result, uint8_t errcause,
  */
 
 typedef void (*get_imsi_cb_t)(uint32_t result, uint8_t errcause,
-                              int8_t *imsi);
+                              char *imsi);
 
 /* Definition of callback function.
  *
@@ -1536,7 +1556,7 @@ typedef void (*get_imsi_cb_t)(uint32_t result, uint8_t errcause,
  *             It is terminated with '\0'
  */
 
-typedef void (*get_imei_cb_t)(uint32_t result, int8_t *imei);
+typedef void (*get_imei_cb_t)(uint32_t result, char *imei);
 
 /* Definition of callback function.
  *
@@ -1656,7 +1676,7 @@ typedef void (*get_localtime_cb_t)(uint32_t result,
  *             the first character is '\0'.
  */
 
-typedef void (*get_operator_cb_t)(uint32_t result, int8_t *oper);
+typedef void (*get_operator_cb_t)(uint32_t result, char *oper);
 
 /* Definition of callback function.
  *
