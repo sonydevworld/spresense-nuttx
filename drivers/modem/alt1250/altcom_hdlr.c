@@ -1665,7 +1665,14 @@ static int32_t setpincode_pkt_compose(FAR void **arg,
   FAR struct apicmd_cmddat_setpincode_s *out =
     (FAR struct apicmd_cmddat_setpincode_s *)pktbuf;
 
-  out->chgtype = (uint8_t)*target_pin;
+  if (LTE_TARGET_PIN == *target_pin)
+    {
+      out->chgtype = APICMD_SETPINCODE_CHGTYPE_PIN;
+    }
+  else
+    {
+      out->chgtype = APICMD_SETPINCODE_CHGTYPE_PIN2;
+    }
 
   strncpy((FAR char *)out->pincode,
           (FAR char *)pincode, sizeof(out->pincode));
@@ -1704,10 +1711,12 @@ static int32_t enterpin_pkt_compose(FAR void **arg,
 
   strncpy((FAR char *)out->pincode,
           (FAR char *)pincode, sizeof(out->pincode));
-
-  out->newpincodeuse = APICMD_ENTERPIN_NEWPINCODE_USE;
-  strncpy((FAR char *)out->newpincode,
-          (FAR char *)new_pincode, sizeof(out->newpincode));
+  if (new_pincode)
+    {
+      out->newpincodeuse = APICMD_ENTERPIN_NEWPINCODE_USE;
+      strncpy((FAR char *)out->newpincode,
+              (FAR char *)new_pincode, sizeof(out->newpincode));
+    }
 
   size = sizeof(struct apicmd_cmddat_enterpin_s);
 
