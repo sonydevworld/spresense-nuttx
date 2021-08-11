@@ -3524,7 +3524,6 @@ static int32_t repcell_pkt_parse(FAR uint8_t *pktbuf,
         (FAR struct apicmd_cmddat_cellinfo_s *)pktbuf;
 
       cellinfo->nr_neighbor = 0;
-      cellinfo->neighbors = NULL;
 
       altcombs_set_cellinfo(in, cellinfo);
     }
@@ -3534,8 +3533,6 @@ static int32_t repcell_pkt_parse(FAR uint8_t *pktbuf,
         (FAR struct apicmd_cmddat_cellinfo_v4_s *)pktbuf;
 
       cellinfo->nr_neighbor = LTE_NEIGHBOR_CELL_MAX;
-      cellinfo->neighbors =
-        ((FAR struct cellinfo_helper_s *)in)->neighbors;
 
       altcombs_set_cellinfo_v4(in, cellinfo);
     }
