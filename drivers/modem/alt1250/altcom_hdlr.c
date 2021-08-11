@@ -676,8 +676,7 @@ int32_t altcombs_set_pdninfo_v4(FAR struct apicmd_pdnset_v4_s *cmd_pdn,
 }
 
 int32_t altcombs_convert_api_edrx_value(lte_edrx_setting_t *api_edrx,
-  struct apicmd_cmddat_setedrx_s *cmd_edrx, int32_t *ratinfo_ret,
-  lte_ratinfo_t *ratinfo)
+  struct apicmd_cmddat_setedrx_s *cmd_edrx, uint8_t altver)
 {
   int           i;
   int           table_size = 0;
@@ -695,17 +694,23 @@ int32_t altcombs_convert_api_edrx_value(lte_edrx_setting_t *api_edrx,
       return -EINVAL;
     }
 
-  if (*ratinfo_ret < 0 && *ratinfo_ret != -ENOTSUP)
-    {
-      m_err("Get RAT failed[%ld].\n", *ratinfo_ret);
-      return *ratinfo_ret;
-    }
-  else if (*ratinfo_ret == -ENOTSUP)
-    {
-      /* act_type check for protocol version V1 */
+  /* act_type check for version V4 or later */
 
-      if (LTE_EDRX_ACTTYPE_NOTUSE != api_edrx->act_type &&
-          LTE_EDRX_ACTTYPE_WBS1   != api_edrx->act_type)
+  if (altver == ALTCOM_CMD_VER_V1)
+    {
+      if (api_edrx->act_type != LTE_EDRX_ACTTYPE_WBS1 &&
+          api_edrx->act_type != LTE_EDRX_ACTTYPE_NOTUSE)
+        {
+          m_err("Operation is not allowed[act_type : %d].\n",
+                      api_edrx->act_type);
+          return -EPERM;
+        }
+    }
+  else if (altver == ALTCOM_CMD_VER_V4)
+    {
+      if (api_edrx->act_type != LTE_EDRX_ACTTYPE_WBS1 &&
+          api_edrx->act_type != LTE_EDRX_ACTTYPE_NBS1 &&
+          api_edrx->act_type != LTE_EDRX_ACTTYPE_NOTUSE)
         {
           m_err("Operation is not allowed[act_type : %d].\n",
                           api_edrx->act_type);
@@ -714,18 +719,7 @@ int32_t altcombs_convert_api_edrx_value(lte_edrx_setting_t *api_edrx,
     }
   else
     {
-      /* act_type check for version V4 or later */
-
-      if (!((ratinfo->rat == LTE_RAT_CATM
-             && api_edrx->act_type == LTE_EDRX_ACTTYPE_WBS1)  ||
-            (ratinfo->rat == LTE_RAT_NBIOT
-             && api_edrx->act_type == LTE_EDRX_ACTTYPE_NBS1) ||
-            (api_edrx->act_type == LTE_EDRX_ACTTYPE_NOTUSE)))
-        {
-          m_err("Operation is not allowed[act_type : %d, RAT : %d].\n",
-                          api_edrx->act_type, ratinfo->rat);
-          return -EPERM;
-        }
+      return -ENOSYS;
     }
 
   table_size = ARRAY_SZ(g_edrx_acttype_table);
@@ -1985,18 +1979,16 @@ static int32_t setedrx_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
   FAR lte_edrx_setting_t *settings = (FAR lte_edrx_setting_t *)arg[0];
-  int32_t *ratinfo_ret = (int32_t *)arg[1];
-  lte_ratinfo_t *ratinfo = (lte_ratinfo_t *)arg[2];
   int ret = 0;
 
   FAR struct apicmd_cmddat_setedrx_s *out =
     (FAR struct apicmd_cmddat_setedrx_s *)pktbuf;
 
   size = sizeof(struct apicmd_cmddat_setedrx_s);
-  ret = altcombs_convert_api_edrx_value(settings, out, ratinfo_ret, ratinfo);
-  if (0 < ret)
+  ret = altcombs_convert_api_edrx_value(settings, out, altver);
+  if (ret < 0)
     {
-      size = -ENOSYS;
+      size = ret;
     }
 
   if (altver == ALTCOM_CMD_VER_V1)
