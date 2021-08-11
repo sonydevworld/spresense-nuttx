@@ -455,7 +455,7 @@ int cxd56_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_MODEM_ALT1250
+#if defined(CONFIG_MODEM_ALT1250) && !defined(CONFIG_CXD56_LTE_LATE_INITIALIZE)
   ret = board_alt1250_initialize("/dev/alt1250");
   if (ret < 0)
     {
