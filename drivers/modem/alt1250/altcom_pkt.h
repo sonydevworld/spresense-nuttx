@@ -43,10 +43,6 @@
 
 #define ALTCOM_CMDID_REPLY_BIT  (0x8000)
 
-#define ALTCOM_CMD_VER_UNKNOWN (0x00)
-#define ALTCOM_CMD_VER_V1      (0x01)
-#define ALTCOM_CMD_VER_V4      (0x04)
-
 #define ALTCOM_CMDOPT_CHECKSUM_EN  (1 << 0)
 
 #define ALTCOM_PAYLOAD_SIZE_MAX    (4112)
@@ -163,12 +159,12 @@ static inline FAR uint8_t get_altver(FAR struct altcom_cmdhdr_s *hdr)
 
 static inline uint16_t get_pktlen(uint8_t ver, uint16_t payloadlen)
 {
-  if (ver == ALTCOM_CMD_VER_V1)
+  if (ver == ALTCOM_VER1)
     {
       payloadlen += sizeof(struct altcom_cmdhdr_s) +
         sizeof(struct altcom_cmdfooter_s);
     }
-  else if (ver == ALTCOM_CMD_VER_V4)
+  else if (ver == ALTCOM_VER4)
     {
       payloadlen += sizeof(struct altcom_cmdhdr_s);
     }

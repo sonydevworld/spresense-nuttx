@@ -191,6 +191,7 @@
 #define ALTCOM_REPEVT_FLAG_SIMSTAT (1 << 0)
 #define ALTCOM_REPEVT_FLAG_LTIME   (1 << 1)
 
+#define ALTCOM_VERX (0)
 #define ALTCOM_VER1 (1)
 #define ALTCOM_VER4 (4)
 

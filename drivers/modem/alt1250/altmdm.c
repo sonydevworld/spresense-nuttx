@@ -33,6 +33,8 @@
 #include <nuttx/signal.h>
 #include <nuttx/wireless/lte/lte.h>
 
+#include <nuttx/modem/alt1250.h>  /* for ALTCOM_VERx */
+
 #include "altmdm.h"
 #include "altmdm_event.h"
 #include "altmdm_spi.h"
@@ -105,13 +107,13 @@ typedef enum altmdm_state_e
 
 typedef enum version_phase_e
 {
-  VP_NO_RESET, /* Reset packet is not received */
-  VP_UNKNOWN,  /* Altcom version is unknown */
-  VP_TRYV1,    /* Try sending version 1 packet */
-  VP_NOTV1,    /* Trial of version 1 packet is fail */
-  VP_V1,       /* Confirmed Altcom version is 1 */
-  VP_TRYV4,    /* Try sending version 4 packet */
-  VP_V4,       /* Confirmed Altcom version is 4 */
+  VP_NO_RESET,          /* Reset packet is not received */
+  VP_V1 = ALTCOM_VER1,  /* Confirmed Altcom version is 1 */
+  VP_V4 = ALTCOM_VER4,  /* Confirmed Altcom version is 4 */
+  VP_UNKNOWN,           /* Altcom version is unknown */
+  VP_TRYV1,             /* Try sending version 1 packet */
+  VP_NOTV1,             /* Trial of version 1 packet is fail */
+  VP_TRYV4,             /* Try sending version 4 packet */
 } version_phase_t;
 
 struct state_func_s
@@ -1718,23 +1720,16 @@ uint32_t altmdm_get_reset_reason(void)
   return get_reset_reason();
 }
 
-uint8_t altmdm_get_version(void)
+uint8_t altmdm_get_protoversion(void)
 {
   enum version_phase_e vp;
 
-  vp = get_vp();
-  if (vp == VP_V1)
-    {
-      return ALTCOM_CMD_VER_V1;
-    }
-  else if (vp == VP_V4)
-    {
-      return ALTCOM_CMD_VER_V4;
-    }
-  else
-    {
-      return ALTCOM_CMD_VER_UNKNOWN;
-    }
+  nxsem_wait_uninterruptible(&g_altmdm_dev.lock_vp);
+  vp = g_altmdm_dev.vp;
+  vp = ((vp == VP_V1) || (vp == VP_V4)) ? vp : ALTCOM_VERX;
+  nxsem_post(&g_altmdm_dev.lock_vp);
+
+  return (uint8_t)vp;
 }
 
 #endif

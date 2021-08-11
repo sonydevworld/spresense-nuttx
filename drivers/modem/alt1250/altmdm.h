@@ -55,6 +55,6 @@ int altmdm_poweron(void);
 int altmdm_poweroff(void);
 int altmdm_reset(void);
 uint32_t altmdm_get_reset_reason(void);
-uint8_t altmdm_get_version(void);
+uint8_t altmdm_get_protoversion(void);
 
 #endif  /* __DRIVERS_MODEM_ALT1250_ALTMDM_H__ */
