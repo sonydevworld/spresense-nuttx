@@ -599,6 +599,64 @@
 
 #define LTE_AT_COMMAND_MAX_LEN (2048)
 
+/* Inject delta image from the beginning. */
+
+#define LTEFW_INJECTION_MODE_NEW    (0)
+
+/* Inject delta image from the continuation. */
+
+#define LTEFW_INJECTION_MODE_APPEND (1)
+
+/* LTEFW result code */
+
+/* OK */
+
+#define LTEFW_RESULT_OK                            (0x0000)
+
+/* Not enough space for storage for injection */
+
+#define LTEFW_RESULT_NOT_ENOUGH_INJECTSTORAGE      (0x0001)
+
+/* CRC check error in header part of delta image */
+
+#define LTEFW_RESULT_DELTAIMAGE_HDR_CRC_ERROR      (0x0002)
+
+/* Unsupported header type of delta image */
+
+#define LTEFW_RESULT_DELTAIMAGE_HDR_UNSUPPORTED    (0x0003)
+
+/* Failed to set delta image */
+
+#define LTEFW_RESULT_PRECHK_SET_DELTAIMAGE_FAILED  (0x0004)
+
+/* Failed to delta update */
+
+#define LTEFW_RESULT_DELTAUPDATE_FAILED            (0x0005)
+
+/* Not found delta image */
+
+#define LTEFW_RESULT_PRECHK_DELTAIMAGE_MISSING     (0x0006)
+
+/* Out of memory that prepare for update */
+
+#define LTEFW_RESULT_PRECHK_OOM                    (0x0007)
+
+/* Invalid size of delta image */
+
+#define LTEFW_RESULT_PRECHK_SIZE_ERROR             (0x0008)
+
+/* Wrong delta image package */
+
+#define LTEFW_RESULT_PRECHK_PKG_ERROR              (0x0009)
+
+/* CRC check error in delta image */
+
+#define LTEFW_RESULT_PRECHK_CRC_ERROR              (0x000A)
+
+/* There is no update result */
+
+#define LTEFW_RESULT_DELTAUPDATE_NORESULT          (0x000B)
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -1382,6 +1440,28 @@ typedef struct lte_ratinfo
 
   uint8_t source;
 } lte_ratinfo_t;
+
+/* Definition of delta image setting to inject.
+ */
+
+struct ltefw_injectdata_s
+{
+  /* The pointer of delta image to inject */
+
+  uint8_t  *data;
+
+  /* The length of image to inject. */
+
+  uint32_t data_len;
+
+  /* Delta image injection mode.
+   *  As below value stored.
+   *  - LTEFW_INJECTION_MODE_NEW
+   *  - LTEFW_INJECTION_MODE_APPEND
+   */
+
+  uint8_t  inject_mode;
+};
 
 /* Definition of callback function.
  *

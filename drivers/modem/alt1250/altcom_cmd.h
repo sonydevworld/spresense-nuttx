@@ -243,6 +243,9 @@
 #define APICMD_VERSION_RES_BB_PRODUCT_LEN   5
 #define APICMD_VERSION_RES_NP_PACKAGE_LEN   32
 
+#define APICMD_FW_INJECTDATA_MAXLEN    (4096)
+#define APICMD_FW_INJECTDATA_MAXLEN_V4 (3000)
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -922,6 +925,36 @@ begin_packed_struct struct apicmd_cmddat_getverres_s
   uint8_t result;
   uint8_t bb_product[APICMD_VERSION_RES_BB_PRODUCT_LEN];
   uint8_t np_package[APICMD_VERSION_RES_NP_PACKAGE_LEN];
+} end_packed_struct;
+
+/* structure for APICMDID_FW_INJECTDELTAIMG */
+
+begin_packed_struct struct apicmd_cmddat_fw_injectdeltaimg_s
+{
+  uint8_t  data[APICMD_FW_INJECTDATA_MAXLEN];
+  uint32_t data_len;
+  uint8_t  inject_mode;
+} end_packed_struct;
+
+begin_packed_struct struct apicmd_cmddat_fw_injectdeltaimg_v4_s
+{
+  uint8_t  inject_mode;
+  uint32_t data_len;
+
+  /* Variable length array */
+
+  uint8_t  data[1];
+} end_packed_struct;
+
+/* structure for APICMDID_FW_INJECTDELTAIMG_RES,
+ * APICMDID_FW_GETDELTAIMGLEN_RES, APICMDID_FW_EXECDELTAUPDATE_RES,
+ * APICMDID_FW_GETUPDATERESULT_RES
+ */
+
+begin_packed_struct struct apicmd_cmddat_fw_deltaupcommres_s
+{
+  int32_t  api_result;
+  uint16_t ltefw_result;
 } end_packed_struct;
 
 #endif  /* __DRIVERS_MODEM_ALT1250_ALTCOM_CMD_H__ */

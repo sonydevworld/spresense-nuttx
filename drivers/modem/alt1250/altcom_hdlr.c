@@ -329,6 +329,18 @@ static int32_t select_pkt_compose(FAR void **arg,
 static int32_t sendatcmd_pkt_compose(FAR void **arg,
                           size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
                           const size_t pktsz, FAR uint16_t *altcid);
+static int32_t injectimage_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t getimagelen_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t execupdate_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t getupdateres_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
 
 static int32_t errinfo_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
@@ -465,6 +477,9 @@ static int32_t select_pkt_parse(FAR uint8_t *pktbuf,
 static int32_t sendatcmd_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen);
+static int32_t fwcommon_pkt_parse(FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen);
 
 /****************************************************************************
  * Private Data
@@ -527,6 +542,10 @@ static compose_inst_t g_composehdlrs[] =
   CTABLE_CONTENT(SOCKET, socket),
   CTABLE_CONTENT(SETSOCKOPT, setsockopt),
   CTABLE_CONTENT(SENDATCMD, sendatcmd),
+  CTABLE_CONTENT(INJECTIMAGE, injectimage),
+  CTABLE_CONTENT(GETIMAGELEN, getimagelen),
+  CTABLE_CONTENT(EXEUPDATE, execupdate),
+  CTABLE_CONTENT(GETUPDATERES, getupdateres),
 };
 
 static parse_inst_t g_parsehdlrs[] =
@@ -584,6 +603,10 @@ static parse_inst_t g_parsehdlrs[] =
   PTABLE_CONTENT(SOCK_SOCKET, sockcomm),
   PTABLE_CONTENT(SOCK_SETSOCKOPT, sockcomm),
   PTABLE_CONTENT(SEND_ATCMD, sendatcmd),
+  PTABLE_CONTENT(FW_INJECTDELTAIMG, fwcommon),
+  PTABLE_CONTENT(FW_GETDELTAIMGLEN, fwcommon),
+  PTABLE_CONTENT(FW_EXECDELTAUPDATE, fwcommon),
+  PTABLE_CONTENT(FW_GETUPDATERESULT, fwcommon),
 };
 
 /****************************************************************************
@@ -3082,6 +3105,115 @@ static int32_t sendatcmd_pkt_compose(FAR void **arg,
   return size;
 }
 
+static int32_t injectimage_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  int32_t size = 0;
+  uint32_t len;
+  FAR struct ltefw_injectdata_s *inject_data =
+    (FAR struct ltefw_injectdata_s *)arg[0];
+
+  if (altver == ALTCOM_CMD_VER_V1)
+    {
+      FAR struct apicmd_cmddat_fw_injectdeltaimg_s *out =
+       (FAR struct apicmd_cmddat_fw_injectdeltaimg_s *)pktbuf;
+
+      *altcid = APICMDID_FW_INJECTDELTAIMG;
+      len = (inject_data->data_len > APICMD_FW_INJECTDATA_MAXLEN) ?
+        APICMD_FW_INJECTDATA_MAXLEN : inject_data->data_len;
+      out->data_len = htonl(len);
+      out->inject_mode = inject_data->inject_mode;
+      memcpy(out->data, inject_data->data, len);
+      size = sizeof(struct apicmd_cmddat_fw_injectdeltaimg_s);
+    }
+  else if (altver == ALTCOM_CMD_VER_V4)
+    {
+      FAR struct apicmd_cmddat_fw_injectdeltaimg_v4_s *out =
+       (FAR struct apicmd_cmddat_fw_injectdeltaimg_v4_s *)pktbuf;
+
+      *altcid = APICMDID_FW_INJECTDELTAIMG_V4;
+      len = (inject_data->data_len > APICMD_FW_INJECTDATA_MAXLEN_V4) ?
+        APICMD_FW_INJECTDATA_MAXLEN_V4 : inject_data->data_len;
+      out->data_len = htonl(len);
+      out->inject_mode = inject_data->inject_mode;
+      memcpy(out->data, inject_data->data, len);
+      size = sizeof(struct apicmd_cmddat_fw_injectdeltaimg_v4_s) - 1 + len;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
+static int32_t getimagelen_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  int32_t size = 0;
+
+  if (altver == ALTCOM_CMD_VER_V1)
+    {
+      *altcid = APICMDID_FW_GETDELTAIMGLEN;
+    }
+  else if (altver == ALTCOM_CMD_VER_V4)
+    {
+      *altcid = APICMDID_FW_GETDELTAIMGLEN_V4;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
+static int32_t execupdate_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  int32_t size = 0;
+
+  if (altver == ALTCOM_CMD_VER_V1)
+    {
+      *altcid = APICMDID_FW_EXECDELTAUPDATE;
+    }
+  else if (altver == ALTCOM_CMD_VER_V4)
+    {
+      *altcid = APICMDID_FW_EXECDELTAUPDATE_V4;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
+static int32_t getupdateres_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  int32_t size = 0;
+
+  if (altver == ALTCOM_CMD_VER_V1)
+    {
+      *altcid = APICMDID_FW_GETUPDATERESULT;
+    }
+  else if (altver == ALTCOM_CMD_VER_V4)
+    {
+      *altcid = APICMDID_FW_GETUPDATERESULT_V4;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
 static int32_t select_pkt_compose(FAR void **arg,
                           size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
                           const size_t pktsz, FAR uint16_t *altcid)
@@ -4287,6 +4419,29 @@ static int32_t sendatcmd_pkt_parse(FAR uint8_t *pktbuf,
 
   memcpy(respbuff, (FAR char *)pktbuf, pktsz);
   *resplen = pktsz;
+
+  return 0;
+}
+
+static int32_t fwcommon_pkt_parse(FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen)
+{
+  FAR int32_t *ret = (FAR int32_t *)arg[0];
+  FAR uint16_t *fwret = (FAR uint16_t *)arg[1];
+
+  FAR struct apicmd_cmddat_fw_deltaupcommres_s *in =
+    (FAR struct apicmd_cmddat_fw_deltaupcommres_s *)pktbuf;
+
+  *ret = ntohl(in->api_result);
+  if (*ret < 0)
+    {
+      /* All internal errors on the LTE modem side are treated as -EPROTO. */
+
+      *ret = -EPROTO;
+    }
+
+  *fwret = ntohs(in->ltefw_result);
 
   return 0;
 }
