@@ -307,7 +307,7 @@ static FAR alt_evtbuf_inst_t *get_evtbuffinst(
   unsigned int i;
 
   cid &= ~ALTCOM_CMDID_REPLY_BIT;
-  if (altver == ALTCOM_CMD_VER_V4)
+  if (altver == ALTCOM_VER4)
     {
       /* Change the command ID to Version 1 */
 
@@ -374,7 +374,7 @@ static int get_evtbuffidx(FAR struct alt1250_dev_s *priv, uint16_t cid,
   int idx = -1;
 
   cid &= ~ALTCOM_CMDID_REPLY_BIT;
-  if (altver == ALTCOM_CMD_VER_V4)
+  if (altver == ALTCOM_VER4)
     {
       /* Change the command ID to Version 1 */
 
@@ -542,8 +542,8 @@ static int ioctl_send(FAR struct alt1250_dev_s *priv,
   handler = get_composehdlr(req->cmdid & ~LTE_CMDOPT_ASYNC_BIT);
   if (handler)
     {
-      altver = altmdm_get_version();
-      if (altver == ALTCOM_CMD_VER_UNKNOWN)
+      altver = altmdm_get_protoversion();
+      if (altver == ALTCOM_VERX)
         {
           ret = -ENETDOWN;
         }

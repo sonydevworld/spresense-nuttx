@@ -719,7 +719,7 @@ int32_t altcombs_convert_api_edrx_value(lte_edrx_setting_t *api_edrx,
 
   /* act_type check for version V4 or later */
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       if (api_edrx->act_type != LTE_EDRX_ACTTYPE_WBS1 &&
           api_edrx->act_type != LTE_EDRX_ACTTYPE_NOTUSE)
@@ -729,7 +729,7 @@ int32_t altcombs_convert_api_edrx_value(lte_edrx_setting_t *api_edrx,
           return -EPERM;
         }
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       if (api_edrx->act_type != LTE_EDRX_ACTTYPE_WBS1 &&
           api_edrx->act_type != LTE_EDRX_ACTTYPE_NBS1 &&
@@ -1539,11 +1539,11 @@ static int32_t getver_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_VERSION;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_VERSION_V4;
     }
@@ -1561,11 +1561,11 @@ static int32_t getphone_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_PHONENO;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_PHONENO_V4;
     }
@@ -1583,11 +1583,11 @@ static int32_t getimsi_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_IMSI;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_IMSI_V4;
     }
@@ -1605,11 +1605,11 @@ static int32_t getimei_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_IMEI;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_IMEI_V4;
     }
@@ -1627,11 +1627,11 @@ static int32_t getpinset_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_PINSET;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_PINSET_V4;
     }
@@ -1659,11 +1659,11 @@ static int32_t setpinlock_pkt_compose(FAR void **arg,
 
   size = sizeof(struct apicmd_cmddat_setpinlock_s);
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_SET_PIN_LOCK;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_SET_PIN_LOCK_V4;
     }
@@ -1702,11 +1702,11 @@ static int32_t setpincode_pkt_compose(FAR void **arg,
 
   size = sizeof(struct apicmd_cmddat_setpincode_s);
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_SET_PIN_CODE;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_SET_PIN_CODE_V4;
     }
@@ -1739,11 +1739,11 @@ static int32_t enterpin_pkt_compose(FAR void **arg,
 
   size = sizeof(struct apicmd_cmddat_enterpin_s);
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_ENTER_PIN;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_ENTER_PIN_V4;
     }
@@ -1761,11 +1761,11 @@ static int32_t getltime_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_LTIME;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_LTIME_V4;
     }
@@ -1783,11 +1783,11 @@ static int32_t getoper_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_OPERATOR;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_OPERATOR_V4;
     }
@@ -1822,11 +1822,11 @@ static int32_t setrepqual_pkt_compose(FAR void **arg,
   out->interval = htonl(*period);
   size = sizeof(struct apicmd_cmddat_setrepquality_s);
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_SET_REP_QUALITY;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_SET_REP_QUALITY_V4;
     }
@@ -1861,11 +1861,11 @@ static int32_t setrepcell_pkt_compose(FAR void **arg,
   out->interval = htonl(*period);
   size = sizeof(struct apicmd_cmddat_setrepcellinfo_s);
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_SET_REP_CELLINFO;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_SET_REP_CELLINFO_V4;
     }
@@ -1885,7 +1885,7 @@ static int32_t setrepevt_pkt_compose(FAR void **arg,
   FAR simstat_report_cb_t *callback = (FAR simstat_report_cb_t *)arg[0];
   FAR int32_t *id = (FAR int32_t *)arg[1];
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_setrepevt_s *out =
         (FAR struct apicmd_cmddat_setrepevt_s *)pktbuf;
@@ -1923,7 +1923,7 @@ static int32_t setrepevt_pkt_compose(FAR void **arg,
       size = sizeof(struct apicmd_cmddat_setrepevt_s);
       *altcid = APICMDID_SET_REP_EVT;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_setrepevt_v4_s *out =
         (FAR struct apicmd_cmddat_setrepevt_v4_s *)pktbuf;
@@ -1979,12 +1979,12 @@ static int32_t getedrx_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       size = 0;
       *altcid = APICMDID_GET_EDRX;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_getedrx_v4_s *out =
         (FAR struct apicmd_cmddat_getedrx_v4_s *)pktbuf;
@@ -2019,11 +2019,11 @@ static int32_t setedrx_pkt_compose(FAR void **arg,
       size = ret;
     }
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_SET_EDRX;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_SET_EDRX_V4;
     }
@@ -2041,12 +2041,12 @@ static int32_t getpsm_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       size = 0;
       *altcid = APICMDID_GET_PSM;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_getpsm_v4_s *out =
         (FAR struct apicmd_cmddat_getpsm_v4_s *)pktbuf;
@@ -2082,11 +2082,11 @@ static int32_t setpsm_pkt_compose(FAR void **arg,
 
   size = sizeof(struct apicmd_cmddat_setpsm_s);
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_SET_PSM;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_SET_PSM_V4;
     }
@@ -2104,7 +2104,7 @@ static int32_t getce_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_CE;
     }
@@ -2123,7 +2123,7 @@ static int32_t setce_pkt_compose(FAR void **arg,
   int32_t size = 0;
   FAR lte_ce_setting_t *settings = (FAR lte_ce_setting_t *)arg[0];
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_setce_s *out =
         (FAR struct apicmd_cmddat_setce_s *)pktbuf;
@@ -2148,11 +2148,11 @@ static int32_t radioon_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_RADIO_ON;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_RADIO_ON_V4;
     }
@@ -2170,11 +2170,11 @@ static int32_t radiooff_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_RADIO_OFF;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_RADIO_OFF_V4;
     }
@@ -2212,11 +2212,11 @@ static int32_t actpdn_pkt_compose(FAR void **arg,
 
   size = sizeof(struct apicmd_cmddat_activatepdn_s);
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_ACTIVATE_PDN;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_ACTIVATE_PDN_V4;
     }
@@ -2242,11 +2242,11 @@ static int32_t deactpdn_pkt_compose(FAR void **arg,
 
   size = sizeof(struct apicmd_cmddat_deactivatepdn_s);
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_DEACTIVATE_PDN;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_DEACTIVATE_PDN_V4;
     }
@@ -2264,11 +2264,11 @@ static int32_t getnetinfo_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_NETINFO;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_NETINFO_V4;
     }
@@ -2286,11 +2286,11 @@ static int32_t getimscap_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_IMS_CAP;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_IMS_CAP_V4;
     }
@@ -2315,11 +2315,11 @@ static int32_t setrepnet_pkt_compose(FAR void **arg,
 
   size = sizeof(struct apicmd_cmddat_set_repnetinfo_s);
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_SETREP_NETINFO;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_SETREP_NETINFO_V4;
     }
@@ -2344,11 +2344,11 @@ static int32_t getsiminfo_pkt_compose(FAR void **arg,
   out->option = htonl(*option);
   size = sizeof(struct apicmd_cmddat_getsiminfo_s);
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_SIMINFO;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_SIMINFO_V4;
     }
@@ -2366,12 +2366,12 @@ static int32_t getdedrx_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       size = 0;
       *altcid = APICMDID_GET_DYNAMICEDRX;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_getedrx_v4_s *out =
         (FAR struct apicmd_cmddat_getedrx_v4_s *)pktbuf;
@@ -2394,12 +2394,12 @@ static int32_t getdpsm_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       size = 0;
       *altcid = APICMDID_GET_DYNAMICPSM;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_getpsm_v4_s *out =
         (FAR struct apicmd_cmddat_getpsm_v4_s *)pktbuf;
@@ -2423,11 +2423,11 @@ static int32_t getqual_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_GET_QUALITY;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_QUALITY_V4;
     }
@@ -2445,11 +2445,11 @@ static int32_t actpdncancel_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       *altcid = APICMDID_ACTIVATE_PDN_CANCEL;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_ACTIVATE_PDN_CANCEL_V4;
     }
@@ -2467,7 +2467,7 @@ static int32_t getcell_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V4)
+  if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_CELLINFO_V4;
     }
@@ -2485,7 +2485,7 @@ static int32_t getrat_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
 
-  if (altver == ALTCOM_CMD_VER_V4)
+  if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_GET_RAT_V4;
     }
@@ -2505,7 +2505,7 @@ static int32_t setrat_pkt_compose(FAR void **arg,
   FAR uint8_t *rat = (FAR uint8_t *)arg[0];
   FAR bool *persistent = (FAR bool *)arg[1];
 
-  if (altver == ALTCOM_CMD_VER_V4)
+  if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_setrat_s *out =
         (FAR struct apicmd_cmddat_setrat_s *)pktbuf;
@@ -3085,11 +3085,11 @@ static int32_t sendatcmd_pkt_compose(FAR void **arg,
   memcpy(pktbuf, cmd + ATCMD_HEADER_LEN, size);
   pktbuf[size - ATCMD_FOOTER_LEN] = '\0';
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       size = -ENOTSUP;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       *altcid = APICMDID_SEND_ATCMD_V4;
     }
@@ -3487,7 +3487,7 @@ static int32_t getoper_pkt_parse(FAR uint8_t *pktbuf,
   FAR int *ret = (FAR int *)arg[0];
   FAR char *oper = (FAR char *)arg[1];
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_getoperatorres_s *in =
         (FAR struct apicmd_cmddat_getoperatorres_s *)pktbuf;
@@ -3514,7 +3514,7 @@ static int32_t getoper_pkt_parse(FAR uint8_t *pktbuf,
           strncpy(oper, (FAR const char *)in->oper, LTE_OPERATOR_LEN);
         }
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_getoperatorres_v4_s *in =
         (FAR struct apicmd_cmddat_getoperatorres_v4_s *)pktbuf;
@@ -3577,14 +3577,14 @@ static int32_t setrepevt_pkt_parse(FAR uint8_t *pktbuf,
 {
   FAR int *ret = (FAR int *)arg[0];
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_setrepevtres_s *in =
         (FAR struct apicmd_cmddat_setrepevtres_s *)pktbuf;
 
       *ret = (APICMD_SET_REP_EVT_RES_OK == in->result) ? 0 : -EIO;
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_setrepevtres_v4_s *in =
         (FAR struct apicmd_cmddat_setrepevtres_v4_s *)pktbuf;
@@ -3604,7 +3604,7 @@ static int32_t repevt_pkt_parse(FAR uint8_t *pktbuf,
   FAR uint32_t *simstat = (FAR uint32_t *)arg[1];
   FAR lte_localtime_t *ltime = (FAR lte_localtime_t *)arg[2];
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_repevt_s *in =
         (FAR struct apicmd_cmddat_repevt_s *)pktbuf;
@@ -3646,7 +3646,7 @@ static int32_t repevt_pkt_parse(FAR uint8_t *pktbuf,
             break;
         }
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_repevt_v4_s *in =
         (FAR struct apicmd_cmddat_repevt_v4_s *)pktbuf;
@@ -3724,7 +3724,7 @@ static int32_t repcell_pkt_parse(FAR uint8_t *pktbuf,
 
   FAR lte_cellinfo_t *cellinfo = (FAR lte_cellinfo_t *)arg[0];
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_cellinfo_s *in =
         (FAR struct apicmd_cmddat_cellinfo_s *)pktbuf;
@@ -3733,7 +3733,7 @@ static int32_t repcell_pkt_parse(FAR uint8_t *pktbuf,
 
       altcombs_set_cellinfo(in, cellinfo);
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_cellinfo_v4_s *in =
         (FAR struct apicmd_cmddat_cellinfo_v4_s *)pktbuf;
@@ -3895,7 +3895,7 @@ static int32_t actpdn_pkt_parse(FAR uint8_t *pktbuf,
   FAR int *ret = (FAR int *)arg[0];
   FAR lte_pdn_t *pdn = (FAR lte_pdn_t *)arg[1];
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_activatepdnres_s *in =
         (FAR struct apicmd_cmddat_activatepdnres_s *)pktbuf;
@@ -3912,7 +3912,7 @@ static int32_t actpdn_pkt_parse(FAR uint8_t *pktbuf,
           *ret = (LTE_RESULT_CANCEL == in->result) ? -ECANCELED : -EPROTO;
         }
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_activatepdnres_v4_s *in =
         (FAR struct apicmd_cmddat_activatepdnres_v4_s *)pktbuf;
@@ -3954,7 +3954,7 @@ static int32_t getnetinfo_pkt_parse(FAR uint8_t *pktbuf,
   FAR lte_netinfo_t *info = (FAR lte_netinfo_t *)arg[1];
   FAR uint8_t *pdn_num = (FAR uint8_t *)arg[2];
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_getnetinfores_s *in =
         (FAR struct apicmd_cmddat_getnetinfores_s *)pktbuf;
@@ -3967,7 +3967,7 @@ static int32_t getnetinfo_pkt_parse(FAR uint8_t *pktbuf,
           getnetinfo_parse_response(in, info, *pdn_num);
         }
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_getnetinfores_v4_s *in =
         (FAR struct apicmd_cmddat_getnetinfores_v4_s *)pktbuf;
@@ -4026,7 +4026,7 @@ static int32_t repnet_pkt_parse(FAR uint8_t *pktbuf,
     (FAR struct sockaddr_storage *)arg[2];
   int i = 0;
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_rep_netinfo_s *in =
         (FAR struct apicmd_cmddat_rep_netinfo_s *)pktbuf;
@@ -4047,7 +4047,7 @@ static int32_t repnet_pkt_parse(FAR uint8_t *pktbuf,
             }
         }
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_rep_netinfo_v4_s *in =
         (FAR struct apicmd_cmddat_rep_netinfo_v4_s *)pktbuf;
@@ -4164,7 +4164,7 @@ static int32_t getqual_pkt_parse(FAR uint8_t *pktbuf,
   FAR int *ret = (FAR int *)arg[0];
   FAR lte_quality_t *quality = (FAR lte_quality_t *)arg[1];
 
-  if (altver == ALTCOM_CMD_VER_V1)
+  if (altver == ALTCOM_VER1)
     {
       FAR struct apicmd_cmddat_getqualityres_s *in =
         (FAR struct apicmd_cmddat_getqualityres_s *)pktbuf;
@@ -4177,7 +4177,7 @@ static int32_t getqual_pkt_parse(FAR uint8_t *pktbuf,
           altcombs_set_quality(quality, &in->quality);
         }
     }
-  else if (altver == ALTCOM_CMD_VER_V4)
+  else if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_getqualityres_v4_s *in =
         (FAR struct apicmd_cmddat_getqualityres_v4_s *)pktbuf;
@@ -4218,7 +4218,7 @@ static int32_t getcell_pkt_parse(FAR uint8_t *pktbuf,
   FAR int *ret = (FAR int *)arg[0];
   FAR lte_cellinfo_t *cellinfo = (FAR lte_cellinfo_t *)arg[1];
 
-  if (altver == ALTCOM_CMD_VER_V4)
+  if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_getcellinfores_v4_s *in =
         (FAR struct apicmd_cmddat_getcellinfores_v4_s *)pktbuf;
@@ -4240,7 +4240,7 @@ static int32_t getrat_pkt_parse(FAR uint8_t *pktbuf,
   FAR int *ret = (FAR int *)arg[0];
   FAR lte_ratinfo_t *ratinfo = (FAR lte_ratinfo_t *)arg[1];
 
-  if (altver == ALTCOM_CMD_VER_V4)
+  if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_getratres_s *in =
         (FAR struct apicmd_cmddat_getratres_s *)pktbuf;
@@ -4268,7 +4268,7 @@ static int32_t setrat_pkt_parse(FAR uint8_t *pktbuf,
 {
   FAR int *ret = (FAR int *)arg[0];
 
-  if (altver == ALTCOM_CMD_VER_V4)
+  if (altver == ALTCOM_VER4)
     {
       FAR struct apicmd_cmddat_setratres_s *in =
         (FAR struct apicmd_cmddat_setratres_s *)pktbuf;
@@ -4538,7 +4538,7 @@ parse_handler_t alt1250_parsehdlr(uint16_t altcid, uint8_t altver)
 
   altcid &= ~ALTCOM_CMDID_REPLY_BIT;
 
-  if (altver == ALTCOM_CMD_VER_V4)
+  if (altver == ALTCOM_VER4)
     {
       /* Change the command ID to Version 1 */
 
