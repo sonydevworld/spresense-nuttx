@@ -84,7 +84,7 @@ static int alt1250_poll(FAR struct file *filep, struct pollfd *fds,
   bool setup);
 
 #ifdef CONFIG_HAVE_SSLHANDLER
-compose_handler_t alt1250_sslcomposehdlr(uint32_t);
+compose_handler_t alt1250_sslcomposehdlr(uint32_t, FAR uint8_t *, size_t);
 parse_handler_t alt1250_sslparsehdlr(uint16_t, uint8_t);
 #endif
 
@@ -439,7 +439,8 @@ static void pollnotify(FAR struct alt1250_dev_s *priv)
  * Name: get_composehdlr
  ****************************************************************************/
 
-compose_handler_t get_composehdlr(uint32_t cmdid)
+compose_handler_t get_composehdlr(uint32_t cmdid, FAR uint8_t *payload,
+  size_t size)
 {
   compose_handler_t ret = NULL;
 
@@ -448,7 +449,7 @@ compose_handler_t get_composehdlr(uint32_t cmdid)
 #ifdef CONFIG_HAVE_SSLHANDLER
   if (ret == NULL)
     {
-      ret = alt1250_sslcomposehdlr(cmdid);
+      ret = alt1250_sslcomposehdlr(cmdid, payload, size);
     }
 #endif
 
@@ -536,10 +537,14 @@ static int ioctl_send(FAR struct alt1250_dev_s *priv,
   uint8_t altver;
   uint16_t cid;
   uint16_t tid;
+  FAR uint8_t *payload;
 
   m_info("send request: command ID=0x%08lx\n", req->cmdid);
 
-  handler = get_composehdlr(req->cmdid & ~LTE_CMDOPT_ASYNC_BIT);
+  payload = get_payload((FAR struct altcom_cmdhdr_s *)g_sendbuff);
+
+  handler = get_composehdlr(req->cmdid & ~LTE_CMDOPT_ASYNC_BIT, payload,
+    ALTCOM_PAYLOAD_SIZE_MAX);
   if (handler)
     {
       altver = altmdm_get_protoversion();
@@ -549,8 +554,7 @@ static int ioctl_send(FAR struct alt1250_dev_s *priv,
         }
       else
         {
-          ret = handler(req->inparam, req->inparamlen, altver,
-            get_payload((FAR struct altcom_cmdhdr_s *)g_sendbuff),
+          ret = handler(req->inparam, req->inparamlen, altver, payload,
             ALTCOM_PAYLOAD_SIZE_MAX, &cid);
           if (ret >= 0)
             {
