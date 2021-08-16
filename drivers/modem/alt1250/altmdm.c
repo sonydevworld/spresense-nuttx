@@ -1608,6 +1608,13 @@ int altmdm_read(FAR uint8_t *buff, int sz)
 
       event = g_state_func[g_altmdm_dev.current_state].wait_event();
 
+      /* altmdm_fin(), altmdm_poweron(), and altmdm_poweroff() check
+       * the event flag and decide whether or not to send the event.
+       * Since this event flag checking process and the process to clear
+       * the event flag will cause resource conflicts, so added this function
+       * for exclusivity.
+       */
+
       nxsem_wait_uninterruptible(&g_altmdm_dev.lock_evt);
 
       /* Process on the state */
