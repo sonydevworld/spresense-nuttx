@@ -77,13 +77,13 @@
  * Private Function Prototypes
  ****************************************************************************/
 
-static void alt1250_power(bool on);
+static FAR struct spi_dev_s *alt1250_poweron(void);
+static void alt1250_poweroff(void);
 static void alt1250_irqattach(xcpt_t handler);
 static void alt1250_irqenable(bool enable);
 static bool alt1250_get_sready(void);
 static void alt1250_set_mready(bool on);
 static void alt1250_set_wakeup(bool on);
-static void alt1250_set_spiparam(FAR struct spi_dev_s *spidev);
 
 /****************************************************************************
  * Private Data
@@ -92,13 +92,13 @@ static void alt1250_set_spiparam(FAR struct spi_dev_s *spidev);
 static void *g_devhandle = NULL;
 static const struct alt1250_lower_s g_alt1250_lower =
 {
-  .power        = alt1250_power,
+  .poweron      = alt1250_poweron,
+  .poweroff     = alt1250_poweroff,
   .irqattach    = alt1250_irqattach,
   .irqenable    = alt1250_irqenable,
   .get_sready   = alt1250_get_sready,
   .set_mready   = alt1250_set_mready,
   .set_wakeup   = alt1250_set_wakeup,
-  .set_spiparam = alt1250_set_spiparam
 };
 
 /****************************************************************************
@@ -165,6 +165,23 @@ static void spi_pincontrol(int bus, bool on)
 }
 
 /****************************************************************************
+ * Name: set_spiparam
+ *
+ * Description:
+ *   Setup the SPI parameters.
+ *
+ ****************************************************************************/
+
+static void set_spiparam(FAR struct spi_dev_s *spidev)
+{
+  SPI_LOCK(spidev, true);
+  SPI_SETMODE(spidev, SPIDEV_MODE0);
+  SPI_SETBITS(spidev, 8);
+  SPI_SETFREQUENCY(spidev, SPI_MAXFREQUENCY);
+  SPI_LOCK(spidev, false);
+}
+
+/****************************************************************************
  * Name: alt1250_poweron
  *
  * Description:
@@ -172,8 +189,43 @@ static void spi_pincontrol(int bus, bool on)
  *
  ****************************************************************************/
 
-static void alt1250_poweron(void)
+static FAR struct spi_dev_s *alt1250_poweron(void)
 {
+  FAR struct spi_dev_s *spi;
+#if defined(CONFIG_CXD56_LTE_SPI4_DMAC) || defined(CONFIG_CXD56_LTE_SPI5_DMAC)
+  DMA_HANDLE            hdl;
+  dma_config_t          conf;
+#endif
+
+  /* Initialize spi deivce */
+
+  spi = cxd56_spibus_initialize(SPI_CH);
+  if (!spi)
+    {
+      m_err("ERROR: Failed to initialize spi%d.\n", SPI_CH);
+      return NULL;
+    }
+
+#if defined(CONFIG_CXD56_LTE_SPI4_DMAC) || defined(CONFIG_CXD56_LTE_SPI5_DMAC)
+  hdl = cxd56_dmachannel(DMA_TXCH, MAX_PACKET_SIZE);
+  if (hdl)
+    {
+      conf.channel_cfg = DMA_TXCHCHG;
+      conf.dest_width  = CXD56_DMAC_WIDTH8;
+      conf.src_width   = CXD56_DMAC_WIDTH8;
+      cxd56_spi_dmaconfig(SPI_CH, CXD56_SPI_DMAC_CHTYPE_TX, hdl, &conf);
+    }
+
+  hdl = cxd56_dmachannel(DMA_RXCH, MAX_PACKET_SIZE);
+  if (hdl)
+    {
+      conf.channel_cfg = DMA_RXCHCFG;
+      conf.dest_width  = CXD56_DMAC_WIDTH8;
+      conf.src_width   = CXD56_DMAC_WIDTH8;
+      cxd56_spi_dmaconfig(SPI_CH, CXD56_SPI_DMAC_CHTYPE_RX, hdl, &conf);
+    }
+#endif
+
   /* power on altair modem device */
 
   board_alt1250_poweron();
@@ -204,6 +256,10 @@ static void alt1250_poweron(void)
   /* enable the SPI pin */
 
   spi_pincontrol(SPI_CH, true);
+
+  set_spiparam(spi);
+
+  return spi;
 }
 
 /****************************************************************************
@@ -232,26 +288,6 @@ static void alt1250_poweroff(void)
   /* power off Altair modem device */
 
   board_alt1250_poweroff();
-}
-
-/****************************************************************************
- * Name: alt1250_power
- *
- * Description:
- *   Power on or off the Altair modem device on the board.
- *
- ****************************************************************************/
-
-static void alt1250_power(bool on)
-{
-  if (on)
-    {
-      alt1250_poweron();
-    }
-  else
-    {
-      alt1250_poweroff();
-    }
 }
 
 /****************************************************************************
@@ -347,23 +383,6 @@ static void alt1250_set_wakeup(bool on)
 }
 
 /****************************************************************************
- * Name: alt1250_spi_maxfreq
- *
- * Description:
- *   Get the maximum SPI clock frequency.
- *
- ****************************************************************************/
-
-static void alt1250_set_spiparam(FAR struct spi_dev_s *spidev)
-{
-  SPI_LOCK(spidev, true);
-  SPI_SETMODE(spidev, SPIDEV_MODE0);
-  SPI_SETBITS(spidev, 8);
-  SPI_SETFREQUENCY(spidev, SPI_MAXFREQUENCY);
-  SPI_LOCK(spidev, false);
-}
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -377,50 +396,11 @@ static void alt1250_set_spiparam(FAR struct spi_dev_s *spidev)
 
 int board_alt1250_initialize(FAR const char *devpath)
 {
-  FAR struct spi_dev_s *spi;
-#if defined(CONFIG_CXD56_LTE_SPI4_DMAC) || defined(CONFIG_CXD56_LTE_SPI5_DMAC)
-  DMA_HANDLE            hdl;
-  dma_config_t          conf;
-#endif
-
   m_info("Initializing ALT1250..\n");
 
   if (!g_devhandle)
     {
-      /* Initialize spi deivce */
-
-      spi = cxd56_spibus_initialize(SPI_CH);
-      if (!spi)
-        {
-          m_err("ERROR: Failed to initialize spi%d.\n", SPI_CH);
-          return -ENODEV;
-        }
-
-#if defined(CONFIG_CXD56_LTE_SPI4_DMAC) || defined(CONFIG_CXD56_LTE_SPI5_DMAC)
-      hdl = cxd56_dmachannel(DMA_TXCH, MAX_PACKET_SIZE);
-      if (hdl)
-        {
-          conf.channel_cfg = DMA_TXCHCHG;
-          conf.dest_width  = CXD56_DMAC_WIDTH8;
-          conf.src_width   = CXD56_DMAC_WIDTH8;
-          cxd56_spi_dmaconfig(SPI_CH, CXD56_SPI_DMAC_CHTYPE_TX, hdl,
-                              &conf);
-        }
-
-      hdl = cxd56_dmachannel(DMA_RXCH, MAX_PACKET_SIZE);
-      if (hdl)
-        {
-          conf.channel_cfg = DMA_RXCHCFG;
-          conf.dest_width  = CXD56_DMAC_WIDTH8;
-          conf.src_width   = CXD56_DMAC_WIDTH8;
-          cxd56_spi_dmaconfig(SPI_CH, CXD56_SPI_DMAC_CHTYPE_RX, hdl,
-                              &conf);
-        }
-#endif
-
-      spi_pincontrol(SPI_CH, false);
-
-      g_devhandle = alt1250_register(devpath, spi, &g_alt1250_lower);
+      g_devhandle = alt1250_register(devpath, NULL, &g_alt1250_lower);
       if (!g_devhandle)
         {
           m_err("ERROR: Failed to register alt1250 driver.\n");

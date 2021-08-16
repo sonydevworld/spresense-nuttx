@@ -280,13 +280,13 @@ struct alt_evtbuffer_s
 
 struct alt1250_lower_s
 {
-  void (*power)(bool on);
+  FAR struct spi_dev_s * (*poweron)(void);
+  void (*poweroff)(void);
   void (*irqattach)(xcpt_t handler);
   void (*irqenable)(bool enable);
   bool (*get_sready)(void);
   void (*set_mready)(bool on);
   void (*set_wakeup)(bool on);
-  void (*set_spiparam)(FAR struct spi_dev_s *spidev);
 };
 
 struct altcom_fd_set_s
