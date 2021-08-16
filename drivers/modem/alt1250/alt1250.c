@@ -227,15 +227,15 @@ static void write_evtbitmap(FAR struct alt1250_dev_s *priv,
  * Name: is_evtbitmap_avail
  ****************************************************************************/
 
-static uint64_t is_evtbitmap_avail(FAR struct alt1250_dev_s *priv)
+static int is_evtbitmap_avail(FAR struct alt1250_dev_s *priv)
 {
-  uint64_t ret;
+  int ret;
 
   nxsem_wait_uninterruptible(&priv->evtmaplock);
 
   /* 0 means it is not available, otherwise it is available. */
 
-  ret = priv->evtbitmap;
+  ret = (0ULL != priv->evtbitmap);
 
   nxsem_post(&priv->evtmaplock);
 
