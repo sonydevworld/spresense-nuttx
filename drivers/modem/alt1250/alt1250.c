@@ -299,16 +299,20 @@ static FAR alt_evtbuf_inst_t *get_evtbuffinst(
   FAR alt_evtbuf_inst_t *inst = NULL;
   FAR alt_evtbuf_inst_t *ret = NULL;
   unsigned int i;
+  uint16_t cidv1;
 
   cid &= ~ALTCOM_CMDID_REPLY_BIT;
   if (altver == ALTCOM_VER4)
     {
-      /* Change the command ID to Version 1 */
+      /* Change the command ID to Version 1
+       * Even if it cannot be converted, try to search the table
+       * using the original command ID.
+       */
 
-      cid = convert_cid2v1(cid);
-      if (cid == APICMDID_UNKNOWN)
+      cidv1 = convert_cid2v1(cid);
+      if (cidv1 != APICMDID_UNKNOWN)
         {
-          return NULL;
+          cid = cidv1;
         }
     }
 
@@ -366,16 +370,20 @@ static int get_evtbuffidx(FAR struct alt1250_dev_s *priv, uint16_t cid,
 {
   int i;
   int idx = -1;
+  uint16_t cidv1;
 
   cid &= ~ALTCOM_CMDID_REPLY_BIT;
   if (altver == ALTCOM_VER4)
     {
-      /* Change the command ID to Version 1 */
+      /* Change the command ID to Version 1
+       * Even if it cannot be converted, try to search the table
+       * using the original command ID.
+       */
 
-      cid = convert_cid2v1(cid);
-      if (cid == APICMDID_UNKNOWN)
+      cidv1 = convert_cid2v1(cid);
+      if (cidv1 != APICMDID_UNKNOWN)
         {
-          return idx;
+          cid = cidv1;
         }
     }
 

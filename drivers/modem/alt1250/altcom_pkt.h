@@ -41,8 +41,6 @@
 
 #define ALTCOM_HDR_MAGICNUMBER (0xFEEDBAC5)
 
-#define ALTCOM_CMDID_REPLY_BIT  (0x8000)
-
 #define ALTCOM_CMDOPT_CHECKSUM_EN  (1 << 0)
 
 #define ALTCOM_PAYLOAD_SIZE_MAX    (4112)
@@ -243,6 +241,11 @@ static inline uint16_t convert_cid2v1(uint16_t cid)
       (cid <= APICMDID_FW_GETUPDATERESULT_V4))
     {
       return (cid + 0xdd0);
+    }
+
+  if (cid == APICMDID_TLS_CONFIG_VERIFY_CALLBACK_V4)
+    {
+      return APICMDID_TLS_CONFIG_VERIFY_CALLBACK;
     }
 
   return APICMDID_UNKNOWN;

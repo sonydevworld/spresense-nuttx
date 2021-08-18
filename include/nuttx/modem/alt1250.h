@@ -319,7 +319,12 @@
 #define APICMDID_SOCK_SOCKET            (0x0091)
 #define APICMDID_SOCK_SETSOCKOPT        (0x0092)
 
+#define APICMDID_TLS_CONFIG_VERIFY_CALLBACK    (0x0129)
+#define APICMDID_TLS_CONFIG_VERIFY_CALLBACK_V4 (0x0161)
+
 #define ALTCOM_CMDID_ERRIND      (0xFFFF)
+
+#define ALTCOM_CMDID_REPLY_BIT (0x8000)
 
 /****************************************************************************
  * Public Types
