@@ -83,15 +83,9 @@ static int alt1250_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
 static int alt1250_poll(FAR struct file *filep, struct pollfd *fds,
   bool setup);
 
-#ifdef CONFIG_HAVE_SSLHANDLER
-compose_handler_t alt1250_sslcomposehdlr(uint32_t, FAR uint8_t *, size_t);
-parse_handler_t alt1250_sslparsehdlr(uint16_t, uint8_t);
-#endif
-
-#ifdef CONFIG_HAVE_EXTHANDLER
-compose_handler_t alt1250_extcomposehdlr(uint32_t);
-parse_handler_t alt1250_extparsehdlr(uint16_t, uint8_t);
-#endif
+parse_handler_t alt1250_additional_parsehdlr(uint16_t, uint8_t);
+compose_handler_t alt1250_additional_composehdlr(uint32_t,
+    FAR uint8_t *, size_t);
 
 /****************************************************************************
  * Private Data
@@ -446,17 +440,10 @@ compose_handler_t get_composehdlr(uint32_t cmdid, FAR uint8_t *payload,
 
   ret = alt1250_composehdlr(cmdid);
 
-#ifdef CONFIG_HAVE_SSLHANDLER
+#ifdef CONFIG_MODEM_ALT1250_ADDITIONAL_FUNC
   if (ret == NULL)
     {
-      ret = alt1250_sslcomposehdlr(cmdid, payload, size);
-    }
-#endif
-
-#ifdef CONFIG_HAVE_EXTHANDLER
-  if (ret == NULL)
-    {
-      ret = alt1250_extcomposehdlr(cmdid);
+      ret = alt1250_additional_composehdlr(cmdid, payload, size);
     }
 #endif
 
@@ -473,17 +460,10 @@ parse_handler_t get_parsehdlr(uint16_t altcid, uint8_t altver)
 
   ret = alt1250_parsehdlr(altcid, altver);
 
-#ifdef CONFIG_HAVE_SSLHANDLER
+#ifdef CONFIG_MODEM_ALT1250_ADDITIONAL_FUNC
   if (ret == NULL)
     {
-      ret = alt1250_sslparsehdlr(altcid, altver);
-    }
-#endif
-
-#ifdef CONFIG_HAVE_EXTHANDLER
-  if (ret == NULL)
-    {
-      ret = alt1250_extparsehdlr(altcid, altver);
+      ret = alt1250_additional_parsehdlr(altcid, altver);
     }
 #endif
 
@@ -1110,4 +1090,3 @@ FAR void *alt1250_register(FAR const char *devpath,
 
   return (FAR void *)priv;
 }
-

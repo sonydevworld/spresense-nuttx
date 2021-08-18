@@ -14,17 +14,9 @@ menuconfig MODEM_ALT1250
 
 if MODEM_ALT1250
 
-config HAVE_SSLHANDLER
-	bool "Use SSL handler"
+config MODEM_ALT1250_ADDITIONAL_FUNC
+	bool
 	default n
-	---help---
-		Enable or disable compose/parse packt handler for SSL.
-
-config HAVE_EXTHANDLER
-	bool "Use extension handler"
-	default n
-	---help---
-		Enable or disable compose/parse packt handler for extension.
 
 config MODEM_ALT1250_DEBUG
 	bool "Enable debug mode for ALT1250 modem driver"
