@@ -227,8 +227,9 @@ static altmdm_state_t process_state_setsustimersleep(uint32_t,
 
 static char *g_vp_name[] =
 {
-  "NO_RESET", "UNKNOWN ", "TRYV1   ", "NOTV1   ",
-  "V1      ", "TRYV4   ", "V4      "
+  "NO_RESET", "V1      ", "", "",
+  "V4      ", "UNKNOWN ", "TRYV1   ", "NOTV1   ",
+  "TRYV4   "
 };
 #endif
 
