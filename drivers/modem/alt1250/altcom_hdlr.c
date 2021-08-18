@@ -689,14 +689,39 @@ int32_t altcombs_set_pdninfo_v4(FAR struct apicmd_pdnset_v4_s *cmd_pdn,
         {
           af = (cmd_pdn->dns_address[i].iptype == LTE_IPTYPE_V4) ?
             AF_INET : AF_INET6;
-          if (1 != inet_pton(af,
-            (FAR const char *)cmd_pdn->dns_address[i].address,
-            dnsaddrs[i].ss_data))
+          if (af == AF_INET)
             {
-              /* inet_pton() failed, then force break */
+              FAR struct sockaddr_in *addr =
+                (FAR struct sockaddr_in *)&dnsaddrs[i];
 
-              *ndnsaddrs = i;
-              break;
+              addr->sin_family = AF_INET;
+              addr->sin_port = 0;
+              if (1 != inet_pton(af,
+                (FAR const char *)cmd_pdn->dns_address[i].address,
+                (FAR void *)&addr->sin_addr))
+                {
+                  /* inet_pton() failed, then force break */
+
+                  *ndnsaddrs = i;
+                  break;
+                }
+            }
+          else
+            {
+              FAR struct sockaddr_in6 *addr =
+                (FAR struct sockaddr_in6 *)&dnsaddrs[i];
+
+              addr->sin6_family = AF_INET6;
+              addr->sin6_port = 0;
+              if (1 != inet_pton(af,
+                (FAR const char *)cmd_pdn->dns_address[i].address,
+                (FAR void *)&addr->sin6_addr))
+                {
+                  /* inet_pton() failed, then force break */
+
+                  *ndnsaddrs = i;
+                  break;
+                }
             }
         }
     }
