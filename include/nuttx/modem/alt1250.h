@@ -63,106 +63,6 @@
 
 #define ALTCOM_NSOCKET             10
 
-/* Address family */
-
-#define ALTCOM_AF_UNSPEC           0
-#define ALTCOM_AF_INET             2
-#define ALTCOM_AF_INET6            10
-#define ALTCOM_PF_INET             ALTCOM_AF_INET
-#define ALTCOM_PF_INET6            ALTCOM_AF_INET6
-#define ALTCOM_PF_UNSPEC           ALTCOM_AF_UNSPEC
-
-/* Socket protocol type */
-
-#define ALTCOM_SOCK_STREAM         1
-#define ALTCOM_SOCK_DGRAM          2
-#define ALTCOM_SOCK_RAW            3
-#define ALTCOM_SOCK_DGRAM_DTLS     130
-
-/* Protocol */
-
-#define ALTCOM_IPPROTO_IP          0
-#define ALTCOM_IPPROTO_ICMP        1
-#define ALTCOM_IPPROTO_TCP         6
-#define ALTCOM_IPPROTO_UDP         17
-#define ALTCOM_IPPROTO_IPV6        41
-#define ALTCOM_IPPROTO_ICMPV6      58
-#define ALTCOM_IPPROTO_UDPLITE     136
-#define ALTCOM_IPPROTO_RAW         255
-
-/* Flags */
-
-#define ALTCOM_MSG_PEEK            0x01
-#define ALTCOM_MSG_WAITALL         0x02
-#define ALTCOM_MSG_OOB             0x04
-#define ALTCOM_MSG_DONTWAIT        0x08
-#define ALTCOM_MSG_MORE            0x10
-
-/* How */
-
-#define ALTCOM_SHUT_RD             0
-#define ALTCOM_SHUT_WR             1
-#define ALTCOM_SHUT_RDWR           2
-
-/* Level */
-
-#define ALTCOM_SOL_SOCKET          0xfff
-
-/* Option flags per-socket */
-
-#define ALTCOM_SO_REUSEADDR        0x0004
-#define ALTCOM_SO_KEEPALIVE        0x0008
-#define ALTCOM_SO_BROADCAST        0x0020
-
-/* Additional options, not kept in so_options */
-
-#define ALTCOM_SO_ACCEPTCONN       0x0002
-#define ALTCOM_SO_LINGER           0x0080
-#define ALTCOM_SO_RCVBUF           0x1002
-#define ALTCOM_SO_SNDTIMEO         0x1005
-#define ALTCOM_SO_RCVTIMEO         0x1006
-#define ALTCOM_SO_ERROR            0x1007
-#define ALTCOM_SO_TYPE             0x1008
-#define ALTCOM_SO_NO_CHECK         0x100a
-
-/* Options for level IPPROTO_IP */
-
-#define ALTCOM_IP_TOS              1
-#define ALTCOM_IP_TTL              2
-
-/* Options and types related to multicast membership */
-
-#define ALTCOM_IP_ADD_MEMBERSHIP   3
-#define ALTCOM_IP_DROP_MEMBERSHIP  4
-
-/* Options and types for UDP multicast traffic handling */
-
-#define ALTCOM_IP_MULTICAST_TTL    5
-#define ALTCOM_IP_MULTICAST_IF     6
-#define ALTCOM_IP_MULTICAST_LOOP   7
-
-/* Options for level ALTCOM_IPPROTO_TCP */
-
-#define ALTCOM_TCP_NODELAY         0x01
-#define ALTCOM_TCP_KEEPALIVE       0x02
-#define ALTCOM_TCP_KEEPIDLE        0x03
-#define ALTCOM_TCP_KEEPINTVL       0x04
-#define ALTCOM_TCP_KEEPCNT         0x05
-
-/* Options for level ALTCOM_IPPROTO_IPV6 */
-
-#define ALTCOM_IPV6_CHECKSUM       7
-#define ALTCOM_IPV6_V6ONLY         27
-
-/* Options for level ALTCOM_IPPROTO_UDP */
-
-#define ALTCOM_UDP_DTLS_SRTP_RECEPTION 0x01
-
-/* Options for level ALTCOM_IPPROTO_UDPLITE */
-
-#define ALTCOM_UDPLITE_SEND_CSCOV  0x01
-#define ALTCOM_UDPLITE_RECV_CSCOV  0x02
-
 /* Macros for fcntl */
 
 #define ALTCOM_GETFL               3
@@ -380,70 +280,13 @@ struct alt_evtbuffer_s
 
 struct alt1250_lower_s
 {
-  void (*power)(bool on);
+  FAR struct spi_dev_s * (*poweron)(void);
+  void (*poweroff)(void);
   void (*irqattach)(xcpt_t handler);
   void (*irqenable)(bool enable);
   bool (*get_sready)(void);
   void (*set_mready)(bool on);
   void (*set_wakeup)(bool on);
-  void (*set_spiparam)(FAR struct spi_dev_s *spidev);
-};
-
-typedef uint8_t  altcom_sa_family_t;
-typedef uint32_t altcom_socklen_t;
-typedef uint16_t altcom_in_port_t;
-
-typedef uint32_t altcom_in_addr_t;
-
-struct altcom_in_addr
-{
-  altcom_in_addr_t s_addr;
-};
-
-struct altcom_in6_addr
-{
-  union
-  {
-    uint32_t u32_addr[4];
-    uint16_t u16_addr[8];
-    uint8_t  u8_addr[16];
-  } un;
-#define altcom_s6_addr  un.u8_addr
-};
-
-struct altcom_sockaddr_storage
-{
-  uint8_t            s2_len;
-  altcom_sa_family_t ss_family;
-  char               s2_data1[2];
-  uint32_t           s2_data2[3];
-  uint32_t           s2_data3[3];
-};
-
-struct altcom_sockaddr_in
-{
-  uint8_t                sin_len;
-  altcom_sa_family_t     sin_family;
-  altcom_in_port_t       sin_port;
-  struct altcom_in_addr  sin_addr;
-#define ALTCOM_SIN_ZERO_LEN 8
-  char                   sin_zero[ALTCOM_SIN_ZERO_LEN];
-};
-
-struct altcom_sockaddr_in6
-{
-  uint8_t                sin6_len;
-  altcom_sa_family_t     sin6_family;
-  altcom_in_port_t       sin6_port;
-  uint32_t               sin6_flowinfo;
-  struct altcom_in6_addr sin6_addr;
-  uint32_t               sin6_scope_id;
-};
-
-struct altcom_ip_mreq
-{
-  struct altcom_in_addr imr_multiaddr;
-  struct altcom_in_addr imr_interface;
 };
 
 struct altcom_fd_set_s

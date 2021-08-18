@@ -50,9 +50,119 @@
 #define APICMD_SELECT_WRITE_BIT   (1 << 1)
 #define APICMD_SELECT_EXCEPT_BIT  (1 << 2)
 
+/* Using for socket: Address family */
+
+#define ALTCOM_AF_UNSPEC           0
+#define ALTCOM_AF_INET             2
+#define ALTCOM_AF_INET6            10
+#define ALTCOM_PF_INET             ALTCOM_AF_INET
+#define ALTCOM_PF_INET6            ALTCOM_AF_INET6
+#define ALTCOM_PF_UNSPEC           ALTCOM_AF_UNSPEC
+
+/* Using for socket: Socket protocol type */
+
+#define ALTCOM_SOCK_STREAM         1
+#define ALTCOM_SOCK_DGRAM          2
+#define ALTCOM_SOCK_RAW            3
+#define ALTCOM_SOCK_DGRAM_DTLS     130
+
+/* Using for socket: Protocol */
+
+#define ALTCOM_IPPROTO_IP          0
+#define ALTCOM_IPPROTO_ICMP        1
+#define ALTCOM_IPPROTO_TCP         6
+#define ALTCOM_IPPROTO_UDP         17
+#define ALTCOM_IPPROTO_IPV6        41
+#define ALTCOM_IPPROTO_ICMPV6      58
+#define ALTCOM_IPPROTO_UDPLITE     136
+#define ALTCOM_IPPROTO_RAW         255
+
+/* Using for recvfrom/sendto: Flags */
+
+#define ALTCOM_MSG_PEEK            0x01
+#define ALTCOM_MSG_WAITALL         0x02
+#define ALTCOM_MSG_OOB             0x04
+#define ALTCOM_MSG_DONTWAIT        0x08
+#define ALTCOM_MSG_MORE            0x10
+
+/* Using for setsockopt/getsockopt: Level */
+
+#define ALTCOM_SOL_SOCKET          0xfff
+
+/* Using for setsockopt/getsockopt: Option flags per-socket */
+
+#define ALTCOM_SO_REUSEADDR        0x0004
+#define ALTCOM_SO_KEEPALIVE        0x0008
+#define ALTCOM_SO_BROADCAST        0x0020
+
+/* Using for setsockopt/getsockopt:
+ * Additional options, not kept in so_options
+ */
+
+#define ALTCOM_SO_ACCEPTCONN       0x0002
+#define ALTCOM_SO_LINGER           0x0080
+#define ALTCOM_SO_RCVBUF           0x1002
+#define ALTCOM_SO_SNDTIMEO         0x1005
+#define ALTCOM_SO_RCVTIMEO         0x1006
+#define ALTCOM_SO_ERROR            0x1007
+#define ALTCOM_SO_TYPE             0x1008
+#define ALTCOM_SO_NO_CHECK         0x100a
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
+
+typedef uint8_t  altcom_sa_family_t;
+typedef uint32_t altcom_socklen_t;
+typedef uint16_t altcom_in_port_t;
+
+typedef uint32_t altcom_in_addr_t;
+
+struct altcom_in_addr
+{
+  altcom_in_addr_t s_addr;
+};
+
+struct altcom_in6_addr
+{
+  union
+  {
+    uint32_t u32_addr[4];
+    uint16_t u16_addr[8];
+    uint8_t  u8_addr[16];
+  } un;
+#define altcom_s6_addr  un.u8_addr
+};
+
+struct altcom_sockaddr_storage
+{
+  uint8_t            s2_len;
+  altcom_sa_family_t ss_family;
+  char               s2_data1[2];
+  uint32_t           s2_data2[3];
+  uint32_t           s2_data3[3];
+};
+
+struct altcom_sockaddr_in
+{
+  uint8_t                sin_len;
+  altcom_sa_family_t     sin_family;
+  altcom_in_port_t       sin_port;
+  struct altcom_in_addr  sin_addr;
+#define ALTCOM_SIN_ZERO_LEN 8
+  char                   sin_zero[ALTCOM_SIN_ZERO_LEN];
+};
+
+struct altcom_sockaddr_in6
+{
+  uint8_t                sin6_len;
+  altcom_sa_family_t     sin6_family;
+  altcom_in_port_t       sin6_port;
+  uint32_t               sin6_flowinfo;
+  struct altcom_in6_addr sin6_addr;
+  uint32_t               sin6_scope_id;
+};
 
 /* structure for APICMDID_SOCK_ACCEPT and APICMDID_SOCK_GETSOCKNAME */
 

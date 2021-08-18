@@ -176,11 +176,9 @@ static FAR struct alt_container_s *delete_list(FAR struct alt_queue_s *head,
  ****************************************************************************/
 
 static ssize_t read_evtbitmap(FAR struct alt1250_dev_s *priv,
-  FAR char *buffer, size_t len)
+  FAR char *buffer)
 {
   int idx;
-
-  DEBUGASSERT(len >= sizeof(priv->evtbitmap));
 
   nxsem_wait_uninterruptible(&priv->evtmaplock);
 
@@ -229,15 +227,15 @@ static void write_evtbitmap(FAR struct alt1250_dev_s *priv,
  * Name: is_evtbitmap_avail
  ****************************************************************************/
 
-static uint64_t is_evtbitmap_avail(FAR struct alt1250_dev_s *priv)
+static int is_evtbitmap_avail(FAR struct alt1250_dev_s *priv)
 {
-  uint64_t ret;
+  int ret;
 
   nxsem_wait_uninterruptible(&priv->evtmaplock);
 
   /* 0 means it is not available, otherwise it is available. */
 
-  ret = priv->evtbitmap;
+  ret = (0ULL != priv->evtbitmap);
 
   nxsem_post(&priv->evtmaplock);
 
@@ -944,7 +942,7 @@ static ssize_t alt1250_read(FAR struct file *filep, FAR char *buffer,
   priv = (FAR struct alt1250_dev_s *)inode->i_private;
   DEBUGASSERT(priv);
 
-  return read_evtbitmap(priv, buffer, len);
+  return read_evtbitmap(priv, buffer);
 }
 
 /****************************************************************************
