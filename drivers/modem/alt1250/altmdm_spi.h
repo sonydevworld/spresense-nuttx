@@ -72,6 +72,11 @@ static inline int get_pkt_size(FAR altmdm_spipkt_t *pkt)
   return pkt->buff_size;
 }
 
+static inline int get_spipayload_maxsize(void)
+{
+  return ALTSPI_MAX_PKTSIZE;
+}
+
 static inline uint16_t pkt_total_size(FAR altmdm_spipkt_t *pkt)
 {
   return (uint16_t)
