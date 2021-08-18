@@ -2110,7 +2110,7 @@ static int32_t getce_pkt_compose(FAR void **arg,
     }
   else
     {
-      size = -ENOSYS;
+      size = -ENOTSUP;
     }
 
   return size;
