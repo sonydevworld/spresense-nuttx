@@ -31,6 +31,8 @@
 #include <nuttx/modem/alt1250.h>
 #include <nuttx/wireless/lte/lte_ioctl.h>
 #include <nuttx/wireless/lte/lte.h>
+#include <netinet/tcp.h>
+#include <nuttx/net/netconfig.h>
 
 #include "altcom_pkt.h"
 #include "altcom_cmd.h"
@@ -72,6 +74,12 @@
 #define ATCMD_HEADER_LEN (2)
 #define ATCMD_FOOTER     '\r'
 #define ATCMD_FOOTER_LEN (1)
+
+#define ALTCOM_SO_SETMODE_8BIT   (1)
+#define ALTCOM_SO_SETMODE_32BIT  (2)
+#define ALTCOM_SO_SETMODE_LINGER (3)
+#define ALTCOM_SO_SETMODE_INADDR (4)
+#define ALTCOM_SO_SETMODE_IPMREQ (5)
 
 /****************************************************************************
  * Private Types
@@ -1531,6 +1539,94 @@ static int flags2altflags(int32_t flags, int32_t *altflags)
   return 0;
 }
 
+static int get_so_setmode(uint16_t level, uint16_t option)
+{
+  int setmode = 0;
+
+  switch (level)
+    {
+      case SOL_SOCKET:
+        switch (option)
+          {
+            case SO_ACCEPTCONN:
+            case SO_ERROR:
+            case SO_BROADCAST:
+            case SO_KEEPALIVE:
+            case SO_REUSEADDR:
+            case SO_TYPE:
+            case SO_RCVBUF:
+              setmode = ALTCOM_SO_SETMODE_32BIT;
+              break;
+#ifdef CONFIG_NET_SOLINGER
+            case SO_LINGER:
+              setmode = ALTCOM_SO_SETMODE_LINGER;
+              break;
+#endif
+            default:
+              m_err("Not support option: %u\n", option);
+              setmode = -EILSEQ;
+              break;
+          }
+        break;
+      case IPPROTO_IP:
+        switch (option)
+          {
+            case IP_TOS:
+            case IP_TTL:
+              setmode = ALTCOM_SO_SETMODE_32BIT;
+              break;
+            case IP_MULTICAST_TTL:
+            case IP_MULTICAST_LOOP:
+              setmode = ALTCOM_SO_SETMODE_8BIT;
+              break;
+            case IP_MULTICAST_IF:
+              setmode = ALTCOM_SO_SETMODE_INADDR;
+              break;
+            case IP_ADD_MEMBERSHIP:
+            case IP_DROP_MEMBERSHIP:
+              setmode = ALTCOM_SO_SETMODE_IPMREQ;
+              break;
+            default:
+              m_err("Not support option: %u\n", option);
+              setmode = -EILSEQ;
+              break;
+          }
+        break;
+      case IPPROTO_TCP:
+        switch (option)
+          {
+            case TCP_NODELAY:
+            case TCP_KEEPIDLE:
+            case TCP_KEEPINTVL:
+              setmode = ALTCOM_SO_SETMODE_32BIT;
+              break;
+            default:
+              m_err("Not support option: %u\n", option);
+              setmode = -EILSEQ;
+              break;
+          }
+        break;
+      case IPPROTO_IPV6:
+        switch (option)
+          {
+            case IPV6_V6ONLY:
+              setmode = ALTCOM_SO_SETMODE_32BIT;
+              break;
+            default:
+              m_err("Not support option: %u\n", option);
+              setmode = -EILSEQ;
+              break;
+          }
+        break;
+      default:
+        m_err("Not support level: %u\n", level);
+        setmode = -EILSEQ;
+        break;
+    }
+
+  return setmode;
+}
+
 static int32_t getver_pkt_compose(FAR void **arg,
                           size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
                           const size_t pktsz, FAR uint16_t *altcid)
@@ -2848,6 +2944,70 @@ static int32_t getsockopt_pkt_compose(FAR void **arg,
           size = -ENOPROTOOPT;
         }
     }
+  else if (*level == IPPROTO_IP)
+    {
+      out->level = htonl(ALTCOM_IPPROTO_IP);
+      out->optlen = htonl(*max_valuelen);
+
+      if (*option == IP_TOS)
+        {
+          out->optname = htonl(ALTCOM_IP_TOS);
+        }
+      else if (*option == IP_TTL)
+        {
+          out->optname = htonl(ALTCOM_IP_TTL);
+        }
+      else if (*option == IP_MULTICAST_TTL)
+        {
+          out->optname = htonl(ALTCOM_IP_MULTICAST_TTL);
+        }
+      else if (*option == IP_MULTICAST_LOOP)
+        {
+          out->optname = htonl(ALTCOM_IP_MULTICAST_LOOP);
+        }
+      else if (*option == IP_MULTICAST_IF)
+        {
+          out->optname = htonl(ALTCOM_IP_MULTICAST_IF);
+        }
+      else
+        {
+          size = -ENOPROTOOPT;
+        }
+    }
+  else if (*level == IPPROTO_TCP)
+    {
+      out->level = htonl(ALTCOM_IPPROTO_TCP);
+      out->optlen = htonl(*max_valuelen);
+      if (*option == TCP_NODELAY)
+        {
+          out->optname = htonl(ALTCOM_TCP_NODELAY);
+        }
+      else if (*option == TCP_KEEPIDLE)
+        {
+          out->optname = htonl(ALTCOM_TCP_KEEPIDLE);
+        }
+      else if (*option == TCP_KEEPINTVL)
+        {
+          out->optname = htonl(ALTCOM_TCP_KEEPINTVL);
+        }
+      else
+        {
+          size = -ENOPROTOOPT;
+        }
+    }
+  else if (*level == IPPROTO_IPV6)
+    {
+      out->level = htonl(ALTCOM_IPPROTO_IPV6);
+      out->optlen = htonl(*max_valuelen);
+      if (*option == IPV6_V6ONLY)
+        {
+          out->optname = htonl(ALTCOM_IPV6_V6ONLY);
+        }
+      else
+        {
+          size = -ENOPROTOOPT;
+        }
+    }
   else
     {
       size = -ENOPROTOOPT;
@@ -3033,6 +3193,8 @@ static int32_t setsockopt_pkt_compose(FAR void **arg,
   FAR struct apicmd_setsockopt_s *out =
     (FAR struct apicmd_setsockopt_s *)pktbuf;
 
+  int setmode = 0;
+
   out->sockfd = htonl(*sockfd);
   if (*level == SOL_SOCKET)
     {
@@ -3066,9 +3228,165 @@ static int32_t setsockopt_pkt_compose(FAR void **arg,
           size = -ENOPROTOOPT;
         }
     }
+  else if (*level == IPPROTO_IP)
+    {
+      out->level = htonl(ALTCOM_IPPROTO_IP);
+      out->optlen = htonl(*valuelen);
 
-  memcpy(out->optval, value, *valuelen);
+      if (*option == IP_TOS)
+        {
+          out->optname = htonl(ALTCOM_IP_TOS);
+        }
+      else if (*option == IP_TTL)
+        {
+          out->optname = htonl(ALTCOM_IP_TTL);
+        }
+      else if (*option == IP_MULTICAST_TTL)
+        {
+          out->optname = htonl(ALTCOM_IP_MULTICAST_TTL);
+        }
+      else if (*option == IP_MULTICAST_LOOP)
+        {
+          out->optname = htonl(ALTCOM_IP_MULTICAST_LOOP);
+        }
+      else if (*option == IP_MULTICAST_IF)
+        {
+          out->optname = htonl(ALTCOM_IP_MULTICAST_IF);
+        }
+      else if (*option == IP_ADD_MEMBERSHIP)
+        {
+          out->optname = htonl(ALTCOM_IP_ADD_MEMBERSHIP);
+        }
+      else if (*option == IP_DROP_MEMBERSHIP)
+        {
+          out->optname = htonl(ALTCOM_IP_DROP_MEMBERSHIP);
+        }
+      else
+        {
+          size = -ENOPROTOOPT;
+        }
+    }
+  else if (*level == IPPROTO_TCP)
+    {
+      out->level = htonl(ALTCOM_IPPROTO_TCP);
+      out->optlen = htonl(*valuelen);
+      if (*option == TCP_NODELAY)
+        {
+          out->optname = htonl(ALTCOM_TCP_NODELAY);
+        }
+      else if (*option == TCP_KEEPIDLE)
+        {
+          out->optname = htonl(ALTCOM_TCP_KEEPIDLE);
+        }
+      else if (*option == TCP_KEEPINTVL)
+        {
+          out->optname = htonl(ALTCOM_TCP_KEEPINTVL);
+        }
+      else if (*option == TCP_KEEPCNT)
+        {
+          out->optname = htonl(ALTCOM_TCP_KEEPCNT);
+        }
+      else
+        {
+          size = -ENOPROTOOPT;
+        }
+    }
+  else if (*level == IPPROTO_IPV6)
+    {
+      out->level = htonl(ALTCOM_IPPROTO_IPV6);
+      out->optlen = htonl(*valuelen);
+      if (*option == IPV6_V6ONLY)
+        {
+          out->optname = htonl(ALTCOM_IPV6_V6ONLY);
+        }
+      else
+        {
+          size = -ENOPROTOOPT;
+        }
+    }
+  else
+    {
+      size = -ENOPROTOOPT;
+    }
 
+  if (size < 0)
+    {
+      goto exit;
+    }
+
+  setmode = get_so_setmode(*level, *option);
+
+  switch (setmode)
+    {
+      case ALTCOM_SO_SETMODE_8BIT:
+        if (*valuelen < sizeof(int8_t))
+          {
+            m_err("Unexpected valuelen: actual=%lu expect=%lu\n",
+              *valuelen, sizeof(int8_t));
+            size = -EINVAL;
+            break;
+          }
+
+        *out->optval = value[0];
+        break;
+      case ALTCOM_SO_SETMODE_32BIT:
+        if (*valuelen < sizeof(int32_t))
+          {
+            m_err("Unexpected valuelen: actual=%lu expect=%lu\n",
+              *valuelen, sizeof(int32_t));
+            size = -EINVAL;
+            break;
+          }
+
+        *((FAR int32_t *)out->optval) =
+          htonl(*((FAR int32_t *)value));
+        break;
+      case ALTCOM_SO_SETMODE_LINGER:
+        if (*valuelen < sizeof(struct linger))
+          {
+            m_err("Unexpected valuelen: actual=%lu expect=%lu\n",
+              *valuelen, sizeof(struct linger));
+            size = -EINVAL;
+            break;
+          }
+
+        ((FAR struct altcom_linger *)out->optval)->l_onoff =
+          htonl(((FAR struct linger *)value)->l_onoff);
+        ((FAR struct altcom_linger *)out->optval)->l_linger =
+          htonl(((FAR struct linger *)value)->l_linger);
+        break;
+      case ALTCOM_SO_SETMODE_INADDR:
+        if (*valuelen < sizeof(struct in_addr))
+          {
+            m_err("Unexpected valuelen: actual=%lu expect=%lu\n",
+              *valuelen, sizeof(struct in_addr));
+            size = -EINVAL;
+            break;
+          }
+
+        ((FAR struct altcom_in_addr *)out->optval)->s_addr =
+          htonl(((FAR struct in_addr *)value)->s_addr);
+        break;
+      case ALTCOM_SO_SETMODE_IPMREQ:
+        if (*valuelen < sizeof(struct ip_mreq))
+          {
+            m_err("Unexpected valuelen: actual=%lu expect=%lu\n",
+              *valuelen, sizeof(struct ip_mreq));
+            size = -EINVAL;
+            break;
+          }
+
+        ((FAR struct altcom_ip_mreq *)out->optval)->imr_multiaddr.s_addr =
+          htonl(((FAR struct ip_mreq *)value)->imr_multiaddr.s_addr);
+        ((FAR struct altcom_ip_mreq *)out->optval)->imr_interface.s_addr =
+          htonl(((FAR struct ip_mreq *)value)->imr_interface.s_addr);
+        break;
+      default:
+        size = -EINVAL;
+        break;
+    }
+
+exit:
   if (size == 0)
     {
       size = sizeof(struct apicmd_setsockopt_s);
@@ -4351,13 +4669,17 @@ static int32_t getsockopt_pkt_parse(FAR uint8_t *pktbuf,
                           size_t arglen)
 {
   int32_t rc = OK;
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
-  FAR int32_t *errcode = (FAR int32_t *)arg[1];
-  FAR uint32_t *optlen = (FAR uint32_t *)arg[2];
-  FAR int8_t *optval = (FAR int8_t *)arg[3];
+  FAR int32_t  *ret     = (FAR int32_t *)arg[0];
+  FAR int32_t  *errcode = (FAR int32_t *)arg[1];
+  FAR uint32_t *optlen  = (FAR uint32_t *)arg[2];
+  FAR int8_t   *optval  = (FAR int8_t *)arg[3];
+  FAR uint16_t *level   = (FAR uint16_t *)arg[4];
+  FAR uint16_t *option  = (FAR uint16_t *)arg[5];
 
   FAR struct apicmd_getsockoptres_s *in =
     (FAR struct apicmd_getsockoptres_s *)pktbuf;
+
+  int setmode = 0;
 
   *ret = ntohl(in->ret_code);
   *errcode = ntohl(in->err_code);
@@ -4371,7 +4693,68 @@ static int32_t getsockopt_pkt_parse(FAR uint8_t *pktbuf,
         }
       else
         {
-          memcpy(optval, in->optval, *optlen);
+          setmode = get_so_setmode(*level, *option);
+
+          switch (setmode)
+            {
+              case ALTCOM_SO_SETMODE_8BIT:
+                if (*optlen < sizeof(int8_t))
+                  {
+                    m_err("Unexpected optlen: actual=%lu expect=%lu\n",
+                      *optlen, sizeof(int8_t));
+                    rc = -EILSEQ;
+                    break;
+                  }
+
+                *optval = in->optval[0];
+                break;
+              case ALTCOM_SO_SETMODE_32BIT:
+                if (*optlen < sizeof(int32_t))
+                  {
+                    m_err("Unexpected optlen: actual=%lu expect=%lu\n",
+                      *optlen, sizeof(int32_t));
+                    rc = -EILSEQ;
+                    break;
+                  }
+
+                *((FAR int32_t *)optval) =
+                  ntohl(*((FAR int32_t *)in->optval));
+                break;
+              case ALTCOM_SO_SETMODE_LINGER:
+                if (*optlen < sizeof(struct linger))
+                  {
+                    m_err("Unexpected optlen: actual=%lu expect=%lu\n",
+                      *optlen, sizeof(struct linger));
+                    rc = -EILSEQ;
+                    break;
+                  }
+
+                FAR struct altcom_linger *plinger;
+
+                plinger = (FAR struct altcom_linger *)&in->optval[0];
+                ((FAR struct linger *)optval)->l_onoff =
+                  ntohl(plinger->l_onoff);
+                ((FAR struct linger *)optval)->l_linger =
+                  ntohl(plinger->l_linger);
+                break;
+              case ALTCOM_SO_SETMODE_INADDR:
+                if (*optlen < sizeof(struct in_addr))
+                  {
+                    m_err("Unexpected optlen: actual=%lu expect=%lu\n",
+                      *optlen, sizeof(struct in_addr));
+                    rc = -EILSEQ;
+                    break;
+                  }
+
+                FAR struct altcom_in_addr *pinaddr;
+
+                pinaddr = (FAR struct altcom_in_addr *)&in->optval[0];
+                ((FAR struct in_addr *)optval)->s_addr =
+                  ntohl(pinaddr->s_addr);
+                break;
+              default:
+                break;
+            }
         }
     }
 

@@ -50,68 +50,118 @@
 #define APICMD_SELECT_WRITE_BIT   (1 << 1)
 #define APICMD_SELECT_EXCEPT_BIT  (1 << 2)
 
-/* Using for socket: Address family */
+/* Using for socket: Address family
+ * Referenced from socket.h of lwIP-v2.02
+ */
 
-#define ALTCOM_AF_UNSPEC           0
-#define ALTCOM_AF_INET             2
-#define ALTCOM_AF_INET6            10
-#define ALTCOM_PF_INET             ALTCOM_AF_INET
-#define ALTCOM_PF_INET6            ALTCOM_AF_INET6
-#define ALTCOM_PF_UNSPEC           ALTCOM_AF_UNSPEC
+#define ALTCOM_AF_UNSPEC           0                /* Refer to AF_UNSPEC on lwIP */
+#define ALTCOM_AF_INET             2                /* Refer to AF_INET on lwIP   */
+#define ALTCOM_AF_INET6            10               /* Refer to AF_INET6 on lwIP  */
+#define ALTCOM_PF_INET             ALTCOM_AF_INET   /* Refer to PF_INET on lwIP   */
+#define ALTCOM_PF_INET6            ALTCOM_AF_INET6  /* Refer to PF_INET6 on lwIP  */
+#define ALTCOM_PF_UNSPEC           ALTCOM_AF_UNSPEC /* Refer to PF_UNSPEC on lwIP */
 
-/* Using for socket: Socket protocol type */
+/* Using for socket: Socket protocol type
+ * Referenced from socket.h of lwIP-v2.02
+ */
 
-#define ALTCOM_SOCK_STREAM         1
-#define ALTCOM_SOCK_DGRAM          2
-#define ALTCOM_SOCK_RAW            3
-#define ALTCOM_SOCK_DGRAM_DTLS     130
+#define ALTCOM_SOCK_STREAM         1   /* Refer to SOCK_STREAM on lwIP     */
+#define ALTCOM_SOCK_DGRAM          2   /* Refer to SOCK_DGRAM on lwIP      */
+#define ALTCOM_SOCK_RAW            3   /* Refer to SOCK_RAW on lwIP        */
+#define ALTCOM_SOCK_DGRAM_DTLS     130 /* Refer to SOCK_DGRAM_DTLS on lwIP */
 
-/* Using for socket: Protocol */
+/* Using for socket: Protocol
+ * Referenced from socket.h of lwIP-v2.02
+ */
 
-#define ALTCOM_IPPROTO_IP          0
-#define ALTCOM_IPPROTO_ICMP        1
-#define ALTCOM_IPPROTO_TCP         6
-#define ALTCOM_IPPROTO_UDP         17
-#define ALTCOM_IPPROTO_IPV6        41
-#define ALTCOM_IPPROTO_ICMPV6      58
-#define ALTCOM_IPPROTO_UDPLITE     136
-#define ALTCOM_IPPROTO_RAW         255
+#define ALTCOM_IPPROTO_IP          0   /* Refer to IPPROTO_IP on lwIP      */
+#define ALTCOM_IPPROTO_ICMP        1   /* Refer to IPPROTO_ICMP on lwIP    */
+#define ALTCOM_IPPROTO_TCP         6   /* Refer to IPPROTO_TCP on lwIP     */
+#define ALTCOM_IPPROTO_UDP         17  /* Refer to IPPROTO_UDP on lwIP     */
+#define ALTCOM_IPPROTO_IPV6        41  /* Refer to IPPROTO_IPV6 on lwIP    */
+#define ALTCOM_IPPROTO_ICMPV6      58  /* Refer to IPPROTO_ICMPV6 on lwIP  */
+#define ALTCOM_IPPROTO_UDPLITE     136 /* Refer to IPPROTO_UDPLITE on lwIP */
+#define ALTCOM_IPPROTO_RAW         255 /* Refer to IPPROTO_RAW on lwIP     */
 
-/* Using for recvfrom/sendto: Flags */
+/* Using for recvfrom/sendto: Flags
+ * Referenced from socket.h of lwIP-v2.02
+ */
 
-#define ALTCOM_MSG_PEEK            0x01
-#define ALTCOM_MSG_WAITALL         0x02
-#define ALTCOM_MSG_OOB             0x04
-#define ALTCOM_MSG_DONTWAIT        0x08
-#define ALTCOM_MSG_MORE            0x10
+#define ALTCOM_MSG_PEEK            0x01 /* Refer to MSG_PEEK on lwIP     */
+#define ALTCOM_MSG_WAITALL         0x02 /* Refer to MSG_WAITALL on lwIP  */
+#define ALTCOM_MSG_OOB             0x04 /* Refer to MSG_OOB on lwIP      */
+#define ALTCOM_MSG_DONTWAIT        0x08 /* Refer to MSG_DONTWAIT on lwIP */
+#define ALTCOM_MSG_MORE            0x10 /* Refer to MSG_MORE on lwIP     */
 
-/* Using for setsockopt/getsockopt: Level */
+/* Using for setsockopt/getsockopt: Level
+ * Referenced from socket.h of lwIP-v2.02
+ */
 
-#define ALTCOM_SOL_SOCKET          0xfff
+#define ALTCOM_SOL_SOCKET          0xfff /* Refer to SOL_SOCKET on lwIP */
 
-/* Using for setsockopt/getsockopt: Option flags per-socket */
+/* Using for setsockopt/getsockopt: Option flags per-socket
+ * Referenced from socket.h of lwIP-v2.02
+ */
 
-#define ALTCOM_SO_REUSEADDR        0x0004
-#define ALTCOM_SO_KEEPALIVE        0x0008
-#define ALTCOM_SO_BROADCAST        0x0020
+#define ALTCOM_SO_REUSEADDR        0x0004 /* Refer to SO_REUSEADDR on lwIP */
+#define ALTCOM_SO_KEEPALIVE        0x0008 /* Refer to SO_KEEPALIVE on lwIP */
+#define ALTCOM_SO_BROADCAST        0x0020 /* Refer to SO_BROADCAST on lwIP */
 
 /* Using for setsockopt/getsockopt:
  * Additional options, not kept in so_options
+ * Referenced from socket.h of lwIP-v2.02
  */
 
-#define ALTCOM_SO_ACCEPTCONN       0x0002
-#define ALTCOM_SO_LINGER           0x0080
-#define ALTCOM_SO_RCVBUF           0x1002
-#define ALTCOM_SO_SNDTIMEO         0x1005
-#define ALTCOM_SO_RCVTIMEO         0x1006
-#define ALTCOM_SO_ERROR            0x1007
-#define ALTCOM_SO_TYPE             0x1008
-#define ALTCOM_SO_NO_CHECK         0x100a
+#define ALTCOM_SO_ACCEPTCONN       0x0002 /* Refer to SO_ACCEPTCONN on lwIP */
+#define ALTCOM_SO_LINGER           0x0080 /* Refer to SO_LINGER on lwIP     */
+#define ALTCOM_SO_RCVBUF           0x1002 /* Refer to SO_RCVBUF on lwIP     */
+#define ALTCOM_SO_SNDTIMEO         0x1005 /* Refer to SO_SNDTIMEO on lwIP   */
+#define ALTCOM_SO_RCVTIMEO         0x1006 /* Refer to SO_RCVTIMEO on lwIP   */
+#define ALTCOM_SO_ERROR            0x1007 /* Refer to SO_ERROR on lwIP      */
+#define ALTCOM_SO_TYPE             0x1008 /* Refer to SO_TYPE on lwIP       */
+#define ALTCOM_SO_NO_CHECK         0x100a /* Refer to SO_NO_CHECK on lwIP   ss*/
+
+/* Options for level IPPROTO_IP
+ * Referenced from socket.h of lwIP-v2.02
+ */
+
+#define ALTCOM_IP_TOS              1 /* Refer to IP_TOS on lwIP */
+#define ALTCOM_IP_TTL              2 /* Refer to IP_TTL on lwIP */
+
+/* Options and types related to multicast membership
+ * Referenced from socket.h of lwIP-v2.02
+ */
+
+#define ALTCOM_IP_ADD_MEMBERSHIP   3 /* Refer to IP_ADD_MEMBERSHIP on lwIP  */
+#define ALTCOM_IP_DROP_MEMBERSHIP  4 /* Refer to IP_DROP_MEMBERSHIP on lwIP */
+
+/* Options and types for UDP multicast traffic handling
+ * Referenced from socket.h of lwIP-v2.02
+ */
+
+#define ALTCOM_IP_MULTICAST_TTL    5 /* Refer to IP_MULTICAST_TTL on lwIP  */
+#define ALTCOM_IP_MULTICAST_IF     6 /* Refer to IP_MULTICAST_IF on lwIP   */
+#define ALTCOM_IP_MULTICAST_LOOP   7 /* Refer to IP_MULTICAST_LOOP on lwIP */
+
+/* Options for level ALTCOM_IPPROTO_TCP
+ * Referenced from socket.h of lwIP-v2.02
+ */
+
+#define ALTCOM_TCP_NODELAY         0x01 /* Refer to TCP_NODELAY on lwIP   */
+#define ALTCOM_TCP_KEEPALIVE       0x02 /* Refer to TCP_KEEPALIVE on lwIP */
+#define ALTCOM_TCP_KEEPIDLE        0x03 /* Refer to TCP_KEEPIDLE on lwIP  */
+#define ALTCOM_TCP_KEEPINTVL       0x04 /* Refer to TCP_KEEPINTVL on lwIP */
+#define ALTCOM_TCP_KEEPCNT         0x05 /* Refer to TCP_KEEPCNT on lwIP   */
+
+/* Options for level ALTCOM_IPPROTO_IPV6
+ * Referenced from socket.h of lwIP-v2.02
+ */
+
+#define ALTCOM_IPV6_V6ONLY         27 /* Refer to IPV6_V6ONLY on lwIP */
 
 /****************************************************************************
  * Public Types
  ****************************************************************************/
-
 
 typedef uint8_t  altcom_sa_family_t;
 typedef uint32_t altcom_socklen_t;
@@ -162,6 +212,18 @@ struct altcom_sockaddr_in6
   uint32_t               sin6_flowinfo;
   struct altcom_in6_addr sin6_addr;
   uint32_t               sin6_scope_id;
+};
+
+struct altcom_ip_mreq
+{
+  struct altcom_in_addr imr_multiaddr;
+  struct altcom_in_addr imr_interface;
+};
+
+struct altcom_linger
+{
+  int l_onoff;
+  int l_linger;
 };
 
 /* structure for APICMDID_SOCK_ACCEPT and APICMDID_SOCK_GETSOCKNAME */
