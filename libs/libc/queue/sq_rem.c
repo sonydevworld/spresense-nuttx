@@ -47,6 +47,8 @@ void sq_rem(FAR sq_entry_t *node, sq_queue_t *queue)
             {
               queue->tail = NULL;
             }
+
+          node->flink = NULL;
         }
       else
         {
