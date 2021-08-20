@@ -67,6 +67,8 @@ struct alt1250_dev_s
   pthread_t recvthread;
   struct alt_evtbuffer_s *evtbuff;
   uint32_t discardcnt;
+  sem_t senddisablelock;
+  bool senddisable;
 };
 
 /****************************************************************************
@@ -117,9 +119,18 @@ static uint8_t g_sendbuff[ALTCOM_PKT_SIZE_MAX];
 static void add_list(FAR struct alt_queue_s *head,
   FAR struct alt_container_s *list)
 {
+  FAR struct alt_container_s *next;
+
   nxsem_wait_uninterruptible(&head->lock);
 
-  sq_addlast(&list->node, &head->queue);
+  while (list != NULL)
+    {
+      next = (FAR struct alt_container_s *)sq_next(&list->node);
+
+      sq_addlast(&list->node, &head->queue);
+
+      list = next;
+    }
 
   nxsem_post(&head->lock);
 }
@@ -144,10 +155,10 @@ static FAR struct alt_container_s *remove_list_all(
 }
 
 /****************************************************************************
- * Name: delete_list
+ * Name: remove_list
  ****************************************************************************/
 
-static FAR struct alt_container_s *delete_list(FAR struct alt_queue_s *head,
+static FAR struct alt_container_s *remove_list(FAR struct alt_queue_s *head,
   uint16_t cmdid, uint16_t transid)
 {
   FAR struct alt_container_s *list;
@@ -172,11 +183,41 @@ static FAR struct alt_container_s *delete_list(FAR struct alt_queue_s *head,
 }
 
 /****************************************************************************
+ * Name: set_senddisable
+ ****************************************************************************/
+
+static void set_senddisable(FAR struct alt1250_dev_s *priv, bool disable)
+{
+  nxsem_wait_uninterruptible(&priv->senddisablelock);
+
+  priv->senddisable = disable;
+
+  nxsem_post(&priv->senddisablelock);
+}
+
+/****************************************************************************
+ * Name: is_senddisable
+ ****************************************************************************/
+
+static bool is_senddisable(FAR struct alt1250_dev_s *priv)
+{
+  bool disable;
+
+  nxsem_wait_uninterruptible(&priv->senddisablelock);
+
+  disable = priv->senddisable;
+
+  nxsem_post(&priv->senddisablelock);
+
+  return disable;
+}
+
+/****************************************************************************
  * Name: read_evtbitmap
  ****************************************************************************/
 
-static ssize_t read_evtbitmap(FAR struct alt1250_dev_s *priv,
-  FAR char *buffer)
+static ssize_t read_data(FAR struct alt1250_dev_s *priv,
+  FAR struct alt_readdata_s *rdata)
 {
   int idx;
 
@@ -201,12 +242,23 @@ static ssize_t read_evtbitmap(FAR struct alt1250_dev_s *priv,
         }
     }
 
-  memcpy(buffer, &priv->evtbitmap, sizeof(priv->evtbitmap));
+  rdata->evtbitmap = priv->evtbitmap;
+  rdata->head = remove_list_all(&priv->replylist);
+
+  if (priv->evtbitmap & ALT1250_EVTBIT_RESET)
+    {
+      /* Resume sending because daemon has been notified of the reset
+       * reliably.
+       */
+
+      set_senddisable(priv, false);
+    }
+
   priv->evtbitmap = 0ULL;
 
   nxsem_post(&priv->evtmaplock);
 
-  return sizeof(priv->evtbitmap);
+  return sizeof(struct alt_readdata_s);
 }
 
 /****************************************************************************
@@ -219,6 +271,32 @@ static void write_evtbitmap(FAR struct alt1250_dev_s *priv,
   nxsem_wait_uninterruptible(&priv->evtmaplock);
 
   priv->evtbitmap |= bitmap;
+
+  if (priv->evtbitmap & ALT1250_EVTBIT_RESET)
+    {
+      priv->evtbitmap = ALT1250_EVTBIT_RESET;
+    }
+
+  nxsem_post(&priv->evtmaplock);
+}
+
+/****************************************************************************
+ * Name: write_evtbitmapwithlist
+ ****************************************************************************/
+
+static void write_evtbitmapwithlist(FAR struct alt1250_dev_s *priv,
+  uint64_t bitmap, FAR struct alt_container_s *container)
+{
+  nxsem_wait_uninterruptible(&priv->evtmaplock);
+
+  priv->evtbitmap |= bitmap;
+
+  if (priv->evtbitmap & ALT1250_EVTBIT_RESET)
+    {
+      priv->evtbitmap = ALT1250_EVTBIT_RESET;
+    }
+
+  add_list(&priv->replylist, container);
 
   nxsem_post(&priv->evtmaplock);
 }
@@ -536,7 +614,7 @@ static int ioctl_send(FAR struct alt1250_dev_s *priv,
   if (handler)
     {
       altver = altmdm_get_protoversion();
-      if (altver == ALTCOM_VERX)
+      if ((altver == ALTCOM_VERX) || is_senddisable(priv))
         {
           ret = -ENETDOWN;
         }
@@ -594,9 +672,18 @@ static int ioctl_send(FAR struct alt1250_dev_s *priv,
                 {
                   m_err("altmdm_write() failed: %d\n", ret);
                   ret = -ENETDOWN;
-                  if (req->outparam != NULL)
+
+                  /* If the container is not left in the waitlist,
+                   * it has already been processed by the recvthread.
+                   * ENETRESET is returned to the caller to indicate that
+                   * the container has been processed.
+                   */
+
+                  if ((req->outparam != NULL) &&
+                    (remove_list(&priv->waitlist, req->altcid, req->alttid)
+                      == NULL))
                     {
-                      delete_list(&priv->waitlist, req->altcid, req->alttid);
+                      ret = -ENETRESET;
                     }
                 }
               else
@@ -690,7 +777,7 @@ static void altcom_recvthread(FAR void *arg)
 
                   m_info("receive errind cid:0x%04x tid:0x%04x\n", cid, tid);
 
-                  container = delete_list(&priv->waitlist, cid, tid);
+                  container = remove_list(&priv->waitlist, cid, tid);
                   if (container)
                     {
                       /* It means that requested command not implemented
@@ -710,7 +797,7 @@ static void altcom_recvthread(FAR void *arg)
                 }
               else
                 {
-                  container = delete_list(&priv->waitlist, cid, tid);
+                  container = remove_list(&priv->waitlist, cid, tid);
 
                   handler = get_parsehdlr(cid, altver);
                   if (handler)
@@ -775,8 +862,8 @@ static void altcom_recvthread(FAR void *arg)
 
               if (container)
                 {
-                  add_list(&priv->replylist, container);
-                  write_evtbitmap(priv, ALT1250_EVTBIT_REPLY);
+                  write_evtbitmapwithlist(priv, ALT1250_EVTBIT_REPLY,
+                    container);
                 }
 
               if ((!container) || (container->cmdid & LTE_CMDOPT_ASYNC_BIT))
@@ -803,38 +890,41 @@ static void altcom_recvthread(FAR void *arg)
         }
       else
         {
-          m_info("read event %d\n", ret);
-
           switch (ret)
             {
               case ALTMDM_RETURN_RESET_PKT:
-
-                /* If there is a waiting list,
-                 * replace it with the replay list.
-                 */
-
-                head = remove_list_all(&priv->waitlist);
-                add_list(&priv->replylist, head);
-
-                write_evtbitmap(priv, ALT1250_EVTBIT_RESET);
-                pollnotify(priv);
+                {
+                  m_info("recieve ALTMDM_RETURN_RESET_PKT\n");
+                  set_senddisable(priv, true);
+                }
                 break;
 
               case ALTMDM_RETURN_RESET_V1:
               case ALTMDM_RETURN_RESET_V4:
                 {
                   uint32_t reason = altmdm_get_reset_reason();
+
+                  m_info("recieve ALTMDM_RETURN_RESET_V1/V4\n");
+
                   ret = write_evtbuff_byidx(priv, 0, write_restart_param,
                     (FAR void *)&reason);
-                  if (ret == WRITE_OK)
-                    {
-                      pollnotify(priv);
-                    }
+
+                  /* If there is a waiting list,
+                   * replace it with the replay list.
+                   */
+
+                  head = remove_list_all(&priv->waitlist);
+
+                  write_evtbitmapwithlist(priv, ALT1250_EVTBIT_RESET, head);
+                  pollnotify(priv);
                 }
                 break;
 
               case ALTMDM_RETURN_EXIT:
-                is_running = false;
+                {
+                  m_info("recieve ALTMDM_RETURN_EXIT\n");
+                  is_running = false;
+                }
                 break;
 
               default:
@@ -886,6 +976,9 @@ static int alt1250_open(FAR struct file *filep)
       nxsem_init(&priv->replylist.lock, 0, 1);
       nxsem_init(&priv->evtmaplock, 0, 1);
       nxsem_init(&priv->pfdlock, 0, 1);
+      nxsem_init(&priv->senddisablelock, 0, 1);
+
+      priv->senddisable = true;
 
       ret = pthread_create(&priv->recvthread, NULL,
         (pthread_startroutine_t)altcom_recvthread,
@@ -899,6 +992,7 @@ static int alt1250_open(FAR struct file *filep)
           nxsem_destroy(&priv->replylist.lock);
           nxsem_destroy(&priv->evtmaplock);
           nxsem_destroy(&priv->pfdlock);
+          nxsem_destroy(&priv->senddisablelock);
 
           nxsem_wait_uninterruptible(&priv->refslock);
           priv->crefs--;
@@ -948,6 +1042,7 @@ static int alt1250_close(FAR struct file *filep)
       nxsem_destroy(&priv->replylist.lock);
       nxsem_destroy(&priv->evtmaplock);
       nxsem_destroy(&priv->pfdlock);
+      nxsem_destroy(&priv->senddisablelock);
 
       altmdm_fin();
       pthread_join(priv->recvthread, NULL);
@@ -974,7 +1069,12 @@ static ssize_t alt1250_read(FAR struct file *filep, FAR char *buffer,
   priv = (FAR struct alt1250_dev_s *)inode->i_private;
   DEBUGASSERT(priv);
 
-  return read_evtbitmap(priv, buffer);
+  if (len != sizeof(struct alt_readdata_s))
+    {
+      return -EINVAL;
+    }
+
+  return read_data(priv, (FAR struct alt_readdata_s *)buffer);
 }
 
 /****************************************************************************
@@ -1010,14 +1110,6 @@ static int alt1250_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           FAR alt_container_t *req = (FAR alt_container_t *)arg;
 
           ret = ioctl_send(priv, req);
-        }
-        break;
-
-      case ALT1250_IOC_GETREPLY:
-        {
-          FAR struct alt_container_s **list =
-            (FAR struct alt_container_s **)arg;
-          *list = remove_list_all(&priv->replylist);
         }
         break;
 

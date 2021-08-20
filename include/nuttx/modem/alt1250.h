@@ -53,8 +53,7 @@
 
 #define ALT1250_IOC_POWER           _MODEMIOC(1)
 #define ALT1250_IOC_SEND            _MODEMIOC(2)
-#define ALT1250_IOC_GETREPLY        _MODEMIOC(3)
-#define ALT1250_IOC_SETEVTBUFF      _MODEMIOC(4)
+#define ALT1250_IOC_SETEVTBUFF      _MODEMIOC(3)
 
 #define ALT1250_EVTBIT_RESET (1ULL << 63)
 #define ALT1250_EVTBIT_REPLY (1ULL << 62)
@@ -276,6 +275,12 @@ struct alt_evtbuffer_s
 {
   unsigned int ninst;
   alt_evtbuf_inst_t *inst;
+};
+
+struct alt_readdata_s
+{
+  uint64_t evtbitmap;
+  FAR struct alt_container_s *head;
 };
 
 struct alt1250_lower_s
