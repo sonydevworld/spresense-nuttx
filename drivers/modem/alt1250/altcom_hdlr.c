@@ -64,8 +64,6 @@
 #define ALTCOMBS_BASE_HEX                 16
 #define ALTCOMBS_EDRX_INVALID             (255)
 
-#define APICMD_SENDTO_SENDDATA_LENGTH (1500)
-
 #define READSET_BIT   (1 << 0)
 #define WRITESET_BIT  (1 << 1)
 #define EXCEPTSET_BIT (1 << 2)
@@ -2901,6 +2899,13 @@ static int32_t recvfrom_pkt_compose(FAR void **arg,
   int32_t flg;
 
   out->sockfd = htonl(*sockfd);
+  if (*max_buflen > APICMD_DATA_LENGTH)
+    {
+      /* Truncate the length to the maximum transfer size */
+
+      *max_buflen = APICMD_DATA_LENGTH;
+    }
+
   out->recvlen = htonl(*max_buflen);
   size = flags2altflags(*flags, &flg);
   out->flags = htonl(flg);
@@ -2948,11 +2953,11 @@ static int32_t sendto_pkt_compose(FAR void **arg,
   int32_t flg;
   struct altcom_sockaddr_storage altsa;
 
-  if (*buflen > APICMD_SENDTO_SENDDATA_LENGTH)
+  if (*buflen > APICMD_DATA_LENGTH)
     {
       /* Truncate the length to the maximum transfer size */
 
-      *buflen = APICMD_SENDTO_SENDDATA_LENGTH;
+      *buflen = APICMD_DATA_LENGTH;
     }
   else if (*buflen < 0)
     {
@@ -3004,7 +3009,8 @@ static int32_t sendto_pkt_compose(FAR void **arg,
       sockaddr2altstorage((struct sockaddr *)sa, &altsa);
       memcpy(&out->to, &altsa, *addrlen);
       memcpy(out->senddata, buf, *buflen);
-      size = sizeof(struct apicmd_sendto_s);
+      size = sizeof(struct apicmd_sendto_s) - sizeof(out->senddata) +
+        *buflen;
     }
 
 err_out:
