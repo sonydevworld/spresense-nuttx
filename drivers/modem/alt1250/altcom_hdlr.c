@@ -2567,7 +2567,7 @@ static int32_t getcell_pkt_compose(FAR void **arg,
     }
   else
     {
-      size = -ENOSYS;
+      size = -ENOTSUP;
     }
 
   return size;
