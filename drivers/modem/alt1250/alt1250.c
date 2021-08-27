@@ -127,6 +127,7 @@ static void add_list(FAR struct alt_queue_s *head,
     {
       next = (FAR struct alt_container_s *)sq_next(&list->node);
 
+      sq_next(&list->node) = NULL;
       sq_addlast(&list->node, &head->queue);
 
       list = next;
@@ -171,6 +172,7 @@ static FAR struct alt_container_s *remove_list(FAR struct alt_queue_s *head,
       if ((list->altcid == cmdid) && (list->alttid == transid))
         {
           sq_rem(&list->node, &head->queue);
+          sq_next(&list->node) = NULL;
           break;
         }
 
@@ -997,6 +999,10 @@ static int alt1250_open(FAR struct file *filep)
           nxsem_wait_uninterruptible(&priv->refslock);
           priv->crefs--;
           nxsem_post(&priv->refslock);
+        }
+      else
+        {
+          pthread_setname_np(priv->recvthread, "altcom_recvthread");
         }
     }
 
