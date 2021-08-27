@@ -47,6 +47,7 @@
 
 #include <nuttx/net/netconfig.h>
 #include <nuttx/compiler.h>
+#include <nuttx/fs/ioctl.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -73,6 +74,14 @@
                           (!!((flags) & USRSOCK_MESSAGE_FLAG_REQ_IN_PROGRESS))
 #define USRSOCK_MESSAGE_REQ_COMPLETED(flags) \
                           (!USRSOCK_MESSAGE_REQ_IN_PROGRESS(flags))
+
+/* ioctl command */
+
+/* Sets the active connection to the abort state,
+ * and wake-up the pending requests.
+ */
+
+#define USRSOCK_IOC_REFLESH _SIOC(0x0001)
 
 /****************************************************************************
  * Public Types
