@@ -597,7 +597,7 @@ static int dns_query_callback(FAR void *arg, FAR struct sockaddr *addr,
           /* Obtain the IPv6 response */
 
           ret = dns_recv_response(query->sd, &query->addr[next],
-                                  *query->naddr - next, &qinfo);
+                                  CONFIG_NETDB_MAX_IPv6ADDR, &qinfo);
           if (ret >= 0)
             {
               next += ret;
@@ -626,7 +626,7 @@ static int dns_query_callback(FAR void *arg, FAR struct sockaddr *addr,
           /* Obtain the IPv4 response */
 
           ret = dns_recv_response(query->sd, &query->addr[next],
-                                  *query->naddr - next, &qinfo);
+                                  CONFIG_NETDB_MAX_IPv4ADDR, &qinfo);
           if (ret >= 0)
             {
               next += ret;
