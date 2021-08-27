@@ -452,6 +452,11 @@ static FAR alt_evtbuf_inst_t *get_evtbuffinst(
 
       ret->outparam = dev->select_container->outparam;
       ret->outparamlen = dev->select_container->outparamlen;
+
+      if (search_evtbufinst(cid, &i, dev))
+        {
+          dev->evtbitmap |= (1ULL << i);
+        }
     }
   else
     {
@@ -929,6 +934,15 @@ static void altcom_recvthread(FAR void *arg)
                 {
                   write_evtbitmapwithlist(dev, ALT1250_EVTBIT_REPLY,
                     container);
+
+                  if (container->cmdid & LTE_CMDOPT_ASYNC_BIT)
+                    {
+                      idx = get_evtbuffidx(dev, cid, altver);
+                      if (idx != -1)
+                        {
+                          write_evtbitmap(dev, 1ULL << idx);
+                        }
+                    }
                 }
 
               if (is_discard)
@@ -938,16 +952,6 @@ static void altcom_recvthread(FAR void *arg)
                 }
               else
                 {
-                  if ((!container) ||
-                    (container->cmdid & LTE_CMDOPT_ASYNC_BIT))
-                    {
-                      idx = get_evtbuffidx(dev, cid, altver);
-                      if (idx != -1)
-                        {
-                          write_evtbitmap(dev, 1ULL << idx);
-                        }
-                    }
-
                   pollnotify(dev);
                 }
             }
