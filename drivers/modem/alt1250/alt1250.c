@@ -42,6 +42,8 @@
 #define WRITE_OK 0
 #define WRITE_NG 1
 
+#define rel_evtbufinst(inst, priv) unlock_evtbufinst(inst, priv)
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -69,6 +71,8 @@ struct alt1250_dev_s
   uint32_t discardcnt;
   sem_t senddisablelock;
   bool senddisable;
+  FAR alt_container_t *select_container;
+  struct alt_evtbuf_inst_s select_inst;
 };
 
 /****************************************************************************
@@ -368,6 +372,52 @@ static int write_evtbuff_byidx(FAR struct alt1250_dev_s *priv,
 }
 
 /****************************************************************************
+ * Name: lock_evtbuffinst
+ ****************************************************************************/
+
+static void lock_evtbuffinst(FAR alt_evtbuf_inst_t *inst,
+  FAR struct alt1250_dev_s *priv)
+{
+  nxsem_wait_uninterruptible(&priv->evtmaplock);
+  nxsem_wait_uninterruptible(&inst->stat_lock);
+}
+
+/****************************************************************************
+ * Name: unlock_evtbufinst
+ ****************************************************************************/
+
+static void unlock_evtbufinst(FAR alt_evtbuf_inst_t *inst,
+  FAR struct alt1250_dev_s *priv)
+{
+  nxsem_post(&inst->stat_lock);
+  nxsem_post(&priv->evtmaplock);
+}
+
+/****************************************************************************
+ * Name: search_evtbufinst
+ ****************************************************************************/
+
+static FAR alt_evtbuf_inst_t *search_evtbufinst(uint16_t cid,
+  FAR unsigned int *idx, FAR struct alt1250_dev_s *priv)
+{
+  FAR alt_evtbuf_inst_t *ret = NULL;
+  unsigned int i;
+
+  for (i = 0; i < priv->evtbuff->ninst; i++)
+    {
+      ret = &priv->evtbuff->inst[i];
+
+      if (ret->altcid == cid)
+        {
+          *idx = i;
+          return ret;
+        }
+    }
+
+  return NULL;
+}
+
+/****************************************************************************
  * Name: get_evtbuffinst
  ****************************************************************************/
 
@@ -394,50 +444,37 @@ static FAR alt_evtbuf_inst_t *get_evtbuffinst(
         }
     }
 
-  nxsem_wait_uninterruptible(&priv->evtmaplock);
-
-  if (priv->evtbuff)
+  if (cid == APICMDID_SOCK_SELECT)
     {
-      for (i = 0; i < priv->evtbuff->ninst; i++)
+      ret = &priv->select_inst;
+
+      lock_evtbuffinst(ret, priv);
+
+      ret->outparam = priv->select_container->outparam;
+      ret->outparamlen = priv->select_container->outparamlen;
+    }
+  else
+    {
+      ret = search_evtbufinst(cid, &i, priv);
+      if (ret)
         {
-          inst = &priv->evtbuff->inst[i];
+          lock_evtbuffinst(ret, priv);
 
-          if (inst->altcid == cid)
+          if (ret->stat == ALTEVTBUF_ST_WRITABLE)
             {
-              nxsem_wait_uninterruptible(&inst->stat_lock);
-              if (inst->stat == ALTEVTBUF_ST_WRITABLE)
-                {
-                  priv->evtbitmap |= (1ULL << i);
-                  ret = inst;
-                }
-              else
-                {
-                  nxsem_post(&inst->stat_lock);
-                }
-
-              break;
+              priv->evtbitmap |= (1ULL << i);
+            }
+          else
+            {
+              unlock_evtbufinst(inst, priv);
             }
         }
-    }
-
-  if (!ret)
-    {
-      nxsem_post(&priv->evtmaplock);
     }
 
   return ret;
 }
 
-/****************************************************************************
- * Name: rel_evtbufinst
- ****************************************************************************/
 
-static void rel_evtbufinst(FAR struct alt1250_dev_s *priv,
-  FAR alt_evtbuf_inst_t *inst)
-{
-  nxsem_post(&inst->stat_lock);
-  nxsem_post(&priv->evtmaplock);
-}
 
 /****************************************************************************
  * Name: get_evtbuffidx
@@ -710,6 +747,31 @@ static int ioctl_send(FAR struct alt1250_dev_s *priv,
 }
 
 /****************************************************************************
+ * Name: exchange_selectcontainer
+ ****************************************************************************/
+
+static int exchange_selectcontainer(FAR struct alt1250_dev_s *priv,
+  FAR alt_container_t **container)
+{
+  FAR alt_container_t *newcontainer;
+
+  if (container == NULL)
+    {
+      return -EINVAL;
+    }
+
+  nxsem_wait_uninterruptible(&priv->select_inst.stat_lock);
+
+  newcontainer = *container;
+  *container = priv->select_container;
+  priv->select_container = newcontainer;
+
+  nxsem_post(&priv->select_inst.stat_lock);
+
+  return OK;
+}
+
+/****************************************************************************
  * Name: altcom_recvthread
  ****************************************************************************/
 
@@ -724,6 +786,7 @@ static void altcom_recvthread(FAR void *arg)
   uint16_t tid;
   uint8_t altver;
   parse_handler_t handler;
+  int idx = -1;
 
   m_info("recv thread start\n");
 
@@ -837,7 +900,7 @@ static void altcom_recvthread(FAR void *arg)
                                 (FAR struct altcom_cmdhdr_s *)g_recvbuff),
                                 altver, inst->outparam, inst->outparamlen);
 
-                              rel_evtbufinst(priv, inst);
+                              rel_evtbufinst(inst, priv);
                             }
                           else
                             {
@@ -868,17 +931,6 @@ static void altcom_recvthread(FAR void *arg)
                     container);
                 }
 
-              if ((!container) || (container->cmdid & LTE_CMDOPT_ASYNC_BIT))
-                {
-                  int idx = -1;
-
-                  idx = get_evtbuffidx(priv, cid, altver);
-                  if (idx != -1)
-                    {
-                      write_evtbitmap(priv, 1ULL << idx);
-                    }
-                }
-
               if (is_discard)
                 {
                   priv->discardcnt++;
@@ -886,6 +938,16 @@ static void altcom_recvthread(FAR void *arg)
                 }
               else
                 {
+                  if ((!container) ||
+                    (container->cmdid & LTE_CMDOPT_ASYNC_BIT))
+                    {
+                      idx = get_evtbuffidx(priv, cid, altver);
+                      if (idx != -1)
+                        {
+                          write_evtbitmap(priv, 1ULL << idx);
+                        }
+                    }
+
                   pollnotify(priv);
                 }
             }
@@ -979,6 +1041,7 @@ static int alt1250_open(FAR struct file *filep)
       nxsem_init(&priv->evtmaplock, 0, 1);
       nxsem_init(&priv->pfdlock, 0, 1);
       nxsem_init(&priv->senddisablelock, 0, 1);
+      nxsem_init(&priv->select_inst.stat_lock, 0, 1);
 
       priv->senddisable = true;
 
@@ -995,6 +1058,7 @@ static int alt1250_open(FAR struct file *filep)
           nxsem_destroy(&priv->evtmaplock);
           nxsem_destroy(&priv->pfdlock);
           nxsem_destroy(&priv->senddisablelock);
+          nxsem_destroy(&priv->select_inst.stat_lock);
 
           nxsem_wait_uninterruptible(&priv->refslock);
           priv->crefs--;
@@ -1049,6 +1113,7 @@ static int alt1250_close(FAR struct file *filep)
       nxsem_destroy(&priv->evtmaplock);
       nxsem_destroy(&priv->pfdlock);
       nxsem_destroy(&priv->senddisablelock);
+      nxsem_destroy(&priv->select_inst.stat_lock);
 
       altmdm_fin();
       pthread_join(priv->recvthread, NULL);
@@ -1124,6 +1189,14 @@ static int alt1250_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           FAR struct alt_evtbuffer_s *buff =
             (FAR struct alt_evtbuffer_s *)arg;
           add_evtbuff(priv, buff);
+        }
+        break;
+
+      case ALT1250_IOC_EXCHGCONTAINER:
+        {
+          FAR alt_container_t **container = (FAR alt_container_t **)arg;
+
+          ret = exchange_selectcontainer(priv, container);
         }
         break;
 
