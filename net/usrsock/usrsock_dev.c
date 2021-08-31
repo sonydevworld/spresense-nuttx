@@ -119,9 +119,6 @@ static int usrsockdev_close(FAR struct file *filep);
 static int usrsockdev_poll(FAR struct file *filep, FAR struct pollfd *fds,
                            bool setup);
 
-static int usrsockdev_ioctl(FAR struct file *filep, int cmd,
-                            unsigned long arg);
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -133,7 +130,7 @@ static const struct file_operations g_usrsockdevops =
   usrsockdev_read,    /* read */
   usrsockdev_write,   /* write */
   usrsockdev_seek,    /* seek */
-  usrsockdev_ioctl,   /* ioctl */
+  NULL,               /* ioctl */
   usrsockdev_poll     /* poll */
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   , NULL              /* unlink */
@@ -342,88 +339,6 @@ static void usrsockdev_pollnotify(FAR struct usrsockdev_s *dev,
             }
         }
     }
-}
-
-/****************************************************************************
- * Name: usrsockdev_abort_allsocket
- ****************************************************************************/
-
-static int usrsockdev_abort_allsocket(FAR struct usrsockdev_s *dev,
-                                      bool decrement)
-{
-  int ret = OK;
-  FAR struct usrsock_conn_s *conn;
-
-  /* Set active usrsock sockets to aborted state. */
-
-  conn = usrsock_nextconn(NULL);
-  while (conn)
-    {
-      net_lock();
-
-      conn->resp.inprogress = false;
-      conn->resp.xid = 0;
-      usrsock_event(conn, USRSOCK_EVENT_ABORT);
-
-      net_unlock();
-
-      conn = usrsock_nextconn(conn);
-    }
-
-  net_lock();
-
-  if (decrement)
-    {
-      /* Decrement the references to the driver. */
-
-      dev->ocount--;
-      DEBUGASSERT(dev->ocount == 0);
-    }
-
-  ret = OK;
-
-  do
-    {
-      /* Give other threads short time window to complete recently completed
-       * requests.
-       */
-
-      ret = net_timedwait(&dev->req.sem, 10);
-      if (ret < 0)
-        {
-          if (ret != -ETIMEDOUT && ret != -EINTR)
-            {
-              ninfo("net_timedwait errno: %d\n", ret);
-              DEBUGASSERT(false);
-            }
-        }
-      else
-        {
-          usrsockdev_semgive(&dev->req.sem);
-        }
-
-      /* Wake-up pending requests. */
-
-      if (dev->req.nbusy == 0)
-        {
-          break;
-        }
-
-      dev->req.iov = NULL;
-      nxsem_post(&dev->req.acksem);
-    }
-  while (true);
-
-  net_unlock();
-
-  /* Check if request line is active */
-
-  if (dev->req.iov != NULL)
-    {
-      dev->req.iov = NULL;
-    }
-
-  return ret;
 }
 
 /****************************************************************************
@@ -1070,6 +985,7 @@ static int usrsockdev_close(FAR struct file *filep)
 {
   FAR struct inode *inode = filep->f_inode;
   FAR struct usrsockdev_s *dev;
+  FAR struct usrsock_conn_s *conn;
   int ret;
 
   DEBUGASSERT(inode);
@@ -1086,7 +1002,70 @@ static int usrsockdev_close(FAR struct file *filep)
 
   ninfo("closing /dev/usrsock\n");
 
-  ret = usrsockdev_abort_allsocket(dev, true);
+  /* Set active usrsock sockets to aborted state. */
+
+  conn = usrsock_nextconn(NULL);
+  while (conn)
+    {
+      net_lock();
+
+      conn->resp.inprogress = false;
+      conn->resp.xid = 0;
+      usrsock_event(conn, USRSOCK_EVENT_ABORT);
+
+      net_unlock();
+
+      conn = usrsock_nextconn(conn);
+    }
+
+  net_lock();
+
+  /* Decrement the references to the driver. */
+
+  dev->ocount--;
+  DEBUGASSERT(dev->ocount == 0);
+  ret = OK;
+
+  do
+    {
+      /* Give other threads short time window to complete recently completed
+       * requests.
+       */
+
+      ret = net_timedwait(&dev->req.sem, 10);
+      if (ret < 0)
+        {
+          if (ret != -ETIMEDOUT && ret != -EINTR)
+            {
+              ninfo("net_timedwait errno: %d\n", ret);
+              DEBUGASSERT(false);
+            }
+        }
+      else
+        {
+          usrsockdev_semgive(&dev->req.sem);
+        }
+
+      /* Wake-up pending requests. */
+
+      if (dev->req.nbusy == 0)
+        {
+          break;
+        }
+
+      dev->req.iov = NULL;
+      nxsem_post(&dev->req.acksem);
+    }
+  while (true);
+
+  net_unlock();
+
+  /* Check if request line is active */
+
+  if (dev->req.iov != NULL)
+    {
+      dev->req.iov = NULL;
+    }
 
   usrsockdev_semgive(&dev->devsem);
 
@@ -1194,51 +1173,6 @@ static int usrsockdev_poll(FAR struct file *filep, FAR struct pollfd *fds,
 errout:
   net_unlock();
   usrsockdev_semgive(&dev->devsem);
-  return ret;
-}
-
-/****************************************************************************
- * Name: usrsockdev_poll
- ****************************************************************************/
-
-static int usrsockdev_ioctl(FAR struct file *filep, int cmd,
-                            unsigned long arg)
-{
-  FAR struct inode *inode = filep->f_inode;
-  FAR struct usrsockdev_s *dev;
-  int ret = OK;
-
-  DEBUGASSERT(inode);
-
-  dev = inode->i_private;
-
-  DEBUGASSERT(dev);
-
-  ret = usrsockdev_semtake(&dev->devsem);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  switch (cmd)
-    {
-    /* Sets the active connection to the abort state,
-     * and wake-up the pending requests.
-     */
-
-    case USRSOCK_IOC_REFLESH:
-      {
-        ret = usrsockdev_abort_allsocket(dev, false);
-      }
-      break;
-
-    default:
-      ret = -ENOTTY;
-      break;
-    }
-
-  usrsockdev_semgive(&dev->devsem);
-
   return ret;
 }
 
