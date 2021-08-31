@@ -1198,7 +1198,7 @@ errout:
 }
 
 /****************************************************************************
- * Name: usrsockdev_ioctl
+ * Name: usrsockdev_poll
  ****************************************************************************/
 
 static int usrsockdev_ioctl(FAR struct file *filep, int cmd,
@@ -1226,7 +1226,7 @@ static int usrsockdev_ioctl(FAR struct file *filep, int cmd,
      * and wake-up the pending requests.
      */
 
-    case USRSOCK_IOC_REFRESH:
+    case USRSOCK_IOC_REFLESH:
       {
         ret = usrsockdev_abort_allsocket(dev, false);
       }

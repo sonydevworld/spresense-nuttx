@@ -81,7 +81,7 @@
  * and wake-up the pending requests.
  */
 
-#define USRSOCK_IOC_REFRESH _SIOC(0x0001)
+#define USRSOCK_IOC_REFLESH _SIOC(0x0001)
 
 /****************************************************************************
  * Public Types
