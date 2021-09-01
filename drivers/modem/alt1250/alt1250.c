@@ -479,8 +479,6 @@ static FAR alt_evtbuf_inst_t *get_evtbuffinst(
   return ret;
 }
 
-
-
 /****************************************************************************
  * Name: get_evtbuffidx
  ****************************************************************************/
@@ -1046,6 +1044,9 @@ static int alt1250_open(FAR struct file *filep)
       nxsem_init(&dev->pfdlock, 0, 1);
       nxsem_init(&dev->senddisablelock, 0, 1);
       nxsem_init(&dev->select_inst.stat_lock, 0, 1);
+
+      sq_init(&dev->waitlist.queue);
+      sq_init(&dev->replylist.queue);
 
       dev->senddisable = true;
 
