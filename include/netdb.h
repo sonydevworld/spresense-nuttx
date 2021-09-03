@@ -1,37 +1,20 @@
 /****************************************************************************
  * include/netdb.h
  *
- *   Copyright (C) 2015, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Reference: http://pubs.opengroup.org/onlinepubs/009695399/basedefs/netdb.h.html
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -173,6 +156,35 @@
 #define NO_RECOVERY    3
 #define TRY_AGAIN      4
 
+/* NI_MAXHOST is the max of
+ *
+ *    CONFIG_NETDB_DNSCLIENT_NAMESIZE + 1
+ *    INET6_ADDRSTRLEN
+ *    INET_ADDRSTRLEN
+ *
+ * Note: INETxxx_ADDRSTRLEN already includes the terminating NUL.
+ * Note: INET6_ADDRSTRLEN > INET_ADDRSTRLEN is assumed.
+ */
+
+#if defined(CONFIG_NET_IPv6)
+#define _INET_ADDRSTRLEN INET6_ADDRSTRLEN
+#else
+#define _INET_ADDRSTRLEN INET_ADDRSTRLEN
+#endif
+
+#if defined(CONFIG_NETDB_DNSCLIENT) && \
+    (CONFIG_NETDB_DNSCLIENT_NAMESIZE + 1) > _INET_ADDRSTRLEN
+#define NI_MAXHOST (CONFIG_NETDB_DNSCLIENT_NAMESIZE + 1)
+#else
+#define NI_MAXHOST _INET_ADDRSTRLEN
+#endif
+
+/* Right now, g_services_db[] only has "ntp".
+ * 16 should be large enough.
+ */
+
+#define NI_MAXSERV 16
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -180,8 +192,9 @@
 struct hostent
 {
   FAR char  *h_name;       /* Official name of the host. */
-  FAR char **h_aliases;    /* A pointer to an array of pointers to alternative
-                            * host names, terminated by a null pointer. */
+  FAR char **h_aliases;    /* A pointer to an array of pointers to the
+                            * alternative host names, terminated by a
+                            * null pointer. */
   int        h_addrtype;   /* Address type. */
   int        h_length;     /* The length, in bytes, of the address. */
   FAR char **h_addr_list;  /* A pointer to an array of pointers to network
@@ -193,10 +206,11 @@ struct hostent
 
 struct netent
 {
-  FAR char  *n_name;       /* Official, fully-qualified (including the domain)
+  FAR char  *n_name;       /* Official, fully-qualified(including the domain)
                             * name of the host. */
-  FAR char **n_aliases;    /* A pointer to an array of pointers to alternative
-                            * network names, terminated by a null pointer. */
+  FAR char **n_aliases;    /* A pointer to an array of pointers to the
+                            * alternative network names, terminated by a
+                            * null pointer. */
   int        n_addrtype;   /* The address type of the network. */
   uint32_t   n_net;        /* The network number, in host byte order. */
 };
@@ -285,6 +299,7 @@ int                  getnameinfo(FAR const struct sockaddr *sa,
 FAR struct hostent  *gethostbyaddr(FAR const void *addr, socklen_t len,
                                    int type);
 FAR struct hostent  *gethostbyname(FAR const char *name);
+FAR struct hostent  *gethostbyname2(FAR const char *name, int type);
 FAR struct servent  *getservbyport(int port, FAR const char *proto);
 FAR struct servent  *getservbyname(FAR const char *name,
                                    FAR const char *proto);
@@ -304,15 +319,20 @@ void                 setprotoent(int stayopen);
 void                 setservent(int);
 #endif /* None of these are yet supported */
 
-/* Standard Glibc 2 interfaces */
+/* Non-standard interfaces similar to Glibc 2 interfaces */
 
 int gethostbyaddr_r(FAR const void *addr, socklen_t len, int type,
                     FAR struct hostent *host, FAR char *buf,
                     size_t buflen, FAR struct hostent **result,
-                    int *h_errnop);
-int gethostbyname_r(FAR const char *name, FAR struct hostent *host,
-                    FAR char *buf, size_t buflen,
-                    FAR struct hostent **result, int *h_errnop);
+                    FAR int *h_errnop);
+int gethostbyname_r(FAR const char *name,
+                    FAR struct hostent *host, FAR char *buf,
+                    size_t buflen, FAR struct hostent **result,
+                    FAR int *h_errnop);
+int gethostbyname2_r(FAR const char *name, int type,
+                     FAR struct hostent *host, FAR char *buf,
+                     size_t buflen, FAR struct hostent **result,
+                     FAR int *h_errnop);
 int getservbyport_r(int port, FAR const char *proto,
                     FAR struct servent *result_buf, FAR char *buf,
                     size_t buflen, FAR struct servent **result);

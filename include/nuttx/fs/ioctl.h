@@ -1,36 +1,20 @@
 /****************************************************************************
  * include/nuttx/fs/ioctl.h
  *
- *   Copyright (C) 2008, 2009, 2011-2014, 2017-2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -72,7 +56,7 @@
 #define _AUDIOIOCBASE   (0x1000) /* Audio ioctl commands */
 #define _LCDIOCBASE     (0x1100) /* LCD character driver ioctl commands */
 #define _SLCDIOCBASE    (0x1200) /* Segment LCD ioctl commands */
-#define _WLIOCBASE      (0x1300) /* Wireless modules ioctl network commands */
+                                 /* 0x1300: Not used */
 #define _WLCIOCBASE     (0x1400) /* Wireless modules ioctl character driver commands */
 #define _CFGDIOCBASE    (0x1500) /* Config Data device (app config) ioctl commands */
 #define _TCIOCBASE      (0x1600) /* Timer ioctl commands */
@@ -97,6 +81,13 @@
 #define _NXTERMBASE     (0x2900) /* NxTerm character driver ioctl commands */
 #define _RFIOCBASE      (0x2a00) /* RF devices ioctl commands */
 #define _RPTUNBASE      (0x2b00) /* Remote processor tunnel ioctl commands */
+#define _NOTECTLBASE    (0x2c00) /* Note filter control ioctl commands*/
+#define _NOTERAMBASE    (0x2d00) /* Noteram device ioctl commands*/
+#define _RCIOCBASE      (0x2e00) /* Remote Control device ioctl commands */
+#define _HIMEMBASE      (0x2f00) /* Himem device ioctl commands*/
+#define _EFUSEBASE      (0x3000) /* Efuse device ioctl commands*/
+#define _MTRIOBASE      (0x3100) /* Motor device ioctl commands*/
+#define _WLIOCBASE      (0x8b00) /* Wireless modules ioctl network commands */
 
 /* boardctl() commands share the same number space */
 
@@ -119,6 +110,10 @@
 #define _TIOC(nr)       _IOC(_TIOCBASE,nr)
 
 /* Terminal I/O IOCTL definitions are retained in tioctl.h */
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
 
 #include <nuttx/serial/tioctl.h>
 
@@ -170,6 +165,20 @@
                                            *      holding userfs configuration.
                                            * OUT: Instance number is returned on
                                            *      success.
+                                           */
+#define FIONBIO         _FIOC(0x000b)     /* IN:  Boolean option takes an
+                                           *      int value.
+                                           * OUT: Origin option.
+                                           */
+#define FIOC_MINOR      _FIOC(0x000c)     /* IN:  None
+                                           * OUT: Integer that contains device
+                                           *      minor number
+                                           */
+#define FIOCLEX         _FIOC(0x000d)     /* IN:  None
+                                           * OUT: None
+                                           */
+#define FIONCLEX        _FIOC(0x000e)     /* IN:  None
+                                           * OUT: None
                                            */
 
 /* NuttX file system ioctl definitions **************************************/
@@ -293,7 +302,7 @@
 #define _SNIOCVALID(c)    (_IOC_TYPE(c)==_SNIOCBASE)
 #define _SNIOC(nr)        _IOC(_SNIOCBASE,nr)
 
-/* Nuttx Analog (DAC/ADC) ioctl commands (see nuttx/analog/ioctl.h **********/
+/* NuttX Analog (DAC/ADC) ioctl commands (see nuttx/analog/ioctl.h **********/
 
 #define _ANIOCVALID(c)    (_IOC_TYPE(c)==_ANIOCBASE)
 #define _ANIOC(nr)        _IOC(_ANIOCBASE,nr)
@@ -304,12 +313,13 @@
 #define _PWMIOC(nr)       _IOC(_PWMIOCBASE,nr)
 
 /* NuttX USB CDC/ACM serial driver ioctl definitions ************************/
+
 /* (see nuttx/usb/cdcacm.h) */
 
 #define _CAIOCVALID(c)    (_IOC_TYPE(c)==_CAIOCBASE)
 #define _CAIOC(nr)        _IOC(_CAIOCBASE,nr)
 
-/* NuttX USB CDC/ACM serial driver ioctl definitions ************************/
+/* NuttX battery driver ioctl definitions ***********************************/
 
 /* (see nuttx/power/battery.h) */
 
@@ -317,6 +327,7 @@
 #define _BATIOC(nr)       _IOC(_BATIOCBASE,nr)
 
 /* NuttX Quadrature Encoder driver ioctl definitions ************************/
+
 /* (see nuttx/power/battery.h) */
 
 #define _QEIOCVALID(c)    (_IOC_TYPE(c)==_QEIOCBASE)
@@ -343,14 +354,8 @@
 #define _SLCDIOCVALID(c)  (_IOC_TYPE(c)==_SLCDIOCBASE)
 #define _SLCDIOC(nr)      _IOC(_SLCDIOCBASE,nr)
 
-/* Wireless driver networki ioctl definitions *******************************/
-
-/* (see nuttx/include/wireless/wireless.h */
-
-#define _WLIOCVALID(c)    (_IOC_TYPE(c)==_WLIOCBASE)
-#define _WLIOC(nr)        _IOC(_WLIOCBASE,nr)
-
 /* Wireless driver character driver ioctl definitions ***********************/
+
 /* (see nuttx/include/wireless/ioctl.h */
 
 #define _WLCIOCVALID(c)   (_IOC_TYPE(c)==_WLCIOCBASE)
@@ -370,11 +375,11 @@
 #define _TCIOCVALID(c)    (_IOC_TYPE(c)==_TCIOCBASE)
 #define _TCIOC(nr)        _IOC(_TCIOCBASE,nr)
 
-/* Joystick driver ioctl definitions ***************************************/
+/* Joystick driver ioctl definitions ****************************************/
 
 /* Discrete Joystick (see nuttx/include/input/djoystick.h */
 
-#define _JOYIOCVALID(c)   (_IOC_SMASK(c)==_JOYBASE)
+#define _JOYIOCVALID(c)   (_IOC_TYPE(c)==_JOYBASE)
 #define _JOYIOC(nr)       _IOC(_JOYBASE,nr)
 
 /* FIFOs and pipe driver ioctl definitions **********************************/
@@ -511,6 +516,43 @@
 
 #define _RPTUNIOCVALID(c)   (_IOC_TYPE(c)==_RPTUNBASE)
 #define _RPTUNIOC(nr)       _IOC(_RPTUNBASE,nr)
+
+/* Notectl drivers **********************************************************/
+
+#define _NOTECTLIOCVALID(c) (_IOC_TYPE(c) == _NOTECTLBASE)
+#define _NOTECTLIOC(nr)     _IOC(_NOTECTLBASE, nr)
+
+/* Noteram drivers **********************************************************/
+
+#define _NOTERAMIOCVALID(c) (_IOC_TYPE(c) == _NOTERAMBASE)
+#define _NOTERAMIOC(nr)     _IOC(_NOTERAMBASE, nr)
+
+/* Remote Control drivers ***************************************************/
+
+#define _RCIOCVALID(c)    (_IOC_TYPE(c)==_RCIOCBASE)
+#define _RCIOC(nr)        _IOC(_RCIOCBASE,nr)
+
+/* Hime drivers *************************************************************/
+
+#define _HIMEMIOCVALID(c)   (_IOC_TYPE(c) == _HIMEMBASE)
+#define _HIMEMIOC(nr)       _IOC(_HIMEMBASE, nr)
+
+/* Efuse drivers ************************************************************/
+
+#define _EFUSEIOCVALID(c)   (_IOC_TYPE(c) == _EFUSEBASE)
+#define _EFUSEIOC(nr)       _IOC(_EFUSEBASE, nr)
+
+/* Motor drivers ************************************************************/
+
+#define _MTRIOCVALID(c)     (_IOC_TYPE(c) == _MTRIOBASE)
+#define _MTRIOC(nr)         _IOC(_MTRIOBASE, nr)
+
+/* Wireless driver network ioctl definitions ********************************/
+
+/* (see nuttx/include/wireless/wireless.h */
+
+#define _WLIOCVALID(c)    (_IOC_TYPE(c)==_WLIOCBASE)
+#define _WLIOC(nr)        _IOC(_WLIOCBASE,nr)
 
 /* boardctl() command definitions *******************************************/
 

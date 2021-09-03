@@ -1,37 +1,22 @@
 /****************************************************************************
  * arch/renesas/src/rx65n/rx65n_vector_table.c
  *
- *   Copyright (C) 2008-2019 Gregory Nutt. All rights reserved.
- *   Author: Anjana <anjana@tataelxsi.co.in>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ***************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Included Files
@@ -107,7 +92,7 @@ const unsigned long __ofs1reg OFS_REG = 0xffffffff; /* OFS1 register */
 
 void r_undefined_exception(void)
 {
-#ifdef  __USE_DEBUG_NOP_FOR_BREAKPOINTS
+#ifdef __USE_DEBUG_NOP_FOR_BREAKPOINTS
   __asm("nop");
 #endif
 }
@@ -121,7 +106,7 @@ void r_undefined_exception(void)
 
 void r_reserved_exception(void)
 {
-#ifdef  __USE_DEBUG_NOP_FOR_BREAKPOINTS
+#ifdef __USE_DEBUG_NOP_FOR_BREAKPOINTS
   __asm("nop");
 #endif
 }
@@ -135,7 +120,7 @@ void r_reserved_exception(void)
 
 void r_nmi_exception(void)
 {
-#ifdef  __USE_DEBUG_NOP_FOR_BREAKPOINTS
+#ifdef __USE_DEBUG_NOP_FOR_BREAKPOINTS
   __asm("nop");
 #endif
 }
@@ -149,7 +134,7 @@ void r_nmi_exception(void)
 
 void r_brk_exception(void)
 {
-#ifdef  __USE_DEBUG_NOP_FOR_BREAKPOINTS
+#ifdef __USE_DEBUG_NOP_FOR_BREAKPOINTS
   __asm("nop");
 #endif
 }
@@ -163,7 +148,7 @@ void r_brk_exception(void)
 
 void r_privileged_exception(void)
 {
-#ifdef  __USE_DEBUG_NOP_FOR_BREAKPOINTS
+#ifdef __USE_DEBUG_NOP_FOR_BREAKPOINTS
   __asm("nop");
 #endif
 }
@@ -177,10 +162,11 @@ void r_privileged_exception(void)
 
 void r_access_exception(void)
 {
-#ifdef  __USE_DEBUG_NOP_FOR_BREAKPOINTS
+#ifdef __USE_DEBUG_NOP_FOR_BREAKPOINTS
   __asm("nop");
 #endif
 }
+
 /****************************************************************************
  * Name: r_floatingpoint_exception
  *
@@ -190,7 +176,7 @@ void r_access_exception(void)
 
 void r_floatingpoint_exception(void)
 {
-#ifdef  __USE_DEBUG_NOP_FOR_BREAKPOINTS
+#ifdef __USE_DEBUG_NOP_FOR_BREAKPOINTS
   __asm("nop");
 #endif
 }
@@ -224,7 +210,7 @@ const void *except_vectors[] EXVECT_SECT  =
     r_reserved_exception,      /* 0xffffffd8  Reserved  */
     r_undefined_exception,     /* 0xffffffdc  Exception */
     r_reserved_exception,      /* 0xffffffe0  Reserved  */
-    r_floatingpoint_exception,    /* 0xffffffe4  Exception */
+    r_floatingpoint_exception, /* 0xffffffe4  Exception */
     r_undefined_exception,     /* 0xffffffe8  Reserved  */
     r_undefined_exception,     /* 0xffffffec  Reserved  */
     r_undefined_exception,     /* 0xfffffff0  Reserved  */

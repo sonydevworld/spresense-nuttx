@@ -1,36 +1,20 @@
 /****************************************************************************
  * drivers/syslog/syslog_rpmsg.c
- * Syslog driver for rpmsg syslog
  *
- *   Copyright (C) 2017 Pinecone Inc. All rights reserved.
- *   Author: Guiding Li<liguiding@pinecone.net>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -44,12 +28,12 @@
 #include <errno.h>
 #include <string.h>
 
-#include <nuttx/arch.h>
 #include <nuttx/irq.h>
 #include <nuttx/rptun/openamp.h>
 #include <nuttx/syslog/syslog.h>
 #include <nuttx/syslog/syslog_rpmsg.h>
 #include <nuttx/wqueue.h>
+#include <nuttx/compiler.h>
 
 #include "syslog.h"
 #include "syslog_rpmsg.h"
@@ -89,10 +73,8 @@ struct syslog_rpmsg_s
  ****************************************************************************/
 
 static void syslog_rpmsg_work(FAR void *priv_);
-static void syslog_rpmsg_putc(FAR struct syslog_rpmsg_s *priv, int ch,
-                              bool last);
-static int  syslog_rpmsg_flush(void);
-static ssize_t syslog_rpmsg_write(FAR const char *buffer, size_t buflen);
+static void syslog_rpmsg_putchar(FAR struct syslog_rpmsg_s *priv, int ch,
+                                 bool last);
 static void syslog_rpmsg_device_created(FAR struct rpmsg_device *rdev,
                                         FAR void *priv_);
 static void syslog_rpmsg_device_destroy(FAR struct rpmsg_device *rdev,
@@ -106,14 +88,6 @@ static int  syslog_rpmsg_ept_cb(FAR struct rpmsg_endpoint *ept,
  ****************************************************************************/
 
 static struct syslog_rpmsg_s g_syslog_rpmsg;
-
-static const struct syslog_channel_s g_syslog_rpmsg_channel =
-{
-  up_putc,
-  up_putc,
-  syslog_rpmsg_flush,
-  syslog_rpmsg_write,
-};
 
 /****************************************************************************
  * Private Functions
@@ -178,15 +152,16 @@ static void syslog_rpmsg_work(FAR void *priv_)
   rpmsg_send_nocopy(&priv->ept, msg, sizeof(*msg) + len);
 }
 
-static void syslog_rpmsg_putc(FAR struct syslog_rpmsg_s *priv, int ch,
-                              bool last)
+static void syslog_rpmsg_putchar(FAR struct syslog_rpmsg_s *priv, int ch,
+                                 bool last)
 {
   if (B2C_REM(priv->head) == 0)
     {
       priv->buffer[B2C_OFF(priv->head)] = 0;
     }
 
-  priv->buffer[B2C_OFF(priv->head)] |= (ch & 0xff) << (8 * B2C_REM(priv->head));
+  priv->buffer[B2C_OFF(priv->head)] |= (ch & 0xff) <<
+                                       (8 * B2C_REM(priv->head));
 
   priv->head += 1;
   if (priv->head >= C2B(priv->size))
@@ -212,7 +187,8 @@ static void syslog_rpmsg_putc(FAR struct syslog_rpmsg_s *priv, int ch,
         }
     }
 
-  if (last && !priv->suspend && !priv->transfer)
+  if (last && !priv->suspend && !priv->transfer &&
+          is_rpmsg_ept_ready(&priv->ept))
     {
       clock_t delay = SYSLOG_RPMSG_WORK_DELAY;
       size_t space = SYSLOG_RPMSG_SPACE(priv->head, priv->tail, priv->size);
@@ -226,31 +202,6 @@ static void syslog_rpmsg_putc(FAR struct syslog_rpmsg_s *priv, int ch,
 
       work_queue(HPWORK, &priv->work, syslog_rpmsg_work, priv, delay);
     }
-}
-
-static int syslog_rpmsg_flush(void)
-{
-  FAR struct syslog_rpmsg_s *priv = &g_syslog_rpmsg;
-
-  work_queue(HPWORK, &priv->work, syslog_rpmsg_work, priv, 0);
-  return OK;
-}
-
-static ssize_t syslog_rpmsg_write(FAR const char *buffer, size_t buflen)
-{
-  FAR struct syslog_rpmsg_s *priv = &g_syslog_rpmsg;
-  irqstate_t flags;
-  size_t nwritten;
-
-  flags = enter_critical_section();
-  for (nwritten = 1; nwritten <= buflen; nwritten++)
-    {
-      syslog_rpmsg_putc(priv, *buffer++, nwritten == buflen);
-    }
-
-  leave_critical_section(flags);
-
-  return buflen;
 }
 
 static void syslog_rpmsg_device_created(FAR struct rpmsg_device *rdev,
@@ -285,8 +236,9 @@ static void syslog_rpmsg_device_destroy(FAR struct rpmsg_device *rdev,
     }
 }
 
-static int syslog_rpmsg_ept_cb(FAR struct rpmsg_endpoint *ept, FAR void *data,
-                               size_t len, uint32_t src, FAR void *priv_)
+static int syslog_rpmsg_ept_cb(FAR struct rpmsg_endpoint *ept,
+                               FAR void *data, size_t len, uint32_t src,
+                               FAR void *priv_)
 {
   FAR struct syslog_rpmsg_s *priv = priv_;
   FAR struct syslog_rpmsg_header_s *header = data;
@@ -347,20 +299,52 @@ static int syslog_rpmsg_ept_cb(FAR struct rpmsg_endpoint *ept, FAR void *data,
  * Public Functions
  ****************************************************************************/
 
-int up_putc(int ch)
+int syslog_rpmsg_putc(FAR struct syslog_channel_s *channel, int ch)
 {
   FAR struct syslog_rpmsg_s *priv = &g_syslog_rpmsg;
   irqstate_t flags;
 
+  UNUSED(channel);
+
   flags = enter_critical_section();
-  syslog_rpmsg_putc(priv, ch, true);
+  syslog_rpmsg_putchar(priv, ch, true);
   leave_critical_section(flags);
 
   return ch;
 }
 
-int syslog_rpmsg_init_early(FAR const char *cpuname, FAR void *buffer,
-                            size_t size)
+int syslog_rpmsg_flush(FAR struct syslog_channel_s *channel)
+{
+  UNUSED(channel);
+
+  FAR struct syslog_rpmsg_s *priv = &g_syslog_rpmsg;
+
+  work_queue(HPWORK, &priv->work, syslog_rpmsg_work, priv, 0);
+  return OK;
+}
+
+ssize_t syslog_rpmsg_write(FAR struct syslog_channel_s *channel,
+                           FAR const char *buffer, size_t buflen)
+{
+  FAR struct syslog_rpmsg_s *priv = &g_syslog_rpmsg;
+  irqstate_t flags;
+  size_t nwritten;
+
+  UNUSED(channel);
+
+  flags = enter_critical_section();
+  for (nwritten = 1; nwritten <= buflen; nwritten++)
+    {
+      syslog_rpmsg_putchar(priv, *buffer++, nwritten == buflen);
+    }
+
+  leave_critical_section(flags);
+
+  return buflen;
+}
+
+void syslog_rpmsg_init_early(FAR const char *cpuname, FAR void *buffer,
+                             size_t size)
 {
   FAR struct syslog_rpmsg_s *priv = &g_syslog_rpmsg;
   char prev, cur;
@@ -404,8 +388,6 @@ out:
       priv->head = priv->tail = 0;
       memset(priv->buffer, 0, size);
     }
-
-  return syslog_channel(&g_syslog_rpmsg_channel);
 }
 
 int syslog_rpmsg_init(void)

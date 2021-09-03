@@ -1,35 +1,20 @@
 /****************************************************************************
- * include/nuttx/qspi/qspi.h
+ * include/nuttx/spi/qspi.h
  *
- *   Copyright(C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES(INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -49,18 +34,19 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Access macros ************************************************************/
 
 /****************************************************************************
  * Name: QSPI_LOCK
  *
  * Description:
- *   On QSPI busses where there are multiple devices, it will be necessary to
- *   lock QSPI to have exclusive access to the busses for a sequence of
+ *   On QSPI buses where there are multiple devices, it will be necessary to
+ *   lock QSPI to have exclusive access to the buses for a sequence of
  *   transfers.  The bus should be locked before the chip is selected. After
  *   locking the QSPI bus, the caller should then also call the setfrequency,
  *   setbits, and setmode methods to make sure that the QSPI is properly
- *   configured for the device.  If the QSPI buss is being shared, then it
+ *   configured for the device.  If the QSPI bus is being shared, then it
  *   may have been left in an incompatible state.
  *
  * Input Parameters:
@@ -149,11 +135,15 @@
 #define QSPICMD_ADDRESS       (1 << 0)  /* Bit 0: Enable address transfer */
 #define QSPICMD_READDATA      (1 << 1)  /* Bit 1: Enable read data transfer */
 #define QSPICMD_WRITEDATA     (1 << 2)  /* Bit 2: Enable write data transfer */
+#define QSPICMD_IDUAL         (1 << 3)  /* Bit 3: Instruction on two lines */
+#define QSPICMD_IQUAD         (1 << 4)  /* Bit 4: Instruction on four lines */
 
 #define QSPICMD_ISADDRESS(f)  (((f) & QSPICMD_ADDRESS) != 0)
 #define QSPICMD_ISDATA(f)     (((f) & (QSPICMD_READDATA | QSPICMD_WRITEDATA)) != 0)
 #define QSPICMD_ISREAD(f)     (((f) & QSPICMD_READDATA) != 0)
 #define QSPICMD_ISWRITE(f)    (((f) & QSPICMD_WRITEDATA) != 0)
+#define QSPICMD_ISIDUAL(f)    (((f) & QSPICMD_IDUAL) != 0)
+#define QSPICMD_ISIQUAD(f)    (((f) & QSPICMD_IQUAD) != 0)
 
 /****************************************************************************
  * Name: QSPI_MEMORY
@@ -180,12 +170,16 @@
 #define QSPIMEM_QUADIO        (1 << 4)  /* Bit 4: Use Quad I/O (READ only) */
 #define QSPIMEM_SCRAMBLE      (1 << 5)  /* Bit 5: Scramble data */
 #define QSPIMEM_RANDOM        (1 << 6)  /* Bit 6: Use random key in scrambler */
+#define QSPIMEM_IDUAL         (1 << 7)  /* Bit 7: Instruction on two lines */
+#define QSPIMEM_IQUAD         (1 << 0)  /* Bit 0: Instruction on four lines */
 
 #define QSPIMEM_ISREAD(f)     (((f) & QSPIMEM_WRITE) == 0)
 #define QSPIMEM_ISWRITE(f)    (((f) & QSPIMEM_WRITE) != 0)
 #define QSPIMEM_ISDUALIO(f)   (((f) & QSPIMEM_DUALIO) != 0)
 #define QSPIMEM_ISQUADIO(f)   (((f) & QSPIMEM_QUADIO) != 0)
 #define QSPIMEM_ISSCRAMBLE(f) (((f) & QSPIMEM_SCRAMBLE) != 0)
+#define QSPIMEM_ISIDUAL(f)    (((f) & QSPIMEM_IDUAL) != 0)
+#define QSPIMEM_ISIQUAD(f)    (((f) & QSPIMEM_IQUAD) != 0)
 
 #define QSPIMEM_ISRANDOM(f) \
   (((f) & (QSPIMEM_SCRAMBLE|QSPIMEM_RANDOM)) == \
@@ -202,7 +196,7 @@
  *   buflen - Buffer length to allocate in bytes
  *
  * Returned Value:
- *   Address of tha allocated memory on success; NULL is returned on any
+ *   Address of the allocated memory on success; NULL is returned on any
  *   failure.
  *
  ****************************************************************************/
@@ -259,8 +253,8 @@ struct qspi_meminfo_s
   uint8_t   flags;       /* See QSPMEM_* definitions */
   uint8_t   addrlen;     /* Address length in bytes */
   uint8_t   dummies;     /* Number of dummy read cycles (READ only) */
-  uint16_t  buflen;      /* Data buffer length in bytes */
   uint16_t  cmd;         /* Memory access command */
+  uint32_t  buflen;      /* Data buffer length in bytes */
   uint32_t  addr;        /* Memory Address */
   uint32_t  key;         /* Scrambler key */
   FAR void *buffer;      /* Data buffer */
@@ -309,7 +303,7 @@ extern "C"
 #endif
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 #undef EXTERN

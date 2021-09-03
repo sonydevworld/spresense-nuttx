@@ -360,12 +360,16 @@ static void tcp_sendcommon(FAR struct net_driver_s *dev,
     {
       /* Update the TCP received window based on I/O buffer availability */
 
-      uint16_t recvwndo = tcp_get_recvwindow(dev);
+      uint16_t recvwndo = tcp_get_recvwindow(dev, conn);
 
       /* Set the TCP Window */
 
       tcp->wnd[0] = recvwndo >> 8;
       tcp->wnd[1] = recvwndo & 0xff;
+
+      /* Update the Receiver Window */
+
+      conn->rcv_wnd = recvwndo;
     }
 
   /* Finish the IP portion of the message and calculate checksums */
@@ -547,10 +551,14 @@ void tcp_reset(FAR struct net_driver_s *dev)
 }
 
 /****************************************************************************
- * Name: tcp_ack
+ * Name: tcp_synack
  *
  * Description:
- *   Send the SYN or SYNACK response.
+ *   Send the SYN, ACK, or SYNACK response.
+ *
+ *   - SYN and SYNACK are sent only from the TCP state machine.
+ *   - ACK may be sent alone only if delayed ACKs are enabled and the ACK
+ *     delay timeout occurs.
  *
  * Input Parameters:
  *   dev  - The device driver structure to use in the send operation
@@ -565,8 +573,8 @@ void tcp_reset(FAR struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-void tcp_ack(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
-             uint8_t ack)
+void tcp_synack(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
+                uint8_t ack)
 {
   struct tcp_hdr_s *tcp;
   uint16_t tcp_mss;
@@ -609,7 +617,7 @@ void tcp_ack(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 
   tcp->flags      = ack;
 
-  /* We send out the TCP Maximum Segment Size option with our ack. */
+  /* We send out the TCP Maximum Segment Size option with our ACK. */
 
   tcp->optdata[0] = TCP_OPT_MSS;
   tcp->optdata[1] = TCP_OPT_MSS_LEN;

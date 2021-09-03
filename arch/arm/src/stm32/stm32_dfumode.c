@@ -44,6 +44,8 @@
 #include <unistd.h>
 #include <debug.h>
 
+#include <nuttx/signal.h>
+
 #include "stm32_dfumode.h"
 
 /****************************************************************************
@@ -56,7 +58,8 @@
  * Description:
  *   Reboot the part in DFU mode (GCC only).
  *
- *   https://community.st.com/s/question/0D50X00009XkhAzSAJ/calling-stm32429ieval-bootloader
+ *   https://community.st.com/s/question/
+ *                 0D50X00009XkhAzSAJ/calling-stm32429ieval-bootloader
  *
  *  REVISIT:  STM32_SYSMEM_BASE is not 0x1fff000 for all STM32's.  For F3's
  *  The SYSMEM base is at 0x1fffd800
@@ -73,7 +76,7 @@ void stm32_dfumode(void)
 {
 #ifdef CONFIG_DEBUG_WARN
   _warn("Entering DFU mode...\n");
-  sleep(1);
+  nxsig_sleep(1);
 #endif
 
   asm("ldr r0, =0x40023844\n\t"    /* RCC_APB2ENR */

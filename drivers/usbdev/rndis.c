@@ -44,6 +44,7 @@
 
 #include <queue.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -96,12 +97,15 @@
 
 #define RNDIS_MXDESCLEN         (128)
 #define RNDIS_MAXSTRLEN         (RNDIS_MXDESCLEN-2)
-#define RNDIS_CTRLREQ_LEN       (512)
+#define RNDIS_CTRLREQ_LEN       (256)
+#define RNDIS_RESP_QUEUE_WORDS  (64)
 
 #define RNDIS_BUFFER_SIZE       CONFIG_NET_ETH_PKTSIZE
 #define RNDIS_BUFFER_COUNT      4
 
-/* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per second */
+/* TX poll delay = 1 seconds.
+ * CLK_TCK is the number of clock ticks per second
+ */
 
 #define RNDIS_WDDELAY           (1*CLK_TCK)
 
@@ -150,7 +154,7 @@ struct rndis_dev_s
   struct rndis_req_s wrreqs[CONFIG_RNDIS_NWRREQS];
 
   struct work_s rxwork;                  /* Worker for dispatching RX packets */
-  WDOG_ID txpoll;                        /* TX poll watchdog */
+  struct wdog_s txpoll;                  /* TX poll watchdog */
   struct work_s pollwork;                /* TX poll worker */
 
   bool registered;                       /* Has netdev_register() been called */
@@ -164,12 +168,14 @@ struct rndis_dev_s
   size_t current_rx_msglen;              /* Length of the entire message to be received */
   bool rdreq_submitted;                  /* Indicates if the read request is submitted */
   bool rx_blocked;                       /* Indicates if we can receive packets on bulk in endpoint */
-  bool ctrlreq_has_encap_response;       /* Indicates if ctrlreq buffer holds a response */
   bool connected;                        /* Connection status indicator */
   uint32_t rndis_packet_filter;          /* RNDIS packet filter value */
   uint32_t rndis_host_tx_count;          /* TX packet counter */
   uint32_t rndis_host_rx_count;          /* RX packet counter */
   uint8_t host_mac_address[6];           /* Host side MAC address */
+
+  size_t response_queue_words;           /* Count of words waiting in response_queue. */
+  uint32_t response_queue[RNDIS_RESP_QUEUE_WORDS];
 };
 
 /* The internal version of the class driver */
@@ -224,7 +230,7 @@ static int rndis_ifdown(FAR struct net_driver_s *dev);
 static int rndis_txavail(FAR struct net_driver_s *dev);
 static int rndis_transmit(FAR struct rndis_dev_s *priv);
 static int rndis_txpoll(FAR struct net_driver_s *dev);
-static void rndis_polltimer(int argc, uint32_t arg, ...);
+static void rndis_polltimer(wdparm_t arg);
 
 /* usbclass callbacks */
 
@@ -394,8 +400,8 @@ static uint8_t g_rndis_default_mac_addr[6] =
 };
 
 /* These lists give dummy responses to be returned to PC. The values are
- * chosen so that Windows is happy - other operating systems don't really care
- * much.
+ * chosen so that Windows is happy - other operating systems don't really
+ * care much.
  */
 
 static const uint32_t g_rndis_supported_oids[] =
@@ -474,8 +480,8 @@ static const struct rndis_oid_value_s g_rndis_oid_values[] =
  * When the reception of an Ethernet packet is complete, a worker to process
  * the packet is scheduled and bulk OUT endpoint is set to NAK.
  *
- * The processing worker passes the buffer to the network. When the network is
- * done processing the packet, the buffer might contain data to be sent.
+ * The processing worker passes the buffer to the network. When the network
+ * is done processing the packet, the buffer might contain data to be sent.
  * If so, the corresponding write request is queued on the bulk IN endpoint.
  * The NAK state on bulk OUT endpoint is cleared to allow new packets to
  * arrive. If there's no data to send, the request is returned to the list of
@@ -832,7 +838,8 @@ static uint16_t rndis_fillrequest(FAR struct rndis_dev_s *priv,
     {
       /* Send the required headers */
 
-      FAR struct rndis_packet_msg *msg = (FAR struct rndis_packet_msg *)req->buf;
+      FAR struct rndis_packet_msg *msg =
+        (FAR struct rndis_packet_msg *)req->buf;
       memset(msg, 0, RNDIS_PACKET_HDR_SIZE);
 
       msg->msgtype    = RNDIS_PACKET_MSG;
@@ -959,7 +966,8 @@ static void rndis_rxdispatch(FAR void *arg)
   else
 #endif
     {
-      uerr("ERROR: Unsupported packet type dropped (%02x)\n", htons(hdr->type));
+      uerr("ERROR: Unsupported packet type dropped (%02x)\n",
+           htons(hdr->type));
       NETDEV_RXDROPPED(&priv->netdev);
       priv->netdev.d_len = 0;
     }
@@ -1035,8 +1043,8 @@ static int rndis_txpoll(FAR struct net_driver_s *dev)
         }
     }
 
-  /* If zero is returned, the polling will continue until all connections have
-   * been examined.
+  /* If zero is returned, the polling will continue until all connections
+   * have been examined.
    */
 
   return ret;
@@ -1104,7 +1112,7 @@ static void rndis_pollworker(FAR void *arg)
  *
  ****************************************************************************/
 
-static void rndis_polltimer(int argc, uint32_t arg, ...)
+static void rndis_polltimer(wdparm_t arg)
 {
   FAR struct rndis_dev_s *priv = (FAR struct rndis_dev_s *)arg;
   int ret;
@@ -1119,8 +1127,8 @@ static void rndis_polltimer(int argc, uint32_t arg, ...)
 
   /* Setup the watchdog poll timer again */
 
-  wd_start(priv->txpoll, RNDIS_WDDELAY, rndis_polltimer, 1,
-           (wdparm_t)arg);
+  wd_start(&priv->txpoll, RNDIS_WDDELAY,
+           rndis_polltimer, (wdparm_t)arg);
 }
 
 /****************************************************************************
@@ -1135,8 +1143,8 @@ static int rndis_ifup(FAR struct net_driver_s *dev)
 {
   FAR struct rndis_dev_s *priv = (FAR struct rndis_dev_s *)dev->d_private;
 
-  wd_start(priv->txpoll, RNDIS_WDDELAY, rndis_polltimer,
-           1, (wdparm_t)priv);
+  wd_start(&priv->txpoll, RNDIS_WDDELAY,
+           rndis_polltimer, (wdparm_t)priv);
   return OK;
 }
 
@@ -1152,7 +1160,7 @@ static int rndis_ifdown(FAR struct net_driver_s *dev)
 {
   FAR struct rndis_dev_s *priv = (FAR struct rndis_dev_s *)dev->d_private;
 
-  wd_cancel(priv->txpoll);
+  wd_cancel(&priv->txpoll);
   return OK;
 }
 
@@ -1172,7 +1180,7 @@ static void rndis_txavail_work(FAR void *arg)
 
   if (rndis_allocnetreq(priv))
     {
-      devif_poll(&priv->netdev, rndis_txpoll);
+      devif_timer(&priv->netdev, 0, rndis_txpoll);
       if (priv->net_req != NULL)
         {
           rndis_freenetreq(priv);
@@ -1204,7 +1212,7 @@ static int rndis_txavail(FAR struct net_driver_s *dev)
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: rndis_recvpacket
  *
  * Description:
@@ -1213,7 +1221,7 @@ static int rndis_txavail(FAR struct net_driver_s *dev)
  * Assumptions:
  *   Called from the USB interrupt handler with interrupts disabled.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline int rndis_recvpacket(FAR struct rndis_dev_s *priv,
                                    FAR uint8_t *reqbuf, uint16_t reqlen)
@@ -1238,7 +1246,8 @@ static inline int rndis_recvpacket(FAR struct rndis_dev_s *priv,
         {
           /* The packet contains a RNDIS packet message header */
 
-          FAR struct rndis_packet_msg *msg = (FAR struct rndis_packet_msg *)reqbuf;
+          FAR struct rndis_packet_msg *msg =
+            (FAR struct rndis_packet_msg *)reqbuf;
           if (msg->msgtype == RNDIS_PACKET_MSG)
             {
               priv->current_rx_received = reqlen;
@@ -1247,16 +1256,17 @@ static inline int rndis_recvpacket(FAR struct rndis_dev_s *priv,
 
               /* According to RNDIS-over-USB send, if the message length is a
                * multiple of endpoint max packet size, the host must send an
-               * additional single-byte zero packet. Take that in account here.
+               * additional single-byte zero packet. Take that in account
+               * here.
                */
 
-              if ((priv->current_rx_msglen % priv->epbulkout->maxpacket) == 0)
+              if (!(priv->current_rx_msglen % priv->epbulkout->maxpacket))
                 {
                   priv->current_rx_msglen += 1;
                 }
 
-              /* Data offset is defined as an offset from the beginning of the
-               * offset field itself
+              /* Data offset is defined as an offset from the beginning of
+               * the offset field itself
                */
 
               priv->current_rx_datagram_offset = msg->dataoffset + 8;
@@ -1269,7 +1279,7 @@ static inline int rndis_recvpacket(FAR struct rndis_dev_s *priv,
             }
           else
             {
-              uerr("Unknown RNDIS message type %u\n", msg->msgtype);
+              uerr("Unknown RNDIS message type %" PRIu32 "\n", msg->msgtype);
             }
         }
     }
@@ -1279,19 +1289,22 @@ static inline int rndis_recvpacket(FAR struct rndis_dev_s *priv,
           priv->current_rx_received <= priv->current_rx_datagram_size +
           priv->current_rx_datagram_offset)
         {
-          size_t index = priv->current_rx_received - priv->current_rx_datagram_offset;
-          size_t copysize = min(reqlen, priv->current_rx_datagram_size - index);
+          size_t index = priv->current_rx_received -
+                         priv->current_rx_datagram_offset;
+          size_t copysize = min(reqlen,
+                                priv->current_rx_datagram_size - index);
 
           /* Check if the received packet exceeds request buffer */
 
           if ((index + copysize) <= CONFIG_NET_ETH_PKTSIZE)
             {
-              memcpy(&priv->rx_req->req->buf[RNDIS_PACKET_HDR_SIZE + index], reqbuf,
-                     copysize);
+              memcpy(&priv->rx_req->req->buf[RNDIS_PACKET_HDR_SIZE + index],
+                     reqbuf, copysize);
             }
           else
             {
-              uerr("The packet exceeds request buffer (reqlen=%d) \n", reqlen);
+              uerr("The packet exceeds request buffer (reqlen=%d) \n",
+                   reqlen);
             }
         }
       priv->current_rx_received += reqlen;
@@ -1337,25 +1350,36 @@ static inline int rndis_recvpacket(FAR struct rndis_dev_s *priv,
  * Input Parameters:
  *   priv: pointer to RNDIS device driver structure
  *
+ * Returns:
+ *   pointer to response buffer
+ *
  * Assumptions:
  *   Called from critical section
  *
  ****************************************************************************/
 
-static bool rndis_prepare_response(FAR struct rndis_dev_s *priv, size_t size,
-                                   FAR struct rndis_command_header *request_hdr)
+static FAR void *
+rndis_prepare_response(FAR struct rndis_dev_s *priv, size_t size,
+                       FAR struct rndis_command_header *request_hdr)
 {
+  size_t size_words = size / sizeof(uint32_t);
+  uint32_t *buf = priv->response_queue + priv->response_queue_words;
   FAR struct rndis_response_header *hdr =
-    (FAR struct rndis_response_header *)priv->ctrlreq->buf;
+    (FAR struct rndis_response_header *)buf;
+
+  if (priv->response_queue_words + size_words > RNDIS_RESP_QUEUE_WORDS)
+    {
+      uerr("RNDIS response queue full, dropping command %08x",
+           (unsigned int)request_hdr->msgtype);
+      return NULL;
+    }
 
   hdr->msgtype = request_hdr->msgtype | RNDIS_MSG_COMPLETE;
   hdr->msglen  = size;
   hdr->reqid   = request_hdr->reqid;
   hdr->status  = RNDIS_STATUS_SUCCESS;
 
-  priv->ctrlreq_has_encap_response = true;
-
-  return true;
+  return hdr;
 }
 
 /****************************************************************************
@@ -1373,10 +1397,23 @@ static bool rndis_prepare_response(FAR struct rndis_dev_s *priv, size_t size,
  *
  ****************************************************************************/
 
-static int rndis_send_encapsulated_response(FAR struct rndis_dev_s *priv)
+static int rndis_send_encapsulated_response(FAR struct rndis_dev_s *priv,
+                                            size_t size)
 {
+  size_t size_words = size / sizeof(uint32_t);
   FAR struct rndis_notification *notif =
     (FAR struct rndis_notification *)priv->epintin_req->buf;
+
+  /* RNDIS packets should always be multiple of 4 bytes in size */
+
+  DEBUGASSERT(size_words * sizeof(uint32_t) == size);
+
+  /* Mark the response as available in the queue */
+
+  priv->response_queue_words += size_words;
+  DEBUGASSERT(priv->response_queue_words <= RNDIS_RESP_QUEUE_WORDS);
+
+  /* Send notification on IRQ endpoint, to tell host to read the data. */
 
   notif->notification = RNDIS_NOTIFICATION_RESPONSE_AVAILABLE;
   notif->reserved = 0;
@@ -1403,7 +1440,8 @@ static int rndis_send_encapsulated_response(FAR struct rndis_dev_s *priv)
  ****************************************************************************/
 
 static int rndis_handle_control_message(FAR struct rndis_dev_s *priv,
-                                        FAR uint8_t *dataout, uint16_t outlen)
+                                        FAR uint8_t *dataout,
+                                        uint16_t outlen)
 {
   FAR struct rndis_command_header *cmd_hdr =
     (FAR struct rndis_command_header *)dataout;
@@ -1413,10 +1451,13 @@ static int rndis_handle_control_message(FAR struct rndis_dev_s *priv,
       case RNDIS_INITIALIZE_MSG:
         {
           FAR struct rndis_initialize_cmplt *resp;
+          size_t respsize = sizeof(struct rndis_initialize_cmplt);
 
-          rndis_prepare_response(priv, sizeof(struct rndis_initialize_cmplt),
-                                 cmd_hdr);
-          resp = (FAR struct rndis_initialize_cmplt *)priv->ctrlreq->buf;
+          resp = rndis_prepare_response(priv, respsize, cmd_hdr);
+          if (!resp)
+            {
+              return -ENOMEM;
+            }
 
           resp->major      = RNDIS_MAJOR_VERSION;
           resp->minor      = RNDIS_MINOR_VERSION;
@@ -1426,12 +1467,13 @@ static int rndis_handle_control_message(FAR struct rndis_dev_s *priv,
           resp->xfrsize    = (4 + 44 + 22) + RNDIS_BUFFER_SIZE;
           resp->pktalign   = 2;
 
-          rndis_send_encapsulated_response(priv);
+          rndis_send_encapsulated_response(priv, respsize);
         }
         break;
 
       case RNDIS_HALT_MSG:
         {
+          priv->response_queue_words = 0;
           priv->connected = false;
         }
         break;
@@ -1441,11 +1483,15 @@ static int rndis_handle_control_message(FAR struct rndis_dev_s *priv,
           int i;
           size_t max_reply_size = sizeof(struct rndis_query_cmplt) +
                                   sizeof(g_rndis_supported_oids);
-          rndis_prepare_response(priv, max_reply_size, cmd_hdr);
+          FAR struct rndis_query_cmplt *resp;
           FAR struct rndis_query_msg *req =
             (FAR struct rndis_query_msg *)dataout;
-          FAR struct rndis_query_cmplt *resp =
-            (FAR struct rndis_query_cmplt *)priv->ctrlreq->buf;
+
+          resp = rndis_prepare_response(priv, max_reply_size, cmd_hdr);
+          if (!resp)
+            {
+              return -ENOMEM;
+            }
 
           resp->hdr.msglen = sizeof(struct rndis_query_cmplt);
           resp->bufoffset  = 0;
@@ -1453,7 +1499,8 @@ static int rndis_handle_control_message(FAR struct rndis_dev_s *priv,
           resp->hdr.status = RNDIS_STATUS_NOT_SUPPORTED;
 
           for (i = 0;
-               i < sizeof(g_rndis_oid_values) / sizeof(g_rndis_oid_values[0]);
+               i < sizeof(g_rndis_oid_values) /
+                   sizeof(g_rndis_oid_values[0]);
                i++)
             {
               bool match = (g_rndis_oid_values[i].objid == req->objid);
@@ -1519,7 +1566,14 @@ static int rndis_handle_control_message(FAR struct rndis_dev_s *priv,
 
           resp->hdr.msglen += resp->buflen;
 
-          rndis_send_encapsulated_response(priv);
+          /* Align to word boundary */
+
+          if ((resp->hdr.msglen & 3) != 0)
+            {
+              resp->hdr.msglen += 4 - (resp->hdr.msglen & 3);
+            }
+
+          rndis_send_encapsulated_response(priv, resp->hdr.msglen);
         }
         break;
 
@@ -1527,11 +1581,15 @@ static int rndis_handle_control_message(FAR struct rndis_dev_s *priv,
         {
           FAR struct rndis_set_msg *req;
           FAR struct rndis_response_header *resp;
+          size_t respsize = sizeof(struct rndis_response_header);
 
-          rndis_prepare_response(priv, sizeof(struct rndis_response_header),
-                                 cmd_hdr);
+          resp = rndis_prepare_response(priv, respsize, cmd_hdr);
           req  = (FAR struct rndis_set_msg *)dataout;
-          resp = (FAR struct rndis_response_header *)priv->ctrlreq->buf;
+
+          if (!resp)
+            {
+              return -ENOMEM;
+            }
 
           uinfo("RNDIS SET RID=%08x OID=%08x LEN=%d DAT=%08x",
                 (unsigned)req->hdr.reqid, (unsigned)req->objid,
@@ -1561,33 +1619,46 @@ static int rndis_handle_control_message(FAR struct rndis_dev_s *priv,
               resp->status = RNDIS_STATUS_NOT_SUPPORTED;
             }
 
-          rndis_send_encapsulated_response(priv);
+          rndis_send_encapsulated_response(priv, respsize);
         }
         break;
 
       case RNDIS_RESET_MSG:
         {
           FAR struct rndis_reset_cmplt *resp;
+          size_t respsize = sizeof(struct rndis_reset_cmplt);
 
-          rndis_prepare_response(priv, sizeof(struct rndis_reset_cmplt),
-                                 cmd_hdr);
-          resp = (FAR struct rndis_reset_cmplt *)priv->ctrlreq->buf;
+          priv->response_queue_words = 0;
+          resp = rndis_prepare_response(priv, respsize, cmd_hdr);
+
+          if (!resp)
+            {
+              return -ENOMEM;
+            }
+
           resp->addreset  = 0;
           priv->connected = false;
-          rndis_send_encapsulated_response(priv);
+          rndis_send_encapsulated_response(priv, respsize);
         }
         break;
 
       case RNDIS_KEEPALIVE_MSG:
         {
-          rndis_prepare_response(priv, sizeof(struct rndis_response_header),
-                                 cmd_hdr);
-          rndis_send_encapsulated_response(priv);
+          FAR struct rndis_response_header *resp;
+          size_t respsize = sizeof(struct rndis_response_header);
+          resp = rndis_prepare_response(priv, respsize, cmd_hdr);
+          if (!resp)
+            {
+              return -ENOMEM;
+            }
+
+          rndis_send_encapsulated_response(priv, respsize);
         }
         break;
 
       default:
-        uwarn("Unsupported RNDIS control message: %u\n", cmd_hdr->msgtype);
+        uwarn("Unsupported RNDIS control message: %" PRIu32 "\n",
+              cmd_hdr->msgtype);
     }
 
   return OK;
@@ -1642,7 +1713,8 @@ static void rndis_rdcomplete(FAR struct usbdev_ep_s *ep,
       return;
 
     default: /* Some other error occurred */
-      usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDUNEXPECTED), (uint16_t)-req->result);
+      usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDUNEXPECTED),
+               (uint16_t)-req->result);
       break;
     };
 
@@ -1723,15 +1795,35 @@ static void rndis_wrcomplete(FAR struct usbdev_ep_s *ep,
 static void usbclass_ep0incomplete(FAR struct usbdev_ep_s *ep,
                                    FAR struct usbdev_req_s *req)
 {
+  struct rndis_dev_s *priv = (FAR struct rndis_dev_s *)ep->priv;
   if (req->result || req->xfrd != req->len)
     {
       usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_REQRESULT),
                (uint16_t)-req->result);
     }
-  else if (req->len > 0)
+  else if (req->len > 0 && req->priv == priv->response_queue)
     {
-      struct rndis_dev_s *priv = (FAR struct rndis_dev_s *)ep->priv;
-      priv->ctrlreq_has_encap_response = false;
+      /* This transfer was from the response queue,
+       * subtract remaining byte count.
+       */
+
+      size_t len_words = req->len / sizeof(uint32_t);
+      DEBUGASSERT(len_words * sizeof(uint32_t) == req->len);
+      req->priv = 0;
+      if (len_words >= priv->response_queue_words)
+      {
+        /* Queue now empty */
+
+        priv->response_queue_words = 0;
+      }
+      else
+      {
+        /* Copy the remaining responses to beginning of buffer. */
+
+        priv->response_queue_words -= len_words;
+        memcpy(priv->response_queue, priv->response_queue + len_words,
+               priv->response_queue_words * sizeof(uint32_t));
+      }
     }
 }
 
@@ -2074,8 +2166,9 @@ static int usbclass_bind(FAR struct usbdevclass_driver_s *driver,
 
   /* Pre-allocate the IN interrupt endpoint */
 
-  priv->epintin = DEV_ALLOCEP(dev, USB_EPIN(priv->devinfo.epno[RNDIS_EP_INTIN_IDX]),
-                              true, USB_EP_ATTR_XFER_INT);
+  priv->epintin = DEV_ALLOCEP(dev,
+                    USB_EPIN(priv->devinfo.epno[RNDIS_EP_INTIN_IDX]),
+                    true, USB_EP_ATTR_XFER_INT);
   if (!priv->epintin)
     {
       usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPINTINALLOCFAIL), 0);
@@ -2098,8 +2191,9 @@ static int usbclass_bind(FAR struct usbdevclass_driver_s *driver,
 
   /* Pre-allocate the IN bulk endpoint */
 
-  priv->epbulkin = DEV_ALLOCEP(dev, USB_EPIN(priv->devinfo.epno[RNDIS_EP_BULKIN_IDX]),
-                               true, USB_EP_ATTR_XFER_BULK);
+  priv->epbulkin = DEV_ALLOCEP(dev,
+                      USB_EPIN(priv->devinfo.epno[RNDIS_EP_BULKIN_IDX]),
+                      true, USB_EP_ATTR_XFER_BULK);
   if (!priv->epbulkin)
     {
       usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPBULKINALLOCFAIL), 0);
@@ -2176,6 +2270,10 @@ static int usbclass_bind(FAR struct usbdevclass_driver_s *driver,
       sq_addlast((FAR sq_entry_t *)reqcontainer, &priv->reqlist);
       leave_critical_section(flags);
     }
+
+  /* Initialize response queue to empty */
+
+  priv->response_queue_words = 0;
 
   /* Report if we are selfpowered */
 
@@ -2355,6 +2453,7 @@ static int usbclass_setup(FAR struct usbdevclass_driver_s *driver,
     }
 #endif
   ctrlreq = priv->ctrlreq;
+  ctrlreq->priv = 0;
 
   /* Extract the little-endian 16-bit values to host order */
 
@@ -2376,8 +2475,9 @@ static int usbclass_setup(FAR struct usbdevclass_driver_s *driver,
           {
           case USB_REQ_GETDESCRIPTOR:
             {
-              /* The value field specifies the descriptor type in the MS byte and the
-               * descriptor index in the LS byte (order is little endian)
+              /* The value field specifies the descriptor type in the MS byte
+               * and the descriptor index in the LS byte (order is little
+               * endian)
                */
 
               switch (ctrl->value[1])
@@ -2402,13 +2502,14 @@ static int usbclass_setup(FAR struct usbdevclass_driver_s *driver,
                     /* index == language code. */
 
                     ret = usbclass_mkstrdesc(ctrl->value[0],
-                                            (FAR struct usb_strdesc_s *)ctrlreq->buf);
+                                  (FAR struct usb_strdesc_s *)ctrlreq->buf);
                   }
                   break;
 
                 default:
                   {
-                    usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_GETUNKNOWNDESC), value);
+                    usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_GETUNKNOWNDESC),
+                             value);
                   }
                   break;
                 }
@@ -2435,7 +2536,8 @@ static int usbclass_setup(FAR struct usbdevclass_driver_s *driver,
             break;
 
           default:
-            usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_UNSUPPORTEDSTDREQ), ctrl->req);
+            usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_UNSUPPORTEDSTDREQ),
+                     ctrl->req);
             break;
           }
       }
@@ -2445,7 +2547,8 @@ static int usbclass_setup(FAR struct usbdevclass_driver_s *driver,
 
     case USB_REQ_TYPE_CLASS:
       {
-        if ((ctrl->type & USB_REQ_RECIPIENT_MASK) == USB_REQ_RECIPIENT_INTERFACE)
+        if ((ctrl->type & USB_REQ_RECIPIENT_MASK) ==
+            USB_REQ_RECIPIENT_INTERFACE)
           {
             if (ctrl->req == RNDIS_SEND_ENCAPSULATED_COMMAND)
               {
@@ -2453,20 +2556,25 @@ static int usbclass_setup(FAR struct usbdevclass_driver_s *driver,
               }
             else if (ctrl->req == RNDIS_GET_ENCAPSULATED_RESPONSE)
               {
-                if (!priv->ctrlreq_has_encap_response)
+                if (priv->response_queue_words == 0)
                   {
+                    /* No reply available is indicated with a single
+                     * 0x00 byte.
+                     */
+
                     ret = 1;
                     ctrlreq->buf[0] = 0;
                   }
                 else
                   {
-                    /* There is data prepared in the ctrlreq buffer.
-                     * Just assign the length.
+                    /* Retrieve a single reply from the response queue to
+                     * control request buffer.
                      */
 
                     FAR struct rndis_response_header *hdr =
-                      (struct rndis_response_header *)ctrlreq->buf;
-
+                      (struct rndis_response_header *)priv->response_queue;
+                    memcpy(ctrlreq->buf, hdr, hdr->msglen);
+                    ctrlreq->priv = priv->response_queue;
                     ret = hdr->msglen;
                   }
               }
@@ -2657,7 +2765,8 @@ static int usbclass_setconfig(FAR struct rndis_dev_s *priv, uint8_t config)
 
   /* Configure the IN bulk endpoint */
 
-  usbclass_copy_epdesc(RNDIS_EP_BULKIN_IDX, &epdesc, &priv->devinfo, hispeed);
+  usbclass_copy_epdesc(RNDIS_EP_BULKIN_IDX,
+                       &epdesc, &priv->devinfo, hispeed);
   ret = EP_CONFIGURE(priv->epbulkin, &epdesc, false);
 
   if (ret < 0)
@@ -2670,7 +2779,8 @@ static int usbclass_setconfig(FAR struct rndis_dev_s *priv, uint8_t config)
 
   /* Configure the OUT bulk endpoint */
 
-  usbclass_copy_epdesc(RNDIS_EP_BULKOUT_IDX, &epdesc, &priv->devinfo, hispeed);
+  usbclass_copy_epdesc(RNDIS_EP_BULKOUT_IDX,
+                       &epdesc, &priv->devinfo, hispeed);
   ret = EP_CONFIGURE(priv->epbulkout, &epdesc, true);
 
   if (ret < 0)
@@ -2728,7 +2838,7 @@ static int usbclass_classobject(int minor,
 
   /* Allocate the structures needed */
 
-  alloc = (FAR struct rndis_alloc_s *)kmm_zalloc(sizeof(struct rndis_alloc_s));
+  alloc = kmm_zalloc(sizeof(struct rndis_alloc_s));
   if (!alloc)
     {
       usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_ALLOCDEVSTRUCT), 0);
@@ -2753,7 +2863,6 @@ static int usbclass_classobject(int minor,
 
   sq_init(&priv->reqlist);
   memcpy(priv->host_mac_address, g_rndis_default_mac_addr, 6);
-  priv->txpoll = wd_create();
   priv->netdev.d_private = priv;
   priv->netdev.d_ifup = &rndis_ifup;
   priv->netdev.d_ifdown = &rndis_ifdown;
@@ -2928,4 +3037,3 @@ void usbdev_rndis_get_composite_devdesc(struct composite_devdesc_s *dev)
   dev->devinfo.epno[RNDIS_EP_BULKOUT_IDX] = USB_EPNO(RNDIS_EPBULKOUT_ADDR);
 }
 #endif
-

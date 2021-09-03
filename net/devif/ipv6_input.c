@@ -391,8 +391,8 @@ int ipv6_input(FAR struct net_driver_s *dev)
     {
 #ifdef CONFIG_NET_IPFORWARD_BROADCAST
 
-      /* Packets sent to ffx0 are reserved, ffx1 are interface-local, and ffx2
-       * are interface-local, and therefore, should not be forwarded
+      /* Packets sent to ffx0 are reserved, ffx1 are interface-local, and
+       * ffx2 are interface-local, and therefore, should not be forwarded
        */
 
       if ((ipv6->destipaddr[0] & HTONS(0xff0f) != HTONS(0xff00)) &&
@@ -409,22 +409,6 @@ int ipv6_input(FAR struct net_driver_s *dev)
        * address by its IPv6 nexthdr field.
        */
     }
-
-  /* In other cases, the device must be assigned a non-zero IP address
-   * (the all zero address is the "unspecified" address.
-   */
-
-  else
-#endif
-#ifdef CONFIG_NET_ICMPv6
-  if (net_ipv6addr_cmp(dev->d_ipv6addr, g_ipv6_unspecaddr))
-    {
-      nwarn("WARNING: No IP address assigned\n");
-      goto drop;
-    }
-
-  /* Check if the packet is destined for out IP address */
-
   else
 #endif
     {
@@ -449,14 +433,36 @@ int ipv6_input(FAR struct net_driver_s *dev)
             }
           else
 #endif
-            {
-              /* Not destined for us and not forwardable... drop the packet. */
+#if defined(NET_UDP_HAVE_STACK) && defined(CONFIG_NET_UDP_BINDTODEVICE)
+          /* If the UDP protocol specific socket option UDP_BINDTODEVICE
+           * is selected, then we must forward all UDP packets to the bound
+           * socket.
+           */
 
-              nwarn("WARNING: Not destined for us; not forwardable... Dropping!\n");
+          if (nxthdr != IP_PROTO_UDP || !IFF_IS_BOUND(dev->d_flags))
+#endif
+            {
+              /* Not destined for us and not forwardable...
+               * drop the packet.
+               */
+
+              nwarn("WARNING: Not destined for us... Dropping!\n");
               goto drop;
             }
         }
     }
+#ifdef CONFIG_NET_ICMPv6
+
+  /* In other cases, the device must be assigned a non-zero IP address
+   * (the all zero address is the "unspecified" address.
+   */
+
+  if (net_ipv6addr_cmp(dev->d_ipv6addr, g_ipv6_unspecaddr))
+    {
+      nwarn("WARNING: No IP address assigned\n");
+      goto drop;
+    }
+#endif
 
   /* Now process the incoming packet according to the protocol specified in
    * the next header IPv6 field.

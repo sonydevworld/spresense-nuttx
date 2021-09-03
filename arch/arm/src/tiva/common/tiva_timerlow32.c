@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/tiva/common/tiva_timerlow32.c
  *
- *   Copyright (C) 2015-2016 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -60,6 +45,7 @@
 /****************************************************************************
  * Private Types
  ****************************************************************************/
+
 /* This structure provides the private representation of the "lower-half"
  * driver state structure.  This structure must be cast-compatible with the
  * timer_lowerhalf_s structure.
@@ -70,10 +56,12 @@ struct tiva_lowerhalf_s
   const struct timer_ops_s *ops;     /* Lower half operations */
   struct tiva_gptm32config_s config; /* Persistent timer configuration */
   TIMER_HANDLE handle;               /* Contained timer handle */
-  tccb_t callback;                    /* Current user interrupt callback */
+  tccb_t callback;                   /* Current user interrupt callback */
+  void *arg;                         /* Callback argument */
   uint32_t clkin;                    /* Input clock frequency */
   uint32_t timeout;                  /* The current timeout value (us) */
-  uint32_t clkticks;                 /* Actual clock ticks for current interval */
+  uint32_t clkticks;                 /* Actual clock ticks for current
+                                      * interval */
   uint32_t adjustment;               /* Time lost due to truncation (us) */
   bool started;                      /* True: Timer has been started */
 };
@@ -81,32 +69,38 @@ struct tiva_lowerhalf_s
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
 /* Helper functions *********************************************************/
 
-static uint32_t tiva_usec2ticks(struct tiva_lowerhalf_s *priv, uint32_t usecs);
-static uint32_t tiva_ticks2usec(struct tiva_lowerhalf_s *priv, uint32_t ticks);
-static void     tiva_timeout(struct tiva_lowerhalf_s *priv, uint32_t timeout);
+static uint32_t tiva_usec2ticks(struct tiva_lowerhalf_s *priv,
+                                uint32_t usecs);
+static uint32_t tiva_ticks2usec(struct tiva_lowerhalf_s *priv,
+                                uint32_t ticks);
+static void     tiva_timeout(struct tiva_lowerhalf_s *priv,
+                             uint32_t timeout);
 
 /* Interrupt handling *******************************************************/
 
-static void     tiva_timer_handler(TIMER_HANDLE handle, void *arg, uint32_t status);
+static void     tiva_timer_handler(TIMER_HANDLE handle, void *arg,
+                                   uint32_t status);
 
 /* "Lower half" driver methods **********************************************/
 
 static int      tiva_start(struct timer_lowerhalf_s *lower);
 static int      tiva_stop(struct timer_lowerhalf_s *lower);
 static int      tiva_getstatus(struct timer_lowerhalf_s *lower,
-                  struct timer_status_s *status);
+                               struct timer_status_s *status);
 static int      tiva_settimeout(struct timer_lowerhalf_s *lower,
-                  uint32_t timeout);
+                                uint32_t timeout);
 static void     tiva_setcallback(struct timer_lowerhalf_s *lower,
-                  tccb_t callback, FAR void *arg);
+                                 tccb_t callback, FAR void *arg);
 static int      tiva_ioctl(struct timer_lowerhalf_s *lower, int cmd,
-                  unsigned long arg);
+                           unsigned long arg);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
 /* "Lower half" driver methods */
 
 static const struct timer_ops_s g_timer_ops =
@@ -138,7 +132,8 @@ static const struct timer_ops_s g_timer_ops =
  *
  ****************************************************************************/
 
-static uint32_t tiva_usec2ticks(struct tiva_lowerhalf_s *priv, uint32_t usecs)
+static uint32_t tiva_usec2ticks(struct tiva_lowerhalf_s *priv,
+                                uint32_t usecs)
 {
   uint64_t bigticks;
 
@@ -166,7 +161,8 @@ static uint32_t tiva_usec2ticks(struct tiva_lowerhalf_s *priv, uint32_t usecs)
  *
  ****************************************************************************/
 
-static uint32_t tiva_ticks2usec(struct tiva_lowerhalf_s *priv, uint32_t ticks)
+static uint32_t tiva_ticks2usec(struct tiva_lowerhalf_s *priv,
+                                uint32_t ticks)
 {
   uint64_t bigusec;
 
@@ -229,7 +225,8 @@ static void tiva_timeout(struct tiva_lowerhalf_s *priv, uint32_t timeout)
  *
  ****************************************************************************/
 
-static void tiva_timer_handler(TIMER_HANDLE handle, void *arg, uint32_t status)
+static void tiva_timer_handler(TIMER_HANDLE handle, void *arg,
+                               uint32_t status)
 {
   struct tiva_lowerhalf_s *priv = (struct tiva_lowerhalf_s *)arg;
 
@@ -250,7 +247,8 @@ static void tiva_timer_handler(TIMER_HANDLE handle, void *arg, uint32_t status)
         {
           /* Calculate new ticks / dither adjustment */
 
-          priv->clkticks = tiva_usec2ticks(priv, priv->adjustment + priv->timeout);
+          priv->clkticks = tiva_usec2ticks(priv,
+                                           priv->adjustment + priv->timeout);
 
           /* Set next interval interval. TODO: make sure the interval is not
            * so soon it will be missed!
@@ -259,7 +257,8 @@ static void tiva_timer_handler(TIMER_HANDLE handle, void *arg, uint32_t status)
 #if 0 /* Too much in this context */
           tiva_timer32_setinterval(priv->handle, priv->clkticks);
 #else
-          tiva_gptm_putreg(priv->handle, TIVA_TIMER_TAILR_OFFSET, priv->clkticks);
+          tiva_gptm_putreg(priv->handle, TIVA_TIMER_TAILR_OFFSET,
+                           priv->clkticks);
 #endif
 
           /* Calculate the next adjustment */
@@ -284,8 +283,8 @@ static void tiva_timer_handler(TIMER_HANDLE handle, void *arg, uint32_t status)
  *   Start the timer, resetting the time to the current timeout,
  *
  * Input Parameters:
- *   lower - A pointer the publicly visible representation of the "lower-half"
- *           driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
@@ -321,8 +320,8 @@ static int tiva_start(struct timer_lowerhalf_s *lower)
  *   Stop the timer
  *
  * Input Parameters:
- *   lower - A pointer the publicly visible representation of the "lower-half"
- *           driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
@@ -358,8 +357,8 @@ static int tiva_stop(struct timer_lowerhalf_s *lower)
  *   Get the current timer status
  *
  * Input Parameters:
- *   lower  - A pointer the publicly visible representation of the "lower-half"
- *            driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *   status - The location to return the status information.
  *
  * Returned Value:
@@ -411,8 +410,8 @@ static int tiva_getstatus(struct timer_lowerhalf_s *lower,
  *   Set a new timeout value (and reset the timer)
  *
  * Input Parameters:
- *   lower   - A pointer the publicly visible representation of the "lower-half"
- *             driver state structure.
+ *   lower   - A pointer the publicly visible representation of the
+ *             "lower-half" driver state structure.
  *   timeout - The new timeout value in microseconds.
  *
  * Returned Value:
@@ -450,8 +449,8 @@ static int tiva_settimeout(struct timer_lowerhalf_s *lower, uint32_t timeout)
  *   Call this user provided timeout callback.
  *
  * Input Parameters:
- *   lower    - A pointer the publicly visible representation of the "lower-half"
- *              driver state structure.
+ *   lower    - A pointer the publicly visible representation of the
+ *              "lower-half" driver state structure.
  *   callback - The new timer expiration function pointer.  If this
  *              function pointer is NULL, then the reset-on-expiration
  *              behavior is restored,
@@ -489,8 +488,8 @@ static void tiva_setcallback(struct timer_lowerhalf_s *lower,
  *   are forwarded to the lower half driver through this method.
  *
  * Input Parameters:
- *   lower - A pointer the publicly visible representation of the "lower-half"
- *           driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *   cmd   - The ioctl command value
  *   arg   - The optional argument that accompanies the 'cmd'.  The
  *           interpretation of this argument depends on the particular
@@ -553,7 +552,8 @@ int tiva_timer_initialize(FAR const char *devpath,
 
   /* Allocate an instance of the lower half state structure */
 
-  priv = (struct tiva_lowerhalf_s *)kmm_zalloc(sizeof(struct tiva_lowerhalf_s));
+  priv = (struct tiva_lowerhalf_s *)
+         kmm_zalloc(sizeof(struct tiva_lowerhalf_s));
   if (!priv)
     {
       tmrerr("ERROR: Failed to allocate driver structure\n");
@@ -562,9 +562,9 @@ int tiva_timer_initialize(FAR const char *devpath,
 
   /* Initialize the non-zero elements of lower half state structure */
 
-  priv->ops                          = &g_timer_ops;
+  priv->ops = &g_timer_ops;
 #ifdef CONFIG_ARCH_CHIP_TM4C129
-  priv->clkin                        = config->cmn.alternate ? ALTCLK_FREQUENCY : SYSCLK_FREQUENCY;
+  priv->clkin = config->cmn.alternate ? ALTCLK_FREQUENCY : SYSCLK_FREQUENCY;
 #else
   if (config->cmn.alternate)
     {
@@ -573,12 +573,12 @@ int tiva_timer_initialize(FAR const char *devpath,
     }
   else
     {
-      priv->clkin                    = SYSCLK_FREQUENCY;
+      priv->clkin = SYSCLK_FREQUENCY;
     }
 #endif /* CONFIG_ARCH_CHIP_TM4C129 */
 
-  config->config.handler             = tiva_timer_handler;
-  config->config.arg                 = priv;
+  config->config.handler = tiva_timer_handler;
+  config->config.arg = priv;
   memcpy(&(priv->config), config, sizeof(struct tiva_gptm32config_s));
 
   /* Set the initial timer interval */
@@ -587,7 +587,8 @@ int tiva_timer_initialize(FAR const char *devpath,
 
   /* Create the timer handle */
 
-  priv->handle = tiva_gptm_configure((const struct tiva_gptmconfig_s *)&priv->config);
+  priv->handle = tiva_gptm_configure((const struct tiva_gptmconfig_s *)
+                                     &priv->config);
   if (!priv->handle)
     {
       tmrerr("ERROR: Failed to create timer handle\n");

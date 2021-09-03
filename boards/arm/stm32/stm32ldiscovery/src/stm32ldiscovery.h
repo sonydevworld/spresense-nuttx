@@ -1,41 +1,25 @@
 /****************************************************************************
  * boards/arm/stm32/stm32ldiscovery/src/stm32ldiscovery.h
- * arch/arm/src/board/stm32ldiscovery.h
  *
- *   Copyright (C) 2013, 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
-#ifndef __BOARDS_ARM_STM32_STM32F3DISCOVERY_SRC_STM32F3DISCOVERY_H
-#define __BOARDS_ARM_STM32_STM32F3DISCOVERY_SRC_STM32F3DISCOVERY_H
+#ifndef __BOARDS_ARM_STM32_STM32LDISCOVERY_SRC_STM32LDISCOVERY_H
+#define __BOARDS_ARM_STM32_STM32LDISCOVERY_SRC_STM32LDISCOVERY_H
 
 /****************************************************************************
  * Included Files
@@ -50,7 +34,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-/* Configuration ****************************************************************************/
+
+/* Configuration ************************************************************/
+
 /* How many SPI modules does this chip support? */
 
 #if STM32_NSPI < 1
@@ -64,20 +50,23 @@
 #  undef CONFIG_STM32_SPI3
 #endif
 
-/* STM32L-Discovery GPIOs ***************************************************************************/
-/* The STM32L-Discovery board has four LEDs.  Two of these are controlled by logic on the board and
- * are not available for software control:
+/* STM32L-Discovery GPIOs ***************************************************/
+
+/* The STM32L-Discovery board has four LEDs.  Two of these are controlled by
+ * logic on the board and are not available for software control:
  *
- * LD1 COM:   LD2 default status is red. LD2 turns to green to indicate that communications are in
- *            progress between the PC and the ST-LINK/V2.
+ * LD1 COM:   LD2 default status is red. LD2 turns to green to indicate that
+ *            communications are in progress between the PC and the
+ *            ST-LINK/V2.
  * LD2 PWR:   Red LED indicates that the board is powered.
  *
  * And two LEDs can be controlled by software:
  *
- * User LD3:  Green LED is a user LED connected to the I/O PB7 of the STM32L152 MCU.
- * User LD4:  Blue LED is a user LED connected to the I/O PB6 of the STM32L152 MCU.
+ * User LD3:  Green LED is a user LED connected to PB7
+ * User LD4:  Blue LED is a user LED connected to PB6
  *
- * The other side of the LED connects to ground so high value will illuminate the LED.
+ * The other side of the LED connects to ground so high value will illuminate
+ * the LED.
  */
 
 #define GPIO_LED1       (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_10MHz | \
@@ -85,11 +74,14 @@
 #define GPIO_LED2       (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_10MHz | \
                          GPIO_OUTPUT_CLEAR | GPIO_PORTB | GPIO_PIN6)
 
-/* Button definitions ****************************************************************************/
-/* The STM32L-Discovery supports two buttons; only one button is controllable by software:
+/* Button definitions *******************************************************/
+
+/* The STM32L-Discovery supports two buttons; only one button is controllable
+ * by software:
  *
- *   B1 USER: user and wake-up button connected to the I/O PA0 of the STM32F303VCT6.
- *   B2 RESET: pushbutton connected to NRST is used to RESET the STM32F303VCT6.
+ *   B1 USER: user and wake-up button connected to PA0
+ *   B2 RESET: pushbutton connected to NRST is used to RESET
+ *             the STM32F303VCT6.
  *
  * NOTE that  EXTI interrupts are configured
  */
@@ -100,10 +92,11 @@
 
 #define GPIO_BTN_USER   (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | GPIO_PORTA | GPIO_PIN0)
 
-/* LCD definitions ****************************************************************************/
-/* LCD.  The STM32L152RBT6 supports either a 4x32 or 8x28.  The STM32L-Discovery
- * has an LCD 24 segments, 4 commons.  On that board, LCD pins are mapped as
- * follows:
+/* LCD definitions **********************************************************/
+
+/* LCD.  The STM32L152RBT6 supports either a 4x32 or 8x28.
+ * The STM32L-Discovery has an LCD 24 segments, 4 commons.  On that board,
+ * LCD pins are mapped as follows:
  *
  * The 24 segments are represented by the letters A, B, C, D, E, F, G, H, J,
  * K, M, N, P, Q, COL (colon), and DP (decimal point)
@@ -120,7 +113,8 @@
  *          ---------   |_| DP
  *              D
  *
- * Plus BAR0-3.  The following is of each segment of each of the 6 characters 4 x 24:
+ * Plus BAR0-3.  The following is of each segment of each of the 6 characters
+ * 4 x 24:
  *
  * ---- ----- ----- ----- ----- ---------------
  * GPIO COM3  COM2  COM1  COM0  SIGNAL NAME
@@ -226,13 +220,13 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Public data
+ * Public Data
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
@@ -249,7 +243,7 @@
  *   Otherwise CONFIG_BOARD_LATE_INITIALIZE=y:
  *     Called from board_late_initialize().
  *
- *   Otherise, bad news:  Never called
+ *   Otherwise, bad news:  Never called
  *
  ****************************************************************************/
 
@@ -259,7 +253,8 @@ int stm32_bringup(void);
  * Name: stm32_spidev_initialize
  *
  * Description:
- *   Called to configure SPI chip select GPIO pins for the stm32ldiscovery board.
+ *   Called to configure SPI chip select GPIO pins for the stm32ldiscovery
+ *   board.
  *
  ****************************************************************************/
 
@@ -277,18 +272,5 @@ void weak_function stm32_spidev_initialize(void);
 int stm32_pwm_setup(void);
 #endif
 
-/****************************************************************************
- * Name: stm32_qencoder_initialize
- *
- * Description:
- *   Initialize and register a qencoder
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_QENCODER
-int stm32_qencoder_initialize(FAR const char *devpath, int timer);
-#endif
-
 #endif /* __ASSEMBLY__ */
-#endif /* __BOARDS_ARM_STM32_STM32F3DISCOVERY_SRC_STM32F3DISCOVERY_H */
-
+#endif /* __BOARDS_ARM_STM32_STM32LDISCOVERY_SRC_STM32LDISCOVERY_H */

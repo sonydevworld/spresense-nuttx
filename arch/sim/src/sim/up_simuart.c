@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/sim/src/sim/up_simuart.c
  *
- *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -37,46 +22,14 @@
  * Included Files
  ****************************************************************************/
 
+#include <fcntl.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 #include <termios.h>
-#include <pthread.h>
+#include <poll.h>
 #include <errno.h>
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/* Simulated console UART input buffer size */
-/* Must match the defintion in up_internal.h */
-
-#define SIMUART_BUFSIZE 256
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-static char g_uartbuffer[SIMUART_BUFSIZE];
-static volatile int  g_uarthead;
-static volatile int  g_uarttail;
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-volatile int g_uart_data_available;
-
-/****************************************************************************
- * NuttX Domain Public Function Prototypes
- ****************************************************************************/
-
-void sched_lock(void);
-void sched_unlock(void);
-
-void simuart_initialize(void);
-void simuart_post(void);
-void simuart_wait(void);
 
 /****************************************************************************
  * Private Data
@@ -92,25 +45,21 @@ static struct termios g_cooked;
  * Name: setrawmode
  ****************************************************************************/
 
-static void setrawmode(void)
+static void setrawmode(int fd)
 {
   struct termios raw;
 
-  /* Get the current stdin terminal mode */
-
-  tcgetattr(0, &g_cooked);
+  tcgetattr(fd, &raw);
 
   /* Switch to raw mode */
 
-  memcpy(&raw, &g_cooked, sizeof(struct termios));
-
-  raw.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
-  raw.c_oflag &= ~OPOST;
+  raw.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR |
+                   ICRNL | IXON);
   raw.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
   raw.c_cflag &= ~(CSIZE | PARENB);
   raw.c_cflag |= CS8;
 
-  tcsetattr(0, TCSANOW, &raw);
+  tcsetattr(fd, TCSANOW, &raw);
 }
 
 /****************************************************************************
@@ -125,84 +74,6 @@ static void restoremode(void)
 }
 
 /****************************************************************************
- * Name: simuart_thread
- ****************************************************************************/
-
-static void *simuart_thread(void *arg)
-{
-  unsigned char ch;
-  ssize_t nread;
-  int next;
-  int prev;
-
-  /* Now loop, collecting a buffering data from stdin forever */
-
-  for (; ; )
-    {
-      /* Read one character from stdin */
-
-      nread = read(0, &ch, 1);
-
-      /* Check for failures (but don't do anything) */
-
-      if (nread == 1)
-        {
-          /* Get the index to the next slot in the UART buffer */
-
-          prev = g_uarthead;
-          next = prev + 1;
-          if (next >= SIMUART_BUFSIZE)
-            {
-              next = 0;
-            }
-
-          /* Would adding this character cause an overflow? */
-
-          if (next != g_uarttail)
-            {
-              /* No.. Add the character to the UART buffer */
-
-              g_uartbuffer[prev] = ch;
-
-              /* Update the head index (BEFORE posting) */
-
-              g_uarthead = next;
-
-              /* Was the buffer previously empty? */
-
-              if (prev == g_uarttail)
-                {
-                  /* Yes.. signal any (NuttX) threads waiting for serial
-                   * input.
-                   */
-
-                  g_uart_data_available = 1;
-                }
-            }
-        }
-    }
-
-  return NULL;
-}
-
-/****************************************************************************
- * Name: simuart_putraw
- ****************************************************************************/
-
-int simuart_putraw(int ch)
-{
-  ssize_t nwritten;
-
-  nwritten = write(1, &ch, 1);
-  if (nwritten != 1)
-    {
-      return -1;
-    }
-
-  return ch;
-}
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -212,110 +83,128 @@ int simuart_putraw(int ch)
 
 void simuart_start(void)
 {
-  pthread_t tid;
+  /* Get the current stdin terminal mode */
 
-  /* This thread runs in the host domain */
-  /* Perform the NuttX domain initialization */
-
-  simuart_initialize();
+  tcgetattr(0, &g_cooked);
 
   /* Put stdin into raw mode */
 
-  setrawmode();
+  setrawmode(0);
 
-  /* Start the simulated UART thread -- all default settings; no error
-   * checking.
-   */
+  /* Restore the original terminal mode before exit */
 
-  pthread_create(&tid, NULL, simuart_thread, NULL);
+  atexit(restoremode);
+}
+
+/****************************************************************************
+ * Name: simuart_open
+ ****************************************************************************/
+
+int simuart_open(const char *pathname)
+{
+  int fd;
+
+  fd = open(pathname, O_RDWR | O_NONBLOCK);
+  if (fd >= 0)
+    {
+      /* keep raw mode */
+
+      setrawmode(fd);
+    }
+  else
+    {
+      fd = -errno;
+    }
+
+  return fd;
+}
+
+/****************************************************************************
+ * Name: simuart_close
+ ****************************************************************************/
+
+void simuart_close(int fd)
+{
+  close(fd);
 }
 
 /****************************************************************************
  * Name: simuart_putc
  ****************************************************************************/
 
-int simuart_putc(int ch)
+int simuart_putc(int fd, int ch)
 {
-  int ret = ch;
+  return write(fd, &ch, 1) == 1 ? ch : -1;
+}
 
-  if (ch == '\n')
+/****************************************************************************
+ * Name: simuart_getc
+ ****************************************************************************/
+
+int simuart_getc(int fd)
+{
+  int ret;
+  unsigned char ch;
+
+  ret = read(fd, &ch, 1);
+  return ret < 0 ? ret : ch;
+}
+
+/****************************************************************************
+ * Name: simuart_getcflag
+ ****************************************************************************/
+
+int simuart_getcflag(int fd, tcflag_t *cflag)
+{
+  struct termios t;
+  int ret;
+
+  ret = tcgetattr(fd, &t);
+  if (ret < 0)
     {
-      ret = simuart_putraw('\r');
+      ret = -errno;
     }
-
-  if (ret >= 0)
+  else
     {
-      ret = simuart_putraw(ch);
+      *cflag = t.c_cflag;
     }
 
   return ret;
 }
 
 /****************************************************************************
- * Name: simuart_getc
+ * Name: simuart_setcflag
  ****************************************************************************/
 
-int simuart_getc(bool block)
+int simuart_setcflag(int fd, tcflag_t cflag)
 {
-  int index;
-  int ch;
+  struct termios t;
+  int ret;
 
-  /* Locking the scheduler should eliminate the race conditions in the
-   * unlikely case of multiple reading threads.
-   */
-
-  sched_lock();
-  for (; ; )
+  ret = tcgetattr(fd, &t);
+  if (!ret)
     {
-      /* Wait for a byte to become available */
-
-      if (!block && (g_uarthead == g_uarttail))
-        {
-          sched_unlock();
-          return -EAGAIN;
-        }
-
-      while (g_uarthead == g_uarttail)
-        {
-          simuart_wait();
-        }
-
-      /* The UART buffer is non-empty...  Take the next byte from the tail
-       * of the buffer.
-       */
-
-      index = g_uarttail;
-      ch    = (int)g_uartbuffer[index];
-
-      /* Increment the tai index (with wrapping) */
-
-      if (++index >= SIMUART_BUFSIZE)
-        {
-          index = 0;
-        }
-
-      g_uarttail = index;
-      sched_unlock();
-      return ch;
+      t.c_cflag = cflag;
+      ret = tcsetattr(fd, TCSANOW, &t);
     }
+
+  if (ret < 0)
+    {
+      ret = -errno;
+    }
+
+  return ret;
 }
 
 /****************************************************************************
- * Name: simuart_getc
+ * Name: simuart_checkc
  ****************************************************************************/
 
-bool simuart_checkc(void)
+bool simuart_checkc(int fd)
 {
-  return g_uarthead != g_uarttail;
-}
+  struct pollfd pfd;
 
-/****************************************************************************
- * Name: simuart_terminate
- ****************************************************************************/
-
-void simuart_terminate(void)
-{
-  /* Restore the original terminal mode */
-
-  (void)tcsetattr(0, TCSANOW, &g_cooked);
+  pfd.fd     = fd;
+  pfd.events = POLLIN;
+  return poll(&pfd, 1, 0) == 1;
 }

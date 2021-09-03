@@ -28,7 +28,7 @@ doing this:
     starts.
 
     romdisk_register() will create a block driver at /dev/ramN where N
-    is the device minor number that was provided to romdisk_regsiter.
+    is the device minor number that was provided to romdisk_register.
 
   - The second step is to mount the file system.  This step can be
     performed either in your board configuration logic or by your
@@ -125,10 +125,6 @@ Sample Code to Mount the ROMFS Filesystem
 
 #ifdef CONFIG_DISABLE_MOUNTPOINT
 #  error "Mountpoint support is disabled"
-#endif
-
-#if CONFIG_NFILE_DESCRIPTORS < 4
-#  error "Not enough file descriptors"
 #endif
 
 #ifndef CONFIG_FS_ROMFS

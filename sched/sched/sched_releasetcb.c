@@ -1,36 +1,20 @@
 /****************************************************************************
  * sched/sched/sched_releasetcb.c
  *
- *   Copyright (C) 2007, 2009, 2012-2014, 2019 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -90,7 +74,7 @@ static void nxsched_releasepid(pid_t pid)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: sched_releasetcb
+ * Name: nxsched_release_tcb
  *
  * Description:
  *   Free all resources contained in a TCB
@@ -101,7 +85,7 @@ static void nxsched_releasepid(pid_t pid)
  *
  *   This thread type is normally available in the flags field of the TCB,
  *   however, there are certain error recovery contexts where the TCB my
- *   not be fully initialized when sched_releasetcb is called.
+ *   not be fully initialized when nxsched_release_tcb is called.
  *
  * Returned Value:
  *   OK on success; ERROR on failure
@@ -111,7 +95,7 @@ static void nxsched_releasepid(pid_t pid)
  *
  ****************************************************************************/
 
-int sched_releasetcb(FAR struct tcb_s *tcb, uint8_t ttype)
+int nxsched_release_tcb(FAR struct tcb_s *tcb, uint8_t ttype)
 {
   int ret = OK;
 
@@ -147,22 +131,7 @@ int sched_releasetcb(FAR struct tcb_s *tcb, uint8_t ttype)
 
       if (tcb->stack_alloc_ptr)
         {
-#ifdef CONFIG_BUILD_KERNEL
-          /* If the exiting thread is not a kernel thread, then it has an
-           * address environment.  Don't bother to release the stack memory
-           * in this case... There is no point since the memory lies in the
-           * user memory region that will be destroyed anyway (and the
-           * address environment has probably already been destroyed at
-           * this point.. so we would crash if we even tried it).  But if
-           * this is a privileged group, when we still have to release the
-           * memory using the kernel allocator.
-           */
-
-          if ((tcb->flags & TCB_FLAG_TTYPE_MASK) == TCB_FLAG_TTYPE_KERNEL)
-#endif
-            {
-              up_release_stack(tcb, ttype);
-            }
+          up_release_stack(tcb, ttype);
         }
 
 #ifdef CONFIG_PIC
@@ -172,7 +141,7 @@ int sched_releasetcb(FAR struct tcb_s *tcb, uint8_t ttype)
         {
           if (tcb->dspace->crefs <= 1)
             {
-              sched_kfree(tcb->dspace);
+              kmm_free(tcb->dspace);
             }
           else
             {
@@ -199,7 +168,7 @@ int sched_releasetcb(FAR struct tcb_s *tcb, uint8_t ttype)
 
       /* And, finally, release the TCB itself */
 
-      sched_kfree(tcb);
+      kmm_free(tcb);
     }
 
   return ret;

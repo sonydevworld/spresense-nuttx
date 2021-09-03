@@ -1,5 +1,5 @@
 /****************************************************************************
- * drivers/wireless/bcm43xxx/ieee80211/bcmf_sdio.h
+ * drivers/wireless/ieee80211/bcm43xxx/bcmf_sdio.h
  *
  *   Copyright (C) 2017-2018 Gregory Nutt. All rights reserved.
  *   Author: Simon Piriou <spiriou31@gmail.com>
@@ -105,7 +105,7 @@ struct bcmf_sdio_dev_s
 
   int thread_id;                   /* Processing thread id */
   sem_t thread_signal;             /* Semaphore for processing thread event */
-  struct wdog_s *waitdog;          /* Processing thread waitdog */
+  struct wdog_s waitdog;           /* Processing thread waitdog */
 
   uint32_t backplane_current_addr; /* Current function 1 backplane base addr */
 
@@ -118,7 +118,7 @@ struct bcmf_sdio_dev_s
 
   sem_t queue_mutex;               /* Lock for TX/RX/free queues */
   dq_queue_t free_queue;           /* Queue of available frames */
-  dq_queue_t tx_queue;             /* Queue of frames to tramsmit */
+  dq_queue_t tx_queue;             /* Queue of frames to transmit */
   dq_queue_t rx_queue;             /* Queue of frames used to receive */
   volatile int tx_queue_count;     /* Count of items in TX queue */
 };

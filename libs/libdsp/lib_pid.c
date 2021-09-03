@@ -1,35 +1,20 @@
 /****************************************************************************
- * control/lib_pid.c
+ * libs/libdsp/lib_pid.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Mateusz Szafoni <raiden00@railab.me>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -38,10 +23,6 @@
  ****************************************************************************/
 
 #include <dsp.h>
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
@@ -65,20 +46,21 @@
  *
  ****************************************************************************/
 
-void pid_controller_init(FAR pid_controller_t *pid, float KP, float KI,
+void pid_controller_init(FAR pid_controller_f32_t *pid, float KP, float KI,
                          float KD)
 {
-  DEBUGASSERT(pid != NULL);
+  LIBDSP_DEBUGASSERT(pid != NULL);
 
   /* Reset controller data */
 
-  memset(pid, 0, sizeof(pid_controller_t));
+  memset(pid, 0, sizeof(pid_controller_f32_t));
 
   /* Copy controller parameters */
 
   pid->KP = KP;
   pid->KI = KI;
   pid->KD = KD;
+  pid->KC = 0.0;
 }
 
 /****************************************************************************
@@ -98,19 +80,25 @@ void pid_controller_init(FAR pid_controller_t *pid, float KP, float KI,
  *
  ****************************************************************************/
 
-void pi_controller_init(FAR pid_controller_t *pid, float KP, float KI)
+void pi_controller_init(FAR pid_controller_f32_t *pid, float KP, float KI)
 {
-  DEBUGASSERT(pid != NULL);
+  LIBDSP_DEBUGASSERT(pid != NULL);
 
   /* Reset controller data */
 
-  memset(pid, 0, sizeof(pid_controller_t));
+  memset(pid, 0, sizeof(pid_controller_f32_t));
 
   /* Copy controller parameters */
 
   pid->KP = KP;
   pid->KI = KI;
   pid->KD = 0.0f;
+  pid->KC = 0.0f;
+
+  /* No windup-protection at default */
+
+  pid->aw_en     = false;
+  pid->ireset_en = false;
 }
 
 /****************************************************************************
@@ -131,13 +119,17 @@ void pi_controller_init(FAR pid_controller_t *pid, float KP, float KI)
  *
  ****************************************************************************/
 
-void pid_saturation_set(FAR pid_controller_t *pid, float min, float max)
+void pid_saturation_set(FAR pid_controller_f32_t *pid, float min, float max)
 {
-  DEBUGASSERT(pid != NULL);
-  DEBUGASSERT(min < max);
+  LIBDSP_DEBUGASSERT(pid != NULL);
+  LIBDSP_DEBUGASSERT(min < max);
 
   pid->sat.max = max;
   pid->sat.min = min;
+
+  /* Enable saturation in PID controller */
+
+  pid->pidsat_en = true;
 }
 
 /****************************************************************************
@@ -155,28 +147,54 @@ void pid_saturation_set(FAR pid_controller_t *pid, float min, float max)
  *
  ****************************************************************************/
 
-void pi_saturation_set(FAR pid_controller_t *pid, float min, float max)
+void pi_saturation_set(FAR pid_controller_f32_t *pid, float min, float max)
 {
-  DEBUGASSERT(pid != NULL);
-  DEBUGASSERT(min < max);
+  LIBDSP_DEBUGASSERT(pid != NULL);
+  LIBDSP_DEBUGASSERT(min < max);
 
-  pid_saturation_set(pid, min, max);
+  pid->sat.max = max;
+  pid->sat.min = min;
+
+  /* Enable saturation in PI controller */
+
+  pid->pisat_en = true;
+}
+
+/****************************************************************************
+ * Name: pid_antiwindup_enable
+ ****************************************************************************/
+
+void pi_antiwindup_enable(FAR pid_controller_f32_t *pid, float KC,
+                          bool enable)
+{
+  pid->aw_en = enable;
+  pid->KC    = KC;
+}
+
+/****************************************************************************
+ * Name: pid_ireset_enable
+ ****************************************************************************/
+
+void pi_ireset_enable(FAR pid_controller_f32_t *pid, bool enable)
+{
+  pid->ireset_en = enable;
 }
 
 /****************************************************************************
  * Name: pid_integral_reset
  ****************************************************************************/
 
-void pid_integral_reset(FAR pid_controller_t *pid)
+void pid_integral_reset(FAR pid_controller_f32_t *pid)
 {
   pid->part[1] = 0.0f;
+  pid->aw      = 0.0f;
 }
 
 /****************************************************************************
  * Name: pi_integral_reset
  ****************************************************************************/
 
-void pi_integral_reset(FAR pid_controller_t *pid)
+void pi_integral_reset(FAR pid_controller_f32_t *pid)
 {
   pid_integral_reset(pid);
 }
@@ -196,9 +214,11 @@ void pi_integral_reset(FAR pid_controller_t *pid)
  *
  ****************************************************************************/
 
-float pi_controller(FAR pid_controller_t *pid, float err)
+float pi_controller(FAR pid_controller_f32_t *pid, float err)
 {
-  DEBUGASSERT(pid != NULL);
+  LIBDSP_DEBUGASSERT(pid != NULL);
+
+  float tmp = 0.0f;
 
   /* Store error in controller structure */
 
@@ -210,45 +230,59 @@ float pi_controller(FAR pid_controller_t *pid, float err)
 
   /* Get intergral part */
 
-  pid->part[1] += pid->KI * err;
+  pid->part[1] += pid->KI * (err - pid->aw);
 
   /* Add proportional, integral */
 
   pid->out = pid->part[0] + pid->part[1];
 
-  /* Saturate output only if we are not in a PID calculation and only
-   * if some limits are set. Saturation for a PID controller are done later
-   * in PID routine.
-   */
+  /* Store not saturated output */
 
-  if (pid->sat.max != pid->sat.min && pid->KD == 0.0f)
+  tmp = pid->out;
+
+  /* Saturate output if enabled */
+
+  if (pid->pisat_en == true)
     {
       if (pid->out > pid->sat.max)
         {
+          if (pid->ireset_en == true)
+            {
+              /* Reset I part */
+
+              if (err > 0.0f)
+                {
+                  pi_integral_reset(pid);
+                }
+            }
+
           /* Limit output to the upper limit */
 
           pid->out = pid->sat.max;
-
-          /* Integral anti-windup - reset integral part */
-
-          if (err > 0.0f)
-            {
-              pi_integral_reset(pid);
-            }
         }
       else if (pid->out < pid->sat.min)
         {
+          if (pid->ireset_en == true)
+            {
+              /* Reset I part */
+
+              if (err < 0.0f)
+                {
+                  pi_integral_reset(pid);
+                }
+            }
+
           /* Limit output to the lower limit */
 
           pid->out = pid->sat.min;
-
-          /* Integral anti-windup - reset integral part */
-
-          if (err < 0.0f)
-            {
-              pi_integral_reset(pid);
-            }
         }
+    }
+
+  /* Anti-windup I-part decay if enabled */
+
+  if (pid->aw_en == true)
+    {
+      pid->aw = pid->KC * (tmp - pid->out);
     }
 
   /* Return regulator output */
@@ -271,9 +305,9 @@ float pi_controller(FAR pid_controller_t *pid, float err)
  *
  ****************************************************************************/
 
-float pid_controller(FAR pid_controller_t *pid, float err)
+float pid_controller(FAR pid_controller_f32_t *pid, float err)
 {
-  DEBUGASSERT(pid != NULL);
+  LIBDSP_DEBUGASSERT(pid != NULL);
 
   /* Get PI output */
 
@@ -291,9 +325,9 @@ float pid_controller(FAR pid_controller_t *pid, float err)
 
   pid->err_prev = err;
 
-  /* Saturate output if limits are set */
+  /* Saturate output if enabled */
 
-  if (pid->sat.max != pid->sat.min)
+  if (pid->pidsat_en == true)
     {
       if (pid->out > pid->sat.max)
         {

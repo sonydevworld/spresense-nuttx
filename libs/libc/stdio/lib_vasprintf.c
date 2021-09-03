@@ -1,35 +1,20 @@
 /****************************************************************************
  * libs/libc/stdio/lib_vasprintf.c
  *
- *   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,24 +32,6 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-/* On some architectures, va_list is really a pointer to a structure on the
- * stack.  And the va_arg builtin will modify that instance of va_list.  Since
- * vasprintf traverse the parameters in the va_list twice, the va_list will
- * be altered in this first cases and the second usage will fail.  So far, I
- * have seen this only on the X86 family with GCC.
- */
-
-#undef CLONE_APLIST
-#define ap1 ap
-#define ap2 ap
-
-#if defined(CONFIG_ARCH_X86)
-#  define CLONE_APLIST 1
-#  undef ap2
-#elif defined(CONFIG_ARCH_SIM) && (defined(CONFIG_HOST_X86) || defined(CONFIG_HOST_X86_64))
-#  define CLONE_APLIST 1
-#  undef ap2
-#endif
 
 /****************************************************************************
  * Public Functions
@@ -83,8 +50,8 @@
  *
  * Returned Value:
  *   The returned value is the number of characters allocated for the buffer,
- *   or less than zero if an error occurred. Usually this means that the buffer
- *   could not be allocated.
+ *   or less than zero if an error occurred. Usually this means that the
+ *   buffer could not be allocated.
  *
  ****************************************************************************/
 
@@ -92,7 +59,15 @@ int vasprintf(FAR char **ptr, FAR const IPTR char *fmt, va_list ap)
 {
   struct lib_outstream_s nulloutstream;
   struct lib_memoutstream_s memoutstream;
-#ifdef CLONE_APLIST
+
+  /* On some architectures, va_list is really a pointer to a structure on
+   * the stack. And the va_arg builtin will modify that instance of va_list.
+   * Since vasprintf traverse the parameters in the va_list twice, the
+   * va_list will be altered in this first cases and the second usage will
+   * fail. This is a known issue with x86_64.
+   */
+
+#ifdef va_copy
   va_list ap2;
 #endif
   FAR char *buf;
@@ -100,9 +75,7 @@ int vasprintf(FAR char **ptr, FAR const IPTR char *fmt, va_list ap)
 
   DEBUGASSERT(ptr && fmt);
 
-#ifdef CLONE_APLIST
-  /* Clone the va_list so that the contents of the input values are not altered */
-
+#ifdef va_copy
   va_copy(ap2, ap);
 #endif
 
@@ -111,15 +84,19 @@ int vasprintf(FAR char **ptr, FAR const IPTR char *fmt, va_list ap)
    */
 
   lib_nulloutstream(&nulloutstream);
-  lib_vsprintf((FAR struct lib_outstream_s *)&nulloutstream, fmt, ap1);
+  lib_vsprintf((FAR struct lib_outstream_s *)&nulloutstream, fmt, ap);
 
   /* Then allocate a buffer to hold that number of characters, adding one
    * for the null terminator.
    */
 
-  buf = (FAR char *)malloc(nulloutstream.nput + 1);
+  buf = (FAR char *)lib_malloc(nulloutstream.nput + 1);
   if (!buf)
     {
+      va_end(ap);
+#ifdef va_copy
+      va_end(ap2);
+#endif
       return ERROR;
     }
 
@@ -133,15 +110,23 @@ int vasprintf(FAR char **ptr, FAR const IPTR char *fmt, va_list ap)
 
   /* Then let lib_vsprintf do it's real thing */
 
+#ifdef va_copy
   nbytes = lib_vsprintf((FAR struct lib_outstream_s *)&memoutstream.public,
                         fmt, ap2);
+  va_end(ap2);
+#else
+  nbytes = lib_vsprintf((FAR struct lib_outstream_s *)&memoutstream.public,
+                        fmt, ap);
+#endif
+
+  va_end(ap);
 
   /* Return a pointer to the string to the caller.  NOTE: the memstream put()
-   * method has already added the NUL terminator to the end of the string (not
-   * included in the nput count).
+   * method has already added the NUL terminator to the end of the string
+   * (not included in the nput count).
    *
-   * Hmmm.. looks like the memory would be stranded if lib_vsprintf() returned
-   * an error.  Does that ever happen?
+   * Hmmm.. looks like the memory would be stranded if lib_vsprintf()
+   * returned an error.  Does that ever happen?
    */
 
   DEBUGASSERT(nbytes < 0 || nbytes == nulloutstream.nput);

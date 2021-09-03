@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/unionfs/fs_unionfs.c
  *
- *   Copyright (C) 2015, 2017-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -155,7 +140,8 @@ static ssize_t unionfs_read(FAR struct file *filep, FAR char *buffer,
                  size_t buflen);
 static ssize_t unionfs_write(FAR struct file *filep, FAR const char *buffer,
                  size_t buflen);
-static off_t   unionfs_seek(FAR struct file *filep, off_t offset, int whence);
+static off_t   unionfs_seek(FAR struct file *filep, off_t offset,
+                 int whence);
 static int     unionfs_ioctl(FAR struct file *filep, int cmd,
                  unsigned long arg);
 static int     unionfs_sync(FAR struct file *filep);
@@ -176,8 +162,8 @@ static int     unionfs_readdir(FAR struct inode *mountpt,
 static int     unionfs_rewinddir(FAR struct inode *mountpt,
                  FAR struct fs_dirent_s *dir);
 
-static int     unionfs_bind(FAR struct inode *blkdriver, FAR const void *data,
-                 FAR void **handle);
+static int     unionfs_bind(FAR struct inode *blkdriver,
+                 FAR const void *data, FAR void **handle);
 static int     unionfs_unbind(FAR void *handle, FAR struct inode **blkdriver,
                  unsigned int flags);
 static int     unionfs_statfs(FAR struct inode *mountpt,
@@ -428,7 +414,8 @@ static int unionfs_tryopen(FAR struct file *filep, FAR const char *relpath,
  ****************************************************************************/
 
 static int unionfs_tryopendir(FAR struct inode *inode,
-                              FAR const char *relpath, FAR const char *prefix,
+                              FAR const char *relpath,
+                              FAR const char *prefix,
                               FAR struct fs_dirent_s *dir)
 {
   FAR const struct mountpt_operations *ops;
@@ -765,7 +752,7 @@ static int unionfs_unbind_child(FAR struct unionfs_mountpt_s *um)
     }
   else if (ret > 0)
     {
-      /* REVISIT: This is bad if the file sysem cannot support a deferred
+      /* REVISIT: This is bad if the file system cannot support a deferred
        * unmount.  Ideally it would perform the unmount when the last file
        * is closed.  But I don't think any file system do that.
        */
@@ -855,7 +842,8 @@ static int unionfs_open(FAR struct file *filep, FAR const char *relpath,
 
   /* Allocate a container to hold the open file system information */
 
-  uf = (FAR struct unionfs_file_s *)kmm_malloc(sizeof(struct unionfs_file_s));
+  uf = (FAR struct unionfs_file_s *)
+    kmm_malloc(sizeof(struct unionfs_file_s));
   if (uf == NULL)
     {
       ret = -ENOMEM;
@@ -937,7 +925,11 @@ static int unionfs_close(FAR struct file *filep)
 
   /* Get exclusive access to the file system data structures */
 
-  unionfs_semtake(ui, false);
+  ret = unionfs_semtake(ui, false);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   DEBUGASSERT(ui != NULL && filep->f_priv != NULL);
   uf = (FAR struct unionfs_file_s *)filep->f_priv;
@@ -987,7 +979,6 @@ static ssize_t unionfs_read(FAR struct file *filep, FAR char *buffer,
   FAR struct unionfs_file_s *uf;
   FAR struct unionfs_mountpt_s *um;
   FAR const struct mountpt_operations *ops;
-  int ret = -EPERM;
 
   finfo("buflen: %lu\n", (unsigned long)buflen);
 
@@ -995,14 +986,6 @@ static ssize_t unionfs_read(FAR struct file *filep, FAR char *buffer,
 
   DEBUGASSERT(filep != NULL && filep->f_inode != NULL);
   ui = (FAR struct unionfs_inode_s *)filep->f_inode->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
 
   DEBUGASSERT(ui != NULL && filep->f_priv != NULL);
   uf = (FAR struct unionfs_file_s *)filep->f_priv;
@@ -1016,13 +999,7 @@ static ssize_t unionfs_read(FAR struct file *filep, FAR char *buffer,
 
   /* Perform the lower level read operation */
 
-  if (ops->read != NULL)
-    {
-      ret = ops->read(&uf->uf_file, buffer, buflen);
-    }
-
-  unionfs_semgive(ui);
-  return ret;
+  return ops->read ? ops->read(&uf->uf_file, buffer, buflen) : -EPERM;
 }
 
 /****************************************************************************
@@ -1036,7 +1013,6 @@ static ssize_t unionfs_write(FAR struct file *filep, FAR const char *buffer,
   FAR struct unionfs_file_s *uf;
   FAR struct unionfs_mountpt_s *um;
   FAR const struct mountpt_operations *ops;
-  int ret = -EPERM;
 
   finfo("buflen: %lu\n", (unsigned long)buflen);
 
@@ -1044,14 +1020,6 @@ static ssize_t unionfs_write(FAR struct file *filep, FAR const char *buffer,
 
   DEBUGASSERT(filep != NULL && filep->f_inode != NULL);
   ui = (FAR struct unionfs_inode_s *)filep->f_inode->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
 
   DEBUGASSERT(ui != NULL && filep->f_priv != NULL);
   uf = (FAR struct unionfs_file_s *)filep->f_priv;
@@ -1065,13 +1033,7 @@ static ssize_t unionfs_write(FAR struct file *filep, FAR const char *buffer,
 
   /* Perform the lower level write operation */
 
-  if (ops->write != NULL)
-    {
-      ret = ops->write(&uf->uf_file, buffer, buflen);
-    }
-
-  unionfs_semgive(ui);
-  return ret;
+  return ops->write ? ops->write(&uf->uf_file, buffer, buflen) : -EPERM;
 }
 
 /****************************************************************************
@@ -1084,7 +1046,6 @@ static off_t unionfs_seek(FAR struct file *filep, off_t offset, int whence)
   FAR struct unionfs_file_s *uf;
   FAR struct unionfs_mountpt_s *um;
   FAR const struct mountpt_operations *ops;
-  int ret;
 
   finfo("offset: %lu whence: %d\n", (unsigned long)offset, whence);
 
@@ -1092,14 +1053,6 @@ static off_t unionfs_seek(FAR struct file *filep, off_t offset, int whence)
 
   DEBUGASSERT(filep != NULL && filep->f_inode != NULL);
   ui = (FAR struct unionfs_inode_s *)filep->f_inode->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
 
   DEBUGASSERT(ui != NULL && filep->f_priv != NULL);
   uf = (FAR struct unionfs_file_s *)filep->f_priv;
@@ -1119,6 +1072,16 @@ static off_t unionfs_seek(FAR struct file *filep, off_t offset, int whence)
     }
   else
     {
+      int ret;
+
+      /* Get exclusive access to the file system data structures */
+
+      ret = unionfs_semtake(ui, false);
+      if (ret < 0)
+        {
+          return ret;
+        }
+
       /* No... Just set the common file position value */
 
       switch (whence)
@@ -1145,9 +1108,10 @@ static off_t unionfs_seek(FAR struct file *filep, off_t offset, int whence)
             offset = (off_t)-EINVAL;
             break;
         }
+
+      unionfs_semgive(ui);
     }
 
-  unionfs_semgive(ui);
   return offset;
 }
 
@@ -1161,7 +1125,6 @@ static int unionfs_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   FAR struct unionfs_file_s *uf;
   FAR struct unionfs_mountpt_s *um;
   FAR const struct mountpt_operations *ops;
-  int ret = -ENOTTY;
 
   finfo("cmd: %d arg: %lu\n", cmd, arg);
 
@@ -1169,14 +1132,6 @@ static int unionfs_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   DEBUGASSERT(filep != NULL && filep->f_inode != NULL);
   ui = (FAR struct unionfs_inode_s *)filep->f_inode->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
 
   DEBUGASSERT(ui != NULL && filep->f_priv != NULL);
   uf = (FAR struct unionfs_file_s *)filep->f_priv;
@@ -1190,13 +1145,7 @@ static int unionfs_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   /* Perform the lower level ioctl operation */
 
-  if (ops->ioctl != NULL)
-    {
-      ret = ops->ioctl(&uf->uf_file, cmd, arg);
-    }
-
-  unionfs_semgive(ui);
-  return ret;
+  return ops->ioctl ? ops->ioctl(&uf->uf_file, cmd, arg) : -ENOTTY;
 }
 
 /****************************************************************************
@@ -1209,7 +1158,6 @@ static int unionfs_sync(FAR struct file *filep)
   FAR struct unionfs_file_s *uf;
   FAR struct unionfs_mountpt_s *um;
   FAR const struct mountpt_operations *ops;
-  int ret = -EINVAL;
 
   finfo("filep=%p\n", filep);
 
@@ -1217,14 +1165,6 @@ static int unionfs_sync(FAR struct file *filep)
 
   DEBUGASSERT(filep != NULL && filep->f_inode != NULL);
   ui = (FAR struct unionfs_inode_s *)filep->f_inode->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
 
   DEBUGASSERT(ui != NULL && filep->f_priv != NULL);
   uf = (FAR struct unionfs_file_s *)filep->f_priv;
@@ -1238,13 +1178,7 @@ static int unionfs_sync(FAR struct file *filep)
 
   /* Perform the lower level sync operation */
 
-  if (ops->sync != NULL)
-    {
-      ret = ops->sync(&uf->uf_file);
-    }
-
-  unionfs_semgive(ui);
-  return ret;
+  return ops->sync ? ops->sync(&uf->uf_file) : -EINVAL;
 }
 
 /****************************************************************************
@@ -1266,14 +1200,6 @@ static int unionfs_dup(FAR const struct file *oldp, FAR struct file *newp)
 
   DEBUGASSERT(oldp != NULL && oldp->f_inode != NULL);
   ui = (FAR struct unionfs_inode_s *)oldp->f_inode->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
 
   DEBUGASSERT(ui != NULL && oldp->f_priv != NULL);
   oldpriv = (FAR struct unionfs_file_s *)oldp->f_priv;
@@ -1334,22 +1260,13 @@ static int unionfs_fstat(FAR const struct file *filep, FAR struct stat *buf)
   FAR struct unionfs_file_s *uf;
   FAR struct unionfs_mountpt_s *um;
   FAR const struct mountpt_operations *ops;
-  int ret = -EPERM;
 
-  finfo("filep=%p buf=%p\n");
+  finfo("filep=%p buf=%p\n", filep, buf);
 
   /* Recover the open file data from the struct file instance */
 
   DEBUGASSERT(filep != NULL && filep->f_inode != NULL);
   ui = (FAR struct unionfs_inode_s *)filep->f_inode->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
 
   DEBUGASSERT(ui != NULL && filep->f_priv != NULL);
   uf = (FAR struct unionfs_file_s *)filep->f_priv;
@@ -1363,13 +1280,7 @@ static int unionfs_fstat(FAR const struct file *filep, FAR struct stat *buf)
 
   /* Perform the lower level write operation */
 
-  if (ops->fstat != NULL)
-    {
-      ret = ops->fstat(&uf->uf_file, buf);
-    }
-
-  unionfs_semgive(ui);
-  return ret;
+  return ops->fstat ? ops->fstat(&uf->uf_file, buf) : -EPERM;
 }
 
 /****************************************************************************
@@ -1386,7 +1297,6 @@ static int unionfs_truncate(FAR struct file *filep, off_t length)
   FAR struct unionfs_file_s *uf;
   FAR struct unionfs_mountpt_s *um;
   FAR const struct mountpt_operations *ops;
-  int ret = -EPERM;
 
   finfo("filep=%p length=%ld\n", filep, (long)length);
 
@@ -1394,14 +1304,6 @@ static int unionfs_truncate(FAR struct file *filep, off_t length)
 
   DEBUGASSERT(filep != NULL && filep->f_inode != NULL);
   ui = (FAR struct unionfs_inode_s *)filep->f_inode->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
 
   DEBUGASSERT(ui != NULL && filep->f_priv != NULL);
   uf = (FAR struct unionfs_file_s *)filep->f_priv;
@@ -1415,20 +1317,15 @@ static int unionfs_truncate(FAR struct file *filep, off_t length)
 
   /* Perform the lower level write operation */
 
-  if (ops->truncate != NULL)
-    {
-      ret = ops->truncate(&uf->uf_file, length);
-    }
-
-  unionfs_semgive(ui);
-  return ret;
+  return ops->truncate ? ops->truncate(&uf->uf_file, length) : -EPERM;
 }
 
 /****************************************************************************
  * Name: unionfs_opendir
  ****************************************************************************/
 
-static int unionfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
+static int unionfs_opendir(FAR struct inode *mountpt,
+                           FAR const char *relpath,
                            FAR struct fs_dirent_s *dir)
 {
   FAR struct unionfs_inode_s *ui;
@@ -1471,7 +1368,8 @@ static int unionfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
 
   /* Allocate another dirent structure for the lower file system */
 
-  lowerdir = (FAR struct fs_dirent_s *)kmm_zalloc(sizeof(struct fs_dirent_s));
+  lowerdir = (FAR struct fs_dirent_s *)
+    kmm_zalloc(sizeof(struct fs_dirent_s));
   if (lowerdir == NULL)
     {
       ret = -ENOMEM;
@@ -1539,7 +1437,9 @@ static int unionfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
 
       if (unionfs_ispartprefix(relpath, ui->ui_fs[0].um_prefix))
         {
-          /* File system 1 offset includes this relpath.  Make sure that only one */
+          /* File system 1 offset includes this relpath.  Make sure that only
+           * one
+           */
 
           fu->fu_ndx = 0;
           fu->fu_prefix[0] = true;
@@ -1611,7 +1511,11 @@ static int unionfs_closedir(FAR struct inode *mountpt,
 
   /* Get exclusive access to the file system data structures */
 
-  unionfs_semtake(ui, true);
+  ret = unionfs_semtake(ui, true);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   DEBUGASSERT(dir);
   fu = &dir->u.unionfs;
@@ -1725,7 +1629,7 @@ static int unionfs_readdir(struct inode *mountpt, struct fs_dirent_s *dir)
        * directories.
        */
 
-      strncpy(dir->fd_dir.d_name, um->um_prefix, NAME_MAX + 1);
+      strncpy(dir->fd_dir.d_name, um->um_prefix, NAME_MAX);
 
       /* Describe this as a read only directory */
 
@@ -1799,7 +1703,7 @@ static int unionfs_readdir(struct inode *mountpt, struct fs_dirent_s *dir)
                    * be multiple directories.
                    */
 
-                  strncpy(dir->fd_dir.d_name, um->um_prefix, NAME_MAX + 1);
+                  strncpy(dir->fd_dir.d_name, um->um_prefix, NAME_MAX);
 
                   /* Describe this as a read only directory */
 
@@ -1818,7 +1722,9 @@ static int unionfs_readdir(struct inode *mountpt, struct fs_dirent_s *dir)
                     {
                       int tmp;
 
-                      /* Check if anything exists at this path on file system 1 */
+                      /* Check if anything exists at this path on file
+                       * system 1
+                       */
 
                       um0 = &ui->ui_fs[0];
                       tmp = unionfs_trystat(um0->um_node, relpath,
@@ -1834,7 +1740,7 @@ static int unionfs_readdir(struct inode *mountpt, struct fs_dirent_s *dir)
                         {
                           /* There is something there!
                            * REVISIT: We could allow files and directories to
-                           * have duplicat names.
+                           * have duplicate names.
                            */
 
                           return -ENOENT;
@@ -1902,7 +1808,7 @@ static int unionfs_readdir(struct inode *mountpt, struct fs_dirent_s *dir)
                     {
                       /* There is something there!
                        * REVISIT: We could allow files and directories to
-                       * have duplicat names.
+                       * have duplicate names.
                        */
 
                       duplicate = true;
@@ -1938,7 +1844,7 @@ static int unionfs_rewinddir(struct inode *mountpt, struct fs_dirent_s *dir)
   FAR struct unionfs_mountpt_s *um;
   FAR const struct mountpt_operations *ops;
   FAR struct fs_unionfsdir_s *fu;
-  int ret;
+  int ret = -EINVAL;
 
   finfo("mountpt=%p dir=%p\n", mountpt, dir);
 
@@ -1946,14 +1852,6 @@ static int unionfs_rewinddir(struct inode *mountpt, struct fs_dirent_s *dir)
 
   DEBUGASSERT(mountpt != NULL && mountpt->i_private != NULL);
   ui = (FAR struct unionfs_inode_s *)mountpt->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
 
   DEBUGASSERT(dir);
   fu = &dir->u.unionfs;
@@ -1986,13 +1884,8 @@ static int unionfs_rewinddir(struct inode *mountpt, struct fs_dirent_s *dir)
           ret = ops->rewinddir(um->um_node, fu->fu_lower[fu->fu_ndx]);
           dir->fd_position = fu->fu_lower[fu->fu_ndx]->fd_position;
         }
-      else
-        {
-          ret = -EINVAL;
-        }
     }
 
-  unionfs_semgive(ui);
   return ret;
 }
 
@@ -2056,6 +1949,7 @@ static int unionfs_unbind(FAR void *handle, FAR struct inode **blkdriver,
                           unsigned int flags)
 {
   FAR struct unionfs_inode_s *ui;
+  int ret;
 
   finfo("handle=%p blkdriver=%p flags=%x\n", handle, blkdriver, flags);
 
@@ -2066,7 +1960,11 @@ static int unionfs_unbind(FAR void *handle, FAR struct inode **blkdriver,
 
   /* Get exclusive access to the file system data structures */
 
-  unionfs_semtake(ui, true);
+  ret = unionfs_semtake(ui, true);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Mark the file system as unmounted. */
 
@@ -2078,10 +1976,14 @@ static int unionfs_unbind(FAR void *handle, FAR struct inode **blkdriver,
 
   if (ui->ui_nopen <= 0)
     {
+      unionfs_semgive(ui);
       unionfs_destroy(ui);
     }
+  else
+    {
+      unionfs_semgive(ui);
+    }
 
-  unionfs_semgive(ui);
   return OK;
 }
 
@@ -2112,14 +2014,6 @@ static int unionfs_statfs(FAR struct inode *mountpt, FAR struct statfs *buf)
 
   memset(buf, 0, sizeof(struct statfs));
 
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
   /* Get statfs info from file system 1.
    *
    * REVISIT: What would it mean if one file system did not support statfs?
@@ -2142,7 +2036,7 @@ static int unionfs_statfs(FAR struct inode *mountpt, FAR struct statfs *buf)
       ret = ops1->statfs(um1->um_node, &buf1);
       if (ret < 0)
         {
-          goto errout_with_semaphore;
+          return ret;
         }
 
       /* Get stafs info from file system 2 */
@@ -2150,29 +2044,26 @@ static int unionfs_statfs(FAR struct inode *mountpt, FAR struct statfs *buf)
       ret = ops2->statfs(um2->um_node, &buf2);
       if (ret < 0)
         {
-          goto errout_with_semaphore;
+          return ret;
         }
     }
   else if (ops1->statfs != NULL)
     {
       /* We have statfs for file system 1 only */
 
-      ret = ops1->statfs(um1->um_node, buf);
-      goto errout_with_semaphore;
+      return ops1->statfs(um1->um_node, buf);
     }
   else if (ops2->statfs != NULL)
     {
       /* We have statfs for file system 2 only */
 
-      ret = ops2->statfs(um2->um_node, buf);
-      goto errout_with_semaphore;
+      return ops2->statfs(um2->um_node, buf);
     }
   else
     {
       /* We could not get stafs info from either file system */
 
-      ret = -ENOSYS;
-      goto errout_with_semaphore;
+      return -ENOSYS;
     }
 
   /* We get here is we successfully obtained statfs info from both file
@@ -2194,14 +2085,16 @@ static int unionfs_statfs(FAR struct inode *mountpt, FAR struct statfs *buf)
     {
       if (buf1.f_bsize < buf2.f_bsize)
         {
-          tmp           = (((uint64_t)buf2.f_blocks * (uint64_t)buf2.f_bsize) << 16);
+          tmp           = (((uint64_t)buf2.f_blocks *
+                            (uint64_t)buf2.f_bsize) << 16);
           ratiob16      = (uint32_t)(tmp / buf1.f_bsize);
           adj           = &buf2;
         }
       else
         {
           buf->f_bsize  = buf2.f_bsize;
-          tmp           = (((uint64_t)buf1.f_blocks * (uint64_t)buf1.f_bsize) << 16);
+          tmp           = (((uint64_t)buf1.f_blocks *
+                            (uint64_t)buf1.f_bsize) << 16);
           ratiob16      = (uint32_t)(tmp / buf2.f_bsize);
           adj           = &buf1;
         }
@@ -2222,11 +2115,7 @@ static int unionfs_statfs(FAR struct inode *mountpt, FAR struct statfs *buf)
   buf->f_bfree          = buf1.f_bfree  + buf2.f_bfree;
   buf->f_bavail         = buf1.f_bavail + buf2.f_bavail;
 
-  ret = OK;
-
-errout_with_semaphore:
-  unionfs_semgive(ui);
-  return ret;
+  return OK;
 }
 
 /****************************************************************************
@@ -2249,14 +2138,6 @@ static int unionfs_unlink(FAR struct inode *mountpt,
               relpath != NULL);
   ui = (FAR struct unionfs_inode_s *)mountpt->i_private;
 
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
   /* Check if some exists at this path on file system 1.  This might be
    * a file or a directory
    */
@@ -2278,7 +2159,7 @@ static int unionfs_unlink(FAR struct inode *mountpt,
 
   else
     {
-      /* Check if the file exists with with name on file system 2.  The only
+      /* Check if the file exists with name on file system 2.  The only
        * reason that we check here is so that we can return the more
        * meaningful -ENOSYS if file system 2 is a read-only file system.
        */
@@ -2296,7 +2177,6 @@ static int unionfs_unlink(FAR struct inode *mountpt,
         }
     }
 
-  unionfs_semgive(ui);
   return ret;
 }
 
@@ -2322,30 +2202,20 @@ static int unionfs_mkdir(FAR struct inode *mountpt, FAR const char *relpath,
               relpath != NULL);
   ui = (FAR struct unionfs_inode_s *)mountpt->i_private;
 
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
   /* Is there anything with this name on either file system? */
 
   um  = &ui->ui_fs[0];
   ret = unionfs_trystat(um->um_node, relpath, um->um_prefix, &buf);
   if (ret >= 0)
     {
-      ret = -EEXIST;
-      goto errout_with_semaphore;
+      return -EEXIST;
     }
 
   um  = &ui->ui_fs[1];
   ret = unionfs_trystat(um->um_node, relpath, um->um_prefix, &buf);
   if (ret >= 0)
     {
-      ret = -EEXIST;
-      goto errout_with_semaphore;
+      return -EEXIST;
     }
 
   /* Try to create the directory on both file systems. */
@@ -2361,20 +2231,7 @@ static int unionfs_mkdir(FAR struct inode *mountpt, FAR const char *relpath,
    * read-only and the other is write-able?
    */
 
-  if (ret1 >= 0 || ret2 >= 0)
-    {
-      ret = OK;
-    }
-  else
-    {
-      /* Otherwise, pick one */
-
-      ret = ret1;
-    }
-
-errout_with_semaphore:
-  unionfs_semgive(ui);
-  return ret;
+  return (ret1 >= 0 || ret2 >= 0) ? OK : ret1;
 }
 
 /****************************************************************************
@@ -2385,8 +2242,8 @@ static int unionfs_rmdir(FAR struct inode *mountpt, FAR const char *relpath)
 {
   FAR struct unionfs_inode_s *ui;
   FAR struct unionfs_mountpt_s *um;
+  int ret = -ENOENT;
   int tmp;
-  int ret;
 
   finfo("relpath: %s\n", relpath);
 
@@ -2395,16 +2252,6 @@ static int unionfs_rmdir(FAR struct inode *mountpt, FAR const char *relpath)
   DEBUGASSERT(mountpt != NULL && mountpt->i_private != NULL &&
               relpath != NULL);
   ui = (FAR struct unionfs_inode_s *)mountpt->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  ret = -ENOENT;
 
   /* We really don't know any better so we will try to remove the directory
    * from both file systems.
@@ -2423,7 +2270,6 @@ static int unionfs_rmdir(FAR struct inode *mountpt, FAR const char *relpath)
       ret = unionfs_tryrmdir(um->um_node, relpath, um->um_prefix);
       if (ret < 0)
         {
-          unionfs_semgive(ui);
           return ret;
         }
     }
@@ -2447,7 +2293,6 @@ static int unionfs_rmdir(FAR struct inode *mountpt, FAR const char *relpath)
        */
     }
 
-  unionfs_semgive(ui);
   return ret;
 }
 
@@ -2461,23 +2306,15 @@ static int unionfs_rename(FAR struct inode *mountpt,
 {
   FAR struct unionfs_inode_s *ui;
   FAR struct unionfs_mountpt_s *um;
-  int tmp;
   int ret = -ENOENT;
+  int tmp;
 
-  finfo("oldrelpath: %s newrelpath\n", oldrelpath, newrelpath);
+  finfo("oldrelpath: %s newrelpath: %s\n", oldrelpath, newrelpath);
 
   /* Recover the union file system data from the struct inode instance */
 
   DEBUGASSERT(mountpt != NULL && mountpt->i_private != NULL);
   ui = (FAR struct unionfs_inode_s *)mountpt->i_private;
-
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
 
   DEBUGASSERT(oldrelpath != NULL && oldrelpath != NULL);
 
@@ -2501,7 +2338,6 @@ static int unionfs_rename(FAR struct inode *mountpt,
            * file of the same relative path will become visible.
            */
 
-          unionfs_semgive(ui);
           return OK;
         }
     }
@@ -2523,7 +2359,6 @@ static int unionfs_rename(FAR struct inode *mountpt,
                               um->um_prefix);
     }
 
-  unionfs_semgive(ui);
   return ret;
 }
 
@@ -2546,14 +2381,6 @@ static int unionfs_stat(FAR struct inode *mountpt, FAR const char *relpath,
               relpath != NULL);
   ui = (FAR struct unionfs_inode_s *)mountpt->i_private;
 
-  /* Get exclusive access to the file system data structures */
-
-  ret = unionfs_semtake(ui, false);
-  if (ret < 0)
-    {
-      return ret;
-    }
-
   /* stat this path on file system 1 */
 
   um  = &ui->ui_fs[0];
@@ -2564,7 +2391,6 @@ static int unionfs_stat(FAR struct inode *mountpt, FAR const char *relpath,
        * shadow the second anyway.
        */
 
-      unionfs_semgive(ui);
       return OK;
     }
 
@@ -2578,7 +2404,6 @@ static int unionfs_stat(FAR struct inode *mountpt, FAR const char *relpath,
        * shadow the second anyway.
        */
 
-      unionfs_semgive(ui);
       return OK;
     }
 
@@ -2611,7 +2436,6 @@ static int unionfs_stat(FAR struct inode *mountpt, FAR const char *relpath,
         }
     }
 
-  unionfs_semgive(ui);
   return ret;
 }
 
@@ -2809,12 +2633,6 @@ int unionfs_mount(FAR const char *fspath1, FAR const char *prefix1,
    * for now, however.
    */
 
-  /* Insert a dummy node -- we need to hold the inode semaphore
-   * to do this because we will have a momentarily bad structure.
-   * NOTE that the inode will be created with a reference count of zero.
-   */
-
-  inode_semtake();
   ret = inode_reserve(mountpt, &mpinode);
   if (ret < 0)
     {
@@ -2827,7 +2645,7 @@ int unionfs_mount(FAR const char *fspath1, FAR const char *prefix1,
        */
 
       ferr("ERROR: Failed to reserve inode\n");
-      goto errout_with_semaphore;
+      return ret;
     }
 
   /* Populate the inode with driver specific information. */
@@ -2848,14 +2666,10 @@ int unionfs_mount(FAR const char *fspath1, FAR const char *prefix1,
       goto errout_with_mountpt;
     }
 
-  inode_semgive();
   return OK;
 
 errout_with_mountpt:
   inode_release(mpinode);
-
-errout_with_semaphore:
-  inode_semgive();
   return ret;
 }
 #endif /* !CONFIG_DISABLE_MOUNTPOINT && CONFIG_FS_UNIONFS */

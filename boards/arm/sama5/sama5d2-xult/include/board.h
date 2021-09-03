@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/sama5/sama5d2-xult/include/board.h
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,26 +32,22 @@
 #  include <nuttx/irq.h>
 #endif
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
 /* Clocking *****************************************************************/
-
-/* After power-on reset, the SAMA5 device is running on a 12MHz internal RC.
- * These definitions will configure operational clocking.
- */
 
 /* On-board crystal frequencies */
 
 #define BOARD_MAINOSC_FREQUENCY    (12000000)  /* MAINOSC: 12MHz crystal on-board */
 #define BOARD_SLOWCLK_FREQUENCY    (32768)     /* Slow Clock: 32.768KHz */
 
+/* After power-on reset, the SAMA5 device is running on a 12MHz internal RC.
+ * These definitions will configure operational clocking.
+ */
+
 #if defined(CONFIG_SAMA5_BOOT_SDRAM)
 /* When booting from SDRAM, NuttX is loaded in SDRAM by an intermediate
  * bootloader.
- * That bootloader had to have already configured the PLL and SDRAM for proper
- * operation.
+ * That bootloader had to have already configured the PLL and SDRAM for
+ * proper operation.
  *
  * In this case, we don not reconfigure the clocking.
  * Rather, we need to query the register settings to determine the clock
@@ -91,6 +72,15 @@
 
 #  include <arch/board/board_384mhz.h>
 
+#elif defined(CONFIG_SAMA5D2XULT_498MHZ)
+
+/* This is the configuration results in a CPU clock of 498MHz.
+ *
+ * In this configuration, UPLL is the source of the UHPHS clock (if enabled).
+ */
+
+#  include <arch/board/board_498mhz.h>
+
 #elif defined(CONFIG_SAMA5D2XULT_528MHZ)
 
 /* This is the configuration results in a CPU clock of 528MHz.
@@ -111,6 +101,10 @@
 #  include <arch/board/board_396mhz.h>
 
 #endif
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
 
 /* LED definitions **********************************************************/
 
@@ -228,6 +222,34 @@
 #define PIO_UART1_RXD     PIO_UART1_RXD_1
 #define PIO_UART1_TXD     PIO_UART1_TXD_1
 
+/* Standard UART on Arduino connector (J22) is UART2.
+ *
+ *   ---- ------- -------------
+ *   J22  BOARD      SAMA5D2
+ *   PIN  NAME    PIO  FUNCTION
+ *   ---- ------- -------------
+ *    7   URXD2   PD4 UART2 URXD2
+ *    8   UTXD2   PD5 UART2 UTXD2
+ *   ---- ------- -------------
+ */
+
+#define PIO_UART2_RXD     PIO_UART2_RXD_2
+#define PIO_UART2_TXD     PIO_UART2_TXD_2
+
+/* Standard UART on Arduino connector (J17) is UART3.
+ *
+ *   ---- ------- -------------
+ *   J17  BOARD      SAMA5D2
+ *   PIN  NAME    PIO  FUNCTION
+ *   ---- ------- -------------
+ *    27   URXD3  PB11 UART3 URXD3
+ *    28   UTXD3  PB12 UART3 UTXD3
+ *   ---- ------- -------------
+ */
+
+#define PIO_UART3_RXD     PIO_UART3_RXD_1
+#define PIO_UART3_TXD     PIO_UART3_TXD_1
+
 /* Standard UART on Arduino connector (J21) is FLEXCOM4.
  *
  *   ---- ------- -------------
@@ -280,6 +302,24 @@
  *   ---- ------- ---- --------
  */
 
+/* SDIO - Used for both Port 0 & 1 ******************************************/
+
+/* 386 KHz for initial inquiry stuff */
+
+#define BOARD_SDMMC_IDMODE_PRESCALER    SDMMC_SYSCTL_SDCLKFS_DIV256
+#define BOARD_SDMMC_IDMODE_DIVISOR      SDMMC_SYSCTL_DVS_DIV(2)
+
+/* 24.8MHz for other modes */
+
+#define BOARD_SDMMC_MMCMODE_PRESCALER   SDMMC_SYSCTL_SDCLKFS_DIV8
+#define BOARD_SDMMC_MMCMODE_DIVISOR     SDMMC_SYSCTL_DVS_DIV(1)
+
+#define BOARD_SDMMC_SD1MODE_PRESCALER   SDMMC_SYSCTL_SDCLKFS_DIV8
+#define BOARD_SDMMC_SD1MODE_DIVISOR     SDMMC_SYSCTL_DVS_DIV(1)
+
+#define BOARD_SDMMC_SD4MODE_PRESCALER   SDMMC_SYSCTL_SDCLKFS_DIV8
+#define BOARD_SDMMC_SD4MODE_DIVISOR     SDMMC_SYSCTL_DVS_DIV(1)
+
 /****************************************************************************
  * Assembly Language Macros
  ****************************************************************************/
@@ -289,4 +329,4 @@
   .endm
 #endif /* __ASSEMBLY__ */
 
-#endif  /* __BOARDS_ARM_SAMA5_SAMA5D2_XULT_INCLUDE_BOARD_H */
+#endif /* __BOARDS_ARM_SAMA5_SAMA5D2_XULT_INCLUDE_BOARD_H */

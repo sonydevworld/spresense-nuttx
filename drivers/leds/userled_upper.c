@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/leds/userled_upper.c
  *
- *   Copyright (C) 2015-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -169,10 +154,11 @@ static int userled_open(FAR struct file *filep)
 
   /* Allocate a new open structure */
 
-  opriv = (FAR struct userled_open_s *)kmm_zalloc(sizeof(struct userled_open_s));
+  opriv = (FAR struct userled_open_s *)
+          kmm_zalloc(sizeof(struct userled_open_s));
   if (!opriv)
     {
-      lederr("ERROR: Failled to allocate open structure\n");
+      lederr("ERROR: Failed to allocate open structure\n");
       ret = -ENOMEM;
       goto errout_with_sem;
     }
@@ -347,7 +333,8 @@ static int userled_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   FAR const struct userled_lowerhalf_s *lower;
   int ret;
 
-  DEBUGASSERT(filep != NULL && filep->f_priv != NULL && filep->f_inode != NULL);
+  DEBUGASSERT(filep != NULL && filep->f_priv != NULL &&
+              filep->f_inode != NULL);
   inode = filep->f_inode;
   DEBUGASSERT(inode->i_private);
   priv  = (FAR struct userled_upperhalf_s *)inode->i_private;
@@ -370,8 +357,8 @@ static int userled_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
      * Description: Report the set of LEDs supported by the hardware;
      * Argument:    A pointer to writeable userled_set_t value in which to
      *              return the set of supported LEDs.
-     * Return:      Zero (OK) on success.  Minus one will be returned on failure
-     *              with the errno value set appropriately.
+     * Return:      Zero (OK) on success.  Minus one will be returned on
+     *              failure with the errno value set appropriately.
      */
 
     case ULEDIOC_SUPPORTED:
@@ -391,13 +378,14 @@ static int userled_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     /* Command:     ULEDIOC_SETLED
      * Description: Set the state of one LED.
      * Argument:    A read-only pointer to an instance of struct userled_s
-     * Return:      Zero (OK) on success.  Minus one will be returned on failure
-     *              with the errno value set appropriately.
+     * Return:      Zero (OK) on success.  Minus one will be returned on
+     *              failure with the errno value set appropriately.
      */
 
     case ULEDIOC_SETLED:
       {
-        FAR struct userled_s *userled = (FAR struct userled_s *)((uintptr_t)arg);
+        FAR struct userled_s *userled = (FAR struct userled_s *)
+                                        ((uintptr_t)arg);
         int led;
         bool ledon;
 
@@ -438,8 +426,8 @@ static int userled_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     /* Command:     ULEDIOC_SETALL
      * Description: Set the state of all LEDs.
      * Argument:    A value of type userled_set_t cast to unsigned long
-     * Return:      Zero (OK) on success.  Minus one will be returned on failure
-     *              with the errno value set appropriately.
+     * Return:      Zero (OK) on success.  Minus one will be returned on
+     *              failure with the errno value set appropriately.
      */
 
     case ULEDIOC_SETALL:
@@ -466,10 +454,10 @@ static int userled_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
     /* Command:     ULEDIOC_GETALL
      * Description: Get the state of one LED.
-     * Argument:    A write-able pointer to a userled_set_t memory location in
-     *              which to return the LED state.
-     * Return:      Zero (OK) on success.  Minus one will be returned on failure
-     *              with the errno value set appropriately.
+     * Argument:    A write-able pointer to a userled_set_t memory location
+     *              in which to return the LED state.
+     * Return:      Zero (OK) on success.  Minus one will be returned on
+     *              failure with the errno value set appropriately.
      */
 
     case ULEDIOC_GETALL:
@@ -487,7 +475,7 @@ static int userled_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       break;
 
     default:
-      lederr("ERROR: Unrecognized command: %ld\n", cmd);
+      lederr("ERROR: Unrecognized command: %d\n", cmd);
       ret = -ENOTTY;
       break;
     }

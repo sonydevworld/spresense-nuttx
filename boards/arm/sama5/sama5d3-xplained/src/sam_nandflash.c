@@ -46,16 +46,16 @@
 
 #include <nuttx/config.h>
 
-#include <sys/mount.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <errno.h>
 #include <debug.h>
 
 #include <nuttx/mtd/mtd.h>
+#include <nuttx/fs/fs.h>
 #include <nuttx/fs/nxffs.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "sam_periphclks.h"
 #include "sam_pio.h"
 #include "sam_nand.h"
@@ -187,7 +187,8 @@ int sam_nand_automount(int minor)
       mtd = sam_nand_initialize(HSMC_CS3);
       if (!mtd)
         {
-          ferr("ERROR: Failed to create the NAND driver on CS%d\n", HSMC_CS3);
+          ferr("ERROR: Failed to create the NAND driver on CS%d\n",
+               HSMC_CS3);
           return -ENODEV;
         }
 
@@ -213,13 +214,14 @@ int sam_nand_automount(int minor)
 
       /* Mount the file system at /mnt/nand */
 
-      ret = mount(NULL, "/mnt/nand", "nxffs", 0, NULL);
+      ret = nx_mount(NULL, "/mnt/nand", "nxffs", 0, NULL);
       if (ret < 0)
         {
-          ferr("ERROR: Failed to mount the NXFFS volume: %d\n", errno);
+          ferr("ERROR: Failed to mount the NXFFS volume: %d\n", ret);
           return ret;
         }
 #endif
+
       /* Now we are initialized */
 
       initialized = true;

@@ -65,6 +65,7 @@
  ****************************************************************************/
 
 /* Frame format definitions *************************************************/
+
 /* Fragment header.
  *
  * The fragment header is used when the payload is too large to fit in a
@@ -157,14 +158,16 @@
 #define SIXLOWPAN_HC_UDP_SRCPORT_C        0x80 /* Source port compressed to 4 bits */
 #define SIXLOWPAN_HC_UDP_DESTPORT_C       0x40 /* Destination port compressed to 4 bits */
 #define SIXLOWPAN_HC_UDP_LENGTH  _C       0x20 /* Elided, compute from IPv6 length */
-#define SIXLOWPAN_HC_UDP_ALL_C            0xe0 /* All commpressed */
+#define SIXLOWPAN_HC_UDP_ALL_C            0xe0 /* All compressed */
 
 /* IPHC encoding
  *
  * Values of fields within the IPHC encoding first byte
  * (Using MS-to-LS bit numbering of the draft RFC)
  */
+
                                                 /* Bits 0-2: 011 */
+
 #define SIXLOWPAN_IPHC_TC_MASK            0x18  /* Bits 3-4: Traffic Class, Flow Label */
 #  define SIXLOWPAN_IPHC_TC_00            0x00  /*   ECN+DSCP+4-bit Pad+Flow Label (4 bytes) */
 #  define SIXLOWPAN_IPHC_TC_01            0x08  /*   ECN+2-bit Pad+ Flow Label (3 bytes), DSCP is elided. */
@@ -467,15 +470,16 @@ struct sixlowpan_reassbuf_s
  *   - The io_flink field points to the next frame in the list (if enable)
  *   - The last frame in the list will have io_flink == NULL.
  *
- *   An non-NULL d_buf of size CONFIG_NET_6LOWPAN_PKTSIZE + CONFIG_NET_GUARDSIZE
- *   must also be provided.  The frame will be decompressed and placed in
- *   the d_buf. Fragmented packets will also be reassembled in the d_buf as
+ *   An non-NULL d_buf of size CONFIG_NET_6LOWPAN_PKTSIZE +
+ *   CONFIG_NET_GUARDSIZE must also be provided.
+ *   The frame will be decompressed and placed in the d_buf.
+ *   Fragmented packets will also be reassembled in the d_buf as
  *   they are received (meaning for the driver, that two packet buffers are
- *   required:  One for reassembly of RX packets and one used for TX polling).
+ *   required: One for reassembly of RX packets and one used for TX polling).
  *
  *   After each frame is processed into d_buf, the IOB is deallocated.  If
  *   reassembly is incomplete, the partially reassembled packet must be
- *   preserved by the radio network drvier and provided again when the next
+ *   preserved by the radio network driver and provided again when the next
  *   frame is received.
  *
  *   When the packet in the d_buf is fully reassembled, it will be provided
@@ -508,7 +512,7 @@ struct sixlowpan_reassbuf_s
  *               must apply to all of the frames in the list.
  *
  * Returned Value:
- *   Ok is returned on success; Othewise a negated errno value is returned.
+ *   Ok is returned on success; Otherwise a negated errno value is returned.
  *
  ****************************************************************************/
 

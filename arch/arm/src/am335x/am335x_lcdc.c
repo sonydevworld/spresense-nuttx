@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/am225x/am335x_lcdc.c
+ * arch/arm/src/am335x/am335x_lcdc.c
  *
  *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -55,7 +55,7 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/video/fb.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "hardware/am335x_prcm.h"
 #include "am335x_pinmux.h"
 #include "am335x_config.h"
@@ -113,7 +113,6 @@ static int  am335x_lcd_interrupt(int irq, void *context, void *arg);
 static uint32_t am335x_lcd_divisor(uint32_t reference, uint32_t frequency);
 static int  am335x_set_refclk(uint32_t frequency);
 static int  am335x_get_refclk(uint32_t *frequency);
-static int  am335x_lcdc_enableclk(void);
 
 /****************************************************************************
  * Private Data
@@ -409,7 +408,7 @@ static int am335x_set_refclk(uint32_t frequency)
           if (delta < 0)
             {
               delta    = -delta;
-           }
+            }
 
           if (delta < mindelta)
             {
@@ -422,7 +421,7 @@ static int am335x_set_refclk(uint32_t frequency)
             {
               break;
             }
-         }
+        }
     }
 
   putreg32(AM335X_CM_WKUP_CLKSEL_DPLL_DISP, (mul << 8) | (div - 1));
@@ -461,35 +460,6 @@ static int am335x_get_refclk(uint32_t *frequency)
 
   sysclk     = am335x_get_sysclk();
   *frequency = ((regval >> 8) & 0x7ff) * (sysclk / ((regval & 0x7f) + 1));
-  return OK;
-}
-
-/****************************************************************************
- * Name: am335x_lcdc_enableclk
- ****************************************************************************/
-
-static int am335x_lcdc_enableclk(void)
-{
-  /* Set MODULEMODE to ENABLE(2) */
-
-  putreg32(AM335X_CM_PER_LCDC_CLKCTRL, CM_WKUP_CLKCTRL_MODULEMODE_ENABLE);
-
-  /* Wait for MODULEMODE to reflect that it is enabled */
-
-  while ((getreg32(AM335X_CM_PER_LCDC_CLKCTRL) & CM_WKUP_CLKCTRL_MODULEMODE_MASK)
-         != CM_WKUP_CLKCTRL_MODULEMODE_ENABLE)
-    {
-      up_udelay(10);
-    }
-
-  /* Wait for IDLEST to become fully functional */
-
-  while ((getreg32(AM335X_CM_PER_LCDC_CLKCTRL) & CM_WKUP_CLKCTRL_IDLEST_MASK)
-         != CM_WKUP_CLKCTRL_IDLEST_FUNC)
-    {
-      up_udelay(10);
-    }
-
   return OK;
 }
 
@@ -630,21 +600,6 @@ int am335x_lcd_initialize(FAR const struct am335x_panel_info_s *panel)
   if (ret < 0)
     {
       lcderr("ERROR:  Failed to attach LCDC interrupt.");
-    }
-
-  /* Set the initial reference clock to twice the VGA pixel clock for now. */
-
-  (void)am335x_set_refclk(2 * 25175000);
-
-  /* Enable clocking to the LCD peripheral. */
-
-  lcdinfo("Enable clocking to the LCD controller\n");
-
-  ret = am335x_lcdc_enableclk();
-  if (ret < 0)
-    {
-      lcderr("ERROR:  Failed to enable clocking\n");
-      return ret;
     }
 
   /* Adjust reference clock to get double of requested pixel clock frequency
@@ -800,9 +755,11 @@ int am335x_lcd_initialize(FAR const struct am335x_panel_info_s *panel)
   putreg32(AM335X_LCD_DMA_CTRL, regval);
 
   putreg32(AM335X_LCD_DMA_FB0_BASE, CONFIG_AM335X_LCDC_FB_PBASE);
-  putreg32(AM335X_LCD_DMA_FB0_BASE, CONFIG_AM335X_LCDC_FB_PBASE + priv->fbsize - 1);
+  putreg32(AM335X_LCD_DMA_FB0_BASE,
+           CONFIG_AM335X_LCDC_FB_PBASE + priv->fbsize - 1);
   putreg32(AM335X_LCD_DMA_FB1_BASE, CONFIG_AM335X_LCDC_FB_PBASE);
-  putreg32(AM335X_LCD_DMA_FB1_CEIL, CONFIG_AM335X_LCDC_FB_PBASE + priv->fbsize - 1);
+  putreg32(AM335X_LCD_DMA_FB1_CEIL,
+           CONFIG_AM335X_LCDC_FB_PBASE + priv->fbsize - 1);
 
   /* Enable LCD */
 
@@ -860,7 +817,8 @@ int am335x_lcd_initialize(FAR const struct am335x_panel_info_s *panel)
  *
  * Description:
  *   Return a a reference to the framebuffer object for the specified video
- *   plane of the specified plane.  Many OSDs support multiple planes of video.
+ *   plane of the specified plane.  Many OSDs support multiple planes of
+ *   video.
  *
  * Input Parameters:
  *   display - In the case of hardware with multiple displays, this
@@ -910,7 +868,9 @@ void up_fbuninitialize(int display)
 #endif
 
   /* Reset/Disable the LCD controller */
+
   /* Disable clocking to the LCD peripheral */
+
   /* Detach and disable the LCDC interrupt */
 }
 
@@ -937,8 +897,8 @@ void am335x_lcdclear(nxgl_mxpixel_t color)
 #endif
   int i;
 
-  lcdinfo("Clearing display: color=%04x VRAM=%08lx size=%lu\n",
-          color, (unsigned long)CONFIG_AM335X_LCDC_FB_VBASE,
+  lcdinfo("Clearing display: color=%04jx VRAM=%08lx size=%lu\n",
+          (uintmax_t)color, (unsigned long)CONFIG_AM335X_LCDC_FB_VBASE,
           (unsigned long)priv->fbsize);
 
   for (i = 0; i < priv->fbsize; i += incr)

@@ -1,35 +1,20 @@
 /****************************************************************************
  * libs/libc/aio/lio_listio.c
  *
- *   Copyright (C) 2014-2015, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -181,6 +166,7 @@ static void lio_sighandler(int signo, siginfo_t *info, void *ucontext)
   if (ret != -EINPROGRESS)
     {
       /* All pending I/O has completed */
+
       /* Restore the signal handler */
 
       sigaction(SIGPOLL, &sighand->oact, NULL);
@@ -235,7 +221,7 @@ static int lio_sigsetup(FAR struct aiocb * const *list, int nent,
 
   /* Allocate a structure to pass data to the signal handler */
 
-  sighand = (FAR struct lio_sighand_s *)lib_zalloc(sizeof(struct lio_sighand_s));
+  sighand = lib_zalloc(sizeof(struct lio_sighand_s));
   if (!sighand)
     {
       ferr("ERROR: lib_zalloc failed\n");
@@ -494,12 +480,12 @@ static int lio_waitall(FAR struct aiocb * const *list, int nent)
  *   EIO, then some of the I/O specified by the list may have been initiated.
  *   If the lio_listio() function fails with an error code other than EAGAIN,
  *   EINTR, or EIO, no operations from the list will have been initiated. The
- *   I/O operation indicated by each list element can encounter errors specific
- *   to the individual read or write function being performed. In this event,
- *   the error status for each aiocb control block contains the associated
- *   error code. The error codes that can be set are the same as would be
- *   set by a read() or write() function, with the following additional
- *   error codes possible:
+ *   I/O operation indicated by each list element can encounter errors
+ *   specific to the individual read or write function being performed. In
+ *   this event, the error status for each aiocb control block contains the
+ *   associated error code. The error codes that can be set are the same as
+ *   would be set by a read() or write() function, with the following
+ *   additional error codes possible:
  *
  *     EAGAIN - The requested I/O operation was not queued due to resource
  *       limitations.
@@ -518,7 +504,7 @@ static int lio_waitall(FAR struct aiocb * const *list, int nent)
  *
  ****************************************************************************/
 
-int lio_listio(int mode, FAR struct aiocb *const list[], int nent,
+int lio_listio(int mode, FAR struct aiocb * const list[], int nent,
                FAR struct sigevent *sig)
 {
   FAR struct aiocb *aiocbp;
@@ -605,7 +591,8 @@ int lio_listio(int mode, FAR struct aiocb *const list[], int nent,
               {
                 /* Make the invalid operation complete with an error */
 
-                ferr("ERROR: Unrecognized opcode: %d\n", aiocbp->aio_lio_opcode);
+                ferr("ERROR: Unrecognized opcode: %d\n",
+                     aiocbp->aio_lio_opcode);
                 aiocbp->aio_result = -EINVAL;
                 ret = ERROR;
               }

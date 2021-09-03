@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/tcp/tcp_accept.c
  *
- *   Copyright (C) 2007-2012, 2015-2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -117,6 +102,7 @@ static inline void accept_tcpsender(FAR struct socket *psock,
           inaddr->sin_family = AF_INET;
           inaddr->sin_port   = conn->rport;
           net_ipv4addr_copy(inaddr->sin_addr.s_addr, conn->u.ipv4.raddr);
+          memset(inaddr->sin_zero, 0, sizeof(inaddr->sin_zero));
 
           *addrlen = sizeof(struct sockaddr_in);
         }
@@ -263,10 +249,6 @@ int psock_tcp_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
   else
 #endif
     {
-      /* Set the socket state to accepting */
-
-      psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_ACCEPT);
-
       /* Perform the TCP accept operation */
 
       /* Initialize the state structure.  This is done with the network
@@ -285,7 +267,7 @@ int psock_tcp_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
        */
 
       nxsem_init(&state.acpt_sem, 0, 0);
-      nxsem_setprotocol(&state.acpt_sem, SEM_PRIO_NONE);
+      nxsem_set_protocol(&state.acpt_sem, SEM_PRIO_NONE);
 
       /* Set up the callback in the connection */
 
@@ -303,11 +285,7 @@ int psock_tcp_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
       conn->accept_private = NULL;
       conn->accept         = NULL;
 
-      nxsem_destroy(&state. acpt_sem);
-
-      /* Set the socket state to idle */
-
-      psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_IDLE);
+      nxsem_destroy(&state.acpt_sem);
 
       /* Check for a errors.  Errors are signalled by negative errno values
        * for the send length.

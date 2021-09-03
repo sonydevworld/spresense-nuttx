@@ -163,7 +163,7 @@ SD-ADP Pinout / SD Connection
  -- ---- ----------- -------------------------------------------------------
  J2 NAME SD CARD     DESCRIPTION
  -- ---- ----------- -------------------------------------------------------
-  1 VIN   (reguator) Input power to the SD card (3.3V to 6.0V)
+  1 VIN   (regulator)Input power to the SD card (3.3V to 6.0V)
   2 GND   3,6,12,13  Common (Connects to the housing of the SD socket)
   3 3V3   4 3.3V     Output voltage from the on-board 3.3V regulator (250mA)
   4 NC    9 NC       Connect to pin 9 on the SD card (not used in SPI mode)
@@ -250,9 +250,9 @@ Linux:
   After configuring NuttX, make sure that CONFIG_AVR_LINUXGCC_TOOLCHAIN=y is set in your
   .config file.
 
-Mac OS X:
+macOS:
 
-  For Mac OS X, the CrossPack for AVR toolchain is available from:
+  For macOS, the CrossPack for AVR toolchain is available from:
 
     http://www.obdev.at/products/crosspack/index.html
 
@@ -271,7 +271,7 @@ Windows Native Toolchains
      out 'cygpath -w'
 
   2. Windows toolchains cannot follow Cygwin symbolic links.  Many symbolic
-     links are used in Nuttx (e.g., include/arch).  The make system works
+     links are used in NuttX (e.g., include/arch).  The make system works
      around these  problems for the Windows tools by copying directories
      instead of linking them.  But this can also cause some confusion for
      you:  For example, you may edit a file in a "linked" directory and find
@@ -294,7 +294,7 @@ NuttX buildroot Toolchain
   NuttX Bitbucket download site (https://bitbucket.org/nuttx/nuttx/downloads/).
   This GNU toolchain builds and executes in the Linux or Cygwin environment.
 
-  1. You must have already configured Nuttx in <some-dir>/nuttx.
+  1. You must have already configured NuttX in <some-dir>/nuttx.
 
      tools/configure.sh Teensy++:<sub-dir>
 
@@ -566,4 +566,3 @@ Configuration Sub-Directories
     much SRAM for the system to behave sanely.  A lower memory footprint
     version of the mass storage driver will be required before this can
     be debugged.
-

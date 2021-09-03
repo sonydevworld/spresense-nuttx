@@ -12,29 +12,31 @@
  *   All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
  * 1. Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of the copyright holder nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
@@ -90,7 +92,6 @@ static struct bt_conn_handoff_s g_conn_handoff =
  * Private Functions
  ****************************************************************************/
 
-#ifdef CONFIG_DEBUG_WIRELESS_INFO
 static const char *state2str(enum bt_conn_state_e state)
 {
   switch (state)
@@ -114,7 +115,6 @@ static const char *state2str(enum bt_conn_state_e state)
       return "(unknown)";
     }
 }
-#endif
 
 static void bt_conn_reset_rx_state(FAR struct bt_conn_s *conn)
 {
@@ -147,9 +147,14 @@ static int conn_tx_kthread(int argc, FAR char *argv[])
     {
       /* Wait until the controller can accept ACL packets */
 
-      wlinfo("calling nxsem_wait\n");
+      wlinfo("calling nxsem_wait_uninterruptible()\n");
 
-      nxsem_wait_uninterruptible(&g_btdev.le_pkts_sem);
+      ret = nxsem_wait_uninterruptible(&g_btdev.le_pkts_sem);
+      if (ret < 0)
+        {
+          wlerr("nxsem_wait_uninterruptible() failed: %d\n", ret);
+          break;
+        }
 
       /* Check for disconnection */
 
@@ -161,7 +166,7 @@ static int conn_tx_kthread(int argc, FAR char *argv[])
 
       /* Get next ACL packet for connection */
 
-      ret = bt_queue_receive(conn->tx_queue, &buf);
+      ret = bt_queue_receive(&conn->tx_queue, &buf);
       DEBUGASSERT(ret >= 0 && buf != NULL);
       UNUSED(ret);
 
@@ -173,7 +178,7 @@ static int conn_tx_kthread(int argc, FAR char *argv[])
         }
 
       wlinfo("passing buf %p len %u to driver\n", buf, buf->len);
-      g_btdev.btdev->send(g_btdev.btdev, buf);
+      bt_send(g_btdev.btdev, buf);
       bt_buf_release(buf);
     }
 
@@ -190,7 +195,7 @@ static int conn_tx_kthread(int argc, FAR char *argv[])
        * result in a successful termination of this thread.
        */
 
-      ret = mq_getattr(conn->tx_queue, &attr);
+      ret = file_mq_getattr(&conn->tx_queue, &attr);
       if (ret != OK)
         {
           break;
@@ -201,7 +206,7 @@ static int conn_tx_kthread(int argc, FAR char *argv[])
           break;
         }
 
-      ret = bt_queue_receive(conn->tx_queue, &buf);
+      ret = bt_queue_receive(&conn->tx_queue, &buf);
       if (ret >= 0)
         {
           DEBUGASSERT(buf != NULL);
@@ -291,7 +296,8 @@ void bt_conn_receive(FAR struct bt_conn_s *conn, FAR struct bt_buf_s *buf,
 
   switch (flags)
     {
-      case 0x02:
+      case BT_HCI_ACL_NEW:
+
         /* First packet */
 
         hdr = (void *)buf->data;
@@ -315,7 +321,8 @@ void bt_conn_receive(FAR struct bt_conn_s *conn, FAR struct bt_buf_s *buf,
 
         break;
 
-      case 0x01:
+      case BT_HCI_ACL_CONTINUATION:
+
         /* Continuation */
 
         if (!conn->rx_len)
@@ -463,7 +470,7 @@ void bt_conn_send(FAR struct bt_conn_s *conn, FAR struct bt_buf_s *buf)
 
   while ((buf = (FAR struct bt_buf_s *)sq_remfirst(&fraglist)) != NULL)
     {
-      bt_queue_send(conn->tx_queue, buf, BT_NORMAL_PRIO);
+      bt_queue_send(&conn->tx_queue, buf, BT_NORMAL_PRIO);
     }
 }
 
@@ -560,46 +567,55 @@ void bt_conn_set_state(FAR struct bt_conn_s *conn,
           int ret;
 
           ret = bt_queue_open(BT_CONN_TX, O_RDWR | O_CREAT,
-                              CONFIG_BLUETOOTH_TXCONN_NMSGS, &conn->tx_queue);
-          DEBUGASSERT(ret >= 0 && g_btdev.tx_queue != 0);
+                              CONFIG_BLUETOOTH_TXCONN_NMSGS,
+                              &conn->tx_queue);
+          DEBUGASSERT(ret >= 0);
           UNUSED(ret);
 
-          /* Get exclusive access to the handoff structure.  The count will be
-           * zero when we complete this.
+          /* Get exclusive access to the handoff structure.  The count will
+           * be zero when we complete this.
            */
 
-          nxsem_wait_uninterruptible(&g_conn_handoff.sync_sem);
+          ret = nxsem_wait_uninterruptible(&g_conn_handoff.sync_sem);
+          if (ret >= 0)
+            {
+              /* Start the Tx connection kernel thread */
 
-          /* Start the Tx connection kernel thread */
+              g_conn_handoff.conn = bt_conn_addref(conn);
+              pid = kthread_create("BT Conn Tx",
+                                   CONFIG_BLUETOOTH_TXCONN_PRIORITY,
+                                   CONFIG_BLUETOOTH_TXCONN_STACKSIZE,
+                                   conn_tx_kthread, NULL);
+              DEBUGASSERT(pid > 0);
+              UNUSED(pid);
 
-          g_conn_handoff.conn = bt_conn_addref(conn);
-          pid = kthread_create("BT Conn Tx", CONFIG_BLUETOOTH_TXCONN_PRIORITY,
-                               CONFIG_BLUETOOTH_TXCONN_STACKSIZE,
-                               conn_tx_kthread, NULL);
-          DEBUGASSERT(pid > 0);
-          UNUSED(pid);
+              /* Take the semaphore again.  This will force us to wait with
+               * the sem_count at -1.  It will be zero again when we
+               * continue.
+               */
 
-          /* Take the semaphore again.  This will force us to wait with the
-           * sem_count at -1.  It will be zero again when we continue.
-           */
-
-          nxsem_wait_uninterruptible(&g_conn_handoff.sync_sem);
-          nxsem_post(&g_conn_handoff.sync_sem);
+              ret = nxsem_wait_uninterruptible(&g_conn_handoff.sync_sem);
+              nxsem_post(&g_conn_handoff.sync_sem);
+          }
         }
         break;
 
       case BT_CONN_DISCONNECTED:
-        /* Send dummy buffer to wake up and stop the Tx thread for states where it
-         * was running.
+
+        /* Send dummy buffer to wake up and stop the Tx thread for states
+         * where it was running.
          */
 
-        if (old_state == BT_CONN_CONNECTED || old_state == BT_CONN_DISCONNECT)
+        if (old_state == BT_CONN_CONNECTED ||
+           old_state == BT_CONN_DISCONNECT)
           {
-            bt_queue_send(conn->tx_queue, bt_buf_alloc(BT_DUMMY, NULL, 0),
+            bt_queue_send(&conn->tx_queue, bt_buf_alloc(BT_DUMMY, NULL, 0),
                           BT_NORMAL_PRIO);
           }
 
-        /* Release the reference we took for the very first state transition. */
+        /* Release the reference we took for the very first state
+         * transition.
+         */
 
         bt_conn_release(conn);
         break;
@@ -809,18 +825,18 @@ FAR const bt_addr_le_t *bt_conn_get_dst(FAR const struct bt_conn_s *conn)
  * Name: bt_conn_security
  *
  * Description:
- *   This function enable security (encryption) for a connection. If device is
- *   already paired with sufficiently strong key encryption will be enabled. If
- *   link is already encrypted with sufficiently strong key this function does
- *   nothing.
+ *   This function enable security (encryption) for a connection. If device
+ *   is already paired with sufficiently strong key encryption will be
+ *   enabled. If link is already encrypted with sufficiently strong key this
+ *   function does nothing.
  *
- *   If device is not paired pairing will be initiated. If device is paired and
- *   keys are too weak but input output capabilities allow for strong enough keys
- *   pairing will be initiated.
+ *   If device is not paired pairing will be initiated. If device is paired
+ *   and keys are too weak but input output capabilities allow for strong
+ *   enough keys pairing will be initiated.
  *
- *   This function may return error if required level of security is not possible
- *   to achieve due to local or remote device limitation (eg input output
- *   capabilities).
+ *   This function may return error if required level of security is not
+ *   possible to achieve due to local or remote device limitation (eg input
+ *   output capabilities).
  *
  * Input Parameters:
  *   conn - Connection object.
@@ -1058,7 +1074,8 @@ int bt_conn_le_conn_update(FAR struct bt_conn_s *conn, uint16_t min,
       return -ENOBUFS;
     }
 
-  conn_update                      = bt_buf_extend(buf, sizeof(*conn_update));
+  conn_update                      = bt_buf_extend(buf,
+                                                   sizeof(*conn_update));
   memset(conn_update, 0, sizeof(*conn_update));
   conn_update->handle              = BT_HOST2LE16(conn->handle);
   conn_update->conn_interval_min   = BT_HOST2LE16(min);

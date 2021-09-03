@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/icmpv6/icmpv6_netpoll.c
  *
- *   Copyright (C) 2017-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,27 +28,12 @@
 #include <poll.h>
 #include <debug.h>
 
-#include <nuttx/kmalloc.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 
-#include <devif/devif.h>
+#include "devif/devif.h"
 #include "netdev/netdev.h"
 #include "icmpv6/icmpv6.h"
-
-#ifdef CONFIG_MM_IOB
-
-/****************************************************************************
- * Private Types
- ****************************************************************************/
-
-/* This is an allocated container that holds the poll-related information */
-
-struct icmpv6_poll_s
-{
-  FAR struct socket *psock;        /* IPPROTO_ICMP6 socket structure */
-  FAR struct pollfd *fds;          /* Needed to handle poll events */
-  FAR struct devif_callback_s *cb; /* Needed to teardown the poll */
-};
 
 /****************************************************************************
  * Private Functions
@@ -125,23 +95,16 @@ static uint16_t icmpv6_poll_eventhandler(FAR struct net_driver_s *dev,
       /* Check for data or connection availability events. */
 
       eventset = 0;
-      if ((flags & ICMPv6_ECHOREPLY) != 0)
+      if ((flags & ICMPv6_NEWDATA) != 0)
         {
           eventset |= (POLLIN & info->fds->events);
-        }
-
-      /*  ICMP_POLL is a sign that we are free to send data. */
-
-      if ((flags & DEVPOLL_MASK) == ICMPv6_POLL)
-        {
-          eventset |= (POLLOUT & info->fds->events);
         }
 
       /* Check for loss of connection events. */
 
       if ((flags & NETDEV_DOWN) != 0)
         {
-          eventset |= ((POLLHUP | POLLERR) & info->fds->events);
+          eventset |= (POLLHUP | POLLERR);
         }
 
       /* Awaken the caller of poll() is requested event occurred. */
@@ -181,21 +144,27 @@ int icmpv6_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
   FAR struct icmpv6_conn_s *conn = psock->s_conn;
   FAR struct icmpv6_poll_s *info;
   FAR struct devif_callback_s *cb;
-  int ret;
+  int ret = OK;
 
   DEBUGASSERT(conn != NULL && fds != NULL);
-
-  /* Allocate a container to hold the poll information */
-
-  info = (FAR struct icmpv6_poll_s *)kmm_malloc(sizeof(struct icmpv6_poll_s));
-  if (!info)
-    {
-      return -ENOMEM;
-    }
 
   /* Some of the following must be atomic */
 
   net_lock();
+
+  /* Find a container to hold the poll information */
+
+  info = conn->pollinfo;
+  while (info->psock != NULL)
+    {
+      if (++info >= &conn->pollinfo[CONFIG_NET_ICMPv6_NPOLLWAITERS])
+        {
+          ret = -ENOMEM;
+          goto errout_with_lock;
+        }
+    }
+
+  /* Allocate a ICMP callback structure */
 
   cb = icmpv6_callback_alloc(conn->dev, conn);
   if (cb == NULL)
@@ -215,23 +184,13 @@ int icmpv6_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
    * callback processing.
    */
 
-  cb->flags = 0;
+  cb->flags = NETDEV_DOWN;
   cb->priv  = (FAR void *)info;
   cb->event = icmpv6_poll_eventhandler;
 
-  if ((info->fds->events & POLLOUT) != 0)
-    {
-      cb->flags |= ICMPv6_POLL;
-    }
-
-  if ((info->fds->events & POLLIN) != 0)
+  if ((fds->events & POLLIN) != 0)
     {
       cb->flags |= ICMPv6_NEWDATA;
-    }
-
-  if ((info->fds->events & (POLLHUP | POLLERR)) != 0)
-    {
-      cb->flags |= NETDEV_DOWN;
     }
 
   /* Save the reference in the poll info structure as fds private as well
@@ -249,6 +208,12 @@ int icmpv6_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
       fds->revents |= (POLLRDNORM & fds->events);
     }
 
+  /* Always report POLLWRNORM if caller request it because we don't utilize
+   * IOB buffer for sending.
+   */
+
+  fds->revents |= (POLLWRNORM & fds->events);
+
   /* Check if any requested events are already in effect */
 
   if (fds->revents != 0)
@@ -258,11 +223,7 @@ int icmpv6_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
       nxsem_post(fds->sem);
     }
 
-  net_unlock();
-  return OK;
-
 errout_with_lock:
-  kmm_free(info);
   net_unlock();
   return ret;
 }
@@ -302,9 +263,7 @@ int icmpv6_pollteardown(FAR struct socket *psock, FAR struct pollfd *fds)
     {
       /* Release the callback */
 
-      net_lock();
       icmpv6_callback_free(conn->dev, conn, info->cb);
-      net_unlock();
 
       /* Release the poll/select data slot */
 
@@ -312,10 +271,8 @@ int icmpv6_pollteardown(FAR struct socket *psock, FAR struct pollfd *fds)
 
       /* Then free the poll info container */
 
-      kmm_free(info);
+      info->psock = NULL;
     }
 
   return OK;
 }
-
-#endif /* !CONFIG_MM_IOB */

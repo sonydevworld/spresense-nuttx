@@ -1,35 +1,20 @@
 /****************************************************************************
- * include/wireless/sx127x.c
+ * include/nuttx/wireless/lpwan/sx127x.h
  *
- *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
- *   Authors: Mateusz Szafoni <raiden00@railab.me>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,6 +36,7 @@
 /****************************************************************************
  * Pre-Processor Declarations
  ****************************************************************************/
+
 /* Constants to SX127X */
 
 /* PA BOOST threshold power */
@@ -106,19 +92,23 @@
  * - SF for LORA
  * - CR for LORA
  * - FREQ HOPPING
- * - IMPLICT HEADER for LORA
+ * - IMPLICIT HEADER for LORA
  */
 
 /* RX FIFO data *************************************************************/
 
-#define SX127X_READ_DATA_HEADER_LEN (sizeof(struct sx127x_read_hdr_s) - SX127X_READ_DATA_MAX)
-#define SX127X_READ_DATA_MAX        (CONFIG_LPWAN_SX127X_RXFIFO_DATA_LEN)
-#define SX127X_RXFIFO_ITEM_SIZE     (sizeof(struct sx127x_read_hdr_s))
+#ifdef CONFIG_LPWAN_SX127X_RXSUPPORT
+#  define SX127X_READ_DATA_HEADER_LEN (sizeof(struct sx127x_read_hdr_s) - \
+                                       SX127X_READ_DATA_MAX)
+#  define SX127X_READ_DATA_MAX        (CONFIG_LPWAN_SX127X_RXFIFO_DATA_LEN)
+#  define SX127X_RXFIFO_ITEM_SIZE     (sizeof(struct sx127x_read_hdr_s))
+#endif
 
 /****************************************************************************
  * Public Data Types
  ****************************************************************************/
 
+#ifdef CONFIG_LPWAN_SX127X_RXSUPPORT
 /* RX FIFO data */
 
 struct sx127x_read_hdr_s
@@ -129,6 +119,7 @@ struct sx127x_read_hdr_s
   uint8_t  reserved[3];
   uint8_t  data[SX127X_READ_DATA_MAX];
 };
+#endif
 
 /* Channel scan data */
 
@@ -179,27 +170,28 @@ enum sx127x_opmode_fskook_e
 
 enum sx127x_fskook_bw_e
 {
-  FSKOOK_BANDWIDTH_2p6kHz   = 0x17,
-  FSKOOK_BANDWIDTH_3p1kHz   = 0x0f,
-  FSKOOK_BANDWIDTH_3p9kHz   = 0x07,
-  FSKOOK_BANDWIDTH_5p2kHz   = 0x16,
-  FSKOOK_BANDWIDTH_6p3kHz   = 0x0e,
-  FSKOOK_BANDWIDTH_7p8kHz   = 0x06,
-  FSKOOK_BANDWIDTH_10p4kHz  = 0x15,
-  FSKOOK_BANDWIDTH_12p5kHz  = 0x0d,
-  FSKOOK_BANDWIDTH_15p6kHz  = 0x05,
-  FSKOOK_BANDWIDTH_20p8kHz  = 0x14,
-  FSKOOK_BANDWIDTH_25kHz    = 0x0c,
-  FSKOOK_BANDWIDTH_31p3kHz  = 0x04,
-  FSKOOK_BANDWIDTH_41p7kHz  = 0x13,
-  FSKOOK_BANDWIDTH_50kHz    = 0x0b,
-  FSKOOK_BANDWIDTH_62p5kHz  = 0x03,
-  FSKOOK_BANDWIDTH_83p3kHz  = 0x12,
-  FSKOOK_BANDWIDTH_100kHz   = 0x0a,
-  FSKOOK_BANDWIDTH_125kHz   = 0x02,
-  FSKOOK_BANDWIDTH_166p7kHz = 0x11,
-  FSKOOK_BANDWIDTH_200kHz   = 0x09,
-  FSKOOK_BANDWIDTH_250kHz   = 0x01,
+  FSKOOK_BANDWIDTH_2P6KHZ   = 0x17,
+  FSKOOK_BANDWIDTH_3P1KHZ   = 0x0f,
+  FSKOOK_BANDWIDTH_3P9KHZ   = 0x07,
+  FSKOOK_BANDWIDTH_5P2KHZ   = 0x16,
+  FSKOOK_BANDWIDTH_6P3KHZ   = 0x0e,
+  FSKOOK_BANDWIDTH_7P8KHZ   = 0x06,
+  FSKOOK_BANDWIDTH_10P4KHZ  = 0x15,
+  FSKOOK_BANDWIDTH_12P5KHZ  = 0x0d,
+  FSKOOK_BANDWIDTH_15P6KHZ  = 0x05,
+  FSKOOK_BANDWIDTH_20P8KHZ  = 0x14,
+  FSKOOK_BANDWIDTH_25KHZ    = 0x0c,
+  FSKOOK_BANDWIDTH_31P3KHZ  = 0x04,
+  FSKOOK_BANDWIDTH_41P7KHZ  = 0x13,
+  FSKOOK_BANDWIDTH_50KHZ    = 0x0b,
+  FSKOOK_BANDWIDTH_62P5KHZ  = 0x03,
+  FSKOOK_BANDWIDTH_83P3KHZ  = 0x12,
+  FSKOOK_BANDWIDTH_100KHZ   = 0x0a,
+  FSKOOK_BANDWIDTH_125KHZ   = 0x02,
+  FSKOOK_BANDWIDTH_166P7KHZ = 0x11,
+  FSKOOK_BANDWIDTH_200KHZ   = 0x09,
+  FSKOOK_BANDWIDTH_250KHZ   = 0x01,
+
   /* Other settings reserved */
 };
 
@@ -207,15 +199,15 @@ enum sx127x_fskook_bw_e
 
 enum sx127x_lora_bw_e
 {
-  LORA_BANDWIDTH_7p8kHz  = 0,
-  LORA_BANDWIDTH_10p4kHz = 1,
-  LORA_BANDWIDTH_15p6kHz = 2,
-  LORA_BANDWIDTH_20p8kHz = 3,
-  LORA_BANDWIDTH_31p2kHz = 4,
-  LORA_BANDWIDTH_41p4kHz = 5,
-  LORA_BANDWIDTH_62p5kHz = 6,
-  LORA_BANDWIDTH_125kHz  = 7,
-  LORA_BANDWIDTH_250kHz  = 9
+  LORA_BANDWIDTH_7P8KHZ  = 0,
+  LORA_BANDWIDTH_10P4KHZ = 1,
+  LORA_BANDWIDTH_15P6KHZ = 2,
+  LORA_BANDWIDTH_20P8KHZ = 3,
+  LORA_BANDWIDTH_31P2KHZ = 4,
+  LORA_BANDWIDTH_41P4KHZ = 5,
+  LORA_BANDWIDTH_62P5KHZ = 6,
+  LORA_BANDWIDTH_125KHZ  = 7,
+  LORA_BANDWIDTH_250KHZ  = 9
 };
 
 /* LORA SF */
@@ -297,11 +289,10 @@ struct sx127x_lower_s
 };
 
 /****************************************************************************
- * Public Functions
+ * Public Functions Prototypes
  ****************************************************************************/
 
 int sx127x_register(FAR struct spi_dev_s *spi,
                     FAR const struct sx127x_lower_s *lower);
 
 #endif /* __INCLUDE_NUTTX_SX127X_H */
-

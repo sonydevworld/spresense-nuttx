@@ -70,8 +70,6 @@ mbed Configuration Options
 
     CONFIG_ARCH_STACKDUMP - Do stack dumps after assertions
 
-    CONFIG_ARCH_LEDS -  Use LEDs to show state. Unique to board architecture.
-
     Individual subsystems can be enabled:
       CONFIG_LPC17_40_MAINOSC=y
       CONFIG_LPC17_40_PLL0=y
@@ -144,7 +142,7 @@ mbed Configuration Options
   also require CONFIG_NET and CONFIG_LPC17_40_ETHERNET.
 
     CONFIG_ETH0_PHY_KS8721 - Selects Micrel KS8721 PHY
-    CONFIG_LPC17_40_PHY_AUTONEG - Enable auto-negotion
+    CONFIG_LPC17_40_PHY_AUTONEG - Enable auto-negotiation
     CONFIG_LPC17_40_PHY_SPEED100 - Select 100Mbit vs. 10Mbit speed.
     CONFIG_LPC17_40_PHY_FDUPLEX - Select full (vs. half) duplex
 
@@ -195,6 +193,11 @@ mbed Configuration Options
       Size of one end-user I/O buffer.  This can be zero if the
       application can guarantee that all end-user I/O buffers
       reside in AHB SRAM.
+
+    CONFIG_USERLED
+    CONFIG_USERLED_LOWER
+      Setup the generic driver to support the board leds, and so creates the
+device into /dev/userleds
 
 USB Host Configuration
 ^^^^^^^^^^^^^^^^^^^^^^

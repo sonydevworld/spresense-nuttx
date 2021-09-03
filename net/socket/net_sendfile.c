@@ -60,10 +60,10 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: net_sendfile
+ * Name: psock_sendfile
  *
  * Description:
- *   The net_sendfile() call may be used only when the socket is in a
+ *   The psock_sendfile() call may be used only when the socket is in a
  *   connected state (so that the intended recipient is known).
  *
  * Input Parameters:
@@ -118,20 +118,19 @@
  *
  ****************************************************************************/
 
-ssize_t net_sendfile(int outfd, FAR struct file *infile, FAR off_t *offset,
-                     size_t count)
+ssize_t psock_sendfile(FAR struct socket *psock, FAR struct file *infile,
+                       FAR off_t *offset, size_t count)
 {
-  FAR struct socket *psock = sockfd_socket(outfd);
   ssize_t ret = -ENOSYS;
 
   DEBUGASSERT(psock != NULL && infile != NULL);
 
   /* Verify that the sockfd corresponds to valid, allocated socket */
 
-  if (psock != NULL || psock->s_crefs <= 0)
+  if (psock == NULL || psock->s_conn == NULL)
     {
       nerr("ERROR: Invalid socket\n");
-      set_errno(EBADF);
+      _SO_SETERRNO(psock, EBADF);
       return ERROR;
     }
 
@@ -152,7 +151,7 @@ ssize_t net_sendfile(int outfd, FAR struct file *infile, FAR off_t *offset,
 
   if (ret < 0)
     {
-      set_errno(-ret);
+      _SO_SETERRNO(psock, -ret);
       return ERROR;
     }
 

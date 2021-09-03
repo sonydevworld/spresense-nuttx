@@ -1,35 +1,20 @@
 /****************************************************************************
- * arch/sim/src/sim/up_ioexpander.h
+ * arch/sim/src/sim/up_ioexpander.c
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -49,8 +34,6 @@
 #include <nuttx/ioexpander/ioexpander.h>
 
 #include "up_internal.h"
-
-#ifdef CONFIG_SIM_IOEXPANDER
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -87,29 +70,33 @@
 
 struct sim_callback_s
 {
-   ioe_pinset_t pinset;              /* Set of pin interrupts that will generate
-                                      * the callback. */
-   ioe_callback_t cbfunc;            /* The saved callback function pointer */
-   FAR void *cbarg;                  /* Callback argument */
+  ioe_pinset_t pinset;              /* Set of pin interrupts that will generate
+                                     * the callback. */
+  ioe_callback_t cbfunc;            /* The saved callback function pointer */
+  FAR void *cbarg;                  /* Callback argument */
 };
 
 /* This structure represents the state of the I/O Expander driver */
 
 struct sim_dev_s
 {
-  struct ioexpander_dev_s dev;       /* Nested structure to allow casting as public gpio
-                                      * expander. */
+  struct ioexpander_dev_s dev;       /* Nested structure to allow casting as
+                                      * public GPIO expander. */
   ioe_pinset_t inpins;               /* Pins select as inputs */
   ioe_pinset_t invert;               /* Pin value inversion */
   ioe_pinset_t outval;               /* Value of output pins */
   ioe_pinset_t inval;                /* Simulated input register */
   ioe_pinset_t intenab;              /* Interrupt enable */
-  ioe_pinset_t last;                 /* Last pin inputs (for detection of changes) */
+  ioe_pinset_t last;                 /* Last pin inputs (for detection of
+                                      * changes) */
   ioe_pinset_t trigger;              /* Bit encoded: 0=level 1=edge */
-  ioe_pinset_t level[2];             /* Bit encoded: 01=high/rising, 10 low/falling, 11 both */
+  ioe_pinset_t level[2];             /* Bit encoded: 01=high/rising,
+                                      * 10 low/falling, 11 both */
 
-  WDOG_ID wdog;                      /* Timer used to poll for interrupt simulation */
-  struct work_s work;                /* Supports the interrupt handling "bottom half" */
+  struct wdog_s wdog;                /* Timer used to poll for interrupt
+                                      * simulation */
+  struct work_s work;                /* Supports the interrupt handling
+                                      * "bottom half" */
 
   /* Saved callback information for each I/O expander client */
 
@@ -142,7 +129,7 @@ static int sim_detach(FAR struct ioexpander_dev_s *dev, FAR void *handle);
 
 static ioe_pinset_t sim_int_update(FAR struct sim_dev_s *priv);
 static void sim_interrupt_work(void *arg);
-static void sim_interrupt(int argc, wdparm_t arg1, ...);
+static void sim_interrupt(wdparm_t arg);
 
 /****************************************************************************
  * Private Data
@@ -197,9 +184,13 @@ static int sim_direction(FAR struct ioexpander_dev_s *dev, uint8_t pin,
 {
   FAR struct sim_dev_s *priv = (FAR struct sim_dev_s *)dev;
 
-  DEBUGASSERT(priv != NULL && pin < CONFIG_IOEXPANDER_NPINS &&
-              (direction == IOEXPANDER_DIRECTION_IN ||
-               direction == IOEXPANDER_DIRECTION_OUT));
+  if (direction != IOEXPANDER_DIRECTION_IN &&
+      direction != IOEXPANDER_DIRECTION_OUT)
+    {
+      return -EINVAL;
+    }
+
+  DEBUGASSERT(priv != NULL && pin < CONFIG_IOEXPANDER_NPINS);
 
   gpioinfo("pin=%u direction=%s\n",
            pin, (direction == IOEXPANDER_DIRECTION_IN) ? "IN" : "OUT");
@@ -380,14 +371,15 @@ static int sim_writepin(FAR struct ioexpander_dev_s *dev, uint8_t pin,
  * Name: sim_readpin
  *
  * Description:
- *   Read the actual PIN level. This can be different from the last value written
- *   to this pin. Required.
+ *   Read the actual PIN level. This can be different from the last value
+ *   written to this pin. Required.
  *
  * Input Parameters:
  *   dev    - Device-specific state data
  *   pin    - The index of the pin
  *   valptr - Pointer to a buffer where the pin level is stored. Usually TRUE
- *            if the pin is high, except if OPTION_INVERT has been set on this pin.
+ *            if the pin is high, except if OPTION_INVERT has been set on
+ *            this pin.
  *
  * Returned Value:
  *   0 on success, else a negative error code
@@ -401,7 +393,8 @@ static int sim_readpin(FAR struct ioexpander_dev_s *dev, uint8_t pin,
   ioe_pinset_t inval;
   bool retval;
 
-  DEBUGASSERT(priv != NULL && pin < CONFIG_IOEXPANDER_NPINS && value != NULL);
+  DEBUGASSERT(priv != NULL && pin < CONFIG_IOEXPANDER_NPINS &&
+              value != NULL);
 
   gpioinfo("pin=%u\n", pin);
 
@@ -564,18 +557,18 @@ static FAR void *sim_attach(FAR struct ioexpander_dev_s *dev,
 
   for (i = 0; i < CONFIG_SIM_INT_NCALLBACKS; i++)
     {
-       /* Is this entry available (i.e., no callback attached) */
+      /* Is this entry available (i.e., no callback attached) */
 
-       if (priv->cb[i].cbfunc == NULL)
-         {
-           /* Yes.. use this entry */
+      if (priv->cb[i].cbfunc == NULL)
+        {
+          /* Yes.. use this entry */
 
-           priv->cb[i].pinset = pinset;
-           priv->cb[i].cbfunc = callback;
-           priv->cb[i].cbarg  = arg;
-           handle             = &priv->cb[i];
-           break;
-         }
+          priv->cb[i].pinset = pinset;
+          priv->cb[i].cbfunc = callback;
+          priv->cb[i].cbarg  = arg;
+          handle             = &priv->cb[i];
+          break;
+        }
     }
 
   return handle;
@@ -605,7 +598,8 @@ static int sim_detach(FAR struct ioexpander_dev_s *dev, FAR void *handle)
 
   DEBUGASSERT(priv != NULL && cb != NULL);
   DEBUGASSERT((uintptr_t)cb >= (uintptr_t)&priv->cb[0] &&
-              (uintptr_t)cb <= (uintptr_t)&priv->cb[CONFIG_SIM_INT_NCALLBACKS-1]);
+              (uintptr_t)cb <= (uintptr_t)&priv->cb[
+                                            CONFIG_SIM_INT_NCALLBACKS - 1]);
   UNUSED(priv);
 
   cb->pinset = 0;
@@ -692,7 +686,7 @@ static ioe_pinset_t sim_int_update(FAR struct sim_dev_s *priv)
               /* Set interrupt as a function of edge type */
 
               if ((!pinval && SIM_EDGE_FALLING(priv, pin)) ||
-                  ( pinval && SIM_EDGE_RISING(priv, pin)))
+                  (pinval && SIM_EDGE_RISING(priv, pin)))
                 {
                   intstat |= 1 << pin;
                 }
@@ -765,8 +759,8 @@ static void sim_interrupt_work(void *arg)
 
   /* Re-start the poll timer */
 
-  ret = wd_start(priv->wdog, SIM_POLLDELAY, (wdentry_t)sim_interrupt,
-                 1, (wdparm_t)priv);
+  ret = wd_start(&priv->wdog, SIM_POLLDELAY,
+                 sim_interrupt, (wdparm_t)priv);
   if (ret < 0)
     {
       gpioerr("ERROR: Failed to start poll timer\n");
@@ -784,12 +778,11 @@ static void sim_interrupt_work(void *arg)
  *
  ****************************************************************************/
 
-static void sim_interrupt(int argc, wdparm_t arg1, ...)
+static void sim_interrupt(wdparm_t arg)
 {
   FAR struct sim_dev_s *priv;
 
-  DEBUGASSERT(argc == 1);
-  priv = (FAR struct sim_dev_s *)arg1;
+  priv = (FAR struct sim_dev_s *)arg;
   DEBUGASSERT(priv != NULL);
 
   /* Defer interrupt processing to the worker thread.  This is not only
@@ -804,7 +797,9 @@ static void sim_interrupt(int argc, wdparm_t arg1, ...)
 
   if (work_available(&priv->work))
     {
-      /* Schedule interrupt related work on the high priority worker thread. */
+      /* Schedule interrupt related work on the high priority worker
+       * thread.
+       */
 
       work_queue(HPWORK, &priv->work, sim_interrupt_work,
                  (FAR void *)priv, 0);
@@ -819,8 +814,8 @@ static void sim_interrupt(int argc, wdparm_t arg1, ...)
  * Name: sim_ioexpander_initialize
  *
  * Description:
- *   Instantiate and configure the I/O Expander device driver to use the provided
- *   I2C device instance.
+ *   Instantiate and configure the I/O Expander device driver to use the
+ *   provided I2C device instance.
  *
  * Input Parameters:
  *   i2c     - An I2C driver instance
@@ -847,13 +842,8 @@ FAR struct ioexpander_dev_s *sim_ioexpander_initialize(void)
   priv->level[0] = PINSET_ALL;  /* All rising edge */
   priv->level[1] = PINSET_ALL;  /* All falling edge */
 
-  /* Set up a timer to poll for simulated interrupts */
-
-  priv->wdog = wd_create();
-  DEBUGASSERT(priv->wdog != NULL);
-
-  ret = wd_start(priv->wdog, SIM_POLLDELAY, (wdentry_t)sim_interrupt,
-                 1, (wdparm_t)priv);
+  ret = wd_start(&priv->wdog, SIM_POLLDELAY,
+                 sim_interrupt, (wdparm_t)priv);
   if (ret < 0)
     {
       gpioerr("ERROR: Failed to start poll timer\n");
@@ -861,5 +851,3 @@ FAR struct ioexpander_dev_s *sim_ioexpander_initialize(void)
 
   return &priv->dev;
 }
-
-#endif /* CONFIG_SIM_IOEXPANDER */

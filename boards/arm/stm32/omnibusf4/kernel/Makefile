@@ -35,11 +35,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
-
-# This is the directory for the board-specific header files
-
-BOARD_INCLUDE = $(TOPDIR)$(DELIM)boards$(DELIM)$(CONFIG_ARCH)$(DELIM)$(CONFIG_ARCH_CHIP)$(DELIM)$(CONFIG_ARCH_BOARD)$(DELIM)include
+include $(TOPDIR)/Make.defs
 
 # The entry point name (if none is provided in the .config file)
 
@@ -49,19 +45,19 @@ ENTRYPT = $(patsubst "%",%,$(CONFIG_USER_ENTRYPOINT))
 # Get the paths to the libraries and the links script path in format that
 # is appropriate for the host OS
 
-ifeq ($(WINTOOL),y)
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
   # Windows-native toolchains
   USER_LIBPATHS = ${shell for path in $(USERLIBS); do dir=`dirname $(TOPDIR)$(DELIM)$$path`;echo "-L\"`cygpath -w $$dir`\"";done}
-  USER_LDSCRIPT = -T "${shell cygpath -w $(TOPDIR)$(DELIM)boards$(DELIM)$(CONFIG_ARCH)$(DELIM)$(CONFIG_ARCH_CHIP)$(DELIM)$(CONFIG_ARCH_BOARD)$(DELIM)scripts$(DELIM)memory.ld}"
-  USER_LDSCRIPT += -T "${shell cygpath -w $(TOPDIR)$(DELIM)boards$(DELIM)$(CONFIG_ARCH)$(DELIM)$(CONFIG_ARCH_CHIP)$(DELIM)$(CONFIG_ARCH_BOARD)$(DELIM)scripts$(DELIM)user-space.ld}"
+  USER_LDSCRIPT = -T "${shell cygpath -w $(BOARD_DIR)$(DELIM)scripts$(DELIM)memory.ld}"
+  USER_LDSCRIPT += -T "${shell cygpath -w $(BOARD_DIR)$(DELIM)scripts$(DELIM)user-space.ld}"
   USER_HEXFILE += "${shell cygpath -w $(TOPDIR)$(DELIM)nuttx_user.hex}"
   USER_SRECFILE += "${shell cygpath -w $(TOPDIR)$(DELIM)nuttx_user.srec}"
   USER_BINFILE += "${shell cygpath -w $(TOPDIR)$(DELIM)nuttx_user.bin}"
 else
   # Linux/Cygwin-native toolchain
   USER_LIBPATHS = $(addprefix -L$(TOPDIR)$(DELIM),$(dir $(USERLIBS)))
-  USER_LDSCRIPT = -T$(TOPDIR)$(DELIM)boards$(DELIM)$(CONFIG_ARCH)$(DELIM)$(CONFIG_ARCH_CHIP)$(DELIM)$(CONFIG_ARCH_BOARD)$(DELIM)scripts$(DELIM)memory.ld
-  USER_LDSCRIPT += -T$(TOPDIR)$(DELIM)boards$(DELIM)$(CONFIG_ARCH)$(DELIM)$(CONFIG_ARCH_CHIP)$(DELIM)$(CONFIG_ARCH_BOARD)$(DELIM)scripts$(DELIM)user-space.ld
+  USER_LDSCRIPT = -T$(BOARD_DIR)$(DELIM)scripts$(DELIM)memory.ld
+  USER_LDSCRIPT += -T$(BOARD_DIR)$(DELIM)scripts$(DELIM)user-space.ld
   USER_HEXFILE += "$(TOPDIR)$(DELIM)nuttx_user.hex"
   USER_SRECFILE += "$(TOPDIR)$(DELIM)nuttx_user.srec"
   USER_BINFILE += "$(TOPDIR)$(DELIM)nuttx_user.bin"

@@ -1,35 +1,20 @@
 /****************************************************************************
  * include/nuttx/leds/pca9635pw.h
  *
- *   Copyright (C) 2015 DS-Automotion GmbH. All rights reserved.
- *   Author: Alexander Entinger <a.entinger@ds-automotion.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -107,14 +92,14 @@
 
 /* PCA9635PW_LED_OUT_x register value definitions */
 
-#define PCA9635PW_LED_OUT_x_MODE_0 (0x00)                     /* all led drivers are turned off */
-#define PCA9635PW_LED_OUT_x_MODE_1 (0x55)                     /* all led drivers are fully turned on */
-#define PCA9635PW_LED_OUT_x_MODE_2 (0xAA)                     /* all led drivers individual brightness can be controlled by their individual pwm registers */
-#define PCA9635PW_LED_OUT_x_MODE_3 (0xFF)                     /* all led drivers individual brightness and group dimming/blinking can be controlled by their individual pwm registers and the GRPPWM register */
+#define PCA9635PW_LED_OUT_X_MODE_0 (0x00)                     /* all led drivers are turned off */
+#define PCA9635PW_LED_OUT_X_MODE_1 (0x55)                     /* all led drivers are fully turned on */
+#define PCA9635PW_LED_OUT_X_MODE_2 (0xAA)                     /* all led drivers individual brightness can be controlled by their individual pwm registers */
+#define PCA9635PW_LED_OUT_X_MODE_3 (0xFF)                     /* all led drivers individual brightness and group dimming/blinking can be controlled by their individual pwm registers and the GRPPWM register */
 
 /* IOCTL commands */
 
-#define PWMIOC_SETLED_BRIGHTNESS   _PWMIOC(1)                 /* Arg: pca9635pw_setled_brightness_arg_s * pointer */
+#define PWMIOC_SETLED_BRIGHTNESS   _PWMIOC(1)                 /* Arg: pca9635pw_brightness_s * pointer */
 
 /****************************************************************************
  * Public Types
@@ -140,14 +125,15 @@ enum led_select_e
   LED_15 = PCA9635PW_LED_15
 };
 
-/* This structure is used in an IOCTL command for setting the PWM of an individual
- * LED. The desired LED is selected by setting the 'led' parameter accordingly
- * whereas the 'led_pwm' field governs the brightness of the selected LED. A value
- * of 0 (0x00) leads to a duty cycle of 0 % = LED off while a value of 255 (0xFF)
- * leads to a duty cycle of 99.6 % = Maximum brightness.
+/* This structure is used in an IOCTL command for setting the PWM of an
+ * individual LED. The desired LED is selected by setting the 'led'
+ * parameter accordingly whereas the 'led_pwm' field governs the brightness
+ * of the selected LED.
+ * A value of 0 (0x00) leads to a duty cycle of 0 % = LED off while a value
+ * of 255 (0xFF) leads to a duty cycle of 99.6 % = Maximum brightness.
  */
 
-struct pca9635pw_setled_brightness_arg_s
+struct pca9635pw_brightness_s
 {
   enum led_select_e led;
   uint8_t brightness;

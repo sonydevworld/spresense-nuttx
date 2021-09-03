@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/imxrt/imxrt_lpi2c.c
  *
- *   Copyright (C) 2018-2019 Gregory Nutt. All rights reserved.
- *   Author: Ivan Ucherdzhiev <ivanucherdjiev@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,6 +25,7 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -55,7 +41,7 @@
 
 #include <arch/board/board.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "imxrt_lpi2c.h"
 #include "imxrt_gpio.h"
@@ -81,24 +67,27 @@
 
 /* Interrupt wait timeout in seconds and milliseconds */
 
-#if !defined(CONFIG_IMXRT_I2CTIMEOSEC) && !defined(CONFIG_IMXRT_I2CTIMEOMS)
-#  define CONFIG_IMXRT_I2CTIMEOSEC 0
-#  define CONFIG_IMXRT_I2CTIMEOMS  500   /* Default is 500 milliseconds */
-#elif !defined(CONFIG_IMXRT_I2CTIMEOSEC)
-#  define CONFIG_IMXRT_I2CTIMEOSEC 0     /* User provided milliseconds */
-#elif !defined(CONFIG_IMXRT_I2CTIMEOMS)
-#  define CONFIG_IMXRT_I2CTIMEOMS  0     /* User provided seconds */
+#if !defined(CONFIG_IMXRT_LPI2C_TIMEOSEC) && \
+    !defined(CONFIG_IMXRT_LPI2C_TIMEOMS)
+#  define CONFIG_IMXRT_LPI2C_TIMEOSEC 0
+#  define CONFIG_IMXRT_LPI2C_TIMEOMS  500   /* Default is 500 milliseconds */
+#elif !defined(CONFIG_IMXRT_LPI2C_TIMEOSEC)
+#  define CONFIG_IMXRT_LPI2C_TIMEOSEC 0     /* User provided milliseconds */
+#elif !defined(CONFIG_IMXRT_LPI2C_TIMEOMS)
+#  define CONFIG_IMXRT_LPI2C_TIMEOMS  0     /* User provided seconds */
 #endif
 
 /* Interrupt wait time timeout in system timer ticks */
 
-#ifndef CONFIG_IMXRT_I2CTIMEOTICKS
-#  define CONFIG_IMXRT_I2CTIMEOTICKS \
-    (SEC2TICK(CONFIG_IMXRT_I2CTIMEOSEC) + MSEC2TICK(CONFIG_IMXRT_I2CTIMEOMS))
+#ifndef CONFIG_IMXRT_LPI2C_TIMEOTICKS
+#  define CONFIG_IMXRT_LPI2C_TIMEOTICKS \
+     (SEC2TICK(CONFIG_IMXRT_LPI2C_TIMEOSEC) + \
+      MSEC2TICK(CONFIG_IMXRT_LPI2C_TIMEOMS))
 #endif
 
-#ifndef CONFIG_IMXRT_I2C_DYNTIMEO_STARTSTOP
-#  define CONFIG_IMXRT_I2C_DYNTIMEO_STARTSTOP TICK2USEC(CONFIG_IMXRT_I2CTIMEOTICKS)
+#ifndef CONFIG_IMXRT_LPI2C_DYNTIMEO_STARTSTOP
+#  define CONFIG_IMXRT_LPI2C_DYNTIMEO_STARTSTOP \
+     TICK2USEC(CONFIG_IMXRT_LPI2C_TIMEOTICKS)
 #endif
 
 /* Debug ********************************************************************/
@@ -125,16 +114,6 @@
 
 #define LPI2C_MASTER    1
 #define LPI2C_SLAVE     2
-
-#define MKI2C_OUTPUT(p) (((p) & GPIO_PADMUX_MASK) | \
-                         IOMUX_OPENDRAIN | IOMUX_DRIVE_33OHM | \
-                         IOMUX_SLEW_SLOW | (5 << GPIO_ALT_SHIFT) | \
-                         IOMUX_PULL_NONE | GPIO_OUTPUT_ONE)
-
-#define MKI2C_INPUT(p) (((p) & GPIO_PADMUX_MASK) | \
-                        IOMUX_DRIVE_HIZ | IOMUX_SLEW_SLOW | \
-                        IOMUX_CMOS_INPUT | (5 << GPIO_ALT_SHIFT) | \
-                        IOMUX_PULL_NONE)
 
 /****************************************************************************
  * Private Types
@@ -182,8 +161,12 @@ struct imxrt_lpi2c_config_s
   uint16_t busy_idle;         /* LPI2C Bus Idle Timeout */
   uint8_t filtscl;            /* Glitch Filter for SCL pin */
   uint8_t filtsda;            /* Glitch Filter for SDA pin */
-  uint32_t scl_pin;           /* GPIO configuration for SCL as SCL */
-  uint32_t sda_pin;           /* GPIO configuration for SDA as SDA */
+  uint32_t scl_pin;           /* Peripheral configuration for SCL as SCL */
+  uint32_t sda_pin;           /* Peripheral configuration for SDA as SDA */
+#if defined(CONFIG_I2C_RESET)
+  uint32_t reset_scl_pin;     /* GPIO configuration for SCL as SCL */
+  uint32_t reset_sda_pin;     /* GPIO configuration for SDA as SDA */
+#endif
   uint8_t mode;               /* Master or Slave mode */
 #ifndef CONFIG_I2C_POLLED
   uint32_t irq;               /* Event IRQ */
@@ -194,8 +177,14 @@ struct imxrt_lpi2c_config_s
 
 struct imxrt_lpi2c_priv_s
 {
-  const struct i2c_ops_s *ops; /* Standard I2C operations */
-  const struct imxrt_lpi2c_config_s *config; /* Port configuration */
+  /* Standard I2C operations */
+
+  const struct i2c_ops_s *ops;
+
+  /* Port configuration */
+
+  const struct imxrt_lpi2c_config_s *config;
+
   int refs;                    /* Reference count */
   sem_t sem_excl;              /* Mutual exclusion semaphore */
 #ifndef CONFIG_I2C_POLLED
@@ -228,24 +217,33 @@ struct imxrt_lpi2c_priv_s
  * Private Function Prototypes
  ****************************************************************************/
 
-static inline uint32_t imxrt_lpi2c_getreg(FAR struct imxrt_lpi2c_priv_s *priv,
-                                          uint16_t offset);
+static inline uint32_t
+  imxrt_lpi2c_getreg(FAR struct imxrt_lpi2c_priv_s *priv, uint16_t offset);
 static inline void imxrt_lpi2c_putreg(FAR struct imxrt_lpi2c_priv_s *priv,
                                       uint16_t offset, uint32_t value);
 static inline void imxrt_lpi2c_modifyreg(FAR struct imxrt_lpi2c_priv_s *priv,
                                          uint16_t offset, uint32_t clearbits,
                                          uint32_t setbits);
-static inline void imxrt_lpi2c_sem_wait(FAR struct imxrt_lpi2c_priv_s *priv);
+static inline int imxrt_lpi2c_sem_wait(FAR struct imxrt_lpi2c_priv_s *priv);
+#ifdef CONFIG_I2C_RESET
+static int
+  imxrt_lpi2c_sem_wait_noncancelable(FAR struct imxrt_lpi2c_priv_s *priv);
+#endif
 
-#ifdef CONFIG_IMXRT_I2C_DYNTIMEO
+#ifdef CONFIG_IMXRT_LPI2C_DYNTIMEO
 static useconds_t imxrt_lpi2c_tousecs(int msgc, FAR struct i2c_msg_s *msgs);
-#endif /* CONFIG_IMXRT_I2C_DYNTIMEO */
+#endif /* CONFIG_IMXRT_LPI2C_DYNTIMEO */
 
-static inline int  imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv);
-static inline void imxrt_lpi2c_sem_waitstop(FAR struct imxrt_lpi2c_priv_s *priv);
-static inline void imxrt_lpi2c_sem_post(FAR struct imxrt_lpi2c_priv_s *priv);
-static inline void imxrt_lpi2c_sem_init(FAR struct imxrt_lpi2c_priv_s *priv);
-static inline void imxrt_lpi2c_sem_destroy(FAR struct imxrt_lpi2c_priv_s *priv);
+static inline int
+  imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv);
+static inline void
+  imxrt_lpi2c_sem_waitstop(FAR struct imxrt_lpi2c_priv_s *priv);
+static inline void
+  imxrt_lpi2c_sem_post(FAR struct imxrt_lpi2c_priv_s *priv);
+static inline void
+  imxrt_lpi2c_sem_init(FAR struct imxrt_lpi2c_priv_s *priv);
+static inline void
+  imxrt_lpi2c_sem_destroy(FAR struct imxrt_lpi2c_priv_s *priv);
 
 #ifdef CONFIG_I2C_TRACE
 static void imxrt_lpi2c_tracereset(FAR struct imxrt_lpi2c_priv_s *priv);
@@ -261,7 +259,8 @@ static void imxrt_lpi2c_setclock(FAR struct imxrt_lpi2c_priv_s *priv,
 static inline void imxrt_lpi2c_sendstart(FAR struct imxrt_lpi2c_priv_s *priv,
                                          uint8_t address);
 static inline void imxrt_lpi2c_sendstop(FAR struct imxrt_lpi2c_priv_s *priv);
-static inline uint32_t imxrt_lpi2c_getstatus(FAR struct imxrt_lpi2c_priv_s *priv);
+static inline uint32_t
+  imxrt_lpi2c_getstatus(FAR struct imxrt_lpi2c_priv_s *priv);
 
 static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s * priv);
 
@@ -314,136 +313,152 @@ static const struct i2c_ops_s imxrt_lpi2c_ops =
 #ifdef CONFIG_IMXRT_LPI2C1
 static const struct imxrt_lpi2c_config_s imxrt_lpi2c1_config =
 {
-  .base       = IMXRT_LPI2C1_BASE,
-  .busy_idle  = CONFIG_LPI2C1_BUSYIDLE,
-  .filtscl    = CONFIG_LPI2C1_FILTSCL,
-  .filtsda    = CONFIG_LPI2C1_FILTSDA,
-  .scl_pin    = GPIO_LPI2C1_SCL,
-  .sda_pin    = GPIO_LPI2C1_SDA,
+  .base          = IMXRT_LPI2C1_BASE,
+  .busy_idle     = CONFIG_LPI2C1_BUSYIDLE,
+  .filtscl       = CONFIG_LPI2C1_FILTSCL,
+  .filtsda       = CONFIG_LPI2C1_FILTSDA,
+  .scl_pin       = GPIO_LPI2C1_SCL,
+  .sda_pin       = GPIO_LPI2C1_SDA,
+#if defined(CONFIG_I2C_RESET)
+  .reset_scl_pin = GPIO_LPI2C1_SCL_RESET,
+  .reset_sda_pin = GPIO_LPI2C1_SDA_RESET,
+#endif
 #ifndef CONFIG_I2C_SLAVE
-  .mode       = LPI2C_MASTER,
+  .mode          = LPI2C_MASTER,
 #else
-  .mode       = LPI2C_SLAVE,
+  .mode          = LPI2C_SLAVE,
 #endif
 #ifndef CONFIG_I2C_POLLED
-  .irq        = IMXRT_IRQ_LPI2C1,
+  .irq           = IMXRT_IRQ_LPI2C1,
 #endif
 };
 
 static struct imxrt_lpi2c_priv_s imxrt_lpi2c1_priv =
 {
-  .ops        = &imxrt_lpi2c_ops,
-  .config     = &imxrt_lpi2c1_config,
-  .refs       = 0,
-  .intstate   = INTSTATE_IDLE,
-  .msgc       = 0,
-  .msgv       = NULL,
-  .ptr        = NULL,
-  .dcnt       = 0,
-  .flags      = 0,
-  .status     = 0
+  .ops           = &imxrt_lpi2c_ops,
+  .config        = &imxrt_lpi2c1_config,
+  .refs          = 0,
+  .intstate      = INTSTATE_IDLE,
+  .msgc          = 0,
+  .msgv          = NULL,
+  .ptr           = NULL,
+  .dcnt          = 0,
+  .flags         = 0,
+  .status        = 0
 };
 #endif
 
 #ifdef CONFIG_IMXRT_LPI2C2
 static const struct imxrt_lpi2c_config_s imxrt_lpi2c2_config =
 {
-  .base       = IMXRT_LPI2C2_BASE,
-  .busy_idle  = CONFIG_LPI2C2_BUSYIDLE,
-  .filtscl    = CONFIG_LPI2C2_FILTSCL,
-  .filtsda    = CONFIG_LPI2C2_FILTSDA,
-  .scl_pin    = GPIO_LPI2C2_SCL,
-  .sda_pin    = GPIO_LPI2C2_SDA,
+  .base          = IMXRT_LPI2C2_BASE,
+  .busy_idle     = CONFIG_LPI2C2_BUSYIDLE,
+  .filtscl       = CONFIG_LPI2C2_FILTSCL,
+  .filtsda       = CONFIG_LPI2C2_FILTSDA,
+  .scl_pin       = GPIO_LPI2C2_SCL,
+  .sda_pin       = GPIO_LPI2C2_SDA,
+#if defined(CONFIG_I2C_RESET)
+  .reset_scl_pin = GPIO_LPI2C2_SCL_RESET,
+  .reset_sda_pin = GPIO_LPI2C2_SDA_RESET,
+#endif
 #ifndef CONFIG_I2C_SLAVE
-  .mode       = LPI2C_MASTER,
+  .mode          = LPI2C_MASTER,
 #else
-  .mode       = LPI2C_SLAVE,
+  .mode          = LPI2C_SLAVE,
 #endif
 #ifndef CONFIG_I2C_POLLED
-  .irq        = IMXRT_IRQ_LPI2C2,
+  .irq           = IMXRT_IRQ_LPI2C2,
 #endif
 };
 
 static struct imxrt_lpi2c_priv_s imxrt_lpi2c2_priv =
 {
-  .ops        = &imxrt_lpi2c_ops,
-  .config     = &imxrt_lpi2c2_config,
-  .refs       = 0,
-  .intstate   = INTSTATE_IDLE,
-  .msgc       = 0,
-  .msgv       = NULL,
-  .ptr        = NULL,
-  .dcnt       = 0,
-  .flags      = 0,
-  .status     = 0
+  .ops           = &imxrt_lpi2c_ops,
+  .config        = &imxrt_lpi2c2_config,
+  .refs          = 0,
+  .intstate      = INTSTATE_IDLE,
+  .msgc          = 0,
+  .msgv          = NULL,
+  .ptr           = NULL,
+  .dcnt          = 0,
+  .flags         = 0,
+  .status        = 0
 };
 #endif
 
 #ifdef CONFIG_IMXRT_LPI2C3
 static const struct imxrt_lpi2c_config_s imxrt_lpi2c3_config =
 {
-  .base       = IMXRT_LPI2C3_BASE,
-  .busy_idle  = CONFIG_LPI2C3_BUSYIDLE,
-  .filtscl    = CONFIG_LPI2C3_FILTSCL,
-  .filtsda    = CONFIG_LPI2C3_FILTSDA,
-  .scl_pin    = GPIO_LPI2C3_SCL,
-  .sda_pin    = GPIO_LPI2C3_SDA,
+  .base          = IMXRT_LPI2C3_BASE,
+  .busy_idle     = CONFIG_LPI2C3_BUSYIDLE,
+  .filtscl       = CONFIG_LPI2C3_FILTSCL,
+  .filtsda       = CONFIG_LPI2C3_FILTSDA,
+  .scl_pin       = GPIO_LPI2C3_SCL,
+  .sda_pin       = GPIO_LPI2C3_SDA,
+#if defined(CONFIG_I2C_RESET)
+  .reset_scl_pin = GPIO_LPI2C3_SCL_RESET,
+  .reset_sda_pin = GPIO_LPI2C3_SDA_RESET,
+#endif
 #ifndef CONFIG_I2C_SLAVE
-  .mode       = LPI2C_MASTER,
+  .mode          = LPI2C_MASTER,
 #else
-  .mode       = LPI2C_SLAVE,
+  .mode          = LPI2C_SLAVE,
 #endif
 #ifndef CONFIG_I2C_POLLED
-  .irq        = IMXRT_IRQ_LPI2C3,
+  .irq           = IMXRT_IRQ_LPI2C3,
 #endif
 };
 
 static struct imxrt_lpi2c_priv_s imxrt_lpi2c3_priv =
 {
-  .ops        = &imxrt_lpi2c_ops,
-  .config     = &imxrt_lpi2c3_config,
-  .refs       = 0,
-  .intstate   = INTSTATE_IDLE,
-  .msgc       = 0,
-  .msgv       = NULL,
-  .ptr        = NULL,
-  .dcnt       = 0,
-  .flags      = 0,
-  .status     = 0
+  .ops           = &imxrt_lpi2c_ops,
+  .config        = &imxrt_lpi2c3_config,
+  .refs          = 0,
+  .intstate      = INTSTATE_IDLE,
+  .msgc          = 0,
+  .msgv          = NULL,
+  .ptr           = NULL,
+  .dcnt          = 0,
+  .flags         = 0,
+  .status        = 0
 };
 #endif
 
 #ifdef CONFIG_IMXRT_LPI2C4
 static const struct imxrt_lpi2c_config_s imxrt_lpi2c4_config =
 {
-  .base       = IMXRT_LPI2C4_BASE,
-  .busy_idle  = CONFIG_LPI2C4_BUSYIDLE,
-  .filtscl    = CONFIG_LPI2C4_FILTSCL,
-  .filtsda    = CONFIG_LPI2C4_FILTSDA,
-  .scl_pin    = GPIO_LPI2C4_SCL,
-  .sda_pin    = GPIO_LPI2C4_SDA,
+  .base          = IMXRT_LPI2C4_BASE,
+  .busy_idle     = CONFIG_LPI2C4_BUSYIDLE,
+  .filtscl       = CONFIG_LPI2C4_FILTSCL,
+  .filtsda       = CONFIG_LPI2C4_FILTSDA,
+  .scl_pin       = GPIO_LPI2C4_SCL,
+  .sda_pin       = GPIO_LPI2C4_SDA,
+#if defined(CONFIG_I2C_RESET)
+  .reset_scl_pin = GPIO_LPI2C4_SCL_RESET,
+  .reset_sda_pin = GPIO_LPI2C4_SDA_RESET,
+#endif
 #ifndef CONFIG_I2C_SLAVE
-  .mode       = LPI2C_MASTER,
+  .mode          = LPI2C_MASTER,
 #else
-  .mode       = LPI2C_SLAVE,
+  .mode          = LPI2C_SLAVE,
 #endif
 #ifndef CONFIG_I2C_POLLED
-  .irq        = IMXRT_IRQ_LPI2C4,
+  .irq           = IMXRT_IRQ_LPI2C4,
 #endif
 };
 
 static struct imxrt_lpi2c_priv_s imxrt_lpi2c4_priv =
 {
-  .ops        = &imxrt_lpi2c_ops,
-  .config     = &imxrt_lpi2c4_config,
-  .refs       = 0,
-  .intstate   = INTSTATE_IDLE,
-  .msgc       = 0,
-  .msgv       = NULL,
-  .ptr        = NULL,
-  .dcnt       = 0,
-  .flags      = 0,
-  .status     = 0
+  .ops           = &imxrt_lpi2c_ops,
+  .config        = &imxrt_lpi2c4_config,
+  .refs          = 0,
+  .intstate      = INTSTATE_IDLE,
+  .msgc          = 0,
+  .msgv          = NULL,
+  .ptr           = NULL,
+  .dcnt          = 0,
+  .flags         = 0,
+  .status        = 0
 };
 #endif
 
@@ -459,8 +474,8 @@ static struct imxrt_lpi2c_priv_s imxrt_lpi2c4_priv =
  *
  ****************************************************************************/
 
-static inline uint32_t imxrt_lpi2c_getreg(FAR struct imxrt_lpi2c_priv_s *priv,
-                                          uint16_t offset)
+static inline uint32_t
+  imxrt_lpi2c_getreg(FAR struct imxrt_lpi2c_priv_s *priv, uint16_t offset)
 {
   return getreg32(priv->config->base + offset);
 }
@@ -498,14 +513,31 @@ static inline void imxrt_lpi2c_modifyreg(FAR struct imxrt_lpi2c_priv_s *priv,
  * Name: imxrt_lpi2c_sem_wait
  *
  * Description:
- *   Take the exclusive access, waiting as necessary
+ *   Take the exclusive access, waiting as necessary.  May be interrupted by
+ *   a signal.
  *
  ****************************************************************************/
 
-static inline void imxrt_lpi2c_sem_wait(FAR struct imxrt_lpi2c_priv_s *priv)
+static inline int imxrt_lpi2c_sem_wait(FAR struct imxrt_lpi2c_priv_s *priv)
 {
-  nxsem_wait_uninterruptible(&priv->sem_excl);
+  return nxsem_wait(&priv->sem_excl);
 }
+
+/****************************************************************************
+ * Name: imxrt_lpi2c_sem_wait_noncancelable
+ *
+ * Description:
+ *   Take the exclusive access, waiting as necessary.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_I2C_RESET
+static int
+  imxrt_lpi2c_sem_wait_noncancelable(FAR struct imxrt_lpi2c_priv_s *priv)
+{
+  return nxsem_wait_uninterruptible(&priv->sem_excl);
+}
+#endif
 
 /****************************************************************************
  * Name: imxrt_lpi2c_tousecs
@@ -516,7 +548,7 @@ static inline void imxrt_lpi2c_sem_wait(FAR struct imxrt_lpi2c_priv_s *priv)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_IMXRT_I2C_DYNTIMEO
+#ifdef CONFIG_IMXRT_LPI2C_DYNTIMEO
 static useconds_t imxrt_lpi2c_tousecs(int msgc, FAR struct i2c_msg_s *msgs)
 {
   size_t bytecount = 0;
@@ -533,7 +565,7 @@ static useconds_t imxrt_lpi2c_tousecs(int msgc, FAR struct i2c_msg_s *msgs)
    * factor.
    */
 
-  return (useconds_t)(CONFIG_IMXRT_I2C_DYNTIMEO_USECPERBYTE * bytecount);
+  return (useconds_t)(CONFIG_IMXRT_LPI2C_DYNTIMEO_USECPERBYTE * bytecount);
 }
 #endif
 
@@ -546,7 +578,8 @@ static useconds_t imxrt_lpi2c_tousecs(int msgc, FAR struct i2c_msg_s *msgs)
  ****************************************************************************/
 
 #ifndef CONFIG_I2C_POLLED
-static inline int imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv)
+static inline int
+  imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv)
 {
   struct timespec abstime;
   irqstate_t flags;
@@ -594,13 +627,13 @@ static inline int imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv)
 
       /* Calculate a time in the future */
 
-#if CONFIG_IMXRT_I2CTIMEOSEC > 0
-      abstime.tv_sec += CONFIG_IMXRT_I2CTIMEOSEC;
+#if CONFIG_IMXRT_LPI2C_TIMEOSEC > 0
+      abstime.tv_sec += CONFIG_IMXRT_LPI2C_TIMEOSEC;
 #endif
 
       /* Add a value proportional to the number of bytes in the transfer */
 
-#ifdef CONFIG_IMXRT_I2C_DYNTIMEO
+#ifdef CONFIG_IMXRT_LPI2C_DYNTIMEO
       abstime.tv_nsec += 1000 * imxrt_lpi2c_tousecs(priv->msgc, priv->msgv);
       if (abstime.tv_nsec >= 1000 * 1000 * 1000)
         {
@@ -608,8 +641,8 @@ static inline int imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv)
           abstime.tv_nsec -= 1000 * 1000 * 1000;
         }
 
-#elif CONFIG_IMXRT_I2CTIMEOMS > 0
-      abstime.tv_nsec += CONFIG_IMXRT_I2CTIMEOMS * 1000 * 1000;
+#elif CONFIG_IMXRT_LPI2C_TIMEOMS > 0
+      abstime.tv_nsec += CONFIG_IMXRT_LPI2C_TIMEOMS * 1000 * 1000;
       if (abstime.tv_nsec >= 1000 * 1000 * 1000)
         {
           abstime.tv_sec++;
@@ -658,7 +691,8 @@ static inline int imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv)
   return ret;
 }
 #else
-static inline int imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv)
+static inline int
+  imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv)
 {
   clock_t timeout;
   clock_t start;
@@ -667,10 +701,10 @@ static inline int imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv)
 
   /* Get the timeout value */
 
-#ifdef CONFIG_IMXRT_I2C_DYNTIMEO
+#ifdef CONFIG_IMXRT_LPI2C_DYNTIMEO
   timeout = USEC2TICK(imxrt_lpi2c_tousecs(priv->msgc, priv->msgv));
 #else
-  timeout = CONFIG_IMXRT_I2CTIMEOTICKS;
+  timeout = CONFIG_IMXRT_LPI2C_TIMEOTICKS;
 #endif
 
   /* Signal the interrupt handler that we are waiting.  NOTE:  Interrupts
@@ -679,13 +713,13 @@ static inline int imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv)
    */
 
   priv->intstate = INTSTATE_WAITING;
-  start = clock_systimer();
+  start = clock_systime_ticks();
 
   do
     {
       /* Calculate the elapsed time */
 
-      elapsed = clock_systimer() - start;
+      elapsed = clock_systime_ticks() - start;
 
       /* Poll by simply calling the timer interrupt handler until it
        * reports that it is done.
@@ -717,7 +751,8 @@ static inline int imxrt_lpi2c_sem_waitdone(FAR struct imxrt_lpi2c_priv_s *priv)
  *
  ****************************************************************************/
 
-static inline void imxrt_lpi2c_sem_waitstop(FAR struct imxrt_lpi2c_priv_s *priv)
+static inline void
+  imxrt_lpi2c_sem_waitstop(FAR struct imxrt_lpi2c_priv_s *priv)
 {
   clock_t start;
   clock_t elapsed;
@@ -726,10 +761,10 @@ static inline void imxrt_lpi2c_sem_waitstop(FAR struct imxrt_lpi2c_priv_s *priv)
 
   /* Select a timeout */
 
-#ifdef CONFIG_IMXRT_I2C_DYNTIMEO
-  timeout = USEC2TICK(CONFIG_IMXRT_I2C_DYNTIMEO_STARTSTOP);
+#ifdef CONFIG_IMXRT_LPI2C_DYNTIMEO
+  timeout = USEC2TICK(CONFIG_IMXRT_LPI2C_DYNTIMEO_STARTSTOP);
 #else
-  timeout = CONFIG_IMXRT_I2CTIMEOTICKS;
+  timeout = CONFIG_IMXRT_LPI2C_TIMEOTICKS;
 #endif
 
   /* Wait as stop might still be in progress; but stop might also
@@ -738,12 +773,12 @@ static inline void imxrt_lpi2c_sem_waitstop(FAR struct imxrt_lpi2c_priv_s *priv)
    * detected, set by hardware when a timeout error is detected."
    */
 
-  start = clock_systimer();
+  start = clock_systime_ticks();
   do
     {
       /* Calculate the elapsed time */
 
-      elapsed = clock_systimer() - start;
+      elapsed = clock_systime_ticks() - start;
 
       /* Check for STOP condition */
 
@@ -794,7 +829,7 @@ static inline void imxrt_lpi2c_sem_waitstop(FAR struct imxrt_lpi2c_priv_s *priv)
    * still pending.
    */
 
-  i2cinfo("Timeout with Status Register: %x\n", regval);
+  i2cinfo("Timeout with Status Register: %" PRIx32 "\n", regval);
 }
 
 /****************************************************************************
@@ -828,7 +863,7 @@ static inline void imxrt_lpi2c_sem_init(FAR struct imxrt_lpi2c_priv_s *priv)
    */
 
   nxsem_init(&priv->sem_isr, 0, 0);
-  nxsem_setprotocol(&priv->sem_isr, SEM_PRIO_NONE);
+  nxsem_set_protocol(&priv->sem_isr, SEM_PRIO_NONE);
 #endif
 }
 
@@ -840,7 +875,8 @@ static inline void imxrt_lpi2c_sem_init(FAR struct imxrt_lpi2c_priv_s *priv)
  *
  ****************************************************************************/
 
-static inline void imxrt_lpi2c_sem_destroy(FAR struct imxrt_lpi2c_priv_s *priv)
+static inline void
+  imxrt_lpi2c_sem_destroy(FAR struct imxrt_lpi2c_priv_s *priv)
 {
   nxsem_destroy(&priv->sem_excl);
 #ifndef CONFIG_I2C_POLLED
@@ -873,7 +909,7 @@ static void imxrt_lpi2c_tracereset(FAR struct imxrt_lpi2c_priv_s *priv)
   /* Reset the trace info for a new data collection */
 
   priv->tndx       = 0;
-  priv->start_time = clock_systimer();
+  priv->start_time = clock_systime_ticks();
   imxrt_lpi2c_traceclear(priv);
 }
 
@@ -890,7 +926,7 @@ static void imxrt_lpi2c_tracenew(FAR struct imxrt_lpi2c_priv_s *priv,
 
       if (trace->count != 0)
         {
-          /* Yes.. bump up the trace index (unless we are out of trace entries) */
+          /* Yes.. bump up the trace index (unless out of trace entries) */
 
           if (priv->tndx >= (CONFIG_I2C_NTRACE - 1))
             {
@@ -907,7 +943,7 @@ static void imxrt_lpi2c_tracenew(FAR struct imxrt_lpi2c_priv_s *priv,
       imxrt_lpi2c_traceclear(priv);
       trace->status = status;
       trace->count  = 1;
-      trace->time   = clock_systimer();
+      trace->time   = clock_systime_ticks();
     }
   else
     {
@@ -950,14 +986,16 @@ static void imxrt_lpi2c_tracedump(FAR struct imxrt_lpi2c_priv_s *priv)
   int i;
 
   syslog(LOG_DEBUG, "Elapsed time: %ld\n",
-         (long)(clock_systimer() - priv->start_time));
+         (long)(clock_systime_ticks() - priv->start_time));
 
   for (i = 0; i < priv->tndx; i++)
     {
       trace = &priv->trace[i];
       syslog(LOG_DEBUG,
-             "%2d. STATUS: %08x COUNT: %3d EVENT: %s(%2d) PARM: %08x TIME: %d\n",
-             i + 1, trace->status, trace->count, g_trace_names[trace->event],
+             "%2d. STATUS: %08x COUNT: %3d EVENT: %s(%2d) PARM: %08x "
+             "TIME: %d\n",
+             i + 1, trace->status, trace->count,
+             g_trace_names[trace->event],
              trace->event, trace->parm, trace->time - priv->start_time);
     }
 }
@@ -1105,7 +1143,8 @@ static void imxrt_lpi2c_setclock(FAR struct imxrt_lpi2c_priv_s *priv,
                 }
             }
 
-          imxrt_lpi2c_modifyreg(priv, IMXRT_LPI2C_MCFGR1_OFFSET, 0,
+          imxrt_lpi2c_modifyreg(priv, IMXRT_LPI2C_MCFGR1_OFFSET,
+                                LPI2C_MCFGR1_PRESCALE_MASK,
                                 LPI2C_MCFGR1_PRESCALE(best_prescale));
 
           /* Re-enable LPI2C if it was enabled previously */
@@ -1195,7 +1234,8 @@ static inline void imxrt_lpi2c_sendstop(FAR struct imxrt_lpi2c_priv_s *priv)
  *
  ****************************************************************************/
 
-static inline uint32_t imxrt_lpi2c_getstatus(FAR struct imxrt_lpi2c_priv_s *priv)
+static inline uint32_t
+  imxrt_lpi2c_getstatus(FAR struct imxrt_lpi2c_priv_s *priv)
 {
   return imxrt_lpi2c_getreg(priv, IMXRT_LPI2C_MSR_OFFSET);
 }
@@ -1216,11 +1256,18 @@ static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s *priv)
 
   imxrt_lpi2c_tracenew(priv, status);
 
-  /* Continue with either sending or reading data */
+  /* After an error we can get an SDF  */
+
+  if (priv->intstate == INTSTATE_DONE && (status & LPI2C_MSR_SDF) != 0)
+    {
+      imxrt_lpi2c_traceevent(priv, I2CEVENT_STOP, 0);
+      imxrt_lpi2c_putreg(priv, IMXRT_LPI2C_MSR_OFFSET, LPI2C_MSR_SDF);
+    }
 
   /* Check if there is more bytes to send */
 
-  if (((priv->flags & I2C_M_READ) == 0) && (status & LPI2C_MSR_TDF) != 0)
+  else if (((priv->flags & I2C_M_READ) == 0) &&
+           (status & LPI2C_MSR_TDF) != 0)
     {
       if (priv->dcnt > 0)
         {
@@ -1239,7 +1286,8 @@ static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s *priv)
 
   /* Check if there is more bytes to read */
 
-  else if (((priv->flags & I2C_M_READ) != 0) && (status & LPI2C_MSR_RDF) != 0)
+  else if (((priv->flags & I2C_M_READ) != 0) &&
+           (status & LPI2C_MSR_RDF) != 0)
     {
       /* Read a byte, if dcnt goes < 0, then read dummy bytes to ack ISRs */
 
@@ -1248,7 +1296,7 @@ static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s *priv)
           imxrt_lpi2c_traceevent(priv, I2CEVENT_RCVBYTE, priv->dcnt);
 
           /* No interrupts or contex switches should occur in the following
-           * seuence. Otherwise, additional bytes may be sent by the device.
+           * sequence. Otherwise, additional bytes may be sent by the device.
            */
 
 #ifdef CONFIG_I2C_POLLED
@@ -1279,13 +1327,14 @@ static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s *priv)
     {
       if (priv->msgc > 0 && priv->msgv != NULL)
         {
-          priv->ptr        = priv->msgv->buffer;
-          priv->dcnt    = priv->msgv->length;
+          priv->ptr      = priv->msgv->buffer;
+          priv->dcnt     = priv->msgv->length;
           priv->flags    = priv->msgv->flags;
 
           if ((priv->msgv->flags & I2C_M_NOSTART) == 0)
             {
-              imxrt_lpi2c_traceevent(priv, I2CEVENT_STARTRESTART, priv->msgc);
+              imxrt_lpi2c_traceevent(priv, I2CEVENT_STARTRESTART,
+                                     priv->msgc);
               imxrt_lpi2c_sendstart(priv, priv->msgv->addr);
             }
           else
@@ -1335,6 +1384,10 @@ static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s *priv)
 #ifndef CONFIG_I2C_POLLED
           if (priv->intstate == INTSTATE_WAITING)
             {
+              /* Update Status once at the end */
+
+              priv->status = status;
+
               /* inform the thread that transfer is complete
                * and wake it up
                */
@@ -1343,6 +1396,7 @@ static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s *priv)
               priv->intstate = INTSTATE_DONE;
             }
 #else
+          priv->status = status;
           priv->intstate = INTSTATE_DONE;
 #endif
           /* Mark that this transaction stopped */
@@ -1383,6 +1437,10 @@ static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s *priv)
 #ifndef CONFIG_I2C_POLLED
           if (priv->intstate == INTSTATE_WAITING)
             {
+              /* Update Status once at the end */
+
+              priv->status = status;
+
               /* inform the thread that transfer is complete
                * and wake it up
                */
@@ -1391,11 +1449,11 @@ static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s *priv)
               priv->intstate = INTSTATE_DONE;
             }
 #else
+          priv->status = status;
           priv->intstate = INTSTATE_DONE;
 #endif
     }
 
-  priv->status = status;
   return OK;
 }
 
@@ -1598,13 +1656,17 @@ static int imxrt_lpi2c_transfer(FAR struct i2c_master_s *dev,
                                 FAR struct i2c_msg_s *msgs, int count)
 {
   FAR struct imxrt_lpi2c_priv_s *priv = (struct imxrt_lpi2c_priv_s *)dev;
-  int ret = 0;
+  int ret;
 
   DEBUGASSERT(count > 0);
 
   /* Ensure that address or flags don't change meanwhile */
 
-  imxrt_lpi2c_sem_wait(priv);
+  ret = imxrt_lpi2c_sem_wait(priv);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Clear any pending error interrupts */
 
@@ -1643,7 +1705,7 @@ static int imxrt_lpi2c_transfer(FAR struct i2c_master_s *dev,
     {
       ret = -ETIMEDOUT;
 
-      i2cerr("ERROR: Timed out: MCR: status: 0x%x\n", priv->status);
+      i2cerr("ERROR: Timed out: MCR: status: 0x%" PRIx32 "\n", priv->status);
     }
 
   /* Check for error status conditions */
@@ -1713,7 +1775,7 @@ static int imxrt_lpi2c_reset(FAR struct i2c_master_s *dev)
   uint32_t scl_gpio;
   uint32_t sda_gpio;
   uint32_t frequency;
-  int ret = ERROR;
+  int ret;
 
   DEBUGASSERT(dev);
 
@@ -1723,7 +1785,13 @@ static int imxrt_lpi2c_reset(FAR struct i2c_master_s *dev)
 
   /* Lock out other clients */
 
-  imxrt_lpi2c_sem_wait(priv);
+  ret = imxrt_lpi2c_sem_wait_noncancelable(priv);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  ret = -EIO;
 
   /* Save the current frequency */
 
@@ -1735,8 +1803,8 @@ static int imxrt_lpi2c_reset(FAR struct i2c_master_s *dev)
 
   /* Use GPIO configuration to un-wedge the bus */
 
-  scl_gpio = MKI2C_OUTPUT(priv->config->scl_pin);
-  sda_gpio = MKI2C_OUTPUT(priv->config->sda_pin);
+  scl_gpio = priv->config->reset_scl_pin | GPIO_SION_ENABLE;
+  sda_gpio = priv->config->reset_sda_pin | GPIO_SION_ENABLE;
 
   imxrt_config_gpio(scl_gpio);
   imxrt_config_gpio(sda_gpio);
@@ -1798,11 +1866,6 @@ static int imxrt_lpi2c_reset(FAR struct i2c_master_s *dev)
   up_udelay(10);
   imxrt_gpio_write(sda_gpio, 1);
   up_udelay(10);
-
-  /* Revert the GPIO configuration. */
-
-  sda_gpio = MKI2C_INPUT(sda_gpio);
-  scl_gpio = MKI2C_INPUT(scl_gpio);
 
   imxrt_config_gpio(sda_gpio);
   imxrt_config_gpio(scl_gpio);

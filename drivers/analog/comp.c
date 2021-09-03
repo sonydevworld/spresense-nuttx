@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/analog/comp.c
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Author: Mateusz Szafoni <raiden00@railab.me>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -61,7 +46,8 @@ static int     comp_open(FAR struct file *filep);
 static int     comp_close(FAR struct file *filep);
 static ssize_t comp_read(FAR struct file *filep, FAR char *buffer,
                          size_t buflen);
-static int     comp_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
+static int     comp_ioctl(FAR struct file *filep, int cmd,
+                          unsigned long arg);
 static int     comp_poll(FAR struct file *filep, FAR struct pollfd *fds,
                          bool setup);
 static int     comp_notify(FAR struct comp_dev_s *dev, uint8_t val);
@@ -97,7 +83,7 @@ static const struct comp_callback_s g_comp_callback =
  * Name: comp_pollnotify
  *
  * Description:
- *   This function is called to notificy any waiters of poll-reated events.
+ *   This function is called to notify any waiters of poll-reated events.
  *
  ****************************************************************************/
 
@@ -139,9 +125,9 @@ static void comp_pollnotify(FAR struct comp_dev_s *dev,
  * Name: comp_semtake
  ****************************************************************************/
 
-static void comp_semtake(FAR sem_t *sem)
+static int comp_semtake(FAR sem_t *sem)
 {
-  nxsem_wait_uninterruptible(sem);
+  return nxsem_wait_uninterruptible(sem);
 }
 
 /****************************************************************************
@@ -160,7 +146,12 @@ static int comp_poll(FAR struct file *filep, FAR struct pollfd *fds,
 
   /* Are we setting up the poll?  Or tearing it down? */
 
-  comp_semtake(&dev->ad_sem);
+  ret = comp_semtake(&dev->ad_sem);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   if (setup)
     {
       /* This is a request to set up the poll.  Find an available
@@ -184,7 +175,7 @@ static int comp_poll(FAR struct file *filep, FAR struct pollfd *fds,
       if (i >= CONFIG_DEV_COMP_NPOLLWAITERS)
         {
           fds->priv   = NULL;
-          ret          = -EBUSY;
+          ret         = -EBUSY;
           goto errout;
         }
     }
@@ -208,7 +199,7 @@ static int comp_poll(FAR struct file *filep, FAR struct pollfd *fds,
       fds->priv            = NULL;
     }
 
- errout:
+errout:
   nxsem_post(&dev->ad_sem);
   return ret;
 }
@@ -217,8 +208,8 @@ static int comp_poll(FAR struct file *filep, FAR struct pollfd *fds,
  * Name: comp_notify
  *
  * Description:
- *   This function is called from the lower half driver to notify
- *   the change of the comparator output.
+ *   This function is called from the lower half driver to notify the change
+ *   of the comparator output.
  *
  ****************************************************************************/
 
@@ -249,14 +240,16 @@ static int comp_open(FAR struct file *filep)
   uint8_t                tmp;
   int                    ret;
 
-  /* If the port is the middle of closing, wait until the close is finished */
+  /* If the port is the middle of closing, wait until the close is
+   * finished.
+   */
 
   ret = nxsem_wait(&dev->ad_sem);
   if (ret >= 0)
     {
-      /* Increment the count of references to the device.  If this the first
-       * time that the driver has been opened for this device, then initialize
-       * the device.
+      /* Increment the count of references to the device.  If this is the
+       * first time that the driver has been opened for this device, then
+       * initialize the device.
        */
 
       tmp = dev->ad_ocount + 1;
@@ -268,7 +261,9 @@ static int comp_open(FAR struct file *filep)
         }
       else
         {
-          /* Check if this is the first time that the driver has been opened. */
+          /* Check if this is the first time that the driver has been
+           * opened.
+           */
 
           if (tmp == 1)
             {
@@ -344,7 +339,8 @@ static int comp_close(FAR struct file *filep)
  * Name: comp_read
  ****************************************************************************/
 
-static ssize_t comp_read(FAR struct file *filep, FAR char *buffer, size_t buflen)
+static ssize_t comp_read(FAR struct file *filep, FAR char *buffer,
+                         size_t buflen)
 {
   FAR struct inode      *inode = filep->f_inode;
   FAR struct comp_dev_s *dev   = inode->i_private;
@@ -373,7 +369,7 @@ static ssize_t comp_read(FAR struct file *filep, FAR char *buffer, size_t buflen
 
 /****************************************************************************
  * Name: comp_ioctl
-****************************************************************************/
+ ****************************************************************************/
 
 static int comp_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
@@ -404,10 +400,10 @@ int comp_register(FAR const char *path, FAR struct comp_dev_s *dev)
   /* Initialize semaphores */
 
   nxsem_init(&dev->ad_sem, 0, 1);
-  nxsem_setprotocol(&dev->ad_sem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&dev->ad_sem, SEM_PRIO_NONE);
 
   nxsem_init(&dev->ad_readsem, 0, 0);
-  nxsem_setprotocol(&dev->ad_readsem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&dev->ad_readsem, SEM_PRIO_NONE);
 
   /* Bind the upper-half callbacks to the lower half COMP driver */
 

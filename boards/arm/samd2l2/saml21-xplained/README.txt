@@ -73,7 +73,7 @@ Modules
     ----------------- ---------------------- ---------------------- ------------------------------------
     2  GND            2       GND            2  GND
     ----------------- ---------------------- ---------------------- ------------------------------------
-    3  LIGHTSENSOR    3  PB05 AIN[13]        3  PA10 AIN[18]
+    3  LIGHT_SENSOR   3  PB05 AIN[13]        3  PA10 AIN[18]
     ----------------- ---------------------- ---------------------- ------------------------------------
     4  LP_OUT         4  PA03 AIN[1]         4  PA11 AIN[19]
     ----------------- ---------------------- ---------------------- ------------------------------------
@@ -264,13 +264,9 @@ GNU Toolchain Options
   toolchain.  To use alternative toolchain, you simply need to add change of
   the following configuration options to your .config (or defconfig) file:
 
-    CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y  : CodeSourcery under Windows
-    CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYL=y  : CodeSourcery under Linux
-    CONFIG_ARMV7M_TOOLCHAIN_ATOLLIC=y        : Atollic toolchain for Windos
-    CONFIG_ARMV7M_TOOLCHAIN_DEVKITARM=y      : devkitARM under Windows
-    CONFIG_ARMV7M_TOOLCHAIN_BUILDROOT=y      : NuttX buildroot under Linux or Cygwin (default)
-    CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIL=y      : Generic GCC ARM EABI toolchain for Linux
-    CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y      : Generic GCC ARM EABI toolchain for Windows
+    CONFIG_ARMV7M_TOOLCHAIN_BUILDROOT=y  : NuttX buildroot under Linux or Cygwin (default)
+    CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIL=y  : Generic GCC ARM EABI toolchain for Linux
+    CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y  : Generic GCC ARM EABI toolchain for Windows
 
   NOTE about Windows native toolchains
   ------------------------------------
@@ -290,7 +286,7 @@ GNU Toolchain Options
      out 'cygpath -w'
 
   2. Windows toolchains cannot follow Cygwin symbolic links.  Many symbolic
-     links are used in Nuttx (e.g., include/arch).  The make system works
+     links are used in NuttX (e.g., include/arch).  The make system works
      around these problems for the Windows tools by copying directories
      instead of linking them. But this can also cause some confusion for
      you:  For example, you may edit a file in a "linked" directory and find
@@ -324,7 +320,7 @@ IDEs
   2) Start the NuttX build at least one time from the Cygwin command line
      before trying to create your project.  This is necessary to create
      certain auto-generated files and directories that will be needed.
-  3) Set up include pathes:  You will need include/, arch/arm/src/sam34,
+  3) Set up include paths:  You will need include/, arch/arm/src/sam34,
      arch/arm/src/common, arch/arm/src/armv7-m, and sched/.
   4) All assembly files need to have the definition option -D __ASSEMBLY__
      on the command line.
@@ -345,7 +341,7 @@ NuttX EABI "buildroot" Toolchain
   Bitbucket download site (https://bitbucket.org/nuttx/buildroot/downloads/).
   This GNU toolchain builds and executes in the Linux or Cygwin environment.
 
-  1. You must have already configured Nuttx in <some-dir>/nuttx.
+  1. You must have already configured NuttX in <some-dir>/nuttx.
 
      tools/configure.sh saml21-xplained:<sub-dir>
 
@@ -692,13 +688,13 @@ Configurations
 
      Build Setup:
        CONFIG_HOST_WINDOWS=y   : Windows Host
-       CONFIG_WINDOWS_CYGWIN=y : Cygwin environment on windoes
+       CONFIG_WINDOWS_CYGWIN=y : Cygwin environment on windows
 
-  4. These configurations use the CodeSourcery toolchain.  But
+  4. These configurations use the ARM EABI toolchain.  But
      that is easily reconfigured:
 
      System Type -> Toolchain:
-       CONFIG_ARMV6M_TOOLCHAIN_CODESOURCERYW=y
+       CONFIG_ARMV6M_TOOLCHAIN_GNU_EABIW=y
 
      Any re-configuration should be done before making NuttX or else the
      subsequent 'make' will fail.  If you have already attempted building
@@ -724,7 +720,7 @@ Configuration sub-directories
     NOTES:
 
     1. This configuration is set up to build on Windows using the Cygwin
-       environment using the CodeSourcery toolchain.  This can be easily
+       environment using the ARM EABI toolchain.  This can be easily
        changed as described above under "Configurations."
 
     2. By default, this configuration provides a serial console on SERCOM4
@@ -750,7 +746,7 @@ Configuration sub-directories
        Sometimes NuttX and your toolchain will disagree on the underlying
        type of size_t; sometimes it is an 'unsigned int' and sometimes it is
        an 'unsigned long int'.  If this error occurs, then you may need to
-       toggle the value of CONFIG_CXX_NEWLONG.
+       toggle the value of CONFIG_ARCH_SIZET_LONG.
 
     4. WARNING: This info comes from the SAMD20 Xplained README.  I have
        not tried the I/O1 module on the SAML21!
@@ -773,7 +769,7 @@ Configuration sub-directories
          CONFIG_FAT_MAXFNAME=32            : Maximum supported file name length
 
          There are issues related to patents that Microsoft holds on FAT long
-         file name technologies.  See the top level COPYING file for further
+         file name technologies.  See the top level NOTICE file for further
          details.
 
        System Type -> Peripherals:
@@ -897,4 +893,3 @@ Configuration sub-directories
         * The OLED is monochrome so the only "colors" are black and white.
           The default "colors" will give you while text on a black background.
           You can override the faults it you want black text on a while background.
-

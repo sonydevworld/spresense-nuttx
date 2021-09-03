@@ -1,53 +1,37 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/armv7-a/mmu.h
- * CP15 MMU register definitions
  *
- *   Copyright (C) 2013-2014, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *  "Cortex-A5™ MPCore, Technical Reference Manual", Revision: r0p1, Copyright ©
- *   2010 ARM. All rights reserved. ARM DDI 0434B (ID101810)
- *  "ARM® Architecture Reference Manual, ARMv7-A and ARMv7-R edition", Copyright ©
- *   1996-1998, 2000, 2004-2012 ARM. All rights reserved. ARM
- *   DDI 0406C.b (ID072512)
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
+
+/* References:
+ *  "Cortex-A5™ MPCore, Technical Reference Manual", Revision: r0p1,
+ *   Copyright © 2010 ARM. All rights reserved. ARM DDI 0434B (ID101810)
+ *  "ARM® Architecture Reference Manual, ARMv7-A and ARMv7-R edition",
+ *   Copyright © 1996-1998, 2000, 2004-2012 ARM.
+ *   All rights reserved. ARM DDI 0406C.b (ID072512)
+ */
 
 #ifndef __ARCH_ARM_SRC_ARMV7_A_MMU_H
 #define __ARCH_ARM_SRC_ARMV7_A_MMU_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -57,10 +41,11 @@
 #  include "chip.h"
 #endif /* __ASSEMBLY__ */
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
-/* Configuration ********************************************************************/
+ ****************************************************************************/
+
+/* Configuration ************************************************************/
 
 #if defined(CONFIG_PAGING) || defined(CONFIG_ARCH_ADDRENV)
 
@@ -73,20 +58,24 @@
 #endif
 #endif /* CONFIG_PAGING */
 
-/* MMU CP15 Register Bit Definitions ************************************************/
-/* Reference: Cortex-A5™ MPCore Paragraph 6.7, "MMU software accessible registers." */
+/* MMU CP15 Register Bit Definitions ****************************************/
+
+/* Reference: Cortex-A5™ MPCore
+ * Paragraph 6.7, "MMU software accessible registers."
+ */
 
 /* TLB Type Register TLB Type Register
  *
- * The Translation Lookaside Buffer (TLB) Type Register, TLBTR, returns the number of
- * lockable entries for the TLB. The Cortex-A5 MPCore processor does not implement
- * this feature, so this register always RAZ.
+ * The Translation Lookaside Buffer (TLB) Type Register, TLBTR, returns the
+ * number of lockable entries for the TLB. The Cortex-A5 MPCore processor
+ * does not implement this feature, so this register always RAZ.
  */
 
 /* System Control Register (SCTLR). see cstlr.h */
+
 /* Non-secure Access Control Register (NSACR).  See cstlr.h */
 
-/* Translation Table Base Register 0 (TTBR0)*/
+/* Translation Table Base Register 0 (TTBR0) */
 
 #define TTBR0_IRGN1          (1 << 0)  /* Bit 0:  Inner cacheability IRGN[1] (MP extensions) */
 #define TTBR0_C              (1 << 0)  /* Bit 0:  Inner cacheability for table walk */
@@ -94,15 +83,20 @@
                                        /* Bit 2:  Reserved */
 #define TTBR0_RGN_SHIFT      (3)       /* Bits 3-4: Outer cacheable attributes for table walk */
 #define TTBR0_RGN_MASK       (3 << TTBR0_RGN_SHIFT)
-#  define TTBR0_RGN_NONE     (0 << TTBR0_RGN_SHIFT) /* Non-cacheable */
-#  define TTBR0_RGN_WBWA     (1 << TTBR0_RGN_SHIFT) /* Write-Back cached + Write-Allocate */
-#  define TTBR0_RGN_WT       (2 << TTBR0_RGN_SHIFT) /* Write-Through */
-#  define TTBR0_RGN_WB       (3 << TTBR0_RGN_SHIFT) /* Write-Back */
-#define TTBR0_NOS            (1 << 5)  /* Bit 5:  Not Outer Shareable bit */
-#define TTBR0_IRGN0          (1 << 6)  /* Bit 6:  Inner cacheability IRGN[0] (MP extensions) */
-                                       /* Bits 7-n: Reserved, n=7-13 */
+#define TTBR0_RGN_NONE       (0 << TTBR0_RGN_SHIFT) /* Non-cacheable */
+#define TTBR0_RGN_WBWA       (1 << TTBR0_RGN_SHIFT) /* Write-Back cached + Write-Allocate */
+#define TTBR0_RGN_WT         (2 << TTBR0_RGN_SHIFT) /* Write-Through */
+#define TTBR0_RGN_WB         (3 << TTBR0_RGN_SHIFT) /* Write-Back */
+#define TTBR0_NOS            (1 << 5)               /* Bit 5:  Not Outer Shareable bit */
+#define TTBR0_IRGN0          (1 << 6)               /* Bit 6:  Inner cacheability IRGN[0] (MP extensions) */
+                                                    /* Bits 7-n: Reserved, n=7-13 */
+
 #define _TTBR0_LOWER(n)      (0xffffffff << (n))
-                                       /* Bits (n+1)-31: Translation table base 0 */
+
+/*                                                     Bits (n+1)-31:
+ *                                                   Translation table base 0
+ */
+
 #define TTBR0_BASE_MASK(n)   (~_TTBR0_LOWER(n))
 
 /* Translation Table Base Register 1 (TTBR1) */
@@ -113,13 +107,14 @@
                                        /* Bit 2:  Reserved */
 #define TTBR1_RGN_SHIFT      (3)       /* Bits 3-4: Outer cacheable attributes for table walk */
 #define TTBR1_RGN_MASK       (3 << TTBR1_RGN_SHIFT)
-#  define TTBR1_RGN_NONE     (0 << TTBR1_RGN_SHIFT) /* Non-cacheable */
-#  define TTBR1_RGN_WBWA     (1 << TTBR1_RGN_SHIFT) /* Write-Back cached + Write-Allocate */
-#  define TTBR1_RGN_WT       (2 << TTBR1_RGN_SHIFT) /* Write-Through */
-#  define TTBR1_RGN_WB       (3 << TTBR1_RGN_SHIFT) /* Write-Back */
-#define TTBR1_NOS            (1 << 5)  /* Bit 5:  Not Outer Shareable bit */
-#define TTBR1_IRGN0          (1 << 6)  /* Bit 6:  Inner cacheability IRGN[0] (MP extensions) */
-                                       /* Bits 7-13: Reserved */
+#define TTBR1_RGN_NONE       (0 << TTBR1_RGN_SHIFT) /* Non-cacheable */
+#define TTBR1_RGN_WBWA       (1 << TTBR1_RGN_SHIFT) /* Write-Back cached + Write-Allocate */
+#define TTBR1_RGN_WT         (2 << TTBR1_RGN_SHIFT) /* Write-Through */
+#define TTBR1_RGN_WB         (3 << TTBR1_RGN_SHIFT) /* Write-Back */
+#define TTBR1_NOS            (1 << 5)               /* Bit 5:  Not Outer Shareable bit */
+#define TTBR1_IRGN0          (1 << 6)               /* Bit 6:  Inner cacheability IRGN[0] (MP extensions) */
+                                                    /* Bits 7-13: Reserved */
+
 #define TTBR1_BASE_SHIFT     (14)      /* Bits 14-31: Translation table base 1 */
 #define TTBR1_BASE_MASK      (0xffffc000)
 
@@ -127,14 +122,14 @@
 
 #define TTBCR_N_SHIFT        (0)       /* Bits 0-2: Boundary size of TTBR0 */
 #define TTBCR_N_MASK         (7 << TTBCR_N_SHIFT)
-#  define TTBCR_N_16KB       (0 << TTBCR_N_SHIFT) /* Reset value */
-#  define TTBCR_N_8KB        (1 << TTBCR_N_SHIFT)
-#  define TTBCR_N_4KB        (2 << TTBCR_N_SHIFT)
-#  define TTBCR_N_2KB        (3 << TTBCR_N_SHIFT)
-#  define TTBCR_N_1KB        (4 << TTBCR_N_SHIFT)
-#  define TTBCR_N_512B       (5 << TTBCR_N_SHIFT)
-#  define TTBCR_N_256B       (6 << TTBCR_N_SHIFT)
-#  define TTBCR_N_128B       (7 << TTBCR_N_SHIFT)
+#define TTBCR_N_16KB         (0 << TTBCR_N_SHIFT) /* Reset value */
+#define TTBCR_N_8KB          (1 << TTBCR_N_SHIFT)
+#define TTBCR_N_4KB          (2 << TTBCR_N_SHIFT)
+#define TTBCR_N_2KB          (3 << TTBCR_N_SHIFT)
+#define TTBCR_N_1KB          (4 << TTBCR_N_SHIFT)
+#define TTBCR_N_512B         (5 << TTBCR_N_SHIFT)
+#define TTBCR_N_256B         (6 << TTBCR_N_SHIFT)
+#define TTBCR_N_128B         (7 << TTBCR_N_SHIFT)
                                        /* Bit 3:  Reserved */
 #define TTBCR_PD0            (1 << 4)  /* Bit 4:  Translation table walk on a TLB miss w/TTBR0 */
 #define TTBCR_PD1            (1 << 5)  /* Bit 5:  Translation table walk on a TLB miss w/TTBR1 */
@@ -144,9 +139,9 @@
 
 #define DACR_SHIFT(n)        ((n) << 1) /* Domain n, n=0-15 */
 #define DACR_MASK(n)         (3 << DACR_SHIFT(n))
-#  define DACR_NONE(n)       (0 << DACR_SHIFT(n)) /* Any access generates a domain fault */
-#  define DACR_CLIENT(n)     (1 << DACR_SHIFT(n)) /* Accesses checked against permissions TLB */
-#  define DACR_MANAGER(n)    (3 << DACR_SHIFT(n)) /* Accesses are not checked */
+#define DACR_NONE(n)         (0 << DACR_SHIFT(n)) /* Any access generates a domain fault */
+#define DACR_CLIENT(n)       (1 << DACR_SHIFT(n)) /* Accesses checked against permissions TLB */
+#define DACR_MANAGER(n)      (3 << DACR_SHIFT(n)) /* Accesses are not checked */
 
 /* Data Fault Status Register (DFSR) */
 
@@ -170,11 +165,11 @@
 #define IFSR_EXT             (1 << 12) /* Bit 12: External Abort Qualifier */
                                        /* Bits 13-31: Reserved */
 
-/* Data Fault Address Register(DFAR).  Holds the MVA of the faulting address when a
- * synchronous fault occurs
+/* Data Fault Address Register(DFAR).  Holds the MVA of the faulting address
+ * when a synchronous fault occurs
  *
- * Instruction Fault Address Register(IFAR).  Holds the MVA of the faulting address
- * of the instruction that caused a prefetch abort.
+ * Instruction Fault Address Register(IFAR).  Holds the MVA of the faulting
+ * address of the instruction that caused a prefetch abort.
  */
 
 /* TLB operations.
@@ -222,6 +217,7 @@
 #define TLB_VA_MASK          (0xfffff000) /* Bits 12-31: Virtual address */
 
 /* Primary Region Remap Register (PRRR) */
+
 /* Normal Memory Remap Register (NMRR) */
 
 /* TLB Hitmap Register (TLBHR) */
@@ -234,9 +230,10 @@
 
 /* Context ID Register (CONTEXTIDR).  See cstlr.h */
 
-/* Translation Table Definitions ****************************************************/
-/* Hardware translation table definitions.  Only the "short descriptor format" is
- * supported.
+/* Translation Table Definitions ********************************************/
+
+/* Hardware translation table definitions.
+ * Only the "short descriptor format" is supported.
  *
  * Level 1 Descriptor (PMD)
  *
@@ -245,23 +242,24 @@
 
 #define PMD_TYPE_SHIFT       (0)         /* Bits: 1:0:  Type of mapping */
 #define PMD_TYPE_MASK        (3 << PMD_TYPE_SHIFT)
-#  define PMD_TYPE_FAULT     (0 << PMD_TYPE_SHIFT) /* None */
-#  define PMD_TYPE_PTE       (1 << PMD_TYPE_SHIFT) /* Page table */
-#  define PMD_TYPE_SECT      (2 << PMD_TYPE_SHIFT) /* Section or supersection */
-#  define PMD_TYPE_PXN       (3 << PMD_TYPE_SHIFT) /* PXN Section or supersection */
-                                        /* Bits 2-31: Depend on the mapping type */
+#define PMD_TYPE_FAULT       (0 << PMD_TYPE_SHIFT) /* None */
+#define PMD_TYPE_PTE         (1 << PMD_TYPE_SHIFT) /* Page table */
+#define PMD_TYPE_SECT        (2 << PMD_TYPE_SHIFT) /* Section or supersection */
+#define PMD_TYPE_PXN         (3 << PMD_TYPE_SHIFT) /* PXN Section or supersection */
+                                                   /* Bits 2-31: Depend on the mapping type */
 
 /* Level 1 Fault Translation Table Format.
  *
- * Invalid or fault entry.  "The associated VA is unmapped, and any attempt to
- *   access it generates a Translation fault.  Software can use bits[31:2] of the
- *   descriptor for its own purposes, because the hardware ignores
+ * Invalid or fault entry.  "The associated VA is unmapped, and any attempt
+ *   to access it generates a Translation fault.  Software can use bits[31:2]
+ *   of the descriptor for its own purposes, because the hardware ignores
  *   these bits."
  */
 
 /* Level 1 Page Table Translation Table Format.
  *
- * Page table. "The descriptor gives the address of a second-level translation
+ * Page table.
+ *   "The descriptor gives the address of a second-level translation
  *   table, that specifies the mapping of the associated 1MByte VA range."
  */
 
@@ -271,24 +269,27 @@
                                           /* Bit 4:  Should be zero (SBZ) */
 #define PMD_PTE_DOM_SHIFT    (5)          /* Bits 5-8: Domain */
 #define PMD_PTE_DOM_MASK     (15 << PMD_PTE_DOM_SHIFT)
-#  define PMD_PTE_DOM(n)     ((n) << PMD_PTE_DOM_SHIFT)
+#define PMD_PTE_DOM(n)       ((n) << PMD_PTE_DOM_SHIFT)
                                           /* Bit 9:  Not implemented */
 #define PMD_PTE_PADDR_MASK   (0xfffffc00) /* Bits 10-31: Page table base address */
 
 /* Level 1 Section/Supersection Descriptor.
  *
- * Section or Supersection.  "The descriptor gives the base address of the
- *   Section or Supersection. Bit[18] determines whether the entry describes a
- *   Section or a Supersection.  If the implementation supports the PXN
- *   attribute, this encoding also defines the PXN bit as 0. Section descriptors
- *   allow fast, single level mapping between 1Mb address regions."
+ * Section or Supersection.
+ *  "The descriptor gives the base address of the Section or Supersection.
+ *   Bit[18] determines whether the entry describes a Section or a
+ *   Supersection. If the implementation supports the PXN attribute, this
+ *   encoding also defines the PXN bit as 0. Section descriptors allow fast,
+ *   single level mapping between 1Mb address regions."
 
- * PXN Section or Supersection.  "If an implementation supports the PXN attribute,
- *   this encoding is identical..., except that it defines the PXN bit as 1.
+ * PXN Section or Supersection.
+ *  "If an implementation supports the PXN attribute, this encoding is
+ *   identical..., except that it defines the PXN bit as 1.
  *
- *  "If the implementation does not support the PXN attribute, an attempt to access
- *   the associated VA generates a Translation fault.  On an implementation that
- *   does not support the PXN attribute, this encoding must not be used."
+ *  "If the implementation does not support the PXN attribute, an attempt to
+ *   access the associated VA generates a Translation fault.  On an
+ *   implementation that does not support the PXN attribute, this encoding
+ *   must not be used."
  */
 
 /* Section */
@@ -300,14 +301,15 @@
 #define PMD_SECT_XN          (1 << 4)     /* Bit 4:  Execute-never bit */
 #define PMD_SECT_DOM_SHIFT   (5)          /* Bits 5-8: Domain */
 #define PMD_SECT_DOM_MASK    (15 << PMD_SECT_DOM_SHIFT)
-#  define PMD_SECT_DOM(n)    ((n) << PMD_SECT_DOM_SHIFT)
+#define PMD_SECT_DOM(n)      ((n) << PMD_SECT_DOM_SHIFT)
                                           /* Bit 9:  Implementation defined */
 #define PMD_SECT_AP_SHIFT    (10)         /* Bits 10-11: Access Permissions bits AP[0:1] */
 #define PMD_SECT_AP_MASK     (3 << PMD_SECT_AP_SHIFT)
-#  define PMD_SECT_AP0       (1 << PMD_SECT_AP_SHIFT) /* AP[0]:  Access permission bit 0 */
-#  define PMD_SECT_AP1       (2 << PMD_SECT_AP_SHIFT) /* AP[1]:  Access permission bit 1 */
-#define PMD_SECT_TEX_SHIFT   (12)         /* Bits 12-14: Memory region attribute bits */
+#define PMD_SECT_AP0         (1 << PMD_SECT_AP_SHIFT) /* AP[0]:  Access permission bit 0 */
+#define PMD_SECT_AP1         (2 << PMD_SECT_AP_SHIFT) /* AP[1]:  Access permission bit 1 */
+#define PMD_SECT_TEX_SHIFT   (12)                     /* Bits 12-14: Memory region attribute bits */
 #define PMD_SECT_TEX_MASK    (7 << PMD_SECT_TEX_SHIFT)
+
 #define PMD_SECT_AP2         (1 << 15)    /* Bit 15: AP[2]:  Access permission bit 2 */
 #define PMD_SECT_S           (1 << 16)    /* Bit 16: Shareable bit */
 #define PMD_SECT_NG          (1 << 17)    /* Bit 17: Not global bit. */
@@ -359,6 +361,7 @@
 #  define PMD_SECT_AP_R01     (PMD_SECT_AP1 | PMD_SECT_AP2)
 
 #else
+
 /* AP[2:0] access permissions control, Short-descriptor format only:
  *
  * AP[2] AP[1] AP[0]  PL1/2       PL0        Description
@@ -391,8 +394,9 @@
 
 /* Short-descriptor translation table second-level descriptor formats
  *
- * A PMD_TYPE_PTE level-one table entry provides the base address of the beginning
- * of a second-level page table. There are two types of page table entries:
+ * A PMD_TYPE_PTE level-one table entry provides the base address of the
+ * beginning of a second-level page table. There are two types of page
+ * table entries:
  *
  *   - Large page table entries support mapping of 64KB memory regions.
  *   - Small page table entries support mapping of 4KB memory regions.
@@ -402,26 +406,29 @@
 
 #define PTE_TYPE_SHIFT       (0)          /* Bits: 1:0:  Type of mapping */
 #define PTE_TYPE_MASK        (3 << PTE_TYPE_SHIFT)
-#  define PTE_TYPE_FAULT     (0 << PTE_TYPE_SHIFT) /* None */
-#  define PTE_TYPE_LARGE     (1 << PTE_TYPE_SHIFT) /* 64Kb of memory */
-#  define PTE_TYPE_SMALL     (2 << PTE_TYPE_SHIFT) /*  4Kb of memory */
-#define PTE_B                (1 << 2)     /* Bit 2:  Bufferable bit */
-#define PTE_C                (1 << 3)     /* Bit 3:  Cacheable bit */
-#define PTE_AP_SHIFT         (4)          /* Bits 4-5: Access Permissions bits AP[0:1] */
+#define PTE_TYPE_FAULT       (0 << PTE_TYPE_SHIFT) /* None */
+#define PTE_TYPE_LARGE       (1 << PTE_TYPE_SHIFT) /* 64Kb of memory */
+#define PTE_TYPE_SMALL       (2 << PTE_TYPE_SHIFT) /*  4Kb of memory */
+#define PTE_B                (1 << 2)              /* Bit 2:  Bufferable bit */
+#define PTE_C                (1 << 3)              /* Bit 3:  Cacheable bit */
+#define PTE_AP_SHIFT         (4)                   /* Bits 4-5: Access Permissions bits AP[0:1] */
 #define PTE_AP_MASK          (3 << PTE_AP_SHIFT)
-#  define PTE_AP0            (1 << PTE_AP_SHIFT)   /* AP[0]:  Access permission bit 0 */
-#  define PTE_AP1            (2 << PTE_AP_SHIFT)   /* AP[1]:  Access permission bit 1 */
-                                          /* Bits 6-8: Depend on entry type */
-#define PTE_AP2              (1 << 9)     /* Bit 9: AP[2]:  Access permission bit 2 */
-#define PTE_S                (1 << 10)    /* Bit 10: Shareable bit */
-#define PTE_NG               (1 << 11)    /* Bit 11: Not global bit. */
-                                          /* Bits 12-31:Depend on entry type */
+#define PTE_AP0              (1 << PTE_AP_SHIFT)   /* AP[0]:  Access permission bit 0 */
+#define PTE_AP1              (2 << PTE_AP_SHIFT)   /* AP[1]:  Access permission bit 1 */
+                                                   /* Bits 6-8: Depend on entry type */
+#define PTE_AP2              (1 << 9)              /* Bit 9: AP[2]:  Access permission bit 2 */
+#define PTE_S                (1 << 10)             /* Bit 10: Shareable bit */
+#define PTE_NG               (1 << 11)             /* Bit 11: Not global bit. */
+                                                   /* Bits 12-31:Depend on entry type */
 
 /* Large page -- 64Kb */
-                                          /* Bits: 1:0:  Type of mapping */
-                                          /* Bit 2:  Bufferable bit */
-                                          /* Bit 3:  Cacheable bit */
-                                          /* Bits 4-5: Access Permissions bits AP[0:1] */
+
+/* Bits: 1:0:  Type of mapping
+ * Bit 2:  Bufferable bit
+ * Bit 3:  Cacheable bit
+ * Bits 4-5: Access Permissions bits AP[0:1]
+ */
+
 #define PTE_LARGE_TEX_SHIFT  (12)         /* Bits 12-14: Memory region attribute bits */
 #define PTE_LARGE_TEX_MASK   (7 << PTE_LARGE_TEX_SHIFT)
 #define PTE_LARGE_XN         (1 << 15)    /* Bit 15: Execute-never bit */
@@ -430,10 +437,12 @@
 
 /* Small page -- 4Kb */
 
-                                          /* Bits: 1:0:  Type of mapping */
-                                          /* Bit 2:  Bufferable bit */
-                                          /* Bit 3:  Cacheable bit */
-                                          /* Bits 4-5: Access Permissions bits AP[0:1] */
+/* Bits: 1:0:  Type of mapping
+ * Bit 2:  Bufferable bit
+ * Bit 3:  Cacheable bit
+ * Bits 4-5: Access Permissions bits AP[0:1]
+ */
+
 #define PTE_SMALL_FLAG_MASK  (0x0000003f) /* Bits 0-11: MMU flags (mostly) */
 #define PTE_SMALL_PADDR_MASK (0xfffff000) /* Bits 12-31: Small page base address, PA[31:12] */
 
@@ -449,6 +458,7 @@
  */
 
 #ifdef CONFIG_AFE_ENABLE
+
 /* AP[2:1] access permissions model.  AP[0] is used as an access flag:
  *
  * AP[2] AP[1]   PL1        PL0        Description
@@ -571,8 +581,15 @@
 
 #define MMU_ROMFLAGS         (PMD_TYPE_SECT | PMD_SECT_AP_R1 | PMD_CACHEABLE | \
                               PMD_SECT_DOM(0))
+
+#ifdef CONFIG_SMP
+#define MMU_MEMFLAGS         (PMD_TYPE_SECT | PMD_SECT_AP_RW1 | PMD_CACHEABLE | \
+                              PMD_SECT_S | PMD_SECT_DOM(0))
+#else
 #define MMU_MEMFLAGS         (PMD_TYPE_SECT | PMD_SECT_AP_RW1 | PMD_CACHEABLE | \
                               PMD_SECT_DOM(0))
+#endif
+
 #define MMU_IOFLAGS          (PMD_TYPE_SECT | PMD_SECT_AP_RW1 | PMD_DEVICE | \
                               PMD_SECT_DOM(0) | PMD_SECT_XN)
 #define MMU_STRONGLY_ORDERED (PMD_TYPE_SECT | PMD_SECT_AP_RW1 | \
@@ -626,7 +643,7 @@
 
 #define PGTABLE_SIZE       0x00004000
 
-/* Virtual Page Table Location ******************************************************/
+/* Virtual Page Table Location **********************************************/
 
 #ifdef CONFIG_PAGING
 /* Check if the virtual address of the page table has been defined. It
@@ -648,7 +665,7 @@
 
 #endif /* PGTABLE_BASE_VADDR */
 
-/* MMU flags ************************************************************************/
+/* MMU flags ****************************************************************/
 
 /* Create some friendly definitions to handle page table entries */
 
@@ -670,7 +687,7 @@
 
 #define PG_L1_PADDRMASK       PMD_SECT_PADDR_MASK
 
-/* Addresses of Memory Regions ******************************************************/
+/* Addresses of Memory Regions **********************************************/
 
 /* We position the locked region PTEs at an offset into the first
  * L2 page table.  The L1 entry points to an 1Mb aligned virtual
@@ -720,10 +737,10 @@
 #define PG_L2_DATA_VADDR        (PG_L2_LOCKED_VADDR + PG_L2_TEXT_SIZE)
 #define PG_L2_DATA_SIZE         (4*PG_DATA_NPAGES)
 
-/* Page Table Info ******************************************************************/
+/* Page Table Info **********************************************************/
 
-/* The number of pages in the in the page table (PG_PGTABLE_NPAGES).  We
- * position the page table PTEs just after the data section PTEs.
+/* The number of pages in the in the page table (PG_PGTABLE_NPAGES).
+ * We position the page table PTEs just after the data section PTEs.
  */
 
 #define PG_PGTABLE_NPAGES       (PGTABLE_SIZE >> PAGESHIFT)
@@ -734,12 +751,12 @@
 #define PG_L2_PGTABLE_VADDR     (PG_L2_DATA_VADDR + PG_L2_DATA_SIZE)
 #define PG_L2_PGTABLE_SIZE      (4*PG_DATA_NPAGES)
 
-/* Vector Mapping *******************************************************************/
+/* Vector Mapping ***********************************************************/
 
 /* One page is required to map the vector table.  The vector table could lie
- * at virtual address zero (or at the start of RAM which is aliased to address
- * zero on the ea3131) or at virtual address 0xfff00000.  We only have logic
- * here to support the former case.
+ * at virtual address zero (or at the start of RAM which is aliased to
+ * address zero on the ea3131) or at virtual address 0xfff00000.  We only
+ * have logic here to support the former case.
  *
  * NOTE:  If the vectors are at address zero, the page table will be
  * forced to the highest RAM addresses.  If the vectors are at 0xfff0000,
@@ -782,13 +799,15 @@
 #  define PG_L2_VECT_PADDR      (PGTABLE_L2_BASE_PADDR + PG_L2_VECT_OFFSET)
 #  define PG_L2_VECT_VADDR      (PGTABLE_L2_BASE_VADDR + PG_L2_VECT_OFFSET)
 
-/* Case 3: High vectors or the locked region is not at the beginning or SRAM */
+/* Case 3:
+ * High vectors or the locked region is not at the beginning or SRAM
+ */
 
 #else
 #  error "Logic missing for high vectors in this case"
 #endif
 
-/* Page Usage ***********************************************************************/
+/* Page Usage ***************************************************************/
 
 /* This is the total number of pages used in the text/data mapping: */
 
@@ -803,7 +822,7 @@
 #  error "Total pages required exceeds RAM size"
 #endif
 
-/* Page Management ******************************************************************/
+/* Page Management **********************************************************/
 
 /* For page management purposes, the following summarize the "heap" of
  * free pages, operations on free pages and the L2 page table.
@@ -845,10 +864,10 @@
  *                            (virtual)address of the backing page memory.
  *
  * These are used as follows:  If a miss occurs at some virtual address, va,
- * A new page index, ndx, is allocated.  PG_POOL_PGPADDR(i) converts the index
- * into the physical address of the page memory; PG_POOL_L2VADDR(va) converts
- * the virtual address in the L2 page table there the new mapping will be
- * written.
+ * A new page index, ndx, is allocated.  PG_POOL_PGPADDR(i) converts the
+ * index into the physical address of the page memory; PG_POOL_L2VADDR(va)
+ * converts the virtual address in the L2 page table there the new mapping
+ * will be written.
  */
 
 #define PG_POOL_VA2L1OFFSET(va) (((va) >> 20) << 2)
@@ -868,13 +887,13 @@
 
 #endif /* CONFIG_PAGING */
 
-/************************************************************************************
+/****************************************************************************
  * Public Types
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ASSEMBLY__
-/* struct section_mapping_s describes the L1 mapping of a large region of memory
- * consisting of one or more 1MB sections (nsections).
+/* struct section_mapping_s describes the L1 mapping of a large region of
+ * memory consisting of one or more 1MB sections (nsections).
  *
  * All addresses must be aligned to 1MB address boundaries.
  */
@@ -888,13 +907,13 @@ struct section_mapping_s
 };
 #endif
 
-/************************************************************************************
- * Assemby Macros
- ************************************************************************************/
+/****************************************************************************
+ * Assembly Macros
+ ****************************************************************************/
 
 #ifdef __ASSEMBLY__
 
-/************************************************************************************
+/****************************************************************************
  * Name: cp15_disable_mmu
  *
  * Description:
@@ -903,35 +922,35 @@ struct section_mapping_s
  * Input Parameters:
  *   None
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-	.macro	cp15_disable_mmu, scratch
-	mrc		p15, 0, \scratch, c1, c0, 0
-	bic		\scratch, \scratch, #1
-	mcr		p15, 0, \scratch, c1, c0, 0
-	.endm
+  .macro  cp15_disable_mmu, scratch
+  mrc  p15, 0, \scratch, c1, c0, 0
+  bic  \scratch, \scratch, #1
+  mcr  p15, 0, \scratch, c1, c0, 0
+  .endm
 
-/************************************************************************************
+/****************************************************************************
  * Name: cp15_invalidate_tlbs
  *
  * Description:
  *   Invalidate entire unified TLB
  *
- *   The Invalidate entire TLB operations invalidate all unlocked entries in the
- *   TLB. The operation ignores the value in the register Rt specified by the MCR
- *   instruction that performs the operation. Software does not have to write a
- *   value to the register before issuing the MCR instruction.
+ *   The Invalidate entire TLB operations invalidate all unlocked entries in
+ *   the TLB. The operation ignores the value in the register Rt specified by
+ *   the MCR instruction that performs the operation. Software does not have
+ *   to write a value to the register before issuing the MCR instruction.
  *
  * Input Parameters:
  *   None
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-	.macro	cp15_invalidate_tlbs, scratch
-	mcr		p15, 0, \scratch, c8, c7, 0	/* TLBIALL */
-	.endm
+  .macro  cp15_invalidate_tlbs, scratch
+  mcr  p15, 0, \scratch, c8, c7, 0  /* TLBIALL */
+  .endm
 
-/************************************************************************************
+/****************************************************************************
  * Name: cp15_invalidate_tlb_bymva
  *
  * Description:
@@ -940,20 +959,20 @@ struct section_mapping_s
  * Input Parameters:
  *   vaddr - The virtual address to be invalidated
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-	.macro	cp15_invalidate_tlb_bymva, vaddr
-	dsb
+  .macro  cp15_invalidate_tlb_bymva, vaddr
+  dsb
 #if defined(CONFIG_ARCH_CORTEXA8)
-	mcr		p15, 0, \vaddr, c8, c7, 1	/* TLBIMVA */
+  mcr  p15, 0, \vaddr, c8, c7, 1  /* TLBIMVA */
 #else
-	mcr		p15, 0, \vaddr, c8, c3, 3	/* TLBIMVAAIS */
+  mcr  p15, 0, \vaddr, c8, c3, 3  /* TLBIMVAAIS */
 #endif
-	dsb
-	isb
-	.endm
+  dsb
+  isb
+  .endm
 
-/************************************************************************************
+/****************************************************************************
  * Name: cp15_wrdacr
  *
  * Description:
@@ -962,21 +981,21 @@ struct section_mapping_s
  * Input Parameters:
  *   dacr - The new value of the DACR
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-	.macro	cp15_wrdacr, dacr
-	mcr		p15, 0, \dacr, c3, c0, 0
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	.endm
+  .macro  cp15_wrdacr, dacr
+  mcr  p15, 0, \dacr, c3, c0, 0
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  .endm
 
-/************************************************************************************
+/****************************************************************************
  * Name: cp15_wrttb
  *
  * Description:
@@ -989,23 +1008,23 @@ struct section_mapping_s
  * Input Parameters:
  *   ttb - The new value of the TTBR0 register
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-	.macro	cp15_wrttb, ttb, scratch
-	mcr		p15, 0, \ttb, c2, c0, 0
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	mov		\scratch, #0x0
-	mcr		p15, 0, \scratch, c2, c0, 2
-	.endm
+  .macro  cp15_wrttb, ttb, scratch
+  mcr  p15, 0, \ttb, c2, c0, 0
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  mov  \scratch, #0x0
+  mcr  p15, 0, \scratch, c2, c0, 2
+  .endm
 
-/************************************************************************************
+/****************************************************************************
  * Name: pg_l2map
  *
  * Description:
@@ -1013,11 +1032,11 @@ struct section_mapping_s
  *   written. This macro is used when CONFIG_PAGING is enable.  This case,
  *   it is used as follows:
  *
- *	ldr	r0, =PGTABLE_L2_BASE_PADDR	<-- Address in L2 table
- *	ldr	r1, =PG_LOCKED_PBASE		<-- Physical page memory address
- *	ldr	r2, =CONFIG_PAGING_NLOCKED	<-- number of pages
- *      ldr	r3, =MMUFLAGS			<-- L2 MMU flags
- *	pg_l2map r0, r1, r2, r3, r4
+ *  ldr  r0, =PGTABLE_L2_BASE_PADDR  <-- Address in L2 table
+ *  ldr  r1, =PG_LOCKED_PBASE        <-- Physical page memory address
+ *  ldr  r2, =CONFIG_PAGING_NLOCKED  <-- number of pages
+ *  ldr  r3, =MMUFLAGS               <-- L2 MMU flags
+ *  pg_l2map r0, r1, r2, r3, r4
  *
  * Input Parameters:
  *   l2 - Physical or virtual start address in the L2 page table, depending
@@ -1038,62 +1057,65 @@ struct section_mapping_s
  * - The L2 page tables have been zeroed prior to calling this function
  * - pg_l1span has been called to initialize the L1 table.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_PAGING
-	.macro	pg_l2map, l2, ppage, npages, mmuflags, tmp
-	b		2f
+  .macro  pg_l2map, l2, ppage, npages, mmuflags, tmp
+  b    2f
 1:
-	/* Write the one L2 entries.  First,  get tmp = (ppage | mmuflags),
-	 * the value to write into the L2 PTE
-	 */
+  /* Write the one L2 entries.  First,  get tmp = (ppage | mmuflags),
+   * the value to write into the L2 PTE
+   */
 
-	orr		\tmp, \ppage, \mmuflags
+  orr  \tmp, \ppage, \mmuflags
 
-	/* Write value into table at the current table address
-	 * (and increment the L2 page table address by 4)
-	 */
+  /* Write value into table at the current table address
+   * (and increment the L2 page table address by 4)
+   */
 
-	str		\tmp, [\l2], #4
+  str  \tmp, [\l2], #4
 
-	/* Update the physical address that will correspond to the next
-	 * table entry.
-	 */
+  /* Update the physical address that will correspond to the next
+   * table entry.
+   */
 
-	add		\ppage, \ppage, #CONFIG_PAGING_PAGESIZE
+  add  \ppage, \ppage, #CONFIG_PAGING_PAGESIZE
 
-	/* Decrement the number of pages written */
+  /* Decrement the number of pages written */
 
-	sub		\npages, \npages, #1
+  sub  \npages, \npages, #1
 2:
-	/* Check if all of the pages have been written.  If not, then
-	 * loop and write the next PTE.
-	 */
+  /* Check if all of the pages have been written.  If not, then
+   * loop and write the next PTE.
+   */
 
-	cmp		\npages, #0
-	bgt		1b
-	.endm
+  cmp  \npages, #0
+  bgt  1b
+  .endm
 #endif /* CONFIG_PAGING */
 
-/************************************************************************************
+/****************************************************************************
  * Name: pg_l1span
  *
  * Description:
- *   Write several, contiguous, unmapped, small L1 page table entries.  As many
- *   entries will be written as  many as needed to span npages.  This macro is
- *   used when CONFIG_PAGING is enable.  In this case, it is used as follows:
+ *   Write several, contiguous, unmapped, small L1 page table entries.
+ *   As many entries will be written as  many as needed to span npages.
+ *   This macro is used when CONFIG_PAGING is enable.  In this case,
+ *   it is used as follows:
  *
- *	ldr	r0, =PG_L1_PGTABLE_PADDR	<-- Address in the L1 table
- *	ldr	r1, =PG_L2_PGTABLE_PADDR	<-- Physical address of L2 page table
- *	ldr	r2, =PG_PGTABLE_NPAGES		<-- Total number of pages
- *	ldr	r3, =PG_PGTABLE_NPAGE1		<-- Number of pages in the first PTE
- *	ldr	r4, =MMU_L1_PGTABFLAGS		<-- L1 MMU flags
- *	pg_l1span r0, r1, r2, r3, r4, r4
+ *  ldr  r0, =PG_L1_PGTABLE_PADDR  <-- Address in the L1 table
+ *  ldr  r1, =PG_L2_PGTABLE_PADDR  <-- Physical address of L2 page table
+ *  ldr  r2, =PG_PGTABLE_NPAGES    <-- Total number of pages
+ *  ldr  r3, =PG_PGTABLE_NPAGE1    <-- Number of pages in the first PTE
+ *  ldr  r4, =MMU_L1_PGTABFLAGS    <-- L1 MMU flags
+ *  pg_l1span r0, r1, r2, r3, r4, r4
  *
  * Input Parameters (unmodified unless noted):
- *   l1 - Physical or virtual address in the L1 table to begin writing (modified)
+ *   l1 - Physical or virtual address in the L1 table to begin writing
+ *        (modified)
  *   l2 - Physical start address in the L2 page table (modified)
- *   npages - Number of pages to required to span that memory region (modified)
+ *   npages - Number of pages to required to span that memory region
+ *           (modified)
  *   ppage - The number of pages in page 1 (modified)
  *   mmuflags - L1 MMU flags to use
  *
@@ -1111,56 +1133,56 @@ struct section_mapping_s
  * - The MMU is not yet enabled
  * - The L2 page tables have been zeroed prior to calling this function
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_PAGING
-	.macro	pg_l1span, l1, l2, npages, ppage, mmuflags, tmp
-	b		2f
+  .macro  pg_l1span, l1, l2, npages, ppage, mmuflags, tmp
+  b    2f
 1:
-	/* Write the L1 table entry that refers to this (unmapped) small page
-	 * table.
-	 *
-	 * tmp = (l2table | mmuflags), the value to write into the page table
-	 */
+  /* Write the L1 table entry that refers to this (unmapped) small page
+   * table.
+   *
+   * tmp = (l2table | mmuflags), the value to write into the page table
+   */
 
-	orr		\tmp, \l2, \mmuflags
+  orr  \tmp, \l2, \mmuflags
 
-	/* Write the value into the L1 table at the correct offset.
-	 * (and increment the L1 table address by 4)
-	 */
+  /* Write the value into the L1 table at the correct offset.
+   * (and increment the L1 table address by 4)
+   */
 
-	str		\tmp, [\l1], #4
+  str  \tmp, [\l1], #4
 
-	/* Update the L2 page table address for the next L1 table entry. */
+  /* Update the L2 page table address for the next L1 table entry. */
 
-	add		\l2, \l2, #PT_SIZE  /* Next L2 page table start address */
+  add  \l2, \l2, #PT_SIZE  /* Next L2 page table start address */
 
-	/* Update the number of pages that we have account for (with
-	 * non-mappings).  NOTE that the first page may have fewer than
-	 * the maximum entries per page table.
-	 */
+  /* Update the number of pages that we have account for (with
+   * non-mappings).  NOTE that the first page may have fewer than
+   * the maximum entries per page table.
+   */
 
-	sub		\npages, \npages, \ppage
-	mov		\ppage, #PTE_NPAGES
+  sub  \npages, \npages, \ppage
+  mov  \ppage, #PTE_NPAGES
 2:
-	/* Check if all of the pages have been written.  If not, then
-	 * loop and write the next L1 entry.
-	 */
+  /* Check if all of the pages have been written.  If not, then
+   * loop and write the next L1 entry.
+   */
 
-	cmp		\npages, #0
-	bgt		1b
-	.endm
+  cmp  \npages, #0
+  bgt  1b
+  .endm
 
 #endif /* CONFIG_PAGING */
 #endif /* __ASSEMBLY__ */
 
-/************************************************************************************
+/****************************************************************************
  * Inline Functions
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ASSEMBLY__
 
-/************************************************************************************
+/****************************************************************************
  * Name: cp15_disable_mmu
  *
  * Description:
@@ -1169,7 +1191,7 @@ struct section_mapping_s
  * Input Parameters:
  *   None
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void cp15_disable_mmu(void)
 {
@@ -1184,21 +1206,22 @@ static inline void cp15_disable_mmu(void)
     );
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: cp15_invalidate_tlbs
  *
  * Description:
  *   Invalidate entire unified TLB
  *
- *   The Invalidate entire TLB operations invalidate all unlocked entries in the
- *   TLB. The operation ignores the value in the register Rt specified by the MCR
- *   instruction that performs the operation. Software does not have to write a
- *   value to the register before issuing the MCR instruction.
+ *   The Invalidate entire TLB operations invalidate all unlocked entries
+ *   in the TLB. The operation ignores the value in the register Rt specified
+ *   by the MCR instruction that performs the operation. Software does not
+ *   have to write a value to the register before issuing the MCR
+ *   instruction.
  *
  * Input Parameters:
  *   None
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void cp15_invalidate_tlbs(void)
 {
@@ -1211,7 +1234,7 @@ static inline void cp15_invalidate_tlbs(void)
     );
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: cp15_invalidate_tlb_bymva
  *
  * Description:
@@ -1220,7 +1243,7 @@ static inline void cp15_invalidate_tlbs(void)
  * Input Parameters:
  *   vaddr - The virtual address to be invalidated
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void cp15_invalidate_tlb_bymva(uint32_t vaddr)
 {
@@ -1240,7 +1263,7 @@ static inline void cp15_invalidate_tlb_bymva(uint32_t vaddr)
     );
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: cp15_wrdacr
  *
  * Description:
@@ -1249,7 +1272,7 @@ static inline void cp15_invalidate_tlb_bymva(uint32_t vaddr)
  * Input Parameters:
  *   dacr - The new value of the DACR
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void cp15_wrdacr(unsigned int dacr)
 {
@@ -1270,7 +1293,7 @@ static inline void cp15_wrdacr(unsigned int dacr)
     );
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: cp15_wrttb
  *
  * Description:
@@ -1283,7 +1306,7 @@ static inline void cp15_wrdacr(unsigned int dacr)
  * Input Parameters:
  *   ttb - The new value of the TTBR0 register
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void cp15_wrttb(unsigned int ttb)
 {
@@ -1306,21 +1329,22 @@ static inline void cp15_wrttb(unsigned int ttb)
     );
 }
 
-/*************************************************************************************
+/****************************************************************************
  * Name: mmu_l1_getentry
  *
  * Description:
- *   Given a virtual address, return the value of the corresponding L1 table entry.
+ *   Given a virtual address, return the value of the corresponding L1 table
+ *   entry.
  *
  * Input Parameters:
  *   vaddr - The virtual address to be mapped.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_ARCH_ROMPGTABLE
 static inline uint32_t mmu_l1_getentry(uint32_t vaddr)
 {
-  uint32_t *l1table = (uint32_t*)PGTABLE_BASE_VADDR;
+  uint32_t *l1table = (uint32_t *)PGTABLE_BASE_VADDR;
   uint32_t  index   = vaddr >> 20;
 
   /* Return the address of the page table entry */
@@ -1329,23 +1353,23 @@ static inline uint32_t mmu_l1_getentry(uint32_t vaddr)
 }
 #endif
 
-/*************************************************************************************
+/****************************************************************************
  * Name: mmu_l2_getentry
  *
  * Description:
- *   Given a address of the beginning of an L2 page table and a virtual address,
- *   return the value of the corresponding L2 page table entry.
+ *   Given a address of the beginning of an L2 page table and a virtual
+ *   address, return the value of the corresponding L2 page table entry.
  *
  * Input Parameters:
  *   l2vaddr - The virtual address of the beginning of the L2 page table
  *   vaddr - The virtual address to be mapped.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_ARCH_ROMPGTABLE
 static inline uint32_t mmu_l2_getentry(uint32_t l2vaddr, uint32_t vaddr)
 {
-  uint32_t *l2table  = (uint32_t*)l2vaddr;
+  uint32_t *l2table  = (uint32_t *)l2vaddr;
   uint32_t  index;
 
   /* The table divides a 1Mb address space up into 256 entries, each
@@ -1363,13 +1387,13 @@ static inline uint32_t mmu_l2_getentry(uint32_t l2vaddr, uint32_t vaddr)
 
 #endif /* __ASSEMBLY__ */
 
-/************************************************************************************
+/****************************************************************************
  * Public Data
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ASSEMBLY__
 #ifdef __cplusplus
@@ -1380,21 +1404,21 @@ extern "C"
 #define EXTERN extern
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: mmu_l1_setentry
  *
  * Description:
- *   Set a one level 1 translation table entry.  Only a single L1 page table is
- *   supported.
+ *   Set a one level 1 translation table entry.  Only a single L1 page table
+ *   is supported.
  *
  * Input Parameters:
- *   paddr - The physical address to be mapped.  Must be aligned to a 1MB address
- *     boundary
- *   vaddr - The virtual address to be mapped.  Must be aligned to a 1MB address
- *     boundary
+ *   paddr - The physical address to be mapped.  Must be aligned to a 1MB
+ *     address boundary
+ *   vaddr - The virtual address to be mapped.  Must be aligned to a 1MB
+ *     address boundary
  *   mmuflags - The MMU flags to use in the mapping.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_ARCH_ROMPGTABLE
 void mmu_l1_setentry(uint32_t paddr, uint32_t vaddr, uint32_t mmuflags);
@@ -1417,7 +1441,7 @@ void mmu_l1_setentry(uint32_t paddr, uint32_t vaddr, uint32_t mmuflags);
 void mmu_l1_restore(uintptr_t vaddr, uint32_t l1entry);
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: mmu_l1_clrentry
  *
  * Description:
@@ -1427,7 +1451,7 @@ void mmu_l1_restore(uintptr_t vaddr, uint32_t l1entry);
  * Input Parameters:
  *   vaddr - A virtual address within the L1 address region to be unmapped.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #if !defined (CONFIG_ARCH_ROMPGTABLE) && defined(CONFIG_ARCH_ADDRENV)
 #  define mmu_l1_clrentry(v) mmu_l1_restore(v,0)
@@ -1483,6 +1507,7 @@ void mmu_l1_map_region(const struct section_mapping_s *mapping);
  *   count    - The number of mappings to be performed.
  *
  ****************************************************************************/
+
 #ifndef CONFIG_ARCH_ROMPGTABLE
 void mmu_l1_map_regions(const struct section_mapping_s *mappings,
                         size_t count);
@@ -1510,4 +1535,4 @@ void mmu_invalidate_region(uint32_t vstart, size_t size);
 #endif
 #endif /* __ASSEMBLY__ */
 
-#endif  /* __ARCH_ARM_SRC_ARMV7_A_MMU_H */
+#endif /* __ARCH_ARM_SRC_ARMV7_A_MMU_H */

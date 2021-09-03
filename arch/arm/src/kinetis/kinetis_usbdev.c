@@ -1,9 +1,20 @@
 /****************************************************************************
  * arch/arm/src/kinetis/kinetis_usbdev.c
  *
- *   Copyright (C) 2011-2014, 2016-2017 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
- *            David Sidrane <david_s5@nscdg.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  * References:
  *   This file derives from the STM32 USB device driver with modifications
@@ -15,33 +26,6 @@
  *
  *   K66 Sub-Family Reference Manual, Rev. 2, May 2015
  *   How to Implement USB Suspend/Resume - Document Number: AN5385
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
 
@@ -68,7 +52,7 @@
 
 #include <nuttx/irq.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "kinetis.h"
 #include "kinetis_usbotg.h"
 #include "hardware/kinetis_sim.h"
@@ -84,6 +68,10 @@
 
 #ifndef CONFIG_USBDEV_EP0_MAXSIZE
 #  define CONFIG_USBDEV_EP0_MAXSIZE 64
+#endif
+
+#ifndef CONFIG_USBDEV_SETUP_MAXDATASIZE
+#  define CONFIG_USBDEV_SETUP_MAXDATASIZE (CONFIG_USBDEV_EP0_MAXSIZE * 4)
 #endif
 
 /* Extremely detailed register/BDT debug that you would normally never want
@@ -103,9 +91,10 @@
 #undef CONFIG_USBDEV_NOREADAHEAD      /* Makes no difference */
 
 #undef CONFIG_USBDEV_NOWRITEAHEAD
-#define CONFIG_USBDEV_NOWRITEAHEAD 1  /* Fixes some problems with IN transfers */
+#define CONFIG_USBDEV_NOWRITEAHEAD  /* Fixes some problems with IN transfers */
 
 /* Interrupts ***************************************************************/
+
 /* Initial interrupt sets */
 
 #ifdef CONFIG_USB_SOFINTS
@@ -199,6 +188,7 @@
                                 */
 
 /* USB trace ****************************************************************/
+
 /* Trace error codes */
 
 #define KHCI_TRACEERR_ALLOCFAIL            0x0001
@@ -267,47 +257,51 @@
 #define KHCI_TRACEINTID_SUSPENDED          0x0023
 #define KHCI_TRACEINTID_RESUME             0x0024
 #define KHCI_TRACEINTID_WAITRESET          0x0025
+#define KHCI_TRACEINTID_EP0SETUPOUT        0x0026
+#define KHCI_TRACEINTID_EP0SETUPOUTDATA    0x0027
 
 #ifdef CONFIG_USBDEV_TRACE_STRINGS
 const struct trace_msg_t g_usb_trace_strings_intdecode[] =
 {
-  TRACE_STR(KHCI_TRACEINTID_CLEARFEATURE       ), /* 0x0001 */
-  TRACE_STR(KHCI_TRACEINTID_DEVGETSTATUS       ), /* 0x0002 */
-  TRACE_STR(KHCI_TRACEINTID_DISPATCH           ), /* 0x0003 */
-  TRACE_STR(KHCI_TRACEINTID_EP0IN              ), /* 0x0004 */
-  TRACE_STR(KHCI_TRACEINTID_EP0INDONE          ), /* 0x0005 */
-  TRACE_STR(KHCI_TRACEINTID_EP0OUTDONE         ), /* 0x0006 */
-  TRACE_STR(KHCI_TRACEINTID_EP0SETUPDONE       ), /* 0x0007 */
-  TRACE_STR(KHCI_TRACEINTID_EP0SETUPSETADDRESS ), /* 0x0008 */
-  TRACE_STR(KHCI_TRACEINTID_EP0ADDRESSSET      ), /* 0x0009 */
-  TRACE_STR(KHCI_TRACEINTID_EPGETSTATUS        ), /* 0x000a */
-  TRACE_STR(KHCI_TRACEINTID_EPINDONE           ), /* 0x000b */
-  TRACE_STR(KHCI_TRACEINTID_EPINQEMPTY         ), /* 0x000c */
-  TRACE_STR(KHCI_TRACEINTID_EPOUTDONE          ), /* 0x000d */
-  TRACE_STR(KHCI_TRACEINTID_EPOUTQEMPTY        ), /* 0x000e */
-  TRACE_STR(KHCI_TRACEINTID_SOF                ), /* 0x000f */
-  TRACE_STR(KHCI_TRACEINTID_GETCONFIG          ), /* 0x0010 */
-  TRACE_STR(KHCI_TRACEINTID_GETSETDESC         ), /* 0x0011 */
-  TRACE_STR(KHCI_TRACEINTID_GETSETIF           ), /* 0x0012 */
-  TRACE_STR(KHCI_TRACEINTID_GETSTATUS          ), /* 0x0013 */
-  TRACE_STR(KHCI_TRACEINTID_IFGETSTATUS        ), /* 0x0014 */
-  TRACE_STR(KHCI_TRACEINTID_TRNC               ), /* 0x0015 */
-  TRACE_STR(KHCI_TRACEINTID_TRNCS              ), /* 0x0016 */
-  TRACE_STR(KHCI_TRACEINTID_INTERRUPT          ), /* 0x0017 */
-  TRACE_STR(KHCI_TRACEINTID_NOSTDREQ           ), /* 0x0018 */
-  TRACE_STR(KHCI_TRACEINTID_RESET              ), /* 0x0019 */
-  TRACE_STR(KHCI_TRACEINTID_SETCONFIG          ), /* 0x001a */
-  TRACE_STR(KHCI_TRACEINTID_SETFEATURE         ), /* 0x001b */
-  TRACE_STR(KHCI_TRACEINTID_IDLE               ), /* 0x001c */
-  TRACE_STR(KHCI_TRACEINTID_SYNCHFRAME         ), /* 0x001d */
-  TRACE_STR(KHCI_TRACEINTID_WKUP               ), /* 0x001e */
-  TRACE_STR(KHCI_TRACEINTID_T1MSEC             ), /* 0x001f */
-  TRACE_STR(KHCI_TRACEINTID_OTGID              ), /* 0x0020 */
-  TRACE_STR(KHCI_TRACEINTID_STALL              ), /* 0x0021 */
-  TRACE_STR(KHCI_TRACEINTID_UERR               ), /* 0x0022 */
-  TRACE_STR(KHCI_TRACEINTID_SUSPENDED          ), /* 0x0023 */
-  TRACE_STR(KHCI_TRACEINTID_RESUME             ), /* 0x0024 */
-  TRACE_STR(KHCI_TRACEINTID_WAITRESET          ), /* 0x0025 */
+  TRACE_STR(KHCI_TRACEINTID_CLEARFEATURE),        /* 0x0001 */
+  TRACE_STR(KHCI_TRACEINTID_DEVGETSTATUS),        /* 0x0002 */
+  TRACE_STR(KHCI_TRACEINTID_DISPATCH),            /* 0x0003 */
+  TRACE_STR(KHCI_TRACEINTID_EP0IN),               /* 0x0004 */
+  TRACE_STR(KHCI_TRACEINTID_EP0INDONE),           /* 0x0005 */
+  TRACE_STR(KHCI_TRACEINTID_EP0OUTDONE),          /* 0x0006 */
+  TRACE_STR(KHCI_TRACEINTID_EP0SETUPDONE),        /* 0x0007 */
+  TRACE_STR(KHCI_TRACEINTID_EP0SETUPSETADDRESS),  /* 0x0008 */
+  TRACE_STR(KHCI_TRACEINTID_EP0ADDRESSSET),       /* 0x0009 */
+  TRACE_STR(KHCI_TRACEINTID_EPGETSTATUS),         /* 0x000a */
+  TRACE_STR(KHCI_TRACEINTID_EPINDONE),            /* 0x000b */
+  TRACE_STR(KHCI_TRACEINTID_EPINQEMPTY),          /* 0x000c */
+  TRACE_STR(KHCI_TRACEINTID_EPOUTDONE),           /* 0x000d */
+  TRACE_STR(KHCI_TRACEINTID_EPOUTQEMPTY),         /* 0x000e */
+  TRACE_STR(KHCI_TRACEINTID_SOF),                 /* 0x000f */
+  TRACE_STR(KHCI_TRACEINTID_GETCONFIG),           /* 0x0010 */
+  TRACE_STR(KHCI_TRACEINTID_GETSETDESC),          /* 0x0011 */
+  TRACE_STR(KHCI_TRACEINTID_GETSETIF),            /* 0x0012 */
+  TRACE_STR(KHCI_TRACEINTID_GETSTATUS),           /* 0x0013 */
+  TRACE_STR(KHCI_TRACEINTID_IFGETSTATUS),         /* 0x0014 */
+  TRACE_STR(KHCI_TRACEINTID_TRNC),                /* 0x0015 */
+  TRACE_STR(KHCI_TRACEINTID_TRNCS),               /* 0x0016 */
+  TRACE_STR(KHCI_TRACEINTID_INTERRUPT),           /* 0x0017 */
+  TRACE_STR(KHCI_TRACEINTID_NOSTDREQ),            /* 0x0018 */
+  TRACE_STR(KHCI_TRACEINTID_RESET),               /* 0x0019 */
+  TRACE_STR(KHCI_TRACEINTID_SETCONFIG),           /* 0x001a */
+  TRACE_STR(KHCI_TRACEINTID_SETFEATURE),          /* 0x001b */
+  TRACE_STR(KHCI_TRACEINTID_IDLE),                /* 0x001c */
+  TRACE_STR(KHCI_TRACEINTID_SYNCHFRAME),          /* 0x001d */
+  TRACE_STR(KHCI_TRACEINTID_WKUP),                /* 0x001e */
+  TRACE_STR(KHCI_TRACEINTID_T1MSEC),              /* 0x001f */
+  TRACE_STR(KHCI_TRACEINTID_OTGID),               /* 0x0020 */
+  TRACE_STR(KHCI_TRACEINTID_STALL),               /* 0x0021 */
+  TRACE_STR(KHCI_TRACEINTID_UERR),                /* 0x0022 */
+  TRACE_STR(KHCI_TRACEINTID_SUSPENDED),           /* 0x0023 */
+  TRACE_STR(KHCI_TRACEINTID_RESUME),              /* 0x0024 */
+  TRACE_STR(KHCI_TRACEINTID_WAITRESET),           /* 0x0025 */
+  TRACE_STR(KHCI_TRACEINTID_EP0SETUPOUT),         /* 0x0026 */
+  TRACE_STR(KHCI_TRACEINTID_EP0SETUPOUTDATA),     /* 0x0027 */
   TRACE_STR_END
 };
 #endif
@@ -315,32 +309,32 @@ const struct trace_msg_t g_usb_trace_strings_intdecode[] =
 #ifdef CONFIG_USBDEV_TRACE_STRINGS
 const struct trace_msg_t g_usb_trace_strings_deverror[] =
 {
-  TRACE_STR(KHCI_TRACEERR_ALLOCFAIL            ), /* 0x0001 */
-  TRACE_STR(KHCI_TRACEERR_BADCLEARFEATURE      ), /* 0x0002 */
-  TRACE_STR(KHCI_TRACEERR_BADDEVGETSTATUS      ), /* 0x0003 */
-  TRACE_STR(KHCI_TRACEERR_BADEPGETSTATUS       ), /* 0x0004 */
-  TRACE_STR(KHCI_TRACEERR_BADEPNO              ), /* 0x0005 */
-  TRACE_STR(KHCI_TRACEERR_BADEPTYPE            ), /* 0x0006 */
-  TRACE_STR(KHCI_TRACEERR_BADGETCONFIG         ), /* 0x0007 */
-  TRACE_STR(KHCI_TRACEERR_BADGETSETDESC        ), /* 0x0008 */
-  TRACE_STR(KHCI_TRACEERR_BADGETSTATUS         ), /* 0x0009 */
-  TRACE_STR(KHCI_TRACEERR_BADSETADDRESS        ), /* 0x000a */
-  TRACE_STR(KHCI_TRACEERR_BADSETCONFIG         ), /* 0x000b */
-  TRACE_STR(KHCI_TRACEERR_BADSETFEATURE        ), /* 0x000c */
-  TRACE_STR(KHCI_TRACEERR_BINDFAILED           ), /* 0x000d */
-  TRACE_STR(KHCI_TRACEERR_DISPATCHSTALL        ), /* 0x000e */
-  TRACE_STR(KHCI_TRACEERR_DRIVER               ), /* 0x000f */
-  TRACE_STR(KHCI_TRACEERR_DRIVERREGISTERED     ), /* 0x0010 */
-  TRACE_STR(KHCI_TRACEERR_EP0SETUPSTALLED      ), /* 0x0011 */
-  TRACE_STR(KHCI_TRACEERR_EPDISABLED           ), /* 0x0012 */
-  TRACE_STR(KHCI_TRACEERR_EPOUTNULLPACKET      ), /* 0x0013 */
-  TRACE_STR(KHCI_TRACEERR_EPRESERVE            ), /* 0x0014 */
-  TRACE_STR(KHCI_TRACEERR_INVALIDCTRLREQ       ), /* 0x0015 */
-  TRACE_STR(KHCI_TRACEERR_INVALIDPARMS         ), /* 0x0016 */
-  TRACE_STR(KHCI_TRACEERR_IRQREGISTRATION      ), /* 0x0017 */
-  TRACE_STR(KHCI_TRACEERR_NOTCONFIGURED        ), /* 0x0018 */
-  TRACE_STR(KHCI_TRACEERR_REQABORTED           ), /* 0x0019 */
-  TRACE_STR(KHCI_TRACEERR_INVALIDSTATE         ), /* 0x001a */
+  TRACE_STR(KHCI_TRACEERR_ALLOCFAIL),             /* 0x0001 */
+  TRACE_STR(KHCI_TRACEERR_BADCLEARFEATURE),       /* 0x0002 */
+  TRACE_STR(KHCI_TRACEERR_BADDEVGETSTATUS),       /* 0x0003 */
+  TRACE_STR(KHCI_TRACEERR_BADEPGETSTATUS),        /* 0x0004 */
+  TRACE_STR(KHCI_TRACEERR_BADEPNO),               /* 0x0005 */
+  TRACE_STR(KHCI_TRACEERR_BADEPTYPE),             /* 0x0006 */
+  TRACE_STR(KHCI_TRACEERR_BADGETCONFIG),          /* 0x0007 */
+  TRACE_STR(KHCI_TRACEERR_BADGETSETDESC),         /* 0x0008 */
+  TRACE_STR(KHCI_TRACEERR_BADGETSTATUS),          /* 0x0009 */
+  TRACE_STR(KHCI_TRACEERR_BADSETADDRESS),         /* 0x000a */
+  TRACE_STR(KHCI_TRACEERR_BADSETCONFIG),          /* 0x000b */
+  TRACE_STR(KHCI_TRACEERR_BADSETFEATURE),         /* 0x000c */
+  TRACE_STR(KHCI_TRACEERR_BINDFAILED),            /* 0x000d */
+  TRACE_STR(KHCI_TRACEERR_DISPATCHSTALL),         /* 0x000e */
+  TRACE_STR(KHCI_TRACEERR_DRIVER),                /* 0x000f */
+  TRACE_STR(KHCI_TRACEERR_DRIVERREGISTERED),      /* 0x0010 */
+  TRACE_STR(KHCI_TRACEERR_EP0SETUPSTALLED),       /* 0x0011 */
+  TRACE_STR(KHCI_TRACEERR_EPDISABLED),            /* 0x0012 */
+  TRACE_STR(KHCI_TRACEERR_EPOUTNULLPACKET),       /* 0x0013 */
+  TRACE_STR(KHCI_TRACEERR_EPRESERVE),             /* 0x0014 */
+  TRACE_STR(KHCI_TRACEERR_INVALIDCTRLREQ),        /* 0x0015 */
+  TRACE_STR(KHCI_TRACEERR_INVALIDPARMS),          /* 0x0016 */
+  TRACE_STR(KHCI_TRACEERR_IRQREGISTRATION),       /* 0x0017 */
+  TRACE_STR(KHCI_TRACEERR_NOTCONFIGURED),         /* 0x0018 */
+  TRACE_STR(KHCI_TRACEERR_REQABORTED),            /* 0x0019 */
+  TRACE_STR(KHCI_TRACEERR_INVALIDSTATE),          /* 0x001a */
   TRACE_STR_END
 };
 #endif
@@ -368,6 +362,7 @@ const struct trace_msg_t g_usb_trace_strings_deverror[] =
 #endif
 
 /* Debug ********************************************************************/
+
 /* CONFIG_KHCI_USBDEV_REGDEBUG enables dumping of all low-level register
  * access and BDT accesses.  Normally, this generates so much debug output
  * that USB may not even be functional.
@@ -413,6 +408,9 @@ enum khci_devstate_e
 enum khci_ctrlstate_e
 {
   CTRLSTATE_WAITSETUP = 0,  /* No request in progress, waiting for setup */
+  CTRLSTATE_SETUP_OUT,      /* Set up received with data for device OUT in progress */
+  CTRLSTATE_SETUP_READY,    /* Set up was received prior and is in ctrl,
+                             * now the data has arrived */
   CTRLSTATE_RDREQUEST,      /* Read request (OUT) in progress */
   CTRLSTATE_WRREQUEST,      /* Write request (IN) in progress */
   CTRLSTATE_STALL,          /* EP0 stall requested */
@@ -469,6 +467,7 @@ struct khci_ep_s
   uint8_t txnullpkt:1;                 /* Null packet needed at end of TX transfer */
   uint8_t txdata1:1;                   /* Data0/1 of next TX transfer */
   uint8_t rxdata1:1;                   /* Data0/1 of next RX transfer */
+
   volatile struct usbotg_bdtentry_s *bdtin;  /* BDT entry for the IN transaction */
   volatile struct usbotg_bdtentry_s *bdtout; /* BDT entry for the OUT transaction */
 };
@@ -497,7 +496,12 @@ struct khci_usbdev_s
   uint8_t rxbusy:1;                    /* EP0 OUT data transfer in progress */
   uint16_t epavail;                    /* Bitset of available endpoints */
   uint16_t epstalled;                  /* Bitset of stalled endpoints */
-  WDOG_ID wdog;                        /* Supports the restart delay */
+  struct wdog_s wdog;                  /* Supports the restart delay */
+
+  uint8_t out0data[2][CONFIG_USBDEV_EP0_MAXSIZE];
+  uint8_t ep0data[CONFIG_USBDEV_SETUP_MAXDATASIZE];
+  uint16_t ep0datlen;
+  uint16_t ep0datreq;
 
   /* The endpoint list */
 
@@ -543,7 +547,7 @@ static void   khci_epwrite(struct khci_ep_s *privep,
                 const uint8_t *src, uint32_t nbytes);
 static void   khci_wrcomplete(struct khci_usbdev_s *priv,
                 struct khci_ep_s *privep);
-static void   khci_rqrestart(int argc, uint32_t arg1, ...);
+static void   khci_rqrestart(wdparm_t arg);
 static void   khci_delayedrestart(struct khci_usbdev_s *priv,
                 uint8_t epno);
 static void   khci_rqstop(struct khci_ep_s *privep);
@@ -660,8 +664,8 @@ static const struct usbdev_ops_s g_devops =
  *
  * The BDT is addressed in the hardware as follows:
  *
- *   Bits 9-31:  These come the BDT address bits written into the BDTP3, BDTP2
- *      and BDTP1 registers
+ *   Bits 9-31:  These come the BDT address bits written into the BDTP3,
+ *      BDTP2 and BDTP1 registers
  *   Bits 5-8:   The endpoint number
  *   Bit 4:      Direction (0=IN/Tx, 1 = OUT/Rx)
  *   Bit 3:      PPBI, the ping point buffer index bit.
@@ -679,7 +683,7 @@ static volatile struct usbotg_bdtentry_s g_bdt[4*KHCI_NENDPOINTS]
  * Register Operations
  ****************************************************************************/
 
- /****************************************************************************
+/****************************************************************************
  * Name: khci_getreg
  ****************************************************************************/
 
@@ -702,10 +706,10 @@ static uint16_t khci_getreg(uint32_t addr)
     {
       if (count == 0xffffffff || ++count > 3)
         {
-           if (count == 4)
-             {
-               uinfo("...\n");
-             }
+          if (count == 4)
+            {
+              uinfo("...\n");
+            }
           return val;
         }
     }
@@ -714,20 +718,20 @@ static uint16_t khci_getreg(uint32_t addr)
 
   else
     {
-       /* Did we print "..." for the previous value? */
+      /* Did we print "..." for the previous value? */
 
-       if (count > 3)
-         {
-           /* Yes.. then show how many times the value repeated */
+      if (count > 3)
+        {
+          /* Yes.. then show how many times the value repeated */
 
-           uinfo("[repeats %d more times]\n", count-3);
-         }
+          uinfo("[repeats %d more times]\n", count - 3);
+        }
 
-       /* Save the new address, value, and count */
+      /* Save the new address, value, and count */
 
-       prevaddr = addr;
-       preval   = val;
-       count    = 1;
+      prevaddr = addr;
+      preval   = val;
+      count    = 1;
     }
 
   /* Show the register value read */
@@ -961,8 +965,8 @@ static void khci_wrcomplete(struct khci_usbdev_s *priv,
   int epno;
 
   /* Check the request at the head of the endpoint's active request queue.
-   * Since we got here from a write completion event, the active request queue
-   * should not be empty.
+   * Since we got here from a write completion event, the active request
+   * queue should not be empty.
    */
 
   privreq = khci_rqhead(&privep->active);
@@ -986,11 +990,11 @@ static void khci_wrcomplete(struct khci_usbdev_s *priv,
   bdtinfo("EP%d BDT IN [%p] {%08x, %08x}\n",
         epno, bdtin, bdtin->status, bdtin->addr);
 
-  /* We should own the BDT that just completed. But NULLify the entire BDT IN.
-   * Why?  So that we can tell later that the BDT available.  No, it is not
-   * sufficient to look at the UOWN bit.  If UOWN==0, then the transfer has
-   * been completed BUT it may not yet have been processed.  But a completely
-   * NULLified BDT is a sure indication
+  /* We should own the BDT that just completed. But NULLify the entire BDT
+   * IN. Why?  So that we can tell later that the BDT available.  No, it is
+   * not sufficient to look at the UOWN bit.  If UOWN==0, then the transfer
+   * has been completed BUT it may not yet have been processed.
+   * But a completely NULLified BDT is a sure indication
    */
 
   DEBUGASSERT((bdtin->status & USB_BDT_UOWN) == USB_BDT_COWN);
@@ -1028,11 +1032,13 @@ static void khci_wrcomplete(struct khci_usbdev_s *priv,
        * the class driver.
        */
 
-      usbtrace(TRACE_COMPLETE(USB_EPNO(privep->ep.eplog)), privreq->req.xfrd);
+      usbtrace(TRACE_COMPLETE(USB_EPNO(privep->ep.eplog)),
+               privreq->req.xfrd);
       khci_reqcomplete(privep, OK);
 
       /* Special case writes to endpoint zero.  If there is no transfer in
-       * progress, then we need to configure to received the next SETUP packet.
+       * progress, then we need to configure to received the next SETUP
+       * packet.
        */
 
       if (USB_EPNO(privep->ep.eplog) == 0)
@@ -1046,7 +1052,7 @@ static void khci_wrcomplete(struct khci_usbdev_s *priv,
  * Name: khci_rqrestart
  ****************************************************************************/
 
-static void khci_rqrestart(int argc, uint32_t arg1, ...)
+static void khci_rqrestart(wdparm_t arg)
 {
   struct khci_usbdev_s *priv;
   struct khci_ep_s *privep;
@@ -1057,7 +1063,7 @@ static void khci_rqrestart(int argc, uint32_t arg1, ...)
 
   /* Recover the pointer to the driver structure */
 
-  priv = (struct khci_usbdev_s *)((uintptr_t)arg1);
+  priv = (struct khci_usbdev_s *)arg;
   DEBUGASSERT(priv != NULL);
 
   /* Sample and clear the set of endpoints that have recovered from a stall */
@@ -1084,7 +1090,9 @@ static void khci_rqrestart(int argc, uint32_t arg1, ...)
           privep->stalled   = false;
           privep->txnullpkt = false;
 
-          /* Check the request at the head of the endpoint's pending request queue */
+          /* Check the request at the head of the endpoint's pending
+           * request queue
+           */
 
           privreq = khci_rqhead(&privep->pend);
           if (privreq)
@@ -1114,8 +1122,8 @@ static void khci_delayedrestart(struct khci_usbdev_s *priv, uint8_t epno)
 
   /* And start (or re-start) the watchdog timer */
 
-  wd_start(priv->wdog, RESTART_DELAY, khci_rqrestart, 1,
-           (uint32_t)priv);
+  wd_start(&priv->wdog, RESTART_DELAY,
+           khci_rqrestart, (wdparm_t)priv);
 }
 
 /****************************************************************************
@@ -1350,7 +1358,8 @@ static int khci_wrstart(struct khci_usbdev_s *priv,
  * Name: khci_wrrequest
  ****************************************************************************/
 
-static int khci_wrrequest(struct khci_usbdev_s *priv, struct khci_ep_s *privep)
+static int khci_wrrequest(struct khci_usbdev_s *priv,
+                          struct khci_ep_s *privep)
 {
   int ret;
 
@@ -1418,17 +1427,18 @@ static int khci_rdcomplete(struct khci_usbdev_s *priv,
 
   /* Get the length of the data received from the BDT. */
 
-  privreq->req.xfrd = (bdtout->status & USB_BDT_BYTECOUNT_MASK) >> USB_BDT_BYTECOUNT_SHIFT;
+  privreq->req.xfrd = (bdtout->status & USB_BDT_BYTECOUNT_MASK) >>
+                       USB_BDT_BYTECOUNT_SHIFT;
 
   /* Complete the transfer and return the request to the class driver. */
 
   usbtrace(TRACE_COMPLETE(USB_EPNO(privep->ep.eplog)), privreq->req.xfrd);
   khci_reqcomplete(privep, OK);
 
-  /* Nullify the BDT entry that just completed.  Why?  So that we can tell later
-   * that the BDT has been processed.  No, it is not sufficient to look at the
-   * UOWN bit.  If UOWN==0, then the transfer has been completed BUT it may not
-   * yet have been processed.
+  /* Nullify the BDT entry that just completed.  Why?  So that we can tell
+   * later that the BDT has been processed.  No, it is not sufficient to look
+   * at the UOWN bit.  If UOWN==0, then the transfer has been completed BUT
+   * it may not yet have been processed.
    */
 
   bdtout->status = 0;
@@ -1546,7 +1556,7 @@ static int khci_ep0rdsetup(struct khci_usbdev_s *priv, uint8_t *dest,
       privep->rxdata1 = 1;
     }
 
-   /* Set the data pointer, data length, and enable the endpoint */
+  /* Set the data pointer, data length, and enable the endpoint */
 
   bdtout->addr  = (uint8_t *)dest;
   status       |= ((uint32_t)readlen << USB_BDT_BYTECOUNT_SHIFT);
@@ -1625,8 +1635,8 @@ static int khci_rdsetup(struct khci_ep_s *privep, uint8_t *dest, int readlen)
 
   usbtrace(TRACE_READ(USB_EPNO(privep->ep.eplog)), readlen);
 
-  /* Clear status bits (making sure that UOWN is cleared before doing anything
-   * else).
+  /* Clear status bits (making sure that UOWN is cleared before doing
+   * anything else).
    */
 
   bdtout->status = 0;
@@ -1682,8 +1692,9 @@ static int khci_rdrequest(struct khci_usbdev_s *priv,
       usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EPOUTQEMPTY),
                USB_EPNO(privep->ep.eplog));
 
-      /* Special case reads from to endpoint zero.  If there is no transfer in
-       * progress, then we need to configure to received the next SETUP packet.
+      /* Special case reads from to endpoint zero.  If there is no transfer
+       * in progress, then we need to configure to received the next SETUP
+       * packet.
        */
 
       if (USB_EPNO(privep->ep.eplog) == 0 &&
@@ -1749,13 +1760,15 @@ static void khci_cancelrequests(struct khci_ep_s *privep, int16_t result)
 
   while ((privreq = khci_remfirst(&privep->active)))
     {
-      usbtrace(TRACE_COMPLETE(USB_EPNO(privep->ep.eplog)), privreq->req.xfrd);
+      usbtrace(TRACE_COMPLETE(USB_EPNO(privep->ep.eplog)),
+               privreq->req.xfrd);
       khci_reqreturn(privep, privreq, result);
     }
 
   while ((privreq = khci_remfirst(&privep->pend)))
     {
-      usbtrace(TRACE_COMPLETE(USB_EPNO(privep->ep.eplog)), privreq->req.xfrd);
+      usbtrace(TRACE_COMPLETE(USB_EPNO(privep->ep.eplog)),
+               privreq->req.xfrd);
       khci_reqreturn(privep, privreq, result);
     }
 }
@@ -1777,7 +1790,8 @@ static void khci_dispatchrequest(struct khci_usbdev_s *priv)
     {
       /* Forward to the control request to the class driver implementation */
 
-      ret = CLASS_SETUP(priv->driver, &priv->usbdev, &priv->ctrl, NULL, 0);
+      ret = CLASS_SETUP(priv->driver, &priv->usbdev, &priv->ctrl,
+          priv->ep0data, priv->ep0datlen);
       if (ret < 0)
         {
           /* Stall on failure */
@@ -1852,8 +1866,8 @@ static void khci_eptransfer(struct khci_usbdev_s *priv, uint8_t epno,
 
       usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EPINDONE), ustat);
 
-      /* An outgoing IN packet has completed.  Update the number of bytes transferred
-       * and check for completion of the transfer.
+      /* An outgoing IN packet has completed.  Update the number of bytes
+       * transferred and check for completion of the transfer.
        */
 
       khci_wrcomplete(priv, privep);
@@ -1871,7 +1885,7 @@ static void khci_eptransfer(struct khci_usbdev_s *priv, uint8_t epno,
  *   This function is called (1) after successful completion of an EP0 Setup
  *   command, or (2) after receipt of the OUT complete event (for simple
  *   transfers).  It simply sets up the single BDT to accept the next
- *   SETUP commend.
+ *   SETUP command.
  *
  ****************************************************************************/
 
@@ -1880,16 +1894,24 @@ static void khci_ep0nextsetup(struct khci_usbdev_s *priv)
   volatile struct usbotg_bdtentry_s *bdt = priv->eplist[EP0].bdtout;
   uint32_t bytecount;
 
-  /* This operation should be performed no more than once per OUT transaction.
-   * priv->ep0done is set to zero at the beginning of processing of each EP0
-   * transfer.  It is set the first time that this function runs after the EP0
-   * transfer.
+  /* This operation should be performed no more than once per OUT
+   * transaction. priv->ep0done is set to zero at the beginning of processing
+   * of each EP0 transfer.  It is set the first time that this function runs
+   * after the EP0 transfer.
    */
 
   if (!priv->ep0done)
     {
-      bytecount     = (USB_SIZEOF_CTRLREQ << USB_BDT_BYTECOUNT_SHIFT);
-      bdt->addr     = (uint8_t *)&priv->ctrl;
+      if (bdt == &g_bdt[EP0_OUT_EVEN])
+        {
+          bdt->addr = priv->out0data[EP0_OUT_EVEN];
+        }
+      else
+        {
+          bdt->addr = priv->out0data[EP0_OUT_ODD];
+        }
+
+      bytecount     = (CONFIG_USBDEV_EP0_MAXSIZE << USB_BDT_BYTECOUNT_SHIFT);
       bdt->status   = (USB_BDT_UOWN | bytecount);
       priv->ep0done = 1;
     }
@@ -1909,26 +1931,24 @@ static void khci_ep0rdcomplete(struct khci_usbdev_s *priv)
 {
   volatile struct usbotg_bdtentry_s *bdt;
   struct khci_ep_s *ep0;
-  uint32_t physaddr;
   uint32_t bytecount;
 
-  /* This operation should be performed no more than once per OUT transaction.
-   * priv->ep0done is set to zero at the beginning of processing of each EP0
-   * transfer.  It is set the first time that this function runs after the EP0
-   * transfer.
+  /* This operation should be performed no more than once per OUT
+   * transaction. priv->ep0done is set to zero at the beginning of processing
+   * of each EP0 transfer.  It is set the first time that this function runs
+   * after the EP0 transfer.
    */
 
   if (!priv->ep0done)
     {
-      bytecount     = (USB_SIZEOF_CTRLREQ << USB_BDT_BYTECOUNT_SHIFT);
-      physaddr      = (uint32_t)&priv->ctrl;
+      bytecount     = (CONFIG_USBDEV_EP0_MAXSIZE << USB_BDT_BYTECOUNT_SHIFT);
 
       bdt           = &g_bdt[EP0_OUT_EVEN];
-      bdt->addr     = (uint8_t *)physaddr;
+      bdt->addr     = priv->out0data[EP0_OUT_EVEN];
       bdt->status   = (USB_BDT_UOWN | bytecount);
 
       bdt           = &g_bdt[EP0_OUT_ODD];
-      bdt->addr     = (uint8_t *)physaddr;
+      bdt->addr     = priv->out0data[EP0_OUT_ODD];
       bdt->status   = (USB_BDT_UOWN | bytecount);
 
       priv->ep0done = 1;
@@ -1976,453 +1996,534 @@ static void khci_ep0setup(struct khci_usbdev_s *priv)
   ep0->rxdata1 = 0;
   ep0->txdata1 = 1;
 
-  /* Initialize for the SETUP */
-
-  priv->ctrlstate = CTRLSTATE_WAITSETUP;
-
-  /* And extract the little-endian 16-bit values to host order */
+  /* Extract the little-endian 16-bit values to host order */
 
   value.w = GETUINT16(priv->ctrl.value);
   index.w = GETUINT16(priv->ctrl.index);
   len.w   = GETUINT16(priv->ctrl.len);
+  response.w    = 0;
 
-  uinfo("SETUP: type=%02x req=%02x value=%04x index=%04x len=%04x\n",
-        priv->ctrl.type, priv->ctrl.req, value.w, index.w, len.w);
+  /* Check to see if called from the DATA phase of a SETUP Transfer */
 
-  /* Dispatch any non-standard requests */
-
-  if ((priv->ctrl.type & USB_REQ_TYPE_MASK) != USB_REQ_TYPE_STANDARD)
+  if (priv->ctrlstate != CTRLSTATE_SETUP_READY &&
+      priv->ctrlstate != CTRLSTATE_SETUP_OUT)
     {
-      usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_NOSTDREQ), priv->ctrl.type);
+      /* Not the data phase */
 
-      /* Let the class implementation handle all non-standar requests */
+      uinfo("SETUP: type=%02x req=%02x value=%04x index=%04x len=%04x\n",
+            priv->ctrl.type, priv->ctrl.req, value.w, index.w, len.w);
 
-      khci_dispatchrequest(priv);
-      dispatched = true;
-      goto resume_packet_processing;  /* Sorry about the goto */
+      /* Is this an setup with OUT and data of length > 0 */
+
+      if (USB_REQ_ISOUT(priv->ctrl.type) && len.w > 0)
+        {
+          usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EP0SETUPOUT), len.w);
+
+          priv->ep0datlen = 0;
+          priv->ep0datreq = len.w;
+
+          /* At this point priv->ctrl is the setup packet. */
+
+          khci_ep0nextsetup(priv);
+          priv->ctrlstate = CTRLSTATE_SETUP_OUT;
+        }
+      else
+        {
+          priv->ctrlstate = CTRLSTATE_SETUP_READY;
+        }
     }
 
-  /* Handle standard request.  Pick off the things of interest to the
-   * USB device controller driver; pass what is left to the class driver
-   */
-
-  switch (priv->ctrl.req)
+  if (priv->ctrlstate == CTRLSTATE_SETUP_READY)
     {
-    case USB_REQ_GETSTATUS:
-      {
-        /* type:  device-to-host; recipient = device, interface, endpoint
-         * value: 0
-         * index: zero interface endpoint
-         * len:   2; data = status
-         */
+      /* Dispatch any non-standard requests */
 
-        usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_GETSTATUS), priv->ctrl.type);
-        if (len.w != 2 || (priv->ctrl.type & USB_REQ_DIR_IN) == 0 ||
-            index.b[MSB] != 0 || value.w != 0)
-          {
-            usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADEPGETSTATUS), 0);
-            priv->ctrlstate = CTRLSTATE_STALL;
-          }
-        else
-          {
-            switch (priv->ctrl.type & USB_REQ_RECIPIENT_MASK)
+      if ((priv->ctrl.type & USB_REQ_TYPE_MASK) != USB_REQ_TYPE_STANDARD)
+        {
+          usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_NOSTDREQ),
+                   priv->ctrl.type);
+
+          /* Let the class implementation handle all non-standard requests */
+
+          khci_dispatchrequest(priv);
+          dispatched = true;
+        }
+      else
+        {
+          /* Handle standard request.  Pick off the things of interest to the
+           * USB device controller driver; pass what is left to the class
+           * driver
+           */
+
+          switch (priv->ctrl.req)
+            {
+            case USB_REQ_GETSTATUS:
               {
-               case USB_REQ_RECIPIENT_ENDPOINT:
-                {
-                  epno = USB_EPNO(index.b[LSB]);
-                  usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EPGETSTATUS), epno);
-                  if (epno >= KHCI_NENDPOINTS)
-                    {
-                      usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADEPGETSTATUS), epno);
-                      priv->ctrlstate = CTRLSTATE_STALL;
-                    }
-                  else
-                    {
-                      privep            = &priv->eplist[epno];
-                      response.w        = 0; /* Not stalled */
-                      nbytes            = 2; /* Response size: 2 bytes */
+                /* type:  device-to-host; recipient = device, interface,
+                 *        endpoint
+                 * value: 0
+                 * index: zero interface endpoint
+                 * len:   2; data = status
+                 */
 
-                      if (USB_ISEPIN(index.b[LSB]))
+                usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_GETSTATUS),
+                         priv->ctrl.type);
+                if (len.w != 2 || (priv->ctrl.type & USB_REQ_DIR_IN) == 0 ||
+                    index.b[MSB] != 0 || value.w != 0)
+                  {
+                    usbtrace(TRACE_DEVERROR(
+                             KHCI_TRACEERR_BADEPGETSTATUS), 0);
+                    priv->ctrlstate = CTRLSTATE_STALL;
+                  }
+                else
+                  {
+                    switch (priv->ctrl.type & USB_REQ_RECIPIENT_MASK)
+                      {
+                       case USB_REQ_RECIPIENT_ENDPOINT:
                         {
-                          /* IN endpoint */
+                          epno = USB_EPNO(index.b[LSB]);
+                          usbtrace(TRACE_INTDECODE(
+                                   KHCI_TRACEINTID_EPGETSTATUS), epno);
+                          if (epno >= KHCI_NENDPOINTS)
+                            {
+                              usbtrace(TRACE_DEVERROR(
+                                       KHCI_TRACEERR_BADEPGETSTATUS), epno);
+                              priv->ctrlstate = CTRLSTATE_STALL;
+                            }
+                          else
+                            {
+                              privep            = &priv->eplist[epno];
+                              response.w        = 0; /* Not stalled */
+                              nbytes            = 2; /* Response size: 2 bytes */
 
-                          bdt = privep->bdtin;
+                              if (USB_ISEPIN(index.b[LSB]))
+                                {
+                                  /* IN endpoint */
+
+                                  bdt = privep->bdtin;
+                                }
+                              else
+                                {
+                                  /* OUT endpoint */
+
+                                  bdt = privep->bdtout;
+                                }
+
+                              /* BSTALL set if stalled */
+
+                              if ((bdt->status & USB_BDT_BSTALL) != 0)
+                                {
+                                  response.b[LSB] = 1; /* Stalled, set bit 0 */
+                                }
+                            }
                         }
-                      else
+                        break;
+
+                      case USB_REQ_RECIPIENT_DEVICE:
                         {
-                          /* OUT endpoint */
+                         if (index.w == 0)
+                            {
+                              usbtrace(TRACE_INTDECODE(
+                                       KHCI_TRACEINTID_DEVGETSTATUS), 0);
 
-                          bdt = privep->bdtout;
+                              /* Features:
+                               * Remote Wakeup=YES;
+                               * selfpowered=?
+                               */
+
+                              response.w      = 0;
+                              response.b[LSB] =
+                                  (priv->selfpowered <<
+                                   USB_FEATURE_SELFPOWERED) |
+                                  (priv->rwakeup <<
+                                   USB_FEATURE_REMOTEWAKEUP);
+                              nbytes        = 2; /* Response size: 2 bytes */
+                            }
+                          else
+                            {
+                              usbtrace(TRACE_DEVERROR(
+                                       KHCI_TRACEERR_BADDEVGETSTATUS), 0);
+                              priv->ctrlstate = CTRLSTATE_STALL;
+                            }
                         }
+                        break;
 
-                      /* BSTALL set if stalled */
-
-                      if ((bdt->status & USB_BDT_BSTALL) != 0)
+                      case USB_REQ_RECIPIENT_INTERFACE:
                         {
-                          response.b[LSB] = 1; /* Stalled, set bit 0 */
+                          usbtrace(TRACE_INTDECODE(
+                                   KHCI_TRACEINTID_IFGETSTATUS), 0);
+                          response.w        = 0;
+                          nbytes            = 2; /* Response size: 2 bytes */
                         }
-                    }
-                }
-                break;
+                        break;
 
-              case USB_REQ_RECIPIENT_DEVICE:
-                {
-                 if (index.w == 0)
-                    {
-                      usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_DEVGETSTATUS), 0);
-
-                      /* Features:  Remote Wakeup=YES; selfpowered=? */
-
-                      response.w      = 0;
-                      response.b[LSB] = (priv->selfpowered << USB_FEATURE_SELFPOWERED) |
-                                        (priv->rwakeup << USB_FEATURE_REMOTEWAKEUP);
-                      nbytes          = 2; /* Response size: 2 bytes */
-                    }
-                  else
-                    {
-                      usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADDEVGETSTATUS), 0);
-                      priv->ctrlstate = CTRLSTATE_STALL;
-                    }
-                }
-                break;
-
-              case USB_REQ_RECIPIENT_INTERFACE:
-                {
-                  usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_IFGETSTATUS), 0);
-                  response.w        = 0;
-                  nbytes            = 2; /* Response size: 2 bytes */
-                }
-                break;
-
-              default:
-                {
-                  usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADGETSTATUS), 0);
-                  priv->ctrlstate = CTRLSTATE_STALL;
-                }
-                break;
+                      default:
+                        {
+                          usbtrace(TRACE_DEVERROR(
+                                   KHCI_TRACEERR_BADGETSTATUS), 0);
+                          priv->ctrlstate = CTRLSTATE_STALL;
+                        }
+                        break;
+                      }
+                  }
               }
-          }
-      }
-      break;
+              break;
 
-    case USB_REQ_CLEARFEATURE:
-      {
-        /* type:  host-to-device; recipient = device, interface or endpoint
-         * value: feature selector
-         * index: zero interface endpoint;
-         * len:   zero, data = none
-         */
-
-        usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_CLEARFEATURE), priv->ctrl.type);
-        if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) == USB_REQ_RECIPIENT_DEVICE)
-          {
-            /* Disable B device from performing HNP */
-
-#ifdef CONFIG_KINETIS_USBOTG
-            if (value.w == USBOTG_FEATURE_B_HNP_ENABLE)
+            case USB_REQ_CLEARFEATURE:
               {
-                /* Disable HNP */
-#warning Missing Logic
+                /* type:  host-to-device; recipient = device, interface or
+                 *        endpoint
+                 * value: feature selector
+                 * index: zero interface endpoint;
+                 * len:   zero, data = none
+                 */
+
+                usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_CLEARFEATURE),
+                         priv->ctrl.type);
+                if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) ==
+                     USB_REQ_RECIPIENT_DEVICE)
+                  {
+                    /* Disable B device from performing HNP */
+
+        #ifdef CONFIG_KINETIS_USBOTG
+                    if (value.w == USBOTG_FEATURE_B_HNP_ENABLE)
+                      {
+                        /* Disable HNP */
+        #warning Missing Logic
+                      }
+
+                    /* Disable A device HNP support */
+
+                    else if (value.w == USBOTG_FEATURE_A_HNP_SUPPORT)
+                      {
+                        /* Disable HNP support */
+        #warning Missing Logic
+                      }
+
+                    /* Disable alternate HNP support */
+
+                    else if (value.w == USBOTG_FEATURE_A_ALT_HNP_SUPPORT)
+                      {
+                        /* Disable alternate HNP */
+        #warning Missing Logic
+                      }
+                    else
+        #endif
+                    /* Disable remote wakeup */
+
+                    if (value.w == USB_FEATURE_REMOTEWAKEUP)
+                      {
+                        priv->rwakeup     = 0;
+                      }
+                    else
+                      {
+                        /* Let the class implementation handle all other
+                         * device features
+                         */
+
+                        khci_dispatchrequest(priv);
+                        dispatched = true;
+                      }
+                  }
+                else if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) ==
+                    USB_REQ_RECIPIENT_ENDPOINT)
+                  {
+                    epno = USB_EPNO(index.b[LSB]);
+                    if (epno > 0 && epno <
+                        KHCI_NENDPOINTS && index.b[MSB] == 0 &&
+                        value.w == USB_FEATURE_ENDPOINTHALT && len.w == 0)
+                      {
+                        privep            = &priv->eplist[epno];
+                        privep->halted    = false;
+                        ret               = khci_epstall(&privep->ep, true);
+                        UNUSED(ret);
+                      }
+                    else
+                      {
+                        usbtrace(TRACE_DEVERROR(
+                                 KHCI_TRACEERR_BADCLEARFEATURE), 0);
+                        priv->ctrlstate = CTRLSTATE_STALL;
+                      }
+                  }
+                else
+                  {
+                    /* Let the class implementation handle all other
+                     * recipients.
+                     */
+
+                    khci_dispatchrequest(priv);
+                    dispatched = true;
+                  }
               }
+              break;
 
-            /* Disable A device HNP support */
-
-            else if (value.w == USBOTG_FEATURE_A_HNP_SUPPORT)
+            case USB_REQ_SETFEATURE:
               {
-                /* Disable HNP support */
-#warning Missing Logic
+                /* type:  host-to-device; recipient = device, interface,
+                 *        endpoint
+                 * value: feature selector
+                 * index: zero interface endpoint;
+                 * len:   0; data = none
+                 */
+
+                usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_SETFEATURE),
+                         priv->ctrl.type);
+
+                if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) ==
+                     USB_REQ_RECIPIENT_DEVICE)
+                  {
+                    /* Enable B device to perform HNP */
+
+        #ifdef CONFIG_KINETIS_USBOTG
+                    if (value.w == USBOTG_FEATURE_B_HNP_ENABLE)
+                      {
+                        /* Enable HNP */
+        #warning "Missing logic"
+                      }
+
+                    /* Enable A device HNP supports */
+
+                    else if (value.w == USBOTG_FEATURE_A_HNP_SUPPORT)
+                      {
+                        /* Enable HNP support */
+        #warning "Missing logic"
+                      }
+
+                    /* Another port on the A device supports HNP */
+
+                    else if (value.w == USBOTG_FEATURE_A_ALT_HNP_SUPPORT)
+                      {
+                        /* Enable alternate HNP */
+        #warning "Missing logic"
+                      }
+                    else
+        #endif
+
+                    if (value.w == USB_FEATURE_REMOTEWAKEUP)
+                      {
+                        priv->rwakeup     = 0;
+                      }
+                    else if (value.w == USB_FEATURE_TESTMODE)
+                      {
+                        /* Special case recipient=device test mode */
+
+                        uinfo("test mode: %d\n", index.w);
+                      }
+                    else
+                      {
+                        /* Let the class implementation handle all other
+                         * device features
+                         */
+
+                        khci_dispatchrequest(priv);
+                        dispatched = true;
+                      }
+                  }
+                else if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) ==
+                    USB_REQ_RECIPIENT_ENDPOINT)
+                  {
+                    /* Handler recipient=endpoint */
+
+                    epno = USB_EPNO(index.b[LSB]);
+                    if (epno < KHCI_NENDPOINTS && index.b[MSB] == 0 &&
+                        value.w == USB_FEATURE_ENDPOINTHALT && len.w == 0)
+                      {
+                        privep            = &priv->eplist[epno];
+                        privep->halted    = true;
+                        ret               = khci_epstall(&privep->ep, false);
+                        UNUSED(ret);
+                      }
+                    else
+                      {
+                        usbtrace(TRACE_DEVERROR(
+                                 KHCI_TRACEERR_BADSETFEATURE), 0);
+                        priv->ctrlstate = CTRLSTATE_STALL;
+                      }
+                  }
+                else
+                  {
+                    /* The class driver handles all recipients except
+                     * recipient=endpoint
+                     */
+
+                    khci_dispatchrequest(priv);
+                    dispatched = true;
+                  }
               }
+              break;
 
-            /* Disable alternate HNP support */
-
-            else if (value.w == USBOTG_FEATURE_A_ALT_HNP_SUPPORT)
+            case USB_REQ_SETADDRESS:
               {
-                /* Disable alternate HNP */
-#warning Missing Logic
+                /* type:  host-to-device; recipient = device
+                 * value: device address
+                 * index: 0
+                 * len:   0; data = none
+                 */
+
+                usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EP0SETUPSETADDRESS),
+                         value.w);
+                if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) !=
+                    USB_REQ_RECIPIENT_DEVICE ||
+                    index.w != 0 || len.w != 0 || value.w > 127)
+                  {
+                    usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADSETADDRESS), 0);
+                    priv->ctrlstate = CTRLSTATE_STALL;
+                  }
+                else
+                  {
+                    /* Note that setting of the device address will be
+                     * deferred. A zero-length packet will be sent and the
+                     * device address will be set when the zerolength packet
+                     * transfer completes.
+                     */
+
+                    priv->devstate = DEVSTATE_ADDRPENDING;
+                  }
               }
-            else
-#endif
-            /* Disable remote wakeup */
+              break;
 
-            if (value.w == USB_FEATURE_REMOTEWAKEUP)
+            case USB_REQ_GETDESCRIPTOR:
+              /* type:  device-to-host; recipient = device
+               * value: descriptor type and index
+               * index: 0 or language ID;
+               * len:   descriptor len; data = descriptor
+               */
+
+            case USB_REQ_SETDESCRIPTOR:
+              /* type:  host-to-device; recipient = device
+               * value: descriptor type and index
+               * index: 0 or language ID;
+               * len:   descriptor len; data = descriptor
+               */
+
               {
-                priv->rwakeup     = 0;
+                usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_GETSETDESC),
+                         priv->ctrl.type);
+                if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) ==
+                    USB_REQ_RECIPIENT_DEVICE)
+                  {
+                    /* The request seems valid...
+                     * let the class implementation handle it
+                     */
+
+                    khci_dispatchrequest(priv);
+                    dispatched = true;
+                  }
+                else
+                  {
+                    usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADGETSETDESC), 0);
+                    priv->ctrlstate = CTRLSTATE_STALL;
+                  }
               }
-            else
-              {
-                /* Let the class implementation handle all other device features */
+              break;
 
+            case USB_REQ_GETCONFIGURATION:
+              /* type:  device-to-host; recipient = device
+               * value: 0;
+               * index: 0;
+               * len:   1; data = configuration value
+               */
+
+              {
+                usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_GETCONFIG),
+                         priv->ctrl.type);
+                if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) ==
+                    USB_REQ_RECIPIENT_DEVICE && value.w == 0 &&
+                    index.w == 0 && len.w == 1)
+                  {
+                    /* The request seems valid... let the class
+                     * implementation handle it
+                     */
+
+                    khci_dispatchrequest(priv);
+                    dispatched = true;
+                  }
+                else
+                  {
+                    usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADGETCONFIG), 0);
+                    priv->ctrlstate = CTRLSTATE_STALL;
+                  }
+              }
+              break;
+
+            case USB_REQ_SETCONFIGURATION:
+              /* type:  host-to-device; recipient = device
+               * value: configuration value
+               * index: 0;
+               * len:   0; data = none
+               */
+
+              {
+                usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_SETCONFIG),
+                         priv->ctrl.type);
+                if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) ==
+                    USB_REQ_RECIPIENT_DEVICE && index.w == 0 && len.w == 0)
+                  {
+                     /* The request seems valid. Let the class implementation
+                      * handle it
+                      */
+
+                     khci_dispatchrequest(priv);
+                     dispatched = true;
+                  }
+                else
+                  {
+                    usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADSETCONFIG), 0);
+                    priv->ctrlstate = CTRLSTATE_STALL;
+                  }
+              }
+              break;
+
+            case USB_REQ_GETINTERFACE:
+              /* type:  device-to-host; recipient = interface
+               * value: 0
+               * index: interface;
+               * len:   1; data = alt interface
+               */
+
+            case USB_REQ_SETINTERFACE:
+              /* type:  host-to-device; recipient = interface
+               * value: alternate setting
+               * index: interface;
+               * len:   0; data = none
+               */
+
+              {
+                /* Let the class implementation handle the request */
+
+                usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_GETSETIF),
+                         priv->ctrl.type);
                 khci_dispatchrequest(priv);
                 dispatched = true;
               }
-          }
-        else if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) == USB_REQ_RECIPIENT_ENDPOINT)
-          {
-            epno = USB_EPNO(index.b[LSB]);
-            if (epno > 0 && epno < KHCI_NENDPOINTS && index.b[MSB] == 0 &&
-                value.w == USB_FEATURE_ENDPOINTHALT && len.w == 0)
+              break;
+
+            case USB_REQ_SYNCHFRAME:
+              /* type:  device-to-host; recipient = endpoint
+               * value: 0
+               * index: endpoint;
+               * len:   2; data = frame number
+               */
+
               {
-                privep            = &priv->eplist[epno];
-                privep->halted    = false;
-                ret               = khci_epstall(&privep->ep, true);
-                UNUSED(ret);
+                usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_SYNCHFRAME), 0);
               }
-            else
+              break;
+
+            default:
               {
-                usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADCLEARFEATURE), 0);
+                usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_INVALIDCTRLREQ),
+                         priv->ctrl.req);
                 priv->ctrlstate = CTRLSTATE_STALL;
               }
-          }
-        else
-          {
-            /* Let the class implementation handle all other recipients. */
-
-            khci_dispatchrequest(priv);
-            dispatched = true;
-          }
-      }
-      break;
-
-    case USB_REQ_SETFEATURE:
-      {
-        /* type:  host-to-device; recipient = device, interface, endpoint
-         * value: feature selector
-         * index: zero interface endpoint;
-         * len:   0; data = none
-         */
-
-        usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_SETFEATURE), priv->ctrl.type);
-
-        if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) == USB_REQ_RECIPIENT_DEVICE)
-          {
-            /* Enable B device to perform HNP */
-
-#ifdef CONFIG_KINETIS_USBOTG
-            if (value.w == USBOTG_FEATURE_B_HNP_ENABLE)
-              {
-                /* Enable HNP */
-#warning "Missing logic"
-              }
-
-            /* Enable A device HNP supports */
-
-            else if (value.w == USBOTG_FEATURE_A_HNP_SUPPORT)
-              {
-                /* Enable HNP support */
-#warning "Missing logic"
-              }
-
-            /* Another port on the A device supports HNP */
-
-            else if (value.w == USBOTG_FEATURE_A_ALT_HNP_SUPPORT)
-              {
-                /* Enable alternate HNP */
-#warning "Missing logic"
-              }
-            else
-#endif
-
-            if (value.w == USB_FEATURE_REMOTEWAKEUP)
-              {
-                priv->rwakeup     = 0;
-              }
-            else if (value.w == USB_FEATURE_TESTMODE)
-              {
-                /* Special case recipient=device test mode */
-
-                uinfo("test mode: %d\n", index.w);
-              }
-            else
-              {
-                /* Let the class implementation handle all other device features */
-
-                khci_dispatchrequest(priv);
-                dispatched = true;
-              }
-          }
-        else if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) == USB_REQ_RECIPIENT_ENDPOINT)
-          {
-            /* Handler recipient=endpoint */
-
-            epno = USB_EPNO(index.b[LSB]);
-            if (epno < KHCI_NENDPOINTS && index.b[MSB] == 0 &&
-                value.w == USB_FEATURE_ENDPOINTHALT && len.w == 0)
-              {
-                privep            = &priv->eplist[epno];
-                privep->halted    = true;
-                ret               = khci_epstall(&privep->ep, false);
-                UNUSED(ret);
-              }
-            else
-              {
-                usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADSETFEATURE), 0);
-                priv->ctrlstate = CTRLSTATE_STALL;
-              }
-          }
-        else
-          {
-            /* The class driver handles all recipients except recipient=endpoint */
-
-            khci_dispatchrequest(priv);
-            dispatched = true;
-          }
-      }
-      break;
-
-    case USB_REQ_SETADDRESS:
-      {
-        /* type:  host-to-device; recipient = device
-         * value: device address
-         * index: 0
-         * len:   0; data = none
-         */
-
-        usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EP0SETUPSETADDRESS), value.w);
-        if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) != USB_REQ_RECIPIENT_DEVICE ||
-            index.w != 0 || len.w != 0 || value.w > 127)
-          {
-            usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADSETADDRESS), 0);
-            priv->ctrlstate = CTRLSTATE_STALL;
-          }
-        else
-          {
-            /* Note that setting of the device address will be deferred.  A zero-length
-             * packet will be sent and the device address will be set when the zero-
-             * length packet transfer completes.
-             */
-
-            priv->devstate = DEVSTATE_ADDRPENDING;
-          }
-      }
-      break;
-
-    case USB_REQ_GETDESCRIPTOR:
-      /* type:  device-to-host; recipient = device
-       * value: descriptor type and index
-       * index: 0 or language ID;
-       * len:   descriptor len; data = descriptor
-       */
-    case USB_REQ_SETDESCRIPTOR:
-      /* type:  host-to-device; recipient = device
-       * value: descriptor type and index
-       * index: 0 or language ID;
-       * len:   descriptor len; data = descriptor
-       */
-
-      {
-        usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_GETSETDESC), priv->ctrl.type);
-        if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) == USB_REQ_RECIPIENT_DEVICE)
-          {
-            /* The request seems valid... let the class implementation handle it */
-
-            khci_dispatchrequest(priv);
-            dispatched = true;
-          }
-        else
-          {
-            usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADGETSETDESC), 0);
-            priv->ctrlstate = CTRLSTATE_STALL;
-          }
-      }
-      break;
-
-    case USB_REQ_GETCONFIGURATION:
-      /* type:  device-to-host; recipient = device
-       * value: 0;
-       * index: 0;
-       * len:   1; data = configuration value
-       */
-
-      {
-        usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_GETCONFIG), priv->ctrl.type);
-        if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) == USB_REQ_RECIPIENT_DEVICE &&
-            value.w == 0 && index.w == 0 && len.w == 1)
-          {
-            /* The request seems valid... let the class implementation handle it */
-
-            khci_dispatchrequest(priv);
-            dispatched = true;
-          }
-        else
-          {
-            usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADGETCONFIG), 0);
-            priv->ctrlstate = CTRLSTATE_STALL;
-          }
-      }
-      break;
-
-    case USB_REQ_SETCONFIGURATION:
-      /* type:  host-to-device; recipient = device
-       * value: configuration value
-       * index: 0;
-       * len:   0; data = none
-       */
-
-      {
-        usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_SETCONFIG), priv->ctrl.type);
-        if ((priv->ctrl.type & USB_REQ_RECIPIENT_MASK) == USB_REQ_RECIPIENT_DEVICE &&
-            index.w == 0 && len.w == 0)
-          {
-             /* The request seems valid... let the class implementation handle it */
-
-             khci_dispatchrequest(priv);
-             dispatched = true;
-          }
-        else
-          {
-            usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADSETCONFIG), 0);
-            priv->ctrlstate = CTRLSTATE_STALL;
-          }
-      }
-      break;
-
-    case USB_REQ_GETINTERFACE:
-      /* type:  device-to-host; recipient = interface
-       * value: 0
-       * index: interface;
-       * len:   1; data = alt interface
-       */
-    case USB_REQ_SETINTERFACE:
-      /* type:  host-to-device; recipient = interface
-       * value: alternate setting
-       * index: interface;
-       * len:   0; data = none
-       */
-
-      {
-        /* Let the class implementation handle the request */
-
-        usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_GETSETIF), priv->ctrl.type);
-        khci_dispatchrequest(priv);
-        dispatched = true;
-      }
-      break;
-
-    case USB_REQ_SYNCHFRAME:
-      /* type:  device-to-host; recipient = endpoint
-       * value: 0
-       * index: endpoint;
-       * len:   2; data = frame number
-       */
-
-      {
-        usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_SYNCHFRAME), 0);
-      }
-      break;
-
-    default:
-      {
-        usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_INVALIDCTRLREQ), priv->ctrl.req);
-        priv->ctrlstate = CTRLSTATE_STALL;
-      }
-      break;
+              break;
+            }
+        }
     }
 
   /* PKTDIS bit is set when a Setup Transaction is received. Clear to resume
    * packet processing.
    */
 
-resume_packet_processing:
   regval = khci_getreg(KINETIS_USB0_CTL);
   regval &= ~USB_CTL_TXSUSPENDTOKENBUSY;
   khci_putreg(regval, KINETIS_USB0_CTL);
@@ -2430,52 +2531,64 @@ resume_packet_processing:
   /* At this point, the request has been handled and there are three possible
    * outcomes:
    *
-   * 1. The setup request was successfully handled above and a response packet
-   *    must be sent (may be a zero length packet).
-   * 2. The request was successfully handled by the class implementation.  In
-   *    case, the EP0 IN response has already been queued and the local variable
-   *    'dispatched' will be set to true and ctrlstate != CTRLSTATE_STALL;
-   * 3. An error was detected in either the above logic or by the class implementation
-   *    logic.  In either case, priv->state will be set CTRLSTATE_STALL
-   *    to indicate this case.
+   * 1. The setup request was successfully handled above and a response
+   *    packet must be sent (may be a zero length packet).
+   * 2. The request was successfully handled by the class implementation.
+   *    In case, the EP0 IN response has already been queued and the local
+   *    variable 'dispatched' will be set to true and ctrlstate !=
+   *    CTRLSTATE_STALL;
+   * 3. An error was detected in either the above logic or by the class
+   *    implementation logic.  In either case, priv->state will be set
+   *    CTRLSTATE_STALL to indicate this case.
    *
-   * NOTE: Non-standard requests are a special case.  They are handled by the
-   * class implementation and this function returned early above, skipping this
-   * logic altogether.
+   * NOTE:
+   * Non-standard requests are a special case.  They are handled by the
+   * class implementation and this function returned early above, skipping
+   * this logic altogether.
    */
 
-  if (!dispatched && (priv->ctrlstate != CTRLSTATE_STALL))
+  if (priv->ctrlstate == CTRLSTATE_SETUP_READY)
     {
-      /* The SETUP command was not dispatched to the class driver and the SETUP
-       * command did not cause a stall. We will respond.  First, restrict the
-       * data length to the length requested in the setup packet
-       */
-
-      if (nbytes > len.w)
+      if (!dispatched)
         {
-          nbytes = len.w;
+          /* The SETUP command was not dispatched to the class driver and the
+           * SETUP command did not cause a stall. We will respond.  First,
+           * restrict the data length to the length requested in the setup
+           * packet
+           */
+
+          if (nbytes > len.w)
+            {
+              nbytes = len.w;
+            }
+
+          /* Send the EP0 SETUP response (might be a zero-length packet) */
+
+          khci_epwrite(ep0, ep0->bdtin, response.b, nbytes);
         }
 
-      /* Send the EP0 SETUP response (might be a zero-length packet) */
+      priv->ctrlstate = CTRLSTATE_WAITSETUP;
+    }
+  else if (priv->ctrlstate == CTRLSTATE_STALL)
+    {
+      /* Did we stall?
+       * This might have occurred from the above logic OR the stall condition
+       * may have been set less obviously in khci_dispatchrequest().
+       * In either case, we handle the stall condition the same.
+       *
+       * However, bad things happen if we try to stall a SETUP packet.  So
+       * lets So lets not.  If we wait a bit, things will recover.
+       * Hmmm.. If we completed the data phase (perhaps by sending a NULL
+       * packet), then I think we could stall the endpoint and perhaps speed
+       * things up a bit???.
+       */
 
-      khci_epwrite(ep0, ep0->bdtin, response.b, nbytes);
       priv->ctrlstate = CTRLSTATE_WAITSETUP;
     }
 
-  /* Did we stall?  This might have occurred from the above logic OR the stall
-   * condition may have been set less obviously in khci_dispatchrequest().
-   * In either case, we handle the stall condition the same.
-   *
-   * However, bad things happen if we try to stall a SETUP packet.  So lets
-   * not.  If we wait a bit, things will recover.  Hmmm.. If we completed
-   * the data phase (perhaps by sending a NULL packet), then I think we
-   * could stall the endpoint and perhaps speed things up a bit???.
-   */
+  /* Set up the BDT to accept the next setup command. */
 
-   /* Set up the BDT to accept the next setup commend. */
-
-   khci_ep0nextsetup(priv);
-   priv->ctrlstate = CTRLSTATE_WAITSETUP;
+  khci_ep0nextsetup(priv);
 }
 
 /****************************************************************************
@@ -2544,7 +2657,7 @@ static void khci_ep0incomplete(struct khci_usbdev_s *priv)
         {
           DEBUGASSERT(bdtlast == &g_bdt[EP0_IN_ODD]);
           ep0->bdtin = &g_bdt[EP0_IN_EVEN];
-       }
+        }
 
       /* Look at the saved SETUP command.  Was it a SET ADDRESS request?
        * If so, then now is the time to set the address.
@@ -2579,7 +2692,8 @@ static void khci_ep0incomplete(struct khci_usbdev_s *priv)
 
   else
     {
-      usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_INVALIDSTATE), priv->ctrlstate);
+      usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_INVALIDSTATE),
+               priv->ctrlstate);
       priv->ctrlstate = CTRLSTATE_STALL;
     }
 }
@@ -2617,21 +2731,22 @@ static void khci_ep0outcomplete(struct khci_usbdev_s *priv)
       case CTRLSTATE_WAITSETUP:
         {
           /* In this case the last OUT transaction must have been a status
-           * stage of a CTRLSTATE_WRREQUEST: Prepare EP0 OUT for the next SETUP
-           * transaction.
+           * stage of a CTRLSTATE_WRREQUEST: Prepare EP0 OUT for the next
+           * SETUP transaction.
            */
 
            khci_ep0nextsetup(priv);
         }
         break;
 
-      /* Unexpected state OR host aborted the OUT transfer before it completed,
-       * STALL the endpoint in either case
+      /* Unexpected state OR host aborted the OUT transfer before it
+       * completed, STALL the endpoint in either case
        */
 
       default:
         {
-          usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_INVALIDSTATE), priv->ctrlstate);
+          usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_INVALIDSTATE),
+                   priv->ctrlstate);
           priv->ctrlstate = CTRLSTATE_STALL;
         }
         break;
@@ -2667,29 +2782,62 @@ static void khci_ep0transfer(struct khci_usbdev_s *priv, uint16_t ustat)
       bdt   = &g_bdt[index];
       priv->eplist[0].bdtout = bdt;
 
-      bdtinfo("EP0 BDT OUT [%p] {%08x, %08x}\n", bdt, bdt->status, bdt->addr);
+      bdtinfo("EP0 BDT OUT [%p] {%08x, %08x}\n", bdt, bdt->status,
+              bdt->addr);
 
       /* Check the current EP0 OUT buffer contains a SETUP packet */
 
-      if (((bdt->status & USB_BDT_PID_MASK) >> USB_BDT_PID_SHIFT) == USB_PID_SETUP_TOKEN)
+      if (((bdt->status & USB_BDT_PID_MASK) >>
+           USB_BDT_PID_SHIFT) == USB_PID_SETUP_TOKEN)
         {
-          /* Check if the SETUP transaction data went into the priv->ctrl
-           * buffer. If not, then we will need to copy it.
-           */
+          void *src = (void *)bdt->addr;
+          void *dest = &priv->ctrl;
 
-          if (bdt->addr != (uint8_t *)&priv->ctrl)
-            {
-              void *src = (void *)bdt->addr;
-              void *dest = &priv->ctrl;
-
-              memcpy(dest, src, USB_SIZEOF_CTRLREQ);
-              bdt->addr = (uint8_t *)&priv->ctrl;
-            }
+          memcpy(dest, src, USB_SIZEOF_CTRLREQ);
 
           /* Handle the control OUT transfer */
 
-          usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EP0SETUPDONE), bdt->status);
           khci_ep0setup(priv);
+
+          if (priv->ctrlstate == CTRLSTATE_WAITSETUP)
+            {
+              usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EP0SETUPDONE),
+                       bdt->status);
+            }
+          else
+            {
+              usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EP0SETUPOUT),
+                       bdt->status);
+            }
+        }
+      else if (priv->ctrlstate == CTRLSTATE_SETUP_OUT)
+        {
+          void *src = (void *)bdt->addr;
+          void *dest = (void *)&priv->ep0data[priv->ep0datlen];
+          uint16_t readlen = MIN((priv->ep0datreq - priv->ep0datlen),
+                                  priv->eplist[0].ep.maxpacket);
+
+          memcpy(dest, src, readlen);
+
+          priv->ep0datlen += readlen;
+
+          if (priv->ep0datlen == priv->ep0datreq)
+            {
+              priv->ctrlstate = CTRLSTATE_SETUP_READY;
+            }
+
+          khci_ep0setup(priv);
+
+          if (priv->ctrlstate == CTRLSTATE_WAITSETUP)
+            {
+              usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EP0SETUPDONE),
+                       bdt->status);
+            }
+          else
+            {
+              usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_EP0SETUPOUTDATA),
+                       bdt->status);
+            }
         }
       else
         {
@@ -2717,7 +2865,8 @@ static void khci_ep0transfer(struct khci_usbdev_s *priv, uint16_t ustat)
     {
       /* Stall EP0 */
 
-      usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_EP0SETUPSTALLED), priv->ctrlstate);
+      usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_EP0SETUPSTALLED),
+               priv->ctrlstate);
       khci_epstall(&priv->eplist[EP0].ep, false);
     }
 }
@@ -2739,12 +2888,14 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
 
   /* Get the set of pending USB and OTG interrupts interrupts */
 
-  usbir = khci_getreg(KINETIS_USB0_ISTAT) & khci_getreg(KINETIS_USB0_INTEN);
+  usbir = khci_getreg(KINETIS_USB0_ISTAT) &
+                      khci_getreg(KINETIS_USB0_INTEN);
 
 #if !defined(CONFIG_KINETIS_USBOTG)
   usbtrace(TRACE_INTENTRY(KHCI_TRACEINTID_INTERRUPT), usbir);
 #else
-  otgir = khci_getreg(KINETIS_USB0_OTGISTAT) & khci_getreg(KINETIS_USB0_OTGICR);
+  otgir = khci_getreg(KINETIS_USB0_OTGISTAT) &
+                      khci_getreg(KINETIS_USB0_OTGICR);
 
   usbtrace(TRACE_INTENTRY(KHCI_TRACEINTID_INTERRUPT), usbir | otgir);
 
@@ -2777,13 +2928,12 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
 
   if (priv->devstate == DEVSTATE_ATTACHED)
     {
-
       /* Now were are in the powered state */
 
       priv->devstate = DEVSTATE_POWERED;
     }
 
-   /* Service error interrupts */
+  /* Service error interrupts */
 
   if ((usbir & USB_INT_ERROR) != 0)
     {
@@ -2827,13 +2977,13 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
         /* Disable and deactivate HNP */
 #warning Missing Logic
 #endif
-      /* Acknowlege the reset interrupt */
+      /* Acknowledge the reset interrupt */
 
       khci_putreg(USB_INT_USBRST, KINETIS_USB0_ISTAT);
       goto interrupt_exit;
     }
 
-#ifdef  CONFIG_KINETIS_USBOTG
+#ifdef CONFIG_KINETIS_USBOTG
   /* Check if the ID Pin Changed State */
 
   if ((otgir & USB_OTGISTAT_IDCHG) != 0)
@@ -2862,7 +3012,9 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
         {
           uint8_t epno;
 
-          /* Check the pending interrupt register.  Is token processing complete. */
+          /* Check the pending interrupt register.
+           *  Is token processing complete.
+           */
 
           if ((khci_getreg(KINETIS_USB0_ISTAT) & USB_INT_TOKDNE) != 0)
             {
@@ -2919,17 +3071,22 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
       khci_putreg(regval, KINETIS_USB0_USBTRC0);
     }
 
-  /*  It is pointless to continue servicing if the device is in suspend mode. */
+  /*  It is pointless to continue servicing if the device is in suspend
+   * mode.
+   */
 
   if ((khci_getreg(KINETIS_USB0_USBCTRL) & USB_USBCTRL_SUSP) != 0)
     {
-      /* If we are still suspended then re-enable asynchronous resume interrupt */
+      /* If we are still suspended then re-enable asynchronous resume
+       * interrupt
+       */
 
       regval = khci_getreg(KINETIS_USB0_USBTRC0);
       regval |= USB_USBTRC0_USBRESMEN;
       khci_putreg(regval, KINETIS_USB0_USBTRC0);
 
-      usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_SUSPENDED), khci_getreg(KINETIS_USB0_CTL));
+      usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_SUSPENDED),
+               khci_getreg(KINETIS_USB0_CTL));
       goto interrupt_exit;
     }
 
@@ -2946,9 +3103,9 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
     }
 #endif
 
-   /* Service stall interrupts */
+  /* Service stall interrupts */
 
-   if ((usbir & USB_INT_STALL) != 0)
+  if ((usbir & USB_INT_STALL) != 0)
     {
       usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_STALL), usbir);
 
@@ -2960,12 +3117,12 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
     }
 
   /* Clear the pending USB interrupt.  Goto is used in the above to assure
-   * that all interrupt exists pass through this logic.
+   * that all interrupt exits pass through this logic.
    */
 
 interrupt_exit:
   kinetis_clrpend(KINETIS_IRQ_USBOTG);
-#ifdef  CONFIG_KINETIS_USBOTG
+#ifdef CONFIG_KINETIS_USBOTG
   usbtrace(TRACE_INTEXIT(KHCI_TRACEINTID_INTERRUPT), usbir | otgir);
 #else
   usbtrace(TRACE_INTEXIT(KHCI_TRACEINTID_INTERRUPT), usbir);
@@ -2976,6 +3133,7 @@ interrupt_exit:
 /****************************************************************************
  * Suspend/Resume Helpers
  ****************************************************************************/
+
 /****************************************************************************
  * Name: khci_suspend
  ****************************************************************************/
@@ -3016,7 +3174,6 @@ static void khci_suspend(struct khci_usbdev_s *priv)
    */
 
   kinetis_usbsuspend((struct usbdev_s *)priv, false);
-
 }
 #endif
 
@@ -3068,20 +3225,20 @@ static void khci_resume(struct khci_usbdev_s *priv)
 
   /* Enable the IDLE interrupt */
 
-   regval  = khci_getreg(KINETIS_USB0_INTEN);
-   regval |= USB_INT_SLEEP;
-   khci_putreg(regval, KINETIS_USB0_INTEN);
+  regval  = khci_getreg(KINETIS_USB0_INTEN);
+  regval |= USB_INT_SLEEP;
+  khci_putreg(regval, KINETIS_USB0_INTEN);
 
-   /* Disable the RESUME interrupt */
+  /* Disable the RESUME interrupt */
 
-   regval &= ~USB_INT_RESUME;
-   khci_putreg(regval, KINETIS_USB0_INTEN);
+  regval &= ~USB_INT_RESUME;
+  khci_putreg(regval, KINETIS_USB0_INTEN);
 
-   /* Disable the the async resume interrupt */
+  /* Disable the the async resume interrupt */
 
-   regval = khci_getreg(KINETIS_USB0_USBTRC0);
-   regval &= ~USB_USBTRC0_USBRESMEN;
-   khci_putreg(regval, KINETIS_USB0_USBTRC0);
+  regval = khci_getreg(KINETIS_USB0_USBTRC0);
+  regval &= ~USB_USBTRC0_USBRESMEN;
+  khci_putreg(regval, KINETIS_USB0_USBTRC0);
 
   khci_putreg(USB_INT_RESUME, KINETIS_USB0_ISTAT);
 
@@ -3098,6 +3255,7 @@ static void khci_resume(struct khci_usbdev_s *priv)
 /****************************************************************************
  * Endpoint Helpers
  ****************************************************************************/
+
 /****************************************************************************
  * Name: khci_epreserve
  ****************************************************************************/
@@ -3180,16 +3338,16 @@ static void khci_ep0configure(struct khci_usbdev_s *priv)
   khci_putreg(KHCI_EP_DISABLED, KINETIS_USB0_ENDPT0);
 
   ep0         = &priv->eplist[EP0];
-  bytecount   = (USB_SIZEOF_CTRLREQ << USB_BDT_BYTECOUNT_SHIFT);
+  bytecount   = (CONFIG_USBDEV_EP0_MAXSIZE << USB_BDT_BYTECOUNT_SHIFT);
 
   bdt         = &g_bdt[EP0_OUT_EVEN];
-  bdt->addr   = (uint8_t *)&priv->ctrl;
+  bdt->addr   = priv->out0data[EP0_OUT_EVEN];
   bdt->status = (USB_BDT_UOWN | bytecount);
   ep0->bdtout = bdt;
 
-  bdt++;
+  bdt         = &g_bdt[EP0_OUT_ODD];
+  bdt->addr   = priv->out0data[EP0_OUT_ODD];
   bdt->status = (USB_BDT_UOWN | bytecount);
-  bdt->addr   = (uint8_t *)&priv->ctrl;
 
   /* Configure the IN BDTs. */
 
@@ -3198,7 +3356,7 @@ static void khci_ep0configure(struct khci_usbdev_s *priv)
   bdt->addr   = 0;
   ep0->bdtin  = bdt;
 
-  bdt++;
+  bdt         = &g_bdt[EP0_IN_ODD];
   bdt->status = 0;
   bdt->addr   = 0;
 
@@ -3223,8 +3381,8 @@ static void khci_ep0configure(struct khci_usbdev_s *priv)
  ****************************************************************************/
 
 static int khci_epconfigure(struct usbdev_ep_s *ep,
-                               const struct usb_epdesc_s *desc,
-                               bool last)
+                            const struct usb_epdesc_s *desc,
+                            bool last)
 {
   struct khci_ep_s *privep = (struct khci_ep_s *)ep;
   volatile struct usbotg_bdtentry_s *bdt;
@@ -3239,7 +3397,7 @@ static int khci_epconfigure(struct usbdev_ep_s *ep,
   if (!ep || !desc)
     {
       usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_INVALIDPARMS), 0);
-      uerr("ERROR: ep=%p desc=%p\n");
+      uerr("ERROR: ep=%p desc=%p\n", ep, desc);
       return -EINVAL;
     }
 #endif
@@ -3255,7 +3413,7 @@ static int khci_epconfigure(struct usbdev_ep_s *ep,
   /* Set the requested type */
 
   switch (desc->attr & USB_EP_ATTR_XFERTYPE_MASK)
-   {
+  {
     case USB_EP_ATTR_XFER_INT: /* Interrupt endpoint */
       regval = epin ? KHCI_EP_INTIN : KHCI_EP_INTOUT;
       break;
@@ -3274,9 +3432,10 @@ static int khci_epconfigure(struct usbdev_ep_s *ep,
       break;
 
     default:
-      usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADEPTYPE), (uint16_t)desc->type);
+      usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_BADEPTYPE),
+              (uint16_t)desc->type);
       return -EINVAL;
-    }
+  }
 
   /* First disable the endpoint */
 
@@ -3340,7 +3499,9 @@ static int khci_epconfigure(struct usbdev_ep_s *ep,
   DEBUGASSERT(maxpacket <= KHCI_MAXPACKET_SIZE);
   ep->maxpacket = maxpacket;
 
-  /* Set the full, logic EP number (that includes direction encoded in bit 7) */
+  /* Set the full, logic EP number
+   * (that includes direction encoded in bit 7)
+   */
 
   if (epin)
     {
@@ -3483,7 +3644,8 @@ static int khci_epsubmit(struct usbdev_ep_s *ep, struct usbdev_req_s *req)
 #ifdef CONFIG_DEBUG_FEATURES
   if (!priv->driver)
     {
-      usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_NOTCONFIGURED), priv->usbdev.speed);
+      usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_NOTCONFIGURED),
+               priv->usbdev.speed);
       uerr("ERROR: driver=%p\n", priv->driver);
       return -ESHUTDOWN;
     }
@@ -3653,22 +3815,38 @@ static int khci_epbdtstall(struct usbdev_ep_s *ep, bool resume, bool epin)
 
       /* Check for the EP0 OUT endpoint.  This is a special case because we
        * need to set it up to receive the next setup packet (Hmmm... what
-       * if there are queued outgoing reponses.  We need to revisit this.)
+       * if there are queued outgoing responses.  We need to revisit this.)
        */
 
       if (epno == 0 && !epin)
         {
-          uint32_t bytecount = (USB_SIZEOF_CTRLREQ << USB_BDT_BYTECOUNT_SHIFT);
-          uint32_t physaddr  = (uint32_t)&priv->ctrl;
+          uint32_t bytecount = (CONFIG_USBDEV_EP0_MAXSIZE <<
+                                USB_BDT_BYTECOUNT_SHIFT);
 
           /* Configure the other BDT to receive a SETUP command. */
 
-          otherbdt->addr     = (uint8_t *)physaddr;
+          if (otherbdt == &g_bdt[EP0_OUT_EVEN])
+            {
+              otherbdt->addr = priv->out0data[EP0_OUT_EVEN];
+            }
+          else
+            {
+              otherbdt->addr = priv->out0data[EP0_OUT_ODD];
+            }
+
           otherbdt->status   = (USB_BDT_UOWN | bytecount);
 
           /* Configure the current BDT to receive a SETUP command. */
 
-          bdt->addr          = (uint8_t *)physaddr;
+          if (bdt == &g_bdt[EP0_OUT_EVEN])
+            {
+              bdt->addr = priv->out0data[EP0_OUT_EVEN];
+            }
+          else
+            {
+              bdt->addr = priv->out0data[EP0_OUT_ODD];
+            }
+
           bdt->status        = (USB_BDT_UOWN | bytecount);
 
           bdtinfo("EP0 BDT IN [%p] {%08x, %08x}\n",
@@ -3691,11 +3869,12 @@ static int khci_epbdtstall(struct usbdev_ep_s *ep, bool resume, bool epin)
           bdtinfo("EP%d BDT %s [%p] {%08x, %08x}\n",
                   epno, epin ? "IN" : "OUT", bdt, bdt->status, bdt->addr);
           bdtinfo("EP%d BDT %s [%p] {%08x, %08x}\n",
-                  epno, epin ? "IN" : "OUT", otherbdt, otherbdt->status, otherbdt->addr);
+                  epno, epin ? "IN" : "OUT", otherbdt,
+                  otherbdt->status, otherbdt->addr);
 
-          /* Restart any queued requests (after a delay so that we can be assured
-           * that the hardware has recovered from the stall -- I don't know of any
-           * other way to assure this.).
+          /* Restart any queued requests (after a delay so that we can be
+           * assured that the hardware has recovered from the stall -- I
+           * don't know of any other way to assure this.).
            */
 
           khci_delayedrestart(priv, epno);
@@ -3726,7 +3905,8 @@ static int khci_epbdtstall(struct usbdev_ep_s *ep, bool resume, bool epin)
       bdtinfo("EP%d BDT %s [%p] {%08x, %08x}\n",
               epno, epin ? "IN" : "OUT", bdt, bdt->status, bdt->addr);
       bdtinfo("EP%d BDT %s [%p] {%08x, %08x}\n",
-              epno, epin ? "IN" : "OUT", otherbdt, otherbdt->status, otherbdt->addr);
+              epno, epin ? "IN" : "OUT", otherbdt,
+              otherbdt->status, otherbdt->addr);
     }
 
   return OK;
@@ -3772,7 +3952,8 @@ static int khci_epstall(struct usbdev_ep_s *ep, bool resume)
 
       /* Set the EP0 control state appropriately */
 
-      privep->dev->ctrlstate = resume ? CTRLSTATE_WAITSETUP : CTRLSTATE_STALLED;
+      privep->dev->ctrlstate = resume ?
+                               CTRLSTATE_WAITSETUP : CTRLSTATE_STALLED;
     }
 
   /* Otherwise, select the BDT for the endpoint direction */
@@ -3791,6 +3972,7 @@ static int khci_epstall(struct usbdev_ep_s *ep, bool resume)
 /****************************************************************************
  * Device Controller Operations
  ****************************************************************************/
+
 /****************************************************************************
  * Name: khci_allocep
  ****************************************************************************/
@@ -3819,11 +4001,12 @@ static struct usbdev_ep_s *khci_allocep(struct usbdev_s *dev, uint8_t epno,
 
   if (epno > 0)
     {
-      /* Otherwise, we will return the endpoint structure only for the requested
-       * 'logical' endpoint.  All of the other checks will still be performed.
+      /* Otherwise, we will return the endpoint structure only for the
+       * requested 'logical' endpoint.  All of the other checks will still
+       * be performed.
        *
-       * First, verify that the logical endpoint is in the range supported by
-       * by the hardware.
+       * First, verify that the logical endpoint is in the range supported
+       * by by the hardware.
        */
 
       if (epno >= KHCI_NENDPOINTS)
@@ -4174,7 +4357,7 @@ static void khci_hwreset(struct khci_usbdev_s *priv)
   /* Bring the ping pong buffer pointers out of reset */
 
   regval &= ~USB_CTL_ODDRST;
-   khci_putreg(regval, KINETIS_USB0_CTL);
+  khci_putreg(regval, KINETIS_USB0_CTL);
 
   /* Enable interrupts at the USB controller */
 
@@ -4225,21 +4408,21 @@ static void khci_hwinitialize(struct khci_usbdev_s *priv)
 
   khci_putreg((uint8_t)((uint32_t)g_bdt >> 24), KINETIS_USB0_BDTPAGE3);
   khci_putreg((uint8_t)((uint32_t)g_bdt >> 16), KINETIS_USB0_BDTPAGE2);
-  khci_putreg((uint8_t)(((uint32_t)g_bdt >> 8) & USB_BDTPAGE1_MASK), KINETIS_USB0_BDTPAGE1);
+  khci_putreg((uint8_t)(((uint32_t)g_bdt >> 8) & USB_BDTPAGE1_MASK),
+      KINETIS_USB0_BDTPAGE1);
 
-  uinfo("BDT Address %hhx \n" ,&g_bdt);
-  uinfo("BDTPAGE3 %hhx\n",khci_getreg(KINETIS_USB0_BDTPAGE3));
-  uinfo("BDTPAGE2 %hhx\n",khci_getreg(KINETIS_USB0_BDTPAGE2));
-  uinfo("BDTPAGE1 %hhx\n",khci_getreg(KINETIS_USB0_BDTPAGE1));
+  uinfo("BDT Address %p \n", (const void *)&g_bdt);
+  uinfo("BDTPAGE3 %hhx\n", khci_getreg(KINETIS_USB0_BDTPAGE3));
+  uinfo("BDTPAGE2 %hhx\n", khci_getreg(KINETIS_USB0_BDTPAGE2));
+  uinfo("BDTPAGE1 %hhx\n", khci_getreg(KINETIS_USB0_BDTPAGE1));
 
 #if defined(USB0_USBTRC0_BIT6)
   /* Undocumented bit */
 
   regval = khci_getreg(KINETIS_USB0_USBTRC0);
   regval |= USB0_USBTRC0_BIT6;
-  khci_putreg(regval,KINETIS_USB0_USBTRC0);
+  khci_putreg(regval, KINETIS_USB0_USBTRC0);
 #endif
-
 }
 
 /****************************************************************************
@@ -4261,12 +4444,6 @@ static void khci_swinitialize(struct khci_usbdev_s *priv)
   priv->usbdev.speed = USB_SPEED_UNKNOWN;
   priv->epavail      = KHCI_ENDP_ALLSET & ~KHCI_ENDP_BIT(EP0);
   priv->rwakeup      = 1;
-
-  /* Initialize the watchdog timer that is used to perform a delayed
-   * queue restart after recovering from a stall.
-   */
-
-  priv->wdog      = wd_create();
 
   /* Initialize the endpoint list */
 
@@ -4305,7 +4482,6 @@ static void khci_swinitialize(struct khci_usbdev_s *priv)
 
 static void khci_hwshutdown(struct khci_usbdev_s *priv)
 {
-
   /* Disable all interrupts and force the USB controller into reset */
 
   khci_putreg(0, KINETIS_USB0_ERREN);
@@ -4324,7 +4500,7 @@ static void khci_hwshutdown(struct khci_usbdev_s *priv)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_usbinitialize
+ * Name: arm_usbinitialize
  *
  * Description:
  *   Initialize the USB driver
@@ -4344,7 +4520,7 @@ static void khci_hwshutdown(struct khci_usbdev_s *priv)
  *
  ****************************************************************************/
 
-void up_usbinitialize(void)
+void arm_usbinitialize(void)
 {
   /* For now there is only one USB controller, but we will always refer to
    * it using a pointer to make any future ports to multiple USB controllers
@@ -4400,7 +4576,7 @@ void up_usbinitialize(void)
     {
       usbtrace(TRACE_DEVERROR(KHCI_TRACEERR_IRQREGISTRATION),
                (uint16_t)KINETIS_IRQ_USBOTG);
-      up_usbuninitialize();
+      arm_usbuninitialize();
       return;
     }
 
@@ -4408,7 +4584,7 @@ void up_usbinitialize(void)
 }
 
 /****************************************************************************
- * Name: up_usbuninitialize
+ * Name: arm_usbuninitialize
  * Description:
  *   Initialize the USB driver
  * Input Parameters:
@@ -4419,7 +4595,7 @@ void up_usbinitialize(void)
  *
  ****************************************************************************/
 
-void up_usbuninitialize(void)
+void arm_usbuninitialize(void)
 {
   /* For now there is only one USB controller, but we will always refer to
    * it using a pointer to make any future ports to multiple USB controllers
@@ -4440,7 +4616,7 @@ void up_usbuninitialize(void)
 
   kinetis_usbpullup(&priv->usbdev, false);
 
-  wd_delete(priv->wdog);
+  wd_cancel(&priv->wdog);
 
   /* Put the hardware in an inactive state */
 
@@ -4518,7 +4694,7 @@ int usbdev_register(struct usbdevclass_driver_s *driver)
 
       DEBUGASSERT(priv->devstate == DEVSTATE_DETACHED);
       khci_reset(priv);
-   }
+    }
 
   return ret;
 }

@@ -370,12 +370,9 @@ ViewTool DP83848 Ethernet Module
       CONFIG_NSH_NOMAC=y
 
     Networking (recommended/typical)
-      CONFIG_NSOCKET_DESCRIPTORS=10          : Socket-related
       CONFIG_NET_SOCKOPTS=y
 
       CONFIG_NET_ETH_PKTSIZE=650             : Maximum packet size
-      CONFIG_NET_TCP_READAHEAD=y             : Enable read-ahead buffering
-      CONFIG_NET_TCP_READAHEAD_BUFSIZE=650
 
       CONFIG_NET_TCP=y                       : TCP support
       CONFIG_NET_NTCP_READAHEAD_BUFFERS=8
@@ -797,7 +794,7 @@ Toolchains
      out 'cygpath -w'
 
   2. Windows toolchains cannot follow Cygwin symbolic links.  Many symbolic
-     links are used in Nuttx (e.g., include/arch).  The make system works
+     links are used in NuttX (e.g., include/arch).  The make system works
      around these problems for the Windows tools by copying directories
      instead of linking them.  But this can also cause some confusion for
      you:  For example, you may edit a file in a "linked" directory and find
@@ -851,13 +848,13 @@ Configurations
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
        CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
 
-  4. All of these configurations use the CodeSourcery for Windows toolchain
+  4. All of these configurations use the ARM EABI GCC toolchain for Windows
      (unless stated otherwise in the description of the configuration).  That
      toolchain selection can easily be reconfigured using 'make menuconfig'.
      Here are the relevant current settings:
 
      System Type -> Toolchain:
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : GNU EABI toolchain for windows
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
      See also the "NOTE about Windows native toolchains" in the section call
      "GNU Toolchain Options" above.
@@ -942,8 +939,8 @@ Configurations
        selection can easily be changed by reconfiguring:
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
-       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under Windows
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
     6. USB support is disabled by default.  See the section above entitled,
        "USB Interface"
@@ -974,8 +971,8 @@ Configurations
        selection can easily be changed by reconfiguring:
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
-       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under Windows
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
     4. USB support is disabled by default.  See the section above entitled,
        "USB Interface"
@@ -1061,7 +1058,7 @@ Configurations
           Library Support:
             CONFIG_SCHED_WORKQUEUE=y           : Work queue support required
 
-          Applicaton Configuration:
+          Application Configuration:
             CONFIG_EXAMPLES_TOUCHSCREEN=y      : Enable the touchscreen built-int test
 
           Defaults should be okay for related touchscreen settings.  Touchscreen

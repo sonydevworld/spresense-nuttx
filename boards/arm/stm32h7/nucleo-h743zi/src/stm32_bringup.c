@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32h7/nucleo-h743zi/src/stm32_bringup.c
  *
- *   Copyright (C) 2018-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,19 +25,32 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
-#include <sys/mount.h>
 #include <syslog.h>
 #include <errno.h>
 
+#include <nuttx/fs/fs.h>
+
+#ifdef CONFIG_USBMONITOR
+#include <nuttx/usb/usbmonitor.h>
+#endif
+
+#ifdef CONFIG_STM32H7_OTGFS
+#include "stm32_usbhost.h"
+#endif
+
 #include "nucleo-h743zi.h"
 
-#ifdef CONFIG_BUTTONS
+#ifdef CONFIG_INPUT_BUTTONS
 #  include <nuttx/input/buttons.h>
 #endif
 
 #ifdef HAVE_RTC_DRIVER
 #  include <nuttx/timers/rtc.h>
 #  include "stm32_rtc.h"
+#endif
+
+#ifdef CONFIG_STM32_ROMFS
+#  include "stm32_romfs.h"
 #endif
 
 #include "stm32_gpio.h"
@@ -132,7 +130,8 @@ static void stm32_i2ctool(void)
  *   CONFIG_BOARD_LATE_INITIALIZE=y :
  *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y && CONFIG_NSH_ARCHINIT:
+ *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y &&
+ *   CONFIG_NSH_ARCHINIT:
  *     Called from the NSH library
  *
  ****************************************************************************/
@@ -157,18 +156,28 @@ int stm32_bringup(void)
    */
 
   ccm_procfs_register();
-#endif  /* CONFIG_STM32_CCM_PROCFS */
+#endif /* CONFIG_STM32_CCM_PROCFS */
 
   /* Mount the procfs file system */
 
-  ret = mount(NULL, STM32_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
+  ret = nx_mount(NULL, STM32_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
   if (ret < 0)
     {
       syslog(LOG_ERR,
-             "ERROR: Failed to mount the PROC filesystem: %d (%d)\n",
-             ret, errno);
+             "ERROR: Failed to mount the PROC filesystem: %d\n",  ret);
     }
-#endif  /* CONFIG_FS_PROCFS */
+#endif /* CONFIG_FS_PROCFS */
+
+#ifdef CONFIG_STM32_ROMFS
+  /* Mount the romfs partition */
+
+  ret = stm32_romfs_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to mount romfs at %s: %d\n",
+             CONFIG_STM32_ROMFS_MOUNTPOINT, ret);
+    }
+#endif
 
 #ifdef HAVE_RTC_DRIVER
   /* Instantiate the STM32 lower-half RTC driver */
@@ -196,7 +205,7 @@ int stm32_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_BUTTONS
+#ifdef CONFIG_INPUT_BUTTONS
   /* Register the BUTTON driver */
 
   ret = btn_lower_initialize("/dev/buttons");
@@ -204,7 +213,34 @@ int stm32_bringup(void)
     {
       syslog(LOG_ERR, "ERROR: btn_lower_initialize() failed: %d\n", ret);
     }
-#endif  /* CONFIG_BUTTONS */
+#endif /* CONFIG_INPUT_BUTTONS */
+
+#ifdef HAVE_USBHOST
+  /* Initialize USB host operation.  stm32_usbhost_initialize()
+   * starts a thread will monitor for USB connection and
+   * disconnection events.
+   */
+
+  ret = stm32_usbhost_initialize();
+  if (ret != OK)
+    {
+      syslog(LOG_ERR,
+             "ERROR: Failed to initialize USB host: %d\n",
+             ret);
+    }
+#endif
+
+#ifdef HAVE_USBMONITOR
+  /* Start the USB Monitor */
+
+  ret = usbmonitor_start();
+  if (ret != OK)
+    {
+      syslog(LOG_ERR,
+             "ERROR: Failed to start USB monitor: %d\n",
+             ret);
+    }
+#endif
 
 #ifdef CONFIG_ADC
   /* Initialize ADC and register the ADC driver. */
@@ -214,7 +250,7 @@ int stm32_bringup(void)
     {
       syslog(LOG_ERR, "ERROR: stm32_adc_setup failed: %d\n", ret);
     }
-#endif  /* CONFIG_ADC */
+#endif /* CONFIG_ADC */
 
 #ifdef CONFIG_DEV_GPIO
   /* Register the GPIO driver */
@@ -231,25 +267,28 @@ int stm32_bringup(void)
   ret = stm32_lsm6dsl_initialize("/dev/lsm6dsl0");
   if (ret < 0)
     {
-      syslog(LOG_ERR, "ERROR: Failed to initialize LSM6DSL driver: %d\n", ret);
+      syslog(LOG_ERR, "ERROR: Failed to initialize LSM6DSL driver: %d\n",
+             ret);
     }
-#endif  /* CONFIG_SENSORS_LSM6DSL */
+#endif /* CONFIG_SENSORS_LSM6DSL */
 
 #ifdef CONFIG_SENSORS_LSM9DS1
   ret = stm32_lsm9ds1_initialize();
   if (ret < 0)
     {
-      syslog(LOG_ERR, "ERROR: Failed to initialize LSM9DS1 driver: %d\n", ret);
+      syslog(LOG_ERR, "ERROR: Failed to initialize LSM9DS1 driver: %d\n",
+             ret);
     }
-#endif  /* CONFIG_SENSORS_LSM6DSL */
+#endif /* CONFIG_SENSORS_LSM6DSL */
 
 #ifdef CONFIG_SENSORS_LSM303AGR
   ret = stm32_lsm303agr_initialize("/dev/lsm303mag0");
   if (ret < 0)
     {
-      syslog(LOG_ERR, "ERROR: Failed to initialize LSM303AGR driver: %d\n", ret);
+      syslog(LOG_ERR, "ERROR: Failed to initialize LSM303AGR driver: %d\n",
+             ret);
     }
-#endif  /* CONFIG_SENSORS_LSM303AGR */
+#endif /* CONFIG_SENSORS_LSM303AGR */
 
 #ifdef CONFIG_PCA9635PW
   /* Initialize the PCA9635 chip */
@@ -265,9 +304,10 @@ int stm32_bringup(void)
   ret = stm32_wlinitialize();
   if (ret < 0)
     {
-      syslog(LOG_ERR, "ERROR: Failed to initialize wireless driver: %d\n", ret);
+      syslog(LOG_ERR, "ERROR: Failed to initialize wireless driver: %d\n",
+             ret);
     }
-#endif  /* CONFIG_WL_NRF24L01 */
+#endif /* CONFIG_WL_NRF24L01 */
 
 #if defined(CONFIG_CDCACM) && !defined(CONFIG_CDCACM_CONSOLE)
   /* Initialize CDCACM */
@@ -279,7 +319,17 @@ int stm32_bringup(void)
     {
       syslog(LOG_ERR, "ERROR: cdcacm_initialize failed: %d\n", ret);
     }
-#endif  /* CONFIG_CDCACM & !CONFIG_CDCACM_CONSOLE */
+#endif /* CONFIG_CDCACM & !CONFIG_CDCACM_CONSOLE */
+
+#ifdef CONFIG_PWM
+  /* Initialize PWM and register the PWM device. */
+
+  ret = stm32_pwm_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: stm32_pwm_setup() failed: %d\n", ret);
+    }
+#endif
 
   return OK;
 }

@@ -3,7 +3,7 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
-mainmenu "Nuttx/$ARCH Configuration"
+mainmenu "NuttX/$ARCH Configuration"
 
 config APPSDIR
 	string
@@ -53,6 +53,14 @@ config TOOLCHAIN_WINDOWS
 		Selected internally if the selected Windows environment is compatible
 		with the use of Windows native toolchains.
 
+config CYGWIN_WINTOOL
+	bool
+	default n
+	depends on WINDOWS_CYGWIN
+	---help---
+		Selected internally if Cygwin environment with the use of Windows
+		native toolchains.
+
 choice
 	prompt "Windows Build Environment"
 	default WINDOWS_CYGWIN
@@ -61,9 +69,15 @@ choice
 config WINDOWS_NATIVE
 	bool "Windows Native"
 	select TOOLCHAIN_WINDOWS
+	depends on EXPERIMENTAL
 	---help---
 		Build natively in a CMD.exe environment with Windows style paths
-		(like C:\cgywin\home)
+		(like C:\cygwin\home)
+
+		The Windows native build is complete and available, but not often
+		used or verified.  As a consequence, it cannot be assured to be
+		fully functional at any given time.  Hence, it is marked here as
+		EXPERIMENTAL so that the end user will be aware of this state.
 
 config WINDOWS_CYGWIN
 	bool "Cygwin"
@@ -72,18 +86,12 @@ config WINDOWS_CYGWIN
 		Build natively in a Cygwin environment with POSIX style paths (like
 		/cygdrive/c/Program Files)
 
-config WINDOWS_UBUNTU
-	bool "Ubuntu under Windows 10"
-	---help---
-		Build natively in an Ubuntu shell under Windoes 10 environment with
-		POSIX style paths (like /mnt/c/Program Files)
-
 config WINDOWS_MSYS
 	bool "MSYS or MSYS2"
 	select TOOLCHAIN_WINDOWS
 	---help---
 		Build natively in a Cygwin environment with POSIX style paths (like
-		/cygdrive/c/cgywin/home)
+		/cygdrive/c/cygwin/home)
 
 config WINDOWS_OTHER
 	bool "Windows POSIX-like environment"
@@ -208,7 +216,7 @@ config BUILD_KERNEL
 		they can be loaded into memory for execution.
 
 		NOTE:  This build configuration requires that the platform support
-		a memory management unit (MPU) and address environments.  Support,
+		a memory management unit (MMU) and address environments.  Support,
 		however, may not be implemented on all platforms.
 
 endchoice # Build configuration
@@ -216,7 +224,6 @@ endchoice # Build configuration
 config BUILD_2PASS
 	bool "Two pass build"
 	default n
-	depends on !BUILD_KERNEL
 	---help---
 		Enables the two pass build options.
 
@@ -272,20 +279,6 @@ endif # Build 2-pass
 endmenu # Build Setup
 
 menu "Binary Output Formats"
-
-config RRLOAD_BINARY
-	bool "rrload binary format"
-	default n
-	---help---
-		Create nuttx.rr in the rrload binary format used with
-		BSPs from www.ridgerun.com using the tools/mkimage.sh script.
-
-config CXD56_BINARY
-	bool "spk binary format"
-	default n
-	---help---
-		Create nuttx.spk binary format used on spresense board and boards
-		based on cxd56xx arch.
 
 config INTELHEX_BINARY
 	bool "Intel HEX binary format"
@@ -495,11 +488,26 @@ config ARCH_SETJMP_H
 		ARCH_SETJMP_H=y and providing. If ARCH_SETJMP_H, is not defined, then
 		the setjmp.h header file will stay out-of-the-way in include/nuttx/.
 
+choice
+	prompt "debug.h selection"
+	default ARCH_NONE_DEBUG_H
+
+config ARCH_NONE_DEBUG_H
+	bool "None"
+	---help---
+		No debug.h under include/arch/ and include/arch/chip.
+
 config ARCH_DEBUG_H
 	bool "debug.h"
-	default n
 	---help---
-		The debug.h contains architecture dependent debugging primitives
+		The debug.h under include/arch contains architecture dependent debugging primitives
+
+config ARCH_CHIP_DEBUG_H
+	bool "chip debug.h"
+	---help---
+		The debug.h under include/arch/chip contains architecture dependent debugging primitives
+
+endchoice # debug.h selection
 
 endmenu # Customize Header Files
 
@@ -600,7 +608,7 @@ endif # DEBUG_AUDIO
 config DEBUG_BINFMT
 	bool "Binary Loader Debug Features"
 	default n
-	depends on !BINFMT_DISABLE
+	depends on !BINFMT_DISABLE || LIBC_MODLIB
 	---help---
 		Enable binary loader debug features.
 
@@ -1417,6 +1425,44 @@ config DEBUG_PWM_INFO
 
 endif # DEBUG_PWM
 
+config DEBUG_RC
+	bool "RC Debug Features"
+	default n
+	depends on DRIVERS_RC
+	---help---
+		Enable RC debug features.
+
+		Support for this debug option is architecture-specific and may not
+		be available for some MCUs.
+
+if DEBUG_RC
+
+config DEBUG_RC_ERROR
+	bool "RC Error Output"
+	default n
+	depends on DEBUG_ERROR
+	---help---
+		Enable RC driver error output to SYSLOG.
+
+		Support for this debug option is architecture-specific and may not
+		be available for some MCUs.
+
+config DEBUG_RC_WARN
+	bool "RC Warnings Output"
+	default n
+	depends on DEBUG_WARN
+	---help---
+		Enable RC driver warning output to SYSLOG.
+
+config DEBUG_RC_INFO
+	bool "RC Informational Output"
+	default n
+	depends on DEBUG_INFO
+	---help---
+		Enable RC driver informational output to SYSLOG.
+
+endif # DEBUG_RC
+
 config DEBUG_RTC
 	bool "RTC Debug Features"
 	default n
@@ -1663,6 +1709,63 @@ config DEBUG_WATCHDOG_INFO
 		Enable watchdog time informational output to SYSLOG.
 
 endif # DEBUG_WATCHDOG
+
+if DEBUG_MOTOR
+
+config DEBUG_MOTOR_ERROR
+	bool "Motor Error Output"
+	default n
+	depends on DEBUG_ERROR
+	---help---
+		Enable motor error output to SYSLOG.
+
+config DEBUG_MOTOR_WARN
+	bool "Motor Warnings Output"
+	default n
+	depends on DEBUG_WARN
+	---help---
+		Enable motor warning output to SYSLOG.
+
+config DEBUG_MOTOR_INFO
+	bool "Motor Informational Output"
+	default n
+	depends on DEBUG_INFO
+	---help---
+		Enable motor informational output to SYSLOG.
+
+endif # DEBUG_MOTOR
+
+config DEBUG_VIDEO
+        bool "Video Debug Features"
+        default n
+        depends on DRIVERS_VIDEO
+        ---help---
+                Enable video debug features.
+
+if DEBUG_VIDEO
+
+config DEBUG_VIDEO_ERROR
+        bool "Video Error Output"
+        default n
+        depends on DEBUG_ERROR
+        ---help---
+                Enable video error output to SYSLOG.
+
+config DEBUG_VIDEO_WARN
+        bool "Video Warnings Output"
+        default n
+        depends on DEBUG_WARN
+        ---help---
+                Enable video warning output to SYSLOG.
+
+config DEBUG_VIDEO_INFO
+        bool "Video Informational Output"
+        default n
+        depends on DEBUG_INFO
+        ---help---
+                Enable video informational output to SYSLOG.
+
+endif # DEBUG_VIDEO
 endif # DEBUG_FEATURES
 
 config ARCH_HAVE_STACKCHECK
@@ -1679,6 +1782,20 @@ config STACK_COLORATION
 		to monitor the level of stack usage.
 
 		Only supported by a few architectures.
+
+config STACK_CANARIES
+	bool "Compiler stack canaries"
+	depends on ARCH_HAVE_STACKCHECK
+	default n
+	---help---
+		This option enables compiler stack canaries.
+		If stack canaries are supported by the compiler, it will emit
+		extra code that inserts a canary value into the stack frame when
+		a function is entered and validates this value upon exit.
+		Stack corruption (such as that caused by buffer overflow) results
+		in a fatal error condition for the running entity.
+		Enabling this option can result in a significant increase
+		in footprint and an associated decrease in performance.
 
 config ARCH_HAVE_HEAPCHECK
 	bool
@@ -1807,3 +1924,14 @@ menu "Application Configuration"
 source "$APPSDIR/Kconfig"
 endmenu
 
+# Support optionally including external code
+# into the OS build. EXTERNALDIR will be used
+# to either point to 'nuttx/external' or
+# 'nuttx/dummy', if 'nuttx/external'
+# does not contain a Kconfig file
+
+config EXTERNALDIR
+        string
+        option env="EXTERNALDIR"
+
+source "$EXTERNALDIR/Kconfig"

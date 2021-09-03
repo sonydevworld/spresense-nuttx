@@ -1,35 +1,20 @@
 /****************************************************************************
  * sched/irq/irq_csection.c
  *
- *   Copyright (C) 2016-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -120,7 +105,7 @@ volatile uint8_t g_cpu_nestcount[CONFIG_SMP_NCPUS];
  ****************************************************************************/
 
 #ifdef CONFIG_SMP
-static inline bool irq_waitlock(int cpu)
+bool irq_waitlock(int cpu)
 {
 #ifdef CONFIG_SCHED_INSTRUMENTATION_SPINLOCKS
   FAR struct tcb_s *tcb = current_task(cpu);
@@ -280,6 +265,7 @@ try_again:
                    * no longer blocked by the critical section).
                    */
 
+try_again_in_irq:
                   if (!irq_waitlock(cpu))
                     {
                       /* We are in a deadlock condition due to a pending
@@ -288,6 +274,24 @@ try_again:
                        */
 
                       DEBUGVERIFY(up_cpu_paused(cpu));
+
+                      /* NOTE: As the result of up_cpu_paused(cpu), this CPU
+                       * might set g_cpu_irqset in nxsched_resume_scheduler()
+                       * However, another CPU might hold g_cpu_irqlock.
+                       * To avoid this situation, releae g_cpu_irqlock first.
+                       */
+
+                      if ((g_cpu_irqset & (1 << cpu)) != 0)
+                        {
+                          spin_clrbit(&g_cpu_irqset, cpu, &g_cpu_irqsetlock,
+                                      &g_cpu_irqlock);
+                        }
+
+                      /* NOTE: Here, this CPU does not hold g_cpu_irqlock,
+                       * so call irq_waitlock(cpu) to acquire g_cpu_irqlock.
+                       */
+
+                      goto try_again_in_irq;
                     }
                 }
 
@@ -295,8 +299,8 @@ try_again:
 
               g_cpu_nestcount[cpu] = 1;
 
-              /* Also set the CPU bit so that other CPUs will be aware that this
-               * CPU holds the critical section.
+              /* Also set the CPU bit so that other CPUs will be aware that
+               * this CPU holds the critical section.
                */
 
               spin_setbit(&g_cpu_irqset, cpu, &g_cpu_irqsetlock,
@@ -322,8 +326,8 @@ try_again:
               /* Yes... make sure that the spinlock is set and increment the
                * IRQ lock count.
                *
-               * NOTE: If irqcount > 0 then (1) we are in a critical section, and
-               * (2) this CPU should hold the lock.
+               * NOTE: If irqcount > 0 then (1) we are in a critical section,
+               * and (2) this CPU should hold the lock.
                */
 
               DEBUGASSERT(spin_islocked(&g_cpu_irqlock) &&
@@ -349,10 +353,6 @@ try_again:
                    * and try again.  Briefly re-enabling interrupts should
                    * be sufficient to permit processing the pending pause
                    * request.
-                   *
-                   * NOTE: This should never happen on architectures like
-                   * the Cortex-A; the inter-CPU interrupt (SGI) is not
-                   * maskable.
                    */
 
                   up_irq_restore(ret);
@@ -376,7 +376,7 @@ try_again:
               /* Note that we have entered the critical section */
 
 #ifdef CONFIG_SCHED_CRITMONITOR
-              sched_critmon_csection(rtcb, true);
+              nxsched_critmon_csection(rtcb, true);
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION_CSECTION
               sched_note_csection(rtcb, true);
@@ -419,7 +419,7 @@ irqstate_t enter_critical_section(void)
           /* Note that we have entered the critical section */
 
 #ifdef CONFIG_SCHED_CRITMONITOR
-          sched_critmon_csection(rtcb, true);
+          nxsched_critmon_csection(rtcb, true);
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION_CSECTION
           sched_note_csection(rtcb, true);
@@ -526,7 +526,7 @@ void leave_critical_section(irqstate_t flags)
               /* No.. Note that we have left the critical section */
 
 #ifdef CONFIG_SCHED_CRITMONITOR
-              sched_critmon_csection(rtcb, false);
+              nxsched_critmon_csection(rtcb, false);
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION_CSECTION
               sched_note_csection(rtcb, false);
@@ -544,13 +544,15 @@ void leave_critical_section(irqstate_t flags)
 
               if ((g_cpu_irqset & ~(1 << cpu)) == 0)
                 {
-                  /* Yes.. Check if there are pending tasks and that pre-emption
-                   * is also enabled.  This is necessary because we may have
-                   * deferred the up_release_pending() call in sched_unlock()
-                   * because we were within a critical section then.
+                  /* Yes.. Check if there are pending tasks and that pre-
+                   * emption is also enabled.  This is necessary because we
+                   * may have deferred the up_release_pending() call in
+                   * sched_unlock() because we were within a critical
+                   * section then.
                    */
 
-                  if (g_pendingtasks.head != NULL && !sched_islocked_global())
+                  if (g_pendingtasks.head != NULL &&
+                      !nxsched_islocked_global())
                     {
                       /* Release any ready-to-run tasks that have collected
                        * in g_pendingtasks.  NOTE: This operation has a very
@@ -596,7 +598,9 @@ void leave_critical_section(irqstate_t flags)
       FAR struct tcb_s *rtcb = this_task();
       DEBUGASSERT(rtcb != NULL);
 
-      /* Have we left entered the critical section?  Or are we still nested. */
+      /* Have we left entered the critical section?  Or are we still
+       * nested.
+       */
 
       DEBUGASSERT(rtcb->irqcount > 0);
       if (--rtcb->irqcount <= 0)
@@ -604,7 +608,7 @@ void leave_critical_section(irqstate_t flags)
           /* Note that we have left the critical section */
 
 #ifdef CONFIG_SCHED_CRITMONITOR
-          sched_critmon_csection(rtcb, false);
+          nxsched_critmon_csection(rtcb, false);
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION_CSECTION
           sched_note_csection(rtcb, false);
@@ -656,15 +660,6 @@ bool irq_cpu_locked(int cpu)
 
       return false;
     }
-
-#if defined(CONFIG_ARCH_HAVE_FETCHADD) && !defined(CONFIG_ARCH_GLOBAL_IRQDISABLE)
-  /* If the global lockcount has been incremented then simply return true */
-
-  if (g_global_lockcount > 0)
-    {
-      return true;
-    }
-#endif
 
   /* Test if g_cpu_irqlock is locked.  We don't really need to use check
    * g_cpu_irqlock to do this, we can use the g_cpu_set.

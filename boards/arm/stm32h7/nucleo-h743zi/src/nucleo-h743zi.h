@@ -1,36 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32h7/nucleo-h743zi/src/nucleo-h743zi.h
  *
-#   Copyright (C) 2017, 2019 Gwenhael Goavec-Merou. All rights reserved.
-#   Authors: Gwenhael Goavec-Merou<gwenhael.goavec-merou@trabucayre.com>
- *           David Sidrane <david.sidrane@nscdg.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,6 +35,48 @@
  ****************************************************************************/
 
 /* Configuration ************************************************************/
+
+#define HAVE_PROC       1
+#define HAVE_USBDEV     1
+#define HAVE_USBHOST    1
+#define HAVE_USBMONITOR 1
+
+/* Can't support USB host or device features if USB OTG FS is not enabled */
+
+#ifndef CONFIG_STM32H7_OTGFS
+#  undef HAVE_USBDEV
+#  undef HAVE_USBHOST
+#endif
+
+/* Can't support USB device if USB device is not enabled */
+
+#ifndef CONFIG_USBDEV
+#  undef HAVE_USBDEV
+#endif
+
+/* Can't support USB host is USB host is not enabled */
+
+#ifndef CONFIG_USBHOST
+#  undef HAVE_USBHOST
+#endif
+
+/* Check if we should enable the USB monitor before starting NSH */
+
+#ifndef CONFIG_USBMONITOR
+#  undef HAVE_USBMONITOR
+#endif
+
+#ifndef HAVE_USBDEV
+#  undef CONFIG_USBDEV_TRACE
+#endif
+
+#ifndef HAVE_USBHOST
+#  undef CONFIG_USBHOST_TRACE
+#endif
+
+#if !defined(CONFIG_USBDEV_TRACE) && !defined(CONFIG_USBHOST_TRACE)
+#  undef HAVE_USBMONITOR
+#endif
 
 /* procfs File System */
 
@@ -112,7 +138,7 @@
 #define GPIO_OTGFS_VBUS   (GPIO_INPUT|GPIO_FLOAT|GPIO_SPEED_100MHz| \
                            GPIO_OPENDRAIN|GPIO_PORTA|GPIO_PIN9)
 
-#define GPIO_OTGFS_PWRON  (GPIO_OUTPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|  \
+# define GPIO_OTGFS_PWRON  (GPIO_OUTPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|  \
                            GPIO_PUSHPULL|GPIO_PORTG|GPIO_PIN6)
 
 #ifdef CONFIG_USBHOST
@@ -168,8 +194,12 @@
 
 #define OLED_I2C_PORT   2
 
+/* PWM */
+
+#define NUCLEOH743ZI_PWMTIMER 1
+
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
@@ -230,15 +260,29 @@ int stm32_gpio_initialize(void);
  *
  * Description:
  *   Called from stm32_usbinitialize very early in inialization to setup
- *   USB-related GPIO pins for the nucleo-144 board.
+ *   USB-related GPIO pins for the NUCLEO-H743ZI board.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_STM32H7_OTGFS
-void stm32_usbinitialize(void);
+void weak_function stm32_usbinitialize(void);
 #endif
 
-/*****************************************************************************
+/****************************************************************************
+ * Name: stm32_usbhost_initialize
+ *
+ * Description:
+ *   Called at application startup time to initialize the USB host
+ *   functionality. This function will start a thread that will monitor for
+ *   device connection/disconnection events.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_STM32H7_OTGFS) && defined(CONFIG_USBHOST)
+int stm32_usbhost_initialize(void);
+#endif
+
+/****************************************************************************
  * Name: stm32_lsm6dsl_initialize
  *
  * Description:
@@ -250,7 +294,7 @@ void stm32_usbinitialize(void);
 int stm32_lsm6dsl_initialize(char *devpath);
 #endif
 
-/*****************************************************************************
+/****************************************************************************
  * Name: stm32_lsm303agr_initialize
  *
  * Description:
@@ -262,7 +306,7 @@ int stm32_lsm6dsl_initialize(char *devpath);
 int stm32_lsm303agr_initialize(char *devpath);
 #endif
 
-/*****************************************************************************
+/****************************************************************************
  * Name: stm32_wlinitialize
  *
  * Description:
@@ -273,7 +317,7 @@ int stm32_lsm303agr_initialize(char *devpath);
 int stm32_wlinitialize(void);
 #endif
 
-/*****************************************************************************
+/****************************************************************************
  * Name: stm32_lsm9ds1_initialize
  *
  * Description:
@@ -293,6 +337,18 @@ int stm32_lsm9ds1_initialize(char *devpath);
 
 #ifdef CONFIG_PCA9635PW
 int stm32_pca9635_initialize(void);
+#endif
+
+/****************************************************************************
+ * Name: stm32_pwm_setup
+ *
+ * Description:
+ *   Initialize PWM and register the PWM device.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_PWM
+int stm32_pwm_setup(void);
 #endif
 
 #endif /* __BOARDS_ARM_STM32H7_NUCLEO_H743ZI_SRC_NUCLEO_H743ZI_H */

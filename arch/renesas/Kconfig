@@ -32,14 +32,24 @@ config ARCH_CHIP_R5F565NEDDFC
 config ARCH_CHIP_R5F565NEHDFC
 	bool "R5F565NEHDFC"
 	select ARCH_RX65N_RSK2MB
+	select ARCH_HAVE_I2CRESET
+	select ARCH_HAVE_SPI_BITORDER
 	---help---
 		Renesas RX65N on RSKRX65N-2MB
 
 config ARCH_CHIP_R5F565NEHDFP
 	bool "R5F565NEHDFP"
 	select ARCH_RX65N_GRROSE
+	select ARCH_HAVE_I2CRESET
+	select ARCH_HAVE_SPI_BITORDER
 	---help---
 		Renesas RX65N on GR-ROSE
+
+config ARCH_CHIP_RENESAS_CUSTOM
+	bool "Custom Renesas chip"
+	select ARCH_CHIP_CUSTOM
+	---help---
+		Select this option if there is no directory for the chip under arch/renesas/src/.
 
 endchoice
 
@@ -50,18 +60,22 @@ config ARCH_SH1
 config ARCH_RX65N
 	bool
 	default n
+	select CYGWIN_WINTOOL if WINDOWS_CYGWIN
 
 config ARCH_RX65N_RSK1MB
 	bool
 	default n
+	select CYGWIN_WINTOOL if WINDOWS_CYGWIN
 
 config ARCH_RX65N_RSK2MB
 	bool
 	default n
+	select CYGWIN_WINTOOL if WINDOWS_CYGWIN
 
 config ARCH_RX65N_GRROSE
 	bool
 	default n
+	select CYGWIN_WINTOOL if WINDOWS_CYGWIN
 
 config ARCH_M16C
 	bool

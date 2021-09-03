@@ -52,8 +52,6 @@
 #include "sched/sched.h"
 #include "up_internal.h"
 
-#ifdef CONFIG_STACK_COLORATION
-
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -91,22 +89,20 @@ static size_t do_stackcheck(uintptr_t alloc, size_t size, bool int_stack)
 
   /* Get aligned addresses of the top and bottom of the stack */
 
-#ifdef CONFIG_TLS
   if (!int_stack)
     {
       /* Skip over the TLS data structure at the bottom of the stack */
 
+#ifdef CONFIG_TLS_ALIGNED
       DEBUGASSERT((alloc & TLS_STACK_MASK) == 0);
+#endif
       start = alloc + sizeof(struct tls_info_s);
     }
   else
     {
       start = alloc & ~3;
     }
-#else
-  UNUSED(int_stack);
-  start = alloc & ~3;
-#endif
+
   end   = (alloc + size + 3) & ~3;
 
   /* Get the adjusted size based on the top and bottom of the stack */
@@ -207,5 +203,3 @@ ssize_t up_check_stack_remain(void)
 {
   return up_check_tcbstack_remain(this_task());
 }
-
-#endif /* CONFIG_STACK_COLORATION */

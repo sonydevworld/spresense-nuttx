@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/usbdev/cdcacm.c
  *
- *   Copyright (C) 2011-2013, 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -125,7 +110,7 @@ struct cdcacm_dev_s
   FAR struct usbdev_ep_s *epbulkin;    /* Bulk IN endpoint structure */
   FAR struct usbdev_ep_s *epbulkout;   /* Bulk OUT endpoint structure */
   FAR struct usbdev_req_s *ctrlreq;    /* Allocated control request */
-  WDOG_ID rxfailsafe;                  /* Failsafe timer to prevent RX stalls */
+  struct wdog_s rxfailsafe;            /* Failsafe timer to prevent RX stalls */
   struct sq_queue_s txfree;            /* Available write request containers */
   struct sq_queue_s rxpending;         /* Pending read request containers */
 
@@ -175,22 +160,22 @@ static int     cdcacm_recvpacket(FAR struct cdcacm_dev_s *priv,
 static int     cdcacm_requeue_rdrequest(FAR struct cdcacm_dev_s *priv,
                  FAR struct cdcacm_rdreq_s *rdcontainer);
 static int     cdcacm_release_rxpending(FAR struct cdcacm_dev_s *priv);
-static void    cdcacm_rxtimeout(int argc, wdparm_t arg1, ...);
+static void    cdcacm_rxtimeout(wdparm_t arg);
 
-/* Request helpers *********************************************************/
+/* Request helpers **********************************************************/
 
 static struct usbdev_req_s *cdcacm_allocreq(FAR struct usbdev_ep_s *ep,
                  uint16_t len);
 static void    cdcacm_freereq(FAR struct usbdev_ep_s *ep,
                  FAR struct usbdev_req_s *req);
 
-/* Flow Control ************************************************************/
+/* Flow Control *************************************************************/
 
 #ifdef CONFIG_CDCACM_IFLOWCONTROL
 static int     cdcacm_serialstate(FAR struct cdcacm_dev_s *priv);
 #endif
 
-/* Configuration ***********************************************************/
+/* Configuration ************************************************************/
 
 static void    cdcacm_resetconfig(FAR struct cdcacm_dev_s *priv);
 static int     cdcacm_epconfigure(FAR struct usbdev_ep_s *ep,
@@ -200,7 +185,7 @@ static int     cdcacm_epconfigure(FAR struct usbdev_ep_s *ep,
 static int     cdcacm_setconfig(FAR struct cdcacm_dev_s *priv,
                  uint8_t config);
 
-/* Completion event handlers ***********************************************/
+/* Completion event handlers ************************************************/
 
 static void    cdcacm_ep0incomplete(FAR struct usbdev_ep_s *ep,
                  FAR struct usbdev_req_s *req);
@@ -209,7 +194,7 @@ static void    cdcacm_rdcomplete(FAR struct usbdev_ep_s *ep,
 static void    cdcacm_wrcomplete(FAR struct usbdev_ep_s *ep,
                  FAR struct usbdev_req_s *req);
 
-/* USB class device ********************************************************/
+/* USB class device *********************************************************/
 
 static int     cdcacm_bind(FAR struct usbdevclass_driver_s *driver,
                  FAR struct usbdev_s *dev);
@@ -461,7 +446,7 @@ static int cdcacm_sndpacket(FAR struct cdcacm_dev_s *priv)
  *
  * Description:
  *   A normal completion event was received by the read completion handler
- *   at the interrupt level (with interrupts disabled).  This function handles
+ *   at the interrupt level (with interrupts disabled). This function handles
  *   the USB packet and provides the received data to the uart RX buffer.
  *
  * Assumptions:
@@ -515,12 +500,12 @@ static int cdcacm_recvpacket(FAR struct cdcacm_dev_s *priv,
     }
 
 #ifdef CONFIG_SERIAL_IFLOWCONTROL_WATERMARKS
-  /* Pre-calcuate the watermark level that we will need to test against.
+  /* Pre-calculate the watermark level that we will need to test against.
    * Note that the range of the the upper watermark is from 1 to 99 percent
    * and that the actual capacity of the RX buffer is (recv->size - 1).
    */
 
-  watermark = (CONFIG_SERIAL_IFLOWCONTROL_UPPER_WATERMARK * recv->size) / 100;
+  watermark = CONFIG_SERIAL_IFLOWCONTROL_UPPER_WATERMARK * recv->size / 100;
   DEBUGASSERT(watermark > 0 && watermark < (recv->size - 1));
 #endif
 
@@ -558,8 +543,8 @@ static int cdcacm_recvpacket(FAR struct cdcacm_dev_s *priv,
 
       if (nbuffered >= watermark)
         {
-          /* Let the lower level driver know that the watermark level has been
-           * crossed.  It will probably activate RX flow control.
+          /* Let the lower level driver know that the watermark level has
+           * been crossed.  It will probably activate RX flow control.
            */
 
           if (cdcuart_rxflowcontrol(&priv->serdev, nbuffered, true))
@@ -679,7 +664,7 @@ static int cdcacm_release_rxpending(FAR struct cdcacm_dev_s *priv)
 
   /* Cancel any pending failsafe timer */
 
-  wd_cancel(priv->rxfailsafe);
+  wd_cancel(&priv->rxfailsafe);
 
   /* If RX "interrupts" are enabled and if input flow control is not in
    * effect, then pass the packet at the head of the pending RX packet list
@@ -746,8 +731,8 @@ static int cdcacm_release_rxpending(FAR struct cdcacm_dev_s *priv)
 
   if (!sq_empty(&priv->rxpending))
     {
-      wd_start(priv->rxfailsafe, CDCACM_RXDELAY, cdcacm_rxtimeout,
-               1, priv);
+      wd_start(&priv->rxfailsafe, CDCACM_RXDELAY,
+               cdcacm_rxtimeout, (wdparm_t)priv);
     }
 
   leave_critical_section(flags);
@@ -766,9 +751,9 @@ static int cdcacm_release_rxpending(FAR struct cdcacm_dev_s *priv)
  *
  ****************************************************************************/
 
-static void cdcacm_rxtimeout(int argc, wdparm_t arg1, ...)
+static void cdcacm_rxtimeout(wdparm_t arg)
 {
-  FAR struct cdcacm_dev_s *priv = (FAR struct cdcacm_dev_s *)arg1;
+  FAR struct cdcacm_dev_s *priv = (FAR struct cdcacm_dev_s *)arg;
 
   DEBUGASSERT(priv != NULL);
   cdcacm_release_rxpending(priv);
@@ -1311,7 +1296,8 @@ static void cdcacm_wrcomplete(FAR struct usbdev_ep_s *ep,
 static int cdcacm_bind(FAR struct usbdevclass_driver_s *driver,
                        FAR struct usbdev_s *dev)
 {
-  FAR struct cdcacm_dev_s *priv = ((FAR struct cdcacm_driver_s *)driver)->dev;
+  FAR struct cdcacm_dev_s *priv =
+    ((FAR struct cdcacm_driver_s *)driver)->dev;
   FAR struct cdcacm_wrreq_s *wrcontainer;
   FAR struct cdcacm_rdreq_s *rdcontainer;
   irqstate_t flags;
@@ -1458,7 +1444,9 @@ static int cdcacm_bind(FAR struct usbdevclass_driver_s *driver,
       leave_critical_section(flags);
     }
 
-  /* Report if we are selfpowered (unless we are part of a composite device) */
+  /* Report if we are selfpowered (unless we are part of a
+   * composite device)
+   */
 
 #ifndef CONFIG_CDCACM_COMPOSITE
 #ifdef CONFIG_USBDEV_SELFPOWERED
@@ -1876,7 +1864,8 @@ static int cdcacm_setup(FAR struct usbdevclass_driver_s *driver,
 
                 if (dataout && len <= SIZEOF_CDC_LINECODING) /* REVISIT */
                   {
-                    memcpy(&priv->linecoding, dataout, SIZEOF_CDC_LINECODING);
+                    memcpy(&priv->linecoding,
+                           dataout, SIZEOF_CDC_LINECODING);
                   }
 
                 /* Respond with a zero length packet */
@@ -2564,8 +2553,8 @@ static int cdcuart_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  *      and cdcuart_attach are called called)
  *   2. With enable==false while transferring data from the RX buffer
  *   2. With enable==true while waiting for more incoming data
- *   3. With enable==false when the port is closed (just before cdcuart_detach
- *      and cdcuart_shutdown are called).
+ *   3. With enable==false when the port is closed (just before
+ *      cdcuart_detach and cdcuart_shutdown are called).
  *
  * Assumptions:
  *   Called from the serial upper-half driver running on the thread of
@@ -2728,7 +2717,7 @@ static bool cdcuart_rxflowcontrol(FAR struct uart_dev_s *dev,
 
           priv->iactive = false;
 
-          /* Set DSR if it is not alredy set */
+          /* Set DSR if it is not already set */
 
           if ((priv->serialstate & CDCACM_UART_DSR) == 0)
             {
@@ -2929,13 +2918,6 @@ int cdcacm_classobject(int minor, FAR struct usbdev_devinfo_s *devinfo,
   memcpy(&priv->devinfo, devinfo,
          sizeof(struct usbdev_devinfo_s));
 
-  /* Allocate a failsafe time so that we can be assured that RX data
-   * can never stall in the priv->rxpending queue.
-   */
-
-  priv->rxfailsafe          = wd_create();
-  DEBUGASSERT(priv->rxfailsafe != NULL);
-
 #ifdef CONFIG_CDCACM_IFLOWCONTROL
   /* SerialState */
 
@@ -3004,7 +2986,6 @@ int cdcacm_classobject(int minor, FAR struct usbdev_devinfo_s *devinfo,
   return OK;
 
 errout_with_class:
-  wd_delete(priv->rxfailsafe);
   kmm_free(alloc);
   return ret;
 }
@@ -3100,8 +3081,8 @@ int cdcacm_initialize(int minor, FAR void **handle)
  *
  * Input Parameters:
  *   There is one parameter, it differs in typing depending upon whether the
- *   CDC/ACM driver is an internal part of a composite device, or a standalone
- *   USB driver:
+ *   CDC/ACM driver is an internal part of a composite device, or a
+ *   standalone USB driver:
  *
  *     classdev - The class object returned by cdcacm_classobject()
  *     handle - The opaque handle representing the class object returned by
@@ -3138,7 +3119,7 @@ void cdcacm_uninitialize(FAR void *handle)
        * free the memory resources.
        */
 
-      wd_delete(priv->rxfailsafe);
+      wd_cancel(&priv->rxfailsafe);
       kmm_free(priv);
       return;
     }
@@ -3170,7 +3151,7 @@ void cdcacm_uninitialize(FAR void *handle)
 
   /* And free the memory resources. */
 
-  wd_delete(priv->rxfailsafe);
+  wd_cancel(&priv->rxfailsafe);
   kmm_free(priv);
 
 #else
@@ -3217,7 +3198,7 @@ void cdcacm_get_composite_devdesc(struct composite_devdesc_s *dev)
   dev->nconfigs     = CDCACM_NCONFIGS;           /* Number of configurations supported */
   dev->configid     = CDCACM_CONFIGID;           /* The only supported configuration ID */
 
-  /* Let the construction function calculate the size of the config descriptor */
+  /* Let the construction function calculate the size of config descriptor */
 
 #ifdef CONFIG_USBDEV_DUALSPEED
   dev->cfgdescsize  = cdcacm_mkcfgdesc(NULL, NULL, USB_SPEED_UNKNOWN, 0);

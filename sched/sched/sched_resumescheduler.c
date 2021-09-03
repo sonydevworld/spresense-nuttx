@@ -1,35 +1,20 @@
 /****************************************************************************
  * sched/sched/sched_resumescheduler.c
  *
- *   Copyright (C) 2015, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -55,7 +40,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: sched_resume_scheduler
+ * Name: nxsched_resume_scheduler
  *
  * Description:
  *   Called by architecture specific implementations that block task
@@ -70,7 +55,7 @@
  *
  ****************************************************************************/
 
-void sched_resume_scheduler(FAR struct tcb_s *tcb)
+void nxsched_resume_scheduler(FAR struct tcb_s *tcb)
 {
 #if CONFIG_RR_INTERVAL > 0
 #ifdef CONFIG_SCHED_SPORADIC
@@ -91,14 +76,14 @@ void sched_resume_scheduler(FAR struct tcb_s *tcb)
     {
       /* Reset the replenishment cycle if it is appropriate to do so */
 
-      DEBUGVERIFY(sched_sporadic_resume(tcb));
+      DEBUGVERIFY(nxsched_resume_sporadic(tcb));
     }
 #endif
 
   /* Indicate the task has been resumed */
 
 #ifdef CONFIG_SCHED_CRITMONITOR
-  sched_critmon_resume(tcb);
+  nxsched_resume_critmon(tcb);
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION
   sched_note_resume(tcb);
@@ -106,7 +91,7 @@ void sched_resume_scheduler(FAR struct tcb_s *tcb)
 
 #ifdef CONFIG_SMP
   /* NOTE: The following logic for adjusting global IRQ controls were
-   * derived from sched_addreadytorun() and sched_removedreadytorun()
+   * derived from nxsched_add_readytorun() and sched_removedreadytorun()
    * Here, we only handles clearing logic to defer unlocking IRQ lock
    * followed by context switching.
    */
@@ -120,8 +105,8 @@ void sched_resume_scheduler(FAR struct tcb_s *tcb)
   if (tcb->irqcount > 0)
     {
       /* Do notihing here
-       * NOTE: spin_setbit() is done in sched_addreadytorun()
-       * and sched_removereadytorun()
+       * NOTE: spin_setbit() is done in nxsched_add_readytorun()
+       * and nxsched_remove_readytorun()
        */
     }
 
@@ -136,8 +121,11 @@ void sched_resume_scheduler(FAR struct tcb_s *tcb)
     {
       /* Release our hold on the IRQ lock. */
 
-      spin_clrbit(&g_cpu_irqset, me, &g_cpu_irqsetlock,
-                  &g_cpu_irqlock);
+      if ((g_cpu_irqset & (1 << me)) != 0)
+        {
+          spin_clrbit(&g_cpu_irqset, me, &g_cpu_irqsetlock,
+                      &g_cpu_irqlock);
+        }
     }
 #endif /* CONFIG_SMP */
 }

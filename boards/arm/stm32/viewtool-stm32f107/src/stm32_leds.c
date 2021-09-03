@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32/viewtool-stm32f107/src/stm32_leds.c
  *
- *   Copyright (C) 2013, 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -164,22 +149,22 @@ void board_autoled_on(int led)
   switch (led)
     {
     case 0:
-      led_offbits(BOARD_LED2_BIT | BOARD_LED3_BIT |BOARD_LED4_BIT);
+      led_offbits(BOARD_LED2_BIT | BOARD_LED3_BIT | BOARD_LED4_BIT);
       led_onbits(BOARD_LED1_BIT);
       break;
 
     case 1:
-      led_offbits(BOARD_LED1_BIT | BOARD_LED3_BIT |BOARD_LED4_BIT);
+      led_offbits(BOARD_LED1_BIT | BOARD_LED3_BIT | BOARD_LED4_BIT);
       led_onbits(BOARD_LED2_BIT);
       break;
 
     case 2:
-      led_offbits(BOARD_LED3_BIT |BOARD_LED4_BIT);
+      led_offbits(BOARD_LED3_BIT | BOARD_LED4_BIT);
       led_onbits(BOARD_LED1_BIT | BOARD_LED2_BIT);
       break;
 
     case 3:
-      led_offbits(BOARD_LED1_BIT | BOARD_LED2_BIT |BOARD_LED4_BIT);
+      led_offbits(BOARD_LED1_BIT | BOARD_LED2_BIT | BOARD_LED4_BIT);
       led_onbits(BOARD_LED3_BIT);
       break;
 
@@ -235,18 +220,20 @@ void board_autoled_off(int led)
  * Description:
  *   These interfaces allow user control of the board LEDs.
  *
- *   If CONFIG_ARCH_LEDS is defined, then NuttX will control both on-board LEDs up
- *   until the completion of boot.  The it will continue to control LED2; LED1 is
- *   available for application use.
+ *   If CONFIG_ARCH_LEDS is defined, then NuttX will control both on-board
+ *   LEDs up until the completion of boot.  The it will continue to control
+ *   LED2; LED1 is available for application use.
  *
- *   If CONFIG_ARCH_LEDS is not defined, then both LEDs are available for application
- *   use.
+ *   If CONFIG_ARCH_LEDS is not defined, then both LEDs are available for
+ *   application use.
  *
  ****************************************************************************/
 
-void board_userled_initialize(void)
+uint32_t board_userled_initialize(void)
 {
   /* Already initialized by stm32_led_initialize */
+
+  return BOARD_NLEDS;
 }
 
 void board_userled(int led, bool ledon)
@@ -279,7 +266,7 @@ void board_userled(int led, bool ledon)
   stm32_gpiowrite(pinset, !ledon);
 }
 
-void board_userled_all(uint8_t ledset)
+void board_userled_all(uint32_t ledset)
 {
 #ifdef CONFIG_ARCH_LEDS
   led_onbits(ledset & ~BOARD_LED4_BIT);

@@ -49,7 +49,7 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
-#include <signal.h>
+#include <nuttx/signal.h>
 #include <nuttx/net/dns.h>
 
 #include "wiz_common.h"

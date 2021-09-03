@@ -226,7 +226,7 @@ static uint8_t as726x_read8(FAR struct as726x_dev_s *priv, uint8_t regaddr)
           break;  /* If TX bit is clear, it is ok to write */
         }
 
-      usleep(AS726X_POLLING_DELAY);
+      nxsig_usleep(AS726X_POLLING_DELAY);
     }
 
   /* Send the virtual register address (bit 7 should be 0 to indicate we are
@@ -245,7 +245,7 @@ static uint8_t as726x_read8(FAR struct as726x_dev_s *priv, uint8_t regaddr)
           break;  /* Read data is ready. */
         }
 
-      usleep(AS726X_POLLING_DELAY);
+      nxsig_usleep(AS726X_POLLING_DELAY);
     }
 
   uint8_t incoming = read_register(priv, AS72XX_SLAVE_READ_REG);
@@ -268,6 +268,7 @@ static void write_register(FAR struct as726x_dev_s *priv, uint8_t addr,
   {
     0
   };
+
   int ret;
 
   config.frequency = CONFIG_AS726X_I2C_FREQUENCY;
@@ -295,12 +296,12 @@ static void as726x_write8(FAR struct as726x_dev_s *priv, uint8_t regaddr,
       status = read_register(priv, AS72XX_SLAVE_STATUS_REG);
       if ((status & AS72XX_SLAVE_TX_VALID) == 0)
         {
-         /* No inbound TX pending at slave. Okay to write now. */
+          /* No inbound TX pending at slave. Okay to write now. */
 
           break;
         }
 
-      usleep(AS726X_POLLING_DELAY);
+      nxsig_usleep(AS726X_POLLING_DELAY);
     }
 
   /* Send the virtual register address (setting bit 7 to indicate we are
@@ -321,7 +322,7 @@ static void as726x_write8(FAR struct as726x_dev_s *priv, uint8_t regaddr,
           break;
         }
 
-      usleep(AS726X_POLLING_DELAY);
+      nxsig_usleep(AS726X_POLLING_DELAY);
     }
 
   /* Send the data to complete the operation. */
@@ -441,7 +442,7 @@ int as726x_register(FAR const char *devpath, FAR struct i2c_master_s *i2c)
   priv->i2c = i2c;
   priv->addr = AS726X_I2C_ADDR;
 
-   /* Check HW version for AS7262 and AS7263 */
+  /* Check HW version for AS7262 and AS7263 */
 
   _sensor_version = as726x_read8(priv, AS726x_HW_VERSION);
   if (_sensor_version != 0x3e && _sensor_version != 0x3f)
@@ -480,7 +481,7 @@ int as726x_register(FAR const char *devpath, FAR struct i2c_master_s *i2c)
     }
 
   value  = ret;
-  value &= 0b11001111;         /* Clear GAIN bits */
+  value &= 0b11001111;          /* Clear GAIN bits */
   value |= (AS726X_GAIN << 4);  /* Set GAIN bits with user's choice */
 
   as726x_write8(priv, AS726x_CONTROL_SETUP, value);
@@ -493,7 +494,7 @@ int as726x_register(FAR const char *devpath, FAR struct i2c_master_s *i2c)
     }
 
   value  = ret;
-  value &= 0b11110011;                     /* Clear BANK bits */
+  value &= 0b11110011;                      /* Clear BANK bits */
   value |= (AS726X_MEASURMENT_MODE << 2);   /* Set BANK bits with user's
                                              * choice */
 

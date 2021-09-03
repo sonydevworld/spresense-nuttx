@@ -1,40 +1,27 @@
 /****************************************************************************
  * drivers/analog/pga11x.c
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ ****************************************************************************/
+
+/****************************************************************************
  * References:
  *   "PGA112, PGA113, PGA116, PGA117: Zerø-Drift PROGRAMMABLE GAIN AMPLIFIER
  *   with MUX", SBOS424B, March 2008, Revised September 2008, Texas
  *   Instruments Incorporated"
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
 
@@ -55,10 +42,12 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* The PGA112/PGA113 have a three-wire SPI digital interface; the
  * PGA116/PGA117 have a four-wire SPI digital interface. The PGA116/117 also
- * have daisy-chain capability (The PGA112/PGA113 can be used as the last device
- * in a daisy-chain as shown if write-only communication is acceptable).
+ * have daisy-chain capability (The PGA112/PGA113 can be used as the last
+ * device in a daisy-chain as shown if write-only communication is
+ * acceptable).
  */
 
 /* PGA11x commands (PGA112/PGA113) */
@@ -81,11 +70,11 @@
 /* Write command Gain Selection Bits (PGA112/PGA113)
  *
  * the PGA112 and PGA116 provide binary gain selections (1, 2, 4, 8, 16, 32,
- * 64, 128); the PGA113 and PGA117 provide scope gain selections (1, 2, 5, 10,
- * 20, 50, 100, 200).
+ * 64, 128); the PGA113 and PGA117 provide scope gain selections (1, 2, 5,
+ * 10, 20, 50, 100, 200).
  */
 
-#define PGA11X_GAIN_SHIFT        (4)      /* Bits 4-7: Gain Selection Bits */
+#define PGA11X_GAIN_SHIFT        (4)   /* Bits 4-7: Gain Selection Bits */
 #define PGA11X_GAIN_MASK         (15 << PGA11X_GAIN_SHIFT)
 
 /* Write command Mux Channel Selection Bits
@@ -94,10 +83,10 @@
  * 10-channel input MUX.
  */
 
-#define PGA11X_CHAN_SHIFT        (0)      /* Bits 0-3: Channel Selection Bits */
+#define PGA11X_CHAN_SHIFT        (0)   /* Bits 0-3: Channel Selection Bits */
 #define PGA11X_CHAN_MASK         (15 << PGA11X_CHAN_SHIFT)
 
-/* Other definitions ********************************************************/
+/* Other definitions */
 
 #define SPI_DUMMY 0xff
 
@@ -148,18 +137,19 @@ static void pga11x_lock(FAR struct spi_dev_s *spi)
 
   /* On SPI busses where there are multiple devices, it will be necessary to
    * lock SPI to have exclusive access to the busses for a sequence of
-   * transfers.  The bus should be locked before the chip is selected.
+   * transfers. The bus should be locked before the chip is selected.
    *
-   * This is a blocking call and will not return until we have exclusiv access to
-   * the SPI buss.  We will retain that exclusive access until the bus is unlocked.
+   * This is a blocking call and will not return until we have exclusive
+   * access to the SPI bus. We will retain that exclusive access until the
+   * bus is unlocked.
    */
 
   SPI_LOCK(spi, true);
 
-  /* After locking the SPI bus, the we also need call the setfrequency, setbits, and
-   * setmode methods to make sure that the SPI is properly configured for the device.
-   * If the SPI buss is being shared, then it may have been left in an incompatible
-   * state.
+  /* After locking the SPI bus, the we also need call the setfrequency,
+   * setbits, and setmode methods to make sure that the SPI is properly
+   * configured for the device. If the SPI buss is being shared, then it may
+   * have been left in an incompatible state.
    */
 
   pga11x_configure(spi);
@@ -284,12 +274,13 @@ static void pga11x_write(FAR struct spi_dev_s *spi, uint16_t cmd)
   pga11x_unlock(spi);
 }
 #else
-static void pga11x_write(FAR struct spi_dev_s *spi, uint16_t u1cmd, uint16_t u2cmd)
+static void pga11x_write(FAR struct spi_dev_s *spi, uint16_t u1cmd,
+                         uint16_t u2cmd)
 {
   spiinfo("U1 cmd: %04x U2 cmd: %04x\n", u1cmd, u2cmd);
 
-  /* Lock, select, send the U2 16-bit command, the U1 16-bit command, de-select,
-   * and un-lock.
+  /* Lock, select, send the U2 16-bit command, the U1 16-bit command,
+   * de-select, and un-lock.
    */
 
   pga11x_lock(spi);
@@ -327,7 +318,7 @@ PGA11X_HANDLE pga11x_initialize(FAR struct spi_dev_s *spi)
 
   /* No Special state is required, just return the SPI driver instance as
    * the handle.  This gives us a place to extend functionality in the
-   * future if neccessary.
+   * future if necessary.
    */
 
   return (PGA11X_HANDLE)spi;
@@ -378,8 +369,10 @@ int pga11x_select(PGA11X_HANDLE handle,
   uint16_t u2cmd;
 
   DEBUGASSERT(handle && settings);
-  spiinfo("U1 channel: %d gain: %d\n", settings->u1.channel, settings->u1.gain);
-  spiinfo("U1 channel: %d gain: %d\n", settings->u1.channel, settings->u1.gain);
+  spiinfo("U1 channel: %d gain: %d\n", settings->u1.channel,
+          settings->u1.gain);
+  spiinfo("U1 channel: %d gain: %d\n", settings->u1.channel,
+          settings->u1.gain);
 
   /* Format the commands */
 
@@ -507,10 +500,14 @@ int pga11x_read(PGA11X_HANDLE handle, FAR struct pga11x_settings_s *settings)
   /* Decode the returned value */
 
   spiinfo("Returning %04x %04x\n", u2value, u1value);
-  settings->u1.channel = (uint8_t)((u1value & PGA11X_CHAN_MASK) >> PGA11X_CHAN_SHIFT);
-  settings->u1.gain    = (uint8_t)((u1value & PGA11X_GAIN_MASK) >> PGA11X_GAIN_SHIFT);
-  settings->u2.channel = (uint8_t)((u2value & PGA11X_CHAN_MASK) >> PGA11X_CHAN_SHIFT);
-  settings->u2.gain    = (uint8_t)((u2value & PGA11X_GAIN_MASK) >> PGA11X_GAIN_SHIFT);
+  settings->u1.channel =
+    (uint8_t)((u1value & PGA11X_CHAN_MASK) >> PGA11X_CHAN_SHIFT);
+  settings->u1.gain    =
+    (uint8_t)((u1value & PGA11X_GAIN_MASK) >> PGA11X_GAIN_SHIFT);
+  settings->u2.channel =
+    (uint8_t)((u2value & PGA11X_CHAN_MASK) >> PGA11X_CHAN_SHIFT);
+  settings->u2.gain    =
+    (uint8_t)((u2value & PGA11X_GAIN_MASK) >> PGA11X_GAIN_SHIFT);
   return OK;
 #else
   FAR struct spi_dev_s *spi = (FAR struct spi_dev_s *)handle;
@@ -523,8 +520,8 @@ int pga11x_read(PGA11X_HANDLE handle, FAR struct pga11x_settings_s *settings)
 
   pga11x_lock(spi);
 
-  /* Select, send the 16-bit PGA11X_CMD_READ command, and de-select.  I do
-   * not know if de-selection between word transfers is required.  However,
+  /* Select, send the 16-bit PGA11X_CMD_READ command, and de-select. I do
+   * not know if de-selection between word transfers is required. However,
    * it is shown in the timing diagrams for the part.
    */
 
@@ -542,8 +539,10 @@ int pga11x_read(PGA11X_HANDLE handle, FAR struct pga11x_settings_s *settings)
   /* Decode the returned value */
 
   spiinfo("Returning: %04x\n", value);
-  settings->channel = (uint8_t)((value & PGA11X_CHAN_MASK) >> PGA11X_CHAN_SHIFT);
-  settings->gain    = (uint8_t)((value & PGA11X_GAIN_MASK) >> PGA11X_GAIN_SHIFT);
+  settings->channel =
+    (uint8_t)((value & PGA11X_CHAN_MASK) >> PGA11X_CHAN_SHIFT);
+  settings->gain    =
+    (uint8_t)((value & PGA11X_GAIN_MASK) >> PGA11X_GAIN_SHIFT);
   return OK;
 #endif
 }
@@ -747,4 +746,3 @@ int pga11x_uenable(PGA11X_HANDLE handle, int pos)
 #endif
 
 #endif /* CONFIG_ADC && CONFIG_ADC_PGA11X */
-

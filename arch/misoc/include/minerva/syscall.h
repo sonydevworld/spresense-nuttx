@@ -34,7 +34,7 @@
  *
  ****************************************************************************/
 
-/* This file should never be included directed but, rather, only indirectly
+/* This file should never be included directly but, rather, only indirectly
  * through include/syscall.h or include/sys/sycall.h
  */
 
@@ -204,5 +204,5 @@ uintptr_t sys_call5(unsigned int nbr, uintptr_t parm1, uintptr_t parm2,
 }
 #endif
 
-#endif  /* __ASSEMBLY__ */
-#endif  /* __ARCH_MISOC_INCLUDE_MINERVA_SYSCALL_H */
+#endif /* __ASSEMBLY__ */
+#endif /* __ARCH_MISOC_INCLUDE_MINERVA_SYSCALL_H */

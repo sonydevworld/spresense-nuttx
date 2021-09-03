@@ -1,36 +1,20 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_timerisr.c
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -49,8 +33,8 @@
 
 #include "nvic.h"
 #include "clock/clock.h"
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 #include "cxd56_powermgr.h"
 #include "cxd56_timerisr.h"
 #include "cxd56_clock.h"
@@ -97,11 +81,12 @@ static int cxd56_changeclock(uint8_t id)
   if (id == CXD56_PM_CALLBACK_ID_CLK_CHG_START)
     {
       flags = enter_critical_section();
-      {
-        systcsr = getreg32(NVIC_SYSTICK_CTRL);
-        systcsr &= ~NVIC_SYSTICK_CTRL_ENABLE;
-        putreg32(systcsr, NVIC_SYSTICK_CTRL);
-      }
+        {
+          systcsr = getreg32(NVIC_SYSTICK_CTRL);
+          systcsr &= ~NVIC_SYSTICK_CTRL_ENABLE;
+          putreg32(systcsr, NVIC_SYSTICK_CTRL);
+        }
+
       leave_critical_section(flags);
     }
   else if ((id == CXD56_PM_CALLBACK_ID_CLK_CHG_END) ||
@@ -110,20 +95,22 @@ static int cxd56_changeclock(uint8_t id)
       current = (cxd56_get_cpu_baseclk() / CLK_TCK) - 1;
 
       flags = enter_critical_section();
-      {
-        if (g_systrvr != current)
-          {
-            putreg32(current, NVIC_SYSTICK_RELOAD);
-            g_systrvr = current;
-            putreg32(0, NVIC_SYSTICK_CURRENT);
-          }
-        if (id == CXD56_PM_CALLBACK_ID_CLK_CHG_END)
-          {
-            systcsr = getreg32(NVIC_SYSTICK_CTRL);
-            systcsr |= NVIC_SYSTICK_CTRL_ENABLE;
-            putreg32(systcsr, NVIC_SYSTICK_CTRL);
-          }
-      }
+        {
+          if (g_systrvr != current)
+            {
+              putreg32(current, NVIC_SYSTICK_RELOAD);
+              g_systrvr = current;
+              putreg32(0, NVIC_SYSTICK_CURRENT);
+            }
+
+          if (id == CXD56_PM_CALLBACK_ID_CLK_CHG_END)
+            {
+              systcsr = getreg32(NVIC_SYSTICK_CTRL);
+              systcsr |= NVIC_SYSTICK_CTRL_ENABLE;
+              putreg32(systcsr, NVIC_SYSTICK_CTRL);
+            }
+        }
+
       leave_critical_section(flags);
     }
 
@@ -160,7 +147,7 @@ static int cxd56_timerisr(int irq, uint32_t *regs, FAR void *arg)
  *
  ****************************************************************************/
 
-void arm_timer_initialize(void)
+void up_timer_initialize(void)
 {
   uint32_t regval;
 

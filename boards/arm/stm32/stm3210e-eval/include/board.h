@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32/stm3210e-eval/include/board.h
  *
- *   Copyright (C) 2009, 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -46,22 +31,24 @@
 #endif
 
 /* Logic in arch/arm/src and boards/ may need to include these file prior to
- * including board.h:  stm32_rcc.h, stm32_sdio.h, stm32.h.  They cannot be included
- * here because board.h is used in other contexts where the STM32 internal header
- * files are not available.
+ * including board.h:  stm32_rcc.h, stm32_sdio.h, stm32.h.  They cannot be
+ * included here because board.h is used in other contexts where the STM32
+ * internal header files are not available.
  */
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Clocking *************************************************************************/
+/* Clocking *****************************************************************/
 
 /* On-board crystal frequency is 8MHz (HSE) */
 
 #define STM32_BOARD_XTAL        8000000ul
 
-/* PLL source is HSE/1, PLL multipler is 9: PLL frequency is 8MHz (XTAL) x 9 = 72MHz */
+/* PLL source is HSE/1, PLL multipler is 9:
+ *      PLL frequency is 8MHz (XTAL) x 9 = 72MHz
+ */
 
 #define STM32_CFGR_PLLSRC       RCC_CFGR_PLLSRC
 #define STM32_CFGR_PLLXTPRE     0
@@ -78,7 +65,6 @@
 
 #define STM32_RCC_CFGR_HPRE     RCC_CFGR_HPRE_SYSCLK
 #define STM32_HCLK_FREQUENCY    STM32_PLL_FREQUENCY
-#define STM32_BOARD_HCLK        STM32_HCLK_FREQUENCY    /* same as above, to satisfy compiler */
 
 /* APB2 clock (PCLK2) is HCLK (72MHz) */
 
@@ -111,7 +97,8 @@
 
 /* Timer Frequencies, if APBx is set to 1, frequency is same to APBx
  * otherwise frequency is 2xAPBx.
- * Note: TIM1,8 are on APB2, others on APB1 */
+ * Note: TIM1,8 are on APB2, others on APB1
+ */
 
 #define BOARD_TIM1_FREQUENCY    STM32_HCLK_FREQUENCY
 #define BOARD_TIM2_FREQUENCY    STM32_HCLK_FREQUENCY
@@ -152,15 +139,18 @@
 #  define SDIO_SDXFR_CLKDIV     (3 << SDIO_CLKCR_CLKDIV_SHIFT)
 #endif
 
-/* SRAM definitions *****************************************************************/
-/* The 8 Mbit SRAM is provided on the PT3 board using the FSMC_NE3 chip select. */
+/* SRAM definitions *********************************************************/
+
+/* The 8 Mbit SRAM is provided on the PT3 board using the FSMC_NE3 chip
+ * select.
+ */
 
 /* This is the Bank1 SRAM3 address: */
 
 #define BOARD_SRAM_BASE    0x68000000     /* Bank2 SRAM3 base address */
 #define BOARD_SRAM_SIZE    (1*1024*1024)  /* 8-Mbit = 1-Mbyte */
 
-/* LED definitions ******************************************************************/
+/* LED definitions **********************************************************/
 
 /* The STM3210E-EVAL board has 4 LEDs that we will encode as: */
 
@@ -188,16 +178,16 @@
  *   Joystick right  -- Connected to PG.13
  *   Joystick up     -- Connected to PG.15
  *
- * The Joystick is treated like the other buttons unless CONFIG_DJOYSTICK
- * is defined, then it is assumed that they should be used by the discrete
- * joystick driver.
+ * The Joystick is treated like the other buttons unless
+ * CONFIG_INPUT_DJOYSTICK is defined, then it is assumed that they should be
+ * used by the discrete joystick driver.
  */
 
 #define BUTTON_WAKEUP        0
 #define BUTTON_TAMPER        1
 #define BUTTON_KEY           2
 
-#ifdef CONFIG_DJOYSTICK
+#ifdef CONFIG_INPUT_DJOYSTICK
 #  define NUM_BUTTONS        3
 #else
 #  define JOYSTICK_SEL       3
@@ -213,7 +203,7 @@
 #define BUTTON_TAMPER_BIT    (1 << BUTTON_TAMPER)
 #define BUTTON_KEY_BIT       (1 << BUTTON_KEY)
 
-#ifdef CONFIG_DJOYSTICK
+#ifndef CONFIG_INPUT_DJOYSTICK
 #  define JOYSTICK_SEL_BIT   (1 << JOYSTICK_SEL)
 #  define JOYSTICK_DOWN_BIT  (1 << JOYSTICK_DOWN)
 #  define JOYSTICK_LEFT_BIT  (1 << JOYSTICK_LEFT)
@@ -244,10 +234,11 @@ extern "C"
  * Name:  stm3210e_lcdclear
  *
  * Description:
- *   This is a non-standard LCD interface just for the STM3210E-EVAL board.  Because
- *   of the various rotations, clearing the display in the normal way by writing a
- *   sequences of runs that covers the entire display can be very slow.  Here the
- *   dispaly is cleared by simply setting all GRAM memory to the specified color.
+ *   This is a non-standard LCD interface just for the STM3210E-EVAL board.
+ *   Because of the various rotations, clearing the display in the normal
+ *   way by writing a sequences of runs that covers the entire display can
+ *   be very slow.  Here the display is cleared by simply setting all GRAM
+ *   memory to the specified color.
  *
  ****************************************************************************/
 
@@ -284,7 +275,8 @@ int stm32_lm75initialize(FAR const char *devpath);
  *   arg        - The argument that will accompany the interrupt
  *
  * Returned Value:
- *   Zero (OK) returned on success; a negated errno value is returned on failure.
+ *   Zero (OK) returned on success; a negated errno value is returned on
+ *   failure.
  *
  ****************************************************************************/
 
@@ -298,4 +290,4 @@ int stm32_lm75attach(xcpt_t irqhandler, void *arg);
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif  /* __BOARDS_ARM_STM32_STM3210E_EVAL_INCLUDE_BOARD_H */
+#endif /* __BOARDS_ARM_STM32_STM3210E_EVAL_INCLUDE_BOARD_H */

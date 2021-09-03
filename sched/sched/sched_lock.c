@@ -1,35 +1,20 @@
 /****************************************************************************
  * sched/sched/sched_lock.c
  *
- *   Copyright (C) 2007, 2009, 2016, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -86,9 +71,9 @@
  *    locked.
  * 2. Scheduling logic would set the bit associated with the cpu in
  *    'g_cpu_lockset' when the TCB at the head of the g_assignedtasks[cpu]
- *    list transitions has 'lockcount' > 0. This might happen when sched_lock()
- *    is called, or after a context switch that changes the TCB at the
- *    head of the g_assignedtasks[cpu] list.
+ *    list transitions has 'lockcount' > 0. This might happen when
+ *    sched_lock() is called, or after a context switch that changes the
+ *    TCB at the head of the g_assignedtasks[cpu] list.
  * 3. Similarly, the cpu bit in the global 'g_cpu_lockset' would be cleared
  *    when the TCB at the head of the g_assignedtasks[cpu] list has
  *    'lockcount' == 0. This might happen when sched_unlock() is called, or
@@ -119,13 +104,6 @@ volatile spinlock_t g_cpu_schedlock SP_SECTION = SP_UNLOCKED;
 volatile spinlock_t g_cpu_locksetlock SP_SECTION;
 volatile cpu_set_t g_cpu_lockset SP_SECTION;
 
-#if defined(CONFIG_ARCH_HAVE_FETCHADD) && !defined(CONFIG_ARCH_GLOBAL_IRQDISABLE)
-/* This is part of the sched_lock() logic to handle atomic operations when
- * locking the scheduler.
- */
-
-volatile int16_t g_global_lockcount;
-#endif
 #endif /* CONFIG_SMP */
 
 /****************************************************************************
@@ -155,54 +133,20 @@ volatile int16_t g_global_lockcount;
 int sched_lock(void)
 {
   FAR struct tcb_s *rtcb;
-#if defined(CONFIG_ARCH_GLOBAL_IRQDISABLE)
-  irqstate_t flags;
-#endif
-  int cpu;
 
-  /* The following operation is non-atomic unless CONFIG_ARCH_GLOBAL_IRQDISABLE
-   * or CONFIG_ARCH_HAVE_FETCHADD is defined.
+  /* If the CPU supports suppression of interprocessor interrupts, then
+   * simple disabling interrupts will provide sufficient protection for
+   * the following operation.
    */
 
-#if defined(CONFIG_ARCH_GLOBAL_IRQDISABLE)
-  /* If the CPU supports suppression of interprocessor interrupts, then simple
-   * disabling interrupts will provide sufficient protection for the following
-   * operation.
-   */
-
-  flags = up_irq_save();
-
-#elif defined(CONFIG_ARCH_HAVE_FETCHADD)
-  /* If the CPU supports an atomic fetch add operation, then we can use the
-   * global lockcount to assure that the following operation is atomic.
-   */
-
-  DEBUGASSERT((uint16_t)g_global_lockcount < INT16_MAX); /* Not atomic! */
-  up_fetchadd16(&g_global_lockcount, 1);
-#endif
-
-  /* This operation is safe if CONFIG_ARCH_HAVE_FETCHADD is defined.  NOTE
-   * we cannot use this_task() because it calls sched_lock().
-   */
-
-  cpu  = this_cpu();
-  rtcb = current_task(cpu);
+  rtcb = this_task();
 
   /* Check for some special cases:  (1) rtcb may be NULL only during early
    * boot-up phases, and (2) sched_lock() should have no effect if called
    * from the interrupt level.
    */
 
-  if (rtcb == NULL || up_interrupt_context())
-    {
-#if defined(CONFIG_ARCH_GLOBAL_IRQDISABLE)
-      up_irq_restore(flags);
-#elif defined(CONFIG_ARCH_HAVE_FETCHADD)
-      DEBUGASSERT(g_global_lockcount > 0);
-      up_fetchsub16(&g_global_lockcount, 1);
-#endif
-    }
-  else
+  if (rtcb != NULL && !up_interrupt_context())
     {
       /* Catch attempts to increment the lockcount beyond the range of the
        * integer type.
@@ -210,9 +154,11 @@ int sched_lock(void)
 
       DEBUGASSERT(rtcb->lockcount < MAX_LOCK_COUNT);
 
+      irqstate_t flags = enter_critical_section();
+
       /* We must hold the lock on this CPU before we increment the lockcount
-       * for the first time. Holding the lock is sufficient to lockout context
-       * switching.
+       * for the first time. Holding the lock is sufficient to lockout
+       * context switching.
        */
 
       if (rtcb->lockcount == 0)
@@ -243,13 +189,6 @@ int sched_lock(void)
 
       rtcb->lockcount++;
 
-#if defined(CONFIG_ARCH_GLOBAL_IRQDISABLE)
-      up_irq_restore(flags);
-#elif defined(CONFIG_ARCH_HAVE_FETCHADD)
-      DEBUGASSERT(g_global_lockcount > 0);
-      up_fetchsub16(&g_global_lockcount, 1);
-#endif
-
 #if defined(CONFIG_SCHED_INSTRUMENTATION_PREEMPTION) || \
     defined(CONFIG_SCHED_CRITMONITOR)
       /* Check if we just acquired the lock */
@@ -259,7 +198,7 @@ int sched_lock(void)
           /* Note that we have pre-emption locked */
 
 #ifdef CONFIG_SCHED_CRITMONITOR
-          sched_critmon_preemption(rtcb, true);
+          nxsched_critmon_preemption(rtcb, true);
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION_PREEMPTION
           sched_note_premption(rtcb, true);
@@ -269,12 +208,14 @@ int sched_lock(void)
 
       /* Move any tasks in the ready-to-run list to the pending task list
        * where they will not be available to run until the scheduler is
-       * unlocked and sched_mergepending() is called.
+       * unlocked and nxsched_merge_pending() is called.
        */
 
-      sched_mergeprioritized((FAR dq_queue_t *)&g_readytorun,
-                             (FAR dq_queue_t *)&g_pendingtasks,
-                             TSTATE_TASK_PENDING);
+      nxsched_merge_prioritized((FAR dq_queue_t *)&g_readytorun,
+                                (FAR dq_queue_t *)&g_pendingtasks,
+                                TSTATE_TASK_PENDING);
+
+      leave_critical_section(flags);
     }
 
   return OK;
@@ -314,7 +255,7 @@ int sched_lock(void)
           /* Note that we have pre-emption locked */
 
 #ifdef CONFIG_SCHED_CRITMONITOR
-          sched_critmon_preemption(rtcb, true);
+          nxsched_critmon_preemption(rtcb, true);
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION_PREEMPTION
           sched_note_premption(rtcb, true);

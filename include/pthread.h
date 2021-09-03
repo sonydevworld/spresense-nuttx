@@ -1,36 +1,20 @@
 /********************************************************************************
  * include/pthread.h
  *
- *   Copyright (C) 2007-2009, 2011-2012, 2015-2017, 2019 Gregory Nutt. All
- *     rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ********************************************************************************/
 
@@ -129,6 +113,11 @@
 #define PTHREAD_INHERIT_SCHED         0
 #define PTHREAD_EXPLICIT_SCHED        1
 
+/* Detach state  */
+
+#define PTHREAD_CREATE_JOINABLE       0
+#define PTHREAD_CREATE_DETACHED       1
+
 /* Default priority */
 
 #define PTHREAD_DEFAULT_PRIORITY      100
@@ -207,10 +196,10 @@
  */
 
 #define pthread_setname_np(thread, name) \
-  prctl((int)PR_SET_NAME, (char*)name, (int)thread)
+  prctl((int)PR_SET_NAME_EXT, (char*)name, (int)thread)
 
 #define pthread_getname_np(thread, name) \
-  prctl((int)PR_GET_NAME, (char*)name, (int)thread)
+  prctl((int)PR_GET_NAME_EXT, (char*)name, (int)thread)
 
 /********************************************************************************
  * Public Type Definitions
@@ -241,7 +230,7 @@ struct pthread_attr_s
   uint8_t priority;            /* Priority of the pthread */
   uint8_t policy;              /* Pthread scheduler policy */
   uint8_t inheritsched;        /* Inherit parent priority/policy? */
-
+  uint8_t detachstate;         /* Initialize to the detach state */
 #ifdef CONFIG_SCHED_SPORADIC
   uint8_t low_priority;        /* Low scheduling priority */
   uint8_t max_repl;            /* Maximum pending replenishments */
@@ -270,14 +259,20 @@ typedef pid_t pthread_t;
 #define __PTHREAD_T_DEFINED 1
 #endif
 
+struct pthread_condattr_s
+{
+  clockid_t clockid;
+};
+
 #ifndef __PTHREAD_CONDATTR_T_DEFINED
-typedef int pthread_condattr_t;
+typedef struct pthread_condattr_s pthread_condattr_t;
 #define __PTHREAD_CONDATTR_T_DEFINED 1
 #endif
 
 struct pthread_cond_s
 {
   sem_t sem;
+  clockid_t clockid;
 };
 
 #ifndef __PTHREAD_COND_T_DEFINED
@@ -285,7 +280,7 @@ typedef struct pthread_cond_s pthread_cond_t;
 #define __PTHREAD_COND_T_DEFINED 1
 #endif
 
-#define PTHREAD_COND_INITIALIZER {SEM_INITIALIZER(0)}
+#define PTHREAD_COND_INITIALIZER {SEM_INITIALIZER(0), CLOCK_REALTIME }
 
 struct pthread_mutexattr_s
 {
@@ -344,9 +339,16 @@ typedef struct pthread_mutex_s pthread_mutex_t;
 #  define PTHREAD_MUTEX_INITIALIZER {NULL, SEM_INITIALIZER(1), -1, \
                                      __PTHREAD_MUTEX_DEFAULT_FLAGS, \
                                      PTHREAD_MUTEX_DEFAULT, 0}
+#  define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP \
+                                     {NULL, SEM_INITIALIZER(1), -1, \
+                                     __PTHREAD_MUTEX_DEFAULT_FLAGS, \
+                                     PTHREAD_MUTEX_RECURSIVE, 0}
 #elif defined(CONFIG_PTHREAD_MUTEX_TYPES)
 #  define PTHREAD_MUTEX_INITIALIZER {SEM_INITIALIZER(1), -1, \
                                      PTHREAD_MUTEX_DEFAULT, 0}
+#  define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP \
+                                     {SEM_INITIALIZER(1), -1, \
+                                     PTHREAD_MUTEX_RECURSIVE, 0}
 #elif !defined(CONFIG_PTHREAD_MUTEX_UNSAFE)
 #  define PTHREAD_MUTEX_INITIALIZER {NULL, SEM_INITIALIZER(1), -1,\
                                      __PTHREAD_MUTEX_DEFAULT_FLAGS}
@@ -398,7 +400,6 @@ typedef int pthread_rwlockattr_t;
                                      0, 0, false}
 
 #ifdef CONFIG_PTHREAD_SPINLOCKS
-#ifndef __PTHREAD_SPINLOCK_T_DEFINED
 /* This (non-standard) structure represents a pthread spinlock */
 
 struct pthread_spinlock_s
@@ -408,7 +409,7 @@ struct pthread_spinlock_s
                                  * SP_UNLOCKED. */
   pthread_t sp_holder;          /* ID of the thread that holds the spinlock */
 };
-
+#ifndef __PTHREAD_SPINLOCK_T_DEFINED
 /* It is referenced via this standard type */
 
 typedef FAR struct pthread_spinlock_s pthread_spinlock_t;
@@ -438,12 +439,12 @@ int pthread_attr_init(FAR pthread_attr_t *attr);
 
 /* An attributes object can be deleted when it is no longer needed. */
 
-int pthread_attr_destroy(pthread_attr_t *attr);
+int pthread_attr_destroy(FAR pthread_attr_t *attr);
 
 /* Set or obtain the default scheduling algorithm */
 
 int pthread_attr_setschedpolicy(FAR pthread_attr_t *attr, int policy);
-int pthread_attr_getschedpolicy(FAR const pthread_attr_t *attr, int *policy);
+int pthread_attr_getschedpolicy(FAR const pthread_attr_t *attr, FAR int *policy);
 int pthread_attr_setschedparam(FAR pthread_attr_t *attr,
                                FAR const struct sched_param *param);
 int pthread_attr_getschedparam(FAR const pthread_attr_t *attr,
@@ -452,6 +453,10 @@ int pthread_attr_setinheritsched(FAR pthread_attr_t *attr,
                                  int inheritsched);
 int pthread_attr_getinheritsched(FAR const pthread_attr_t *attr,
                                  FAR int *inheritsched);
+int pthread_attr_getdetachstate(FAR const pthread_attr_t *attr,
+                                FAR int *detachstate);
+int pthread_attr_setdetachstate(FAR pthread_attr_t *attr,
+                                int detachstate);
 
 #ifdef CONFIG_SMP
 /* Set or obtain thread affinity attributes */
@@ -466,7 +471,8 @@ int pthread_attr_getaffinity_np(FAR const pthread_attr_t *attr,
 /* Set or obtain the default stack size */
 
 int pthread_attr_setstacksize(FAR pthread_attr_t *attr, size_t stacksize);
-int pthread_attr_getstacksize(FAR const pthread_attr_t *attr, size_t *stackaddr);
+int pthread_attr_getstacksize(FAR const pthread_attr_t *attr,
+                              FAR size_t *stackaddr);
 
 /* Set or obtain stack address and size attributes */
 
@@ -506,7 +512,7 @@ int  pthread_setcancelstate(int state, FAR int *oldstate);
 int  pthread_setcanceltype(int type, FAR int *oldtype);
 void pthread_testcancel(void);
 
-/* A thread may set up cleanup functions to execut when the thread exits or
+/* A thread may set up cleanup functions to execute when the thread exits or
  * is canceled.
  */
 
@@ -566,8 +572,9 @@ int pthread_mutexattr_getpshared(FAR const pthread_mutexattr_t *attr,
                                  FAR int *pshared);
 int pthread_mutexattr_setpshared(FAR pthread_mutexattr_t *attr,
                                  int pshared);
-int pthread_mutexattr_gettype(const pthread_mutexattr_t *attr, int *type);
-int pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type);
+int pthread_mutexattr_gettype(FAR const pthread_mutexattr_t *attr,
+                              FAR int *type);
+int pthread_mutexattr_settype(FAR pthread_mutexattr_t *attr, int type);
 int pthread_mutexattr_getprotocol(FAR const pthread_mutexattr_t *attr,
                                   FAR int *protocol);
 int pthread_mutexattr_setprotocol(FAR pthread_mutexattr_t *attr,
@@ -598,6 +605,10 @@ int pthread_mutex_consistent(FAR pthread_mutex_t *mutex);
 
 int pthread_condattr_init(FAR pthread_condattr_t *attr);
 int pthread_condattr_destroy(FAR pthread_condattr_t *attr);
+int pthread_condattr_getclock(FAR const pthread_condattr_t *attr,
+                              clockid_t *clock_id);
+int pthread_condattr_setclock(FAR pthread_condattr_t *attr,
+                              clockid_t clock_id);
 
 /* A thread can create and delete condition variables. */
 
@@ -618,6 +629,11 @@ int pthread_cond_wait(FAR pthread_cond_t *cond, FAR pthread_mutex_t *mutex);
 
 int pthread_cond_timedwait(FAR pthread_cond_t *cond,
                            FAR pthread_mutex_t *mutex,
+                           FAR const struct timespec *abstime);
+
+int pthread_cond_clockwait(FAR pthread_cond_t *cond,
+                           FAR pthread_mutex_t *mutex,
+                           clockid_t clockid,
                            FAR const struct timespec *abstime);
 
 /* Barrier attributes */
@@ -650,9 +666,15 @@ int pthread_rwlock_init(FAR pthread_rwlock_t *rw_lock,
 int pthread_rwlock_rdlock(pthread_rwlock_t *lock);
 int pthread_rwlock_timedrdlock(FAR pthread_rwlock_t *lock,
                                FAR const struct timespec *abstime);
+int pthread_rwlock_clockrdlock(FAR pthread_rwlock_t *lock,
+                               clockid_t clockid,
+                               FAR const struct timespec *abstime);
 int pthread_rwlock_tryrdlock(FAR pthread_rwlock_t *lock);
 int pthread_rwlock_wrlock(FAR pthread_rwlock_t *lock);
 int pthread_rwlock_timedwrlock(FAR pthread_rwlock_t *lock,
+                               FAR const struct timespec *abstime);
+int pthread_rwlock_clockwrlock(FAR pthread_rwlock_t *lock,
+                               clockid_t clockid,
                                FAR const struct timespec *abstime);
 int pthread_rwlock_trywrlock(FAR pthread_rwlock_t *lock);
 int pthread_rwlock_unlock(FAR pthread_rwlock_t *lock);
@@ -682,8 +704,16 @@ int pthread_spin_unlock(FAR pthread_spinlock_t *lock);
 
 #else /* __INCLUDE_PTHREAD_H */
 
+/********************************************************************************
+ * Included Files
+ ********************************************************************************/
+
 #include <sys/types.h>
 #include <stdbool.h>
+
+/********************************************************************************
+ * Public Type Definitions
+ ********************************************************************************/
 
 /* Avoid circular dependencies by assuring that simple type definitions are
  * available in any inclusion ordering.
@@ -711,7 +741,7 @@ typedef pid_t pthread_t;
 #endif
 
 #ifndef __PTHREAD_CONDATTR_T_DEFINED
-typedef int pthread_condattr_t;
+typedef struct pthread_condattr_s pthread_condattr_t;
 #  define __PTHREAD_CONDATTR_T_DEFINED 1
 #endif
 

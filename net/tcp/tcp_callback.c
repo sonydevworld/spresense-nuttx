@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/tcp/tcp_callback.c
  *
- *   Copyright (C) 2007-2009, 2014, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -89,22 +74,18 @@ tcp_data_event(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 
   if (dev->d_len > 0)
     {
-#ifdef CONFIG_NET_TCP_READAHEAD
       uint8_t *buffer = dev->d_appdata;
       int      buflen = dev->d_len;
       uint16_t recvlen;
-#endif
 
       ninfo("No listener on connection\n");
 
-#ifdef CONFIG_NET_TCP_READAHEAD
       /* Save as the packet data as in the read-ahead buffer.  NOTE that
        * partial packets will not be buffered.
        */
 
       recvlen = tcp_datahandler(conn, buffer, buflen);
       if (recvlen < buflen)
-#endif
         {
           /* There is no handler to receive new data and there are no free
            * read-ahead buffers to retain the data -- drop the packet.
@@ -145,21 +126,21 @@ tcp_data_event(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 uint16_t tcp_callback(FAR struct net_driver_s *dev,
                       FAR struct tcp_conn_s *conn, uint16_t flags)
 {
-#ifdef CONFIG_TCP_NOTIFIER
+#ifdef CONFIG_NET_TCP_NOTIFIER
   uint16_t orig = flags;
 #endif
 
   /* Preserve the TCP_ACKDATA, TCP_CLOSE, and TCP_ABORT in the response.
-   * These is needed by the network to handle responses and buffer state.  The
-   * TCP_NEWDATA indication will trigger the ACK response, but must be
+   * These is needed by the network to handle responses and buffer state.
+   * The TCP_NEWDATA indication will trigger the ACK response, but must be
    * explicitly set in the callback.
    */
 
   ninfo("flags: %04x\n", flags);
 
-  /* Perform the data callback.  When a data callback is executed from 'list',
-   * the input flags are normally returned, however, the implementation
-   * may set one of the following:
+  /* Perform the data callback.  When a data callback is executed from
+   * 'list', the input flags are normally returned, however, the
+   * implementation may set one of the following:
    *
    *   TCP_CLOSE   - Gracefully close the current connection
    *   TCP_ABORT   - Abort (reset) the current connection on an error that
@@ -179,10 +160,10 @@ uint16_t tcp_callback(FAR struct net_driver_s *dev,
   flags = devif_conn_event(dev, conn, flags, conn->list);
 
   /* There may be no new data handler in place at them moment that the new
-   * incoming data is received.  If the new incoming data was not handled, then
-   * either (1) put the unhandled incoming data in the read-ahead buffer (if
-   * enabled) or (2) suppress the ACK to the data in the hope that it will
-   * be re-transmitted at a better time.
+   * incoming data is received.  If the new incoming data was not handled,
+   * then either (1) put the unhandled incoming data in the read-ahead
+   * buffer (if enabled) or (2) suppress the ACK to the data in the hope
+   * that it will be re-transmitted at a better time.
    */
 
   if ((flags & TCP_NEWDATA) != 0)
@@ -203,7 +184,7 @@ uint16_t tcp_callback(FAR struct net_driver_s *dev,
       flags = devif_conn_event(dev, conn, flags, conn->connevents);
     }
 
-#ifdef CONFIG_TCP_NOTIFIER
+#ifdef CONFIG_NET_TCP_NOTIFIER
   /* Provide notification(s) if the TCP connection has been lost. */
 
   if ((orig & TCP_DISCONN_EVENTS) != 0)
@@ -241,11 +222,11 @@ uint16_t tcp_callback(FAR struct net_driver_s *dev,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_TCP_READAHEAD
 uint16_t tcp_datahandler(FAR struct tcp_conn_s *conn, FAR uint8_t *buffer,
                          uint16_t buflen)
 {
   FAR struct iob_s *iob;
+  bool throttled = true;
   int ret;
 
   /* Try to allocate on I/O buffer to start the chain without waiting (and
@@ -253,16 +234,29 @@ uint16_t tcp_datahandler(FAR struct tcp_conn_s *conn, FAR uint8_t *buffer,
    * packet.
    */
 
-  iob = iob_tryalloc(true, IOBUSER_NET_TCP_READAHEAD);
+  iob = iob_tryalloc(throttled, IOBUSER_NET_TCP_READAHEAD);
   if (iob == NULL)
     {
-      nerr("ERROR: Failed to create new I/O buffer chain\n");
-      return 0;
+#if CONFIG_IOB_THROTTLE > 0
+      if (IOB_QEMPTY(&conn->readahead))
+        {
+          /* Fallback out of the throttled entry */
+
+          throttled = false;
+          iob = iob_tryalloc(throttled, IOBUSER_NET_TCP_READAHEAD);
+        }
+#endif
+
+      if (iob == NULL)
+        {
+          nerr("ERROR: Failed to create new I/O buffer chain\n");
+          return 0;
+        }
     }
 
   /* Copy the new appdata into the I/O buffer chain (without waiting) */
 
-  ret = iob_trycopyin(iob, buffer, buflen, 0, true,
+  ret = iob_trycopyin(iob, buffer, buflen, 0, throttled,
                       IOBUSER_NET_TCP_READAHEAD);
   if (ret < 0)
     {
@@ -287,7 +281,7 @@ uint16_t tcp_datahandler(FAR struct tcp_conn_s *conn, FAR uint8_t *buffer,
       return 0;
     }
 
-#ifdef CONFIG_TCP_NOTIFIER
+#ifdef CONFIG_NET_TCP_NOTIFIER
   /* Provide notification(s) that additional TCP read-ahead data is
    * available.
    */
@@ -298,6 +292,5 @@ uint16_t tcp_datahandler(FAR struct tcp_conn_s *conn, FAR uint8_t *buffer,
   ninfo("Buffered %d bytes\n", buflen);
   return buflen;
 }
-#endif /* CONFIG_NET_TCP_READAHEAD */
 
 #endif /* NET_TCP_HAVE_STACK */

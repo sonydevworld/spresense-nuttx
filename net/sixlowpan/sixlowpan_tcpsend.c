@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/sixlowpan/sixlowpan_tcpsend.c
  *
- *   Copyright (C) 2017-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -39,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <inttypes.h>
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
@@ -90,18 +76,18 @@
 
 struct sixlowpan_send_s
 {
-  FAR struct socket           *s_sock;    /* Internal socket reference */
-  FAR struct devif_callback_s *s_cb;      /* Reference to callback instance */
-  sem_t                        s_waitsem; /* Supports waiting for driver events */
-  int                          s_result;  /* The result of the transfer */
-  uint16_t                     s_timeout; /* Send timeout in deciseconds */
-  clock_t                      s_time;    /* Last send time for determining timeout */
+  FAR struct socket           *s_sock;          /* Internal socket reference */
+  FAR struct devif_callback_s *s_cb;            /* Reference to callback
+                                                 * instance */
+  sem_t                        s_waitsem;       /* Supports waiting for
+                                                 * driver events */
+  int                          s_result;        /* The result of the transfer */
   FAR const struct netdev_varaddr_s *s_destmac; /* Destination MAC address */
-  FAR const uint8_t           *s_buf;     /* Data to send */
-  size_t                       s_buflen;  /* Length of data in buf */
-  ssize_t                      s_sent;    /* The number of bytes sent */
-  uint32_t                     s_isn;     /* Initial sequence number */
-  uint32_t                     s_acked;   /* The number of bytes acked */
+  FAR const uint8_t           *s_buf;           /* Data to send */
+  size_t                       s_buflen;        /* Length of data in buf */
+  ssize_t                      s_sent;          /* The number of bytes sent */
+  uint32_t                     s_isn;           /* Initial sequence number */
+  uint32_t                     s_acked;         /* The number of bytes acked */
 };
 
 /****************************************************************************
@@ -116,7 +102,8 @@ struct sixlowpan_send_s
  *   data payload as necessary.
  *
  * Input Parameters:
- *   ipv6tcp - A reference to a structure containing the IPv6 and TCP headers.
+ *   ipv6tcp - A reference to a structure containing the IPv6 and TCP
+ *             headers.
  *   buf     - The beginning of the payload data
  *   buflen  - The length of the payload data.
  *
@@ -270,12 +257,16 @@ static int sixlowpan_tcp_header(FAR struct tcp_conn_s *conn,
     {
       /* Update the TCP received window based on I/O buffer availability */
 
-      uint16_t recvwndo = tcp_get_recvwindow(dev);
+      uint16_t recvwndo = tcp_get_recvwindow(dev, conn);
 
       /* Set the TCP Window */
 
       ipv6tcp->tcp.wnd[0] = recvwndo >> 8;
       ipv6tcp->tcp.wnd[1] = recvwndo & 0xff;
+
+      /* Update the Receiver Window */
+
+      conn->rcv_wnd = recvwndo;
     }
 
   /* Calculate TCP checksum. */
@@ -285,47 +276,6 @@ static int sixlowpan_tcp_header(FAR struct tcp_conn_s *conn,
 
   ninfo("Outgoing TCP packet length: %d bytes\n", iplen + IPv6_HDRLEN);
   return OK;
-}
-
-/****************************************************************************
- * Name: send_timeout
- *
- * Description:
- *   Check for send timeout.
- *
- * Input Parameters:
- *   sinfo - Send state structure reference
- *
- * Returned Value:
- *   TRUE:timeout FALSE:no timeout
- *
- * Assumptions:
- *   The network is locked
- *
- ****************************************************************************/
-
-static inline bool send_timeout(FAR struct sixlowpan_send_s *sinfo)
-{
-  /* Check for a timeout.  Zero means none and, in that case, we will let
-   * the send wait forever.
-   */
-
-  if (sinfo->s_timeout != 0)
-    {
-      /* Check if the configured timeout has elapsed */
-
-      clock_t timeo_ticks =  DSEC2TICK(sinfo->s_timeout);
-      clock_t elapsed     =  clock_systimer() - sinfo->s_time;
-
-      if (elapsed >= timeo_ticks)
-        {
-          return true;
-        }
-    }
-
-  /* No timeout */
-
-  return false;
 }
 
 /****************************************************************************
@@ -367,6 +317,15 @@ static uint16_t tcp_send_eventhandler(FAR struct net_driver_s *dev,
       return flags;
     }
 
+  /* Check if the IEEE802.15.4 network driver went down */
+
+  if ((flags & NETDEV_DOWN) != 0)
+    {
+      nwarn("WARNING: Device is down\n");
+      sinfo->s_result = -ENOTCONN;
+      goto end_wait;
+    }
+
   /* The TCP socket is connected and, hence, should be bound to a device.
    * Make sure that the polling device is the one that we are bound to.
    */
@@ -378,16 +337,7 @@ static uint16_t tcp_send_eventhandler(FAR struct net_driver_s *dev,
       return flags;
     }
 
-  /* Check if the IEEE802.15.4 network driver went down */
-
-  if ((flags & NETDEV_DOWN) != 0)
-    {
-      nwarn("WARNING: Device is down\n");
-      sinfo->s_result = -ENOTCONN;
-      goto end_wait;
-    }
-
-  ninfo("flags: %04x acked: %u sent: %u\n",
+  ninfo("flags: %04x acked: %" PRIu32 " sent: %zu\n",
         flags, sinfo->s_acked, sinfo->s_sent);
 
   /* If this packet contains an acknowledgement, then update the count of
@@ -398,12 +348,6 @@ static uint16_t tcp_send_eventhandler(FAR struct net_driver_s *dev,
     {
       FAR struct tcp_hdr_s *tcp = TCPBUF(dev);
 
-#ifdef CONFIG_NET_SOCKOPTS
-      /* Update the timeout */
-
-      sinfo->s_time = clock_systimer();
-#endif
-
       /* The current acknowledgement number number is the (relative) offset
        * of the of the next byte needed by the receiver.  The s_isn is the
        * offset of the first byte to send to the receiver.  The difference
@@ -411,7 +355,7 @@ static uint16_t tcp_send_eventhandler(FAR struct net_driver_s *dev,
        */
 
       sinfo->s_acked = tcp_getsequence(tcp->ackno) - sinfo->s_isn;
-      ninfo("ACK: acked=%d sent=%d buflen=%d\n",
+      ninfo("ACK: acked=%" PRId32 " sent=%zd buflen=%zd\n",
             sinfo->s_acked, sinfo->s_sent, sinfo->s_buflen);
 
       /* Have all of the bytes in the buffer been sent and acknowledged? */
@@ -506,27 +450,29 @@ static uint16_t tcp_send_eventhandler(FAR struct net_driver_s *dev,
           sndlen = conn->mss;
         }
 
-      winleft = conn->winsize - sinfo->s_sent + sinfo->s_acked;
+      winleft = conn->snd_wnd - sinfo->s_sent + sinfo->s_acked;
       if (sndlen > winleft)
         {
           sndlen = winleft;
         }
 
-      ninfo("s_buflen=%u s_sent=%u mss=%u winsize=%u sndlen=%d\n",
-            sinfo->s_buflen, sinfo->s_sent, conn->mss, conn->winsize, sndlen);
+      ninfo("s_buflen=%zu s_sent=%zu mss=%u snd_wnd=%u sndlen=%d\n",
+            sinfo->s_buflen, sinfo->s_sent, conn->mss, conn->snd_wnd,
+            sndlen);
 
       if (sndlen > 0)
         {
-          /* Set the sequence number for this packet.  NOTE:  The network updates
-           * sndseq on receipt of ACK *before* this function is called.  In that
-           * case sndseq will point to the next unacknowledged byte (which might
-           * have already been sent).  We will overwrite the value of sndseq
-           * here before the packet is sent.
+          /* Set the sequence number for this packet.  NOTE:  The network
+           * updates sndseq on receipt of ACK *before* this function is
+           * called.  In that case sndseq will point to the next
+           * unacknowledged byte (which might have already been sent).  We
+           * will overwrite the value of sndseq here before the packet is
+           * sent.
            */
 
           seqno = sinfo->s_sent + sinfo->s_isn;
-          ninfo("Sending: sndseq %08lx->%08x\n",
-                (unsigned long)tcp_getsequence(conn->sndseq), seqno);
+          ninfo("Sending: sndseq %08" PRIx32 "->%08" PRIx32 "\n",
+                tcp_getsequence(conn->sndseq), seqno);
 
           tcp_setsequence(conn->sndseq, seqno);
 
@@ -557,46 +503,32 @@ static uint16_t tcp_send_eventhandler(FAR struct net_driver_s *dev,
           /* Increment the count of bytes sent, the number of unacked bytes,
            * and the total count of TCP packets sent.
            *
-           * NOTE: tcp_appsend() normally increments conn->unacked based on
-           * the value of dev->d_sndlen.  However, dev->d_len is always
+           * NOTE: tcp_appsend() normally increments conn->tx_unacked based
+           * on the value of dev->d_sndlen.  However, dev->d_len is always
            * zero for 6LoWPAN since it does not send via the dev->d_buf
            * but, rather, uses a backdoor frame interface with the IEEE
            * 802.15.4 MAC.
            */
 
-          sinfo->s_sent   += sndlen;
-          conn->unacked   += sndlen;
+          sinfo->s_sent    += sndlen;
+          conn->tx_unacked += sndlen;
 
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
-          /* For compability with buffered send logic */
+          /* For compatibility with buffered send logic */
 
-          conn->sndseq_max = tcp_addsequence(conn->sndseq, conn->unacked);
+          conn->sndseq_max = tcp_addsequence(conn->sndseq, conn->tx_unacked);
 #endif
 
 #ifdef CONFIG_NET_STATISTICS
           g_netstats.tcp.sent++;
 #endif
 
-          ninfo("Sent: acked=%d sent=%d buflen=%d unacked=%d\n",
+          ninfo("Sent: acked=%" PRId32 " sent=%zd "
+                "buflen=%zd tx_unacked=%" PRId32 "\n",
                 sinfo->s_acked, sinfo->s_sent, sinfo->s_buflen,
-                conn->unacked);
+                (uint32_t)conn->tx_unacked);
         }
     }
-
-#ifdef CONFIG_NET_SOCKOPTS
-  /* All data has been sent and we are just waiting for ACK or re-transmit
-   * indications to complete the send.  Check for a timeout.
-   */
-
-  if (send_timeout(sinfo))
-    {
-      /* Yes.. report the timeout */
-
-      nwarn("WARNING: SEND timeout\n");
-      sinfo->s_sent = -ETIMEDOUT;
-      goto end_wait;
-    }
-#endif /* CONFIG_NET_SOCKOPTS */
 
   /* Continue waiting */
 
@@ -612,7 +544,7 @@ end_wait:
 
   /* There are no outstanding, unacknowledged bytes */
 
-  conn->unacked        = 0;
+  conn->tx_unacked     = 0;
 
   /* Wake up the waiting thread */
 
@@ -640,10 +572,10 @@ end_wait:
  *   buf     - Data to send
  *   len     - Length of data to send
  *   destmac - The IEEE802.15.4 MAC address of the destination
- *   timeout - Send timeout in deciseconds
+ *   timeout - Send timeout in milliseconds
  *
  * Returned Value:
- *   Ok is returned on success; Othewise a negated errno value is returned.
+ *   Ok is returned on success; Otherwise a negated errno value is returned.
  *   This function is expected to fail if the driver is not an IEEE802.15.4
  *   MAC network driver.  In that case, the logic will fall back to normal
  *   IPv4/IPv6 formatting.
@@ -658,7 +590,7 @@ static int sixlowpan_send_packet(FAR struct socket *psock,
                                  FAR struct tcp_conn_s *conn,
                                  FAR const uint8_t *buf, size_t len,
                                  FAR const struct netdev_varaddr_s *destmac,
-                                 uint16_t timeout)
+                                 unsigned int timeout)
 {
   struct sixlowpan_send_s sinfo;
 
@@ -685,12 +617,10 @@ static int sixlowpan_send_packet(FAR struct socket *psock,
           /* Initialize the send state structure */
 
           nxsem_init(&sinfo.s_waitsem, 0, 0);
-          nxsem_setprotocol(&sinfo.s_waitsem, SEM_PRIO_NONE);
+          nxsem_set_protocol(&sinfo.s_waitsem, SEM_PRIO_NONE);
 
           sinfo.s_sock      = psock;
           sinfo.s_result    = -EBUSY;
-          sinfo.s_timeout   = timeout;
-          sinfo.s_time      = clock_systimer();
           sinfo.s_destmac   = destmac;
           sinfo.s_buf       = buf;
           sinfo.s_buflen    = len;
@@ -710,19 +640,29 @@ static int sixlowpan_send_packet(FAR struct socket *psock,
            * initial sequence number.
            */
 
-          conn->unacked     = 0;
+          conn->tx_unacked  = 0;
 
           /* Notify the IEEE802.15.4 MAC that we have data to send. */
 
           netdev_txnotify_dev(dev);
 
           /* Wait for the send to complete or an error to occur.
-           * net_lockedwait will also terminate if a signal is received.
+           * net_timedwait will also terminate if a signal is received.
            */
 
           ninfo("Wait for send complete\n");
 
-          ret = net_lockedwait(&sinfo.s_waitsem);
+          for (; ; )
+            {
+              uint32_t acked = sinfo.s_acked;
+
+              ret = net_timedwait(&sinfo.s_waitsem, timeout);
+              if (ret != -ETIMEDOUT || acked == sinfo.s_acked)
+                {
+                  break; /* Timeout without any progress */
+                }
+            }
+
           if (ret < 0)
             {
               sinfo.s_result = ret;
@@ -748,8 +688,8 @@ static int sixlowpan_send_packet(FAR struct socket *psock,
  * Name: psock_6lowpan_tcp_send
  *
  * Description:
- *   psock_6lowpan_tcp_send() call may be used only when the TCP socket is in a
- *   connected state (so that the intended recipient is known).
+ *   psock_6lowpan_tcp_send() call may be used only when the TCP socket is
+ *   in a connected state (so that the intended recipient is known).
  *
  * Input Parameters:
  *   psock - An instance of the internal socket structure.
@@ -773,18 +713,17 @@ ssize_t psock_6lowpan_tcp_send(FAR struct socket *psock, FAR const void *buf,
   FAR struct tcp_conn_s *conn;
   FAR struct net_driver_s *dev;
   struct netdev_varaddr_s destmac;
-  uint16_t timeout;
   int ret;
 
   ninfo("buflen %lu\n", (unsigned long)buflen);
   sixlowpan_dumpbuffer("Outgoing TCP payload", buf, buflen);
 
-  DEBUGASSERT(psock != NULL && psock->s_crefs > 0);
+  DEBUGASSERT(psock != NULL && psock->s_conn != NULL);
   DEBUGASSERT(psock->s_type == SOCK_STREAM);
 
   /* Make sure that this is a valid socket */
 
-  if (psock == NULL || psock->s_crefs <= 0)
+  if (psock == NULL || psock->s_conn == NULL)
     {
       nerr("ERROR: Invalid socket\n");
       return (ssize_t)-EBADF;
@@ -801,7 +740,6 @@ ssize_t psock_6lowpan_tcp_send(FAR struct socket *psock, FAR const void *buf,
   /* Get the underlying TCP connection structure */
 
   conn = (FAR struct tcp_conn_s *)psock->s_conn;
-  DEBUGASSERT(conn != NULL);
 
 #ifdef CONFIG_NET_IPv4
   /* Ignore if not IPv6 domain */
@@ -854,34 +792,19 @@ ssize_t psock_6lowpan_tcp_send(FAR struct socket *psock, FAR const void *buf,
       return (ssize_t)ret;
     }
 
-  /* Set the socket state to sending */
-
-  psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_SEND);
-
   /* Send the TCP packets, breaking down the potential large user buffer
    * into smaller packets that can be reassembled in the allocated MTU
    * packet buffer.
    */
 
-#ifdef CONFIG_NET_SOCKOPTS
-  timeout = psock->s_sndtimeo;
-#else
-  timeout = 0;
-#endif
-
   ret = sixlowpan_send_packet(psock, dev, conn, buf, buflen, &destmac,
-                              timeout);
+                              _SO_TIMEOUT(psock->s_sndtimeo));
   if (ret < 0)
     {
       nerr("ERROR: sixlowpan_send_packet() failed: %d\n", ret);
-
-      psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_IDLE);
       return (ssize_t)ret;
     }
 
-  /* Set the socket state to idle */
-
-  psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_IDLE);
   return (ssize_t)buflen;
 }
 
@@ -950,7 +873,7 @@ void sixlowpan_tcp_send(FAR struct net_driver_s *dev,
 
       if (ipv6hdr->ipv6.proto != IP_PROTO_TCP)
         {
-          nwarn("WARNING: Expected TCP protoype: %u vs %s\n",
+          nwarn("WARNING: Expected TCP prototype: %u vs %u\n",
                 ipv6hdr->ipv6.proto, IP_PROTO_TCP);
         }
       else
@@ -976,7 +899,8 @@ void sixlowpan_tcp_send(FAR struct net_driver_s *dev,
            * units of 32-bit words).
            */
 
-          hdrlen = IPv6_HDRLEN + (((uint16_t)ipv6hdr->tcp.tcpoffset >> 4) << 2);
+          hdrlen = IPv6_HDRLEN +
+                   (((uint16_t)ipv6hdr->tcp.tcpoffset >> 4) << 2);
 
           /* Drop the packet if the buffer length is less than this. */
 

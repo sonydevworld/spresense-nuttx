@@ -10,28 +10,31 @@
  *   All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- * 3. Neither the name of the copyright holder nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name NuttX nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
 
@@ -88,12 +91,13 @@
 #define PC1_ON          (1 << 7)
 
 /* CTRL_REG1: set resolution, g-range, data ready enable */
+
 /* Output resolution: 8-bit valid or 12-bit valid */
 
 #define RES_8BIT        0
 #define RES_12BIT       (1 << 6)
 
-/* Data ready funtion enable bit: set during probe if using irq mode */
+/* Data ready function enable bit: set during probe if using irq mode */
 
 #define DRDYE           (1 << 5)
 
@@ -104,6 +108,7 @@
 #define KXTJ9_G_8G      (1 << 4)
 
 /* Interrupt control register 1 bits */
+
 /* Set these during probe if using irq mode */
 
 #define KXTJ9_IEL       (1 << 3)
@@ -115,7 +120,7 @@
 
 #define KXTJ9_CTRL1_CONFIG  (RES_12BIT | KXTJ9_G_2G | DRDYE)
 
-/* Misc. driver defitions ***************************************************/
+/* Misc. driver definitions *************************************************/
 
 #define ACCEL_NUM_RETRIES   5
 
@@ -339,8 +344,13 @@ static void kxtj9_set_mode_standby(FAR struct kxtj9_dev_s *priv)
 static int kxtj9_configure(FAR struct kxtj9_dev_s *priv, uint8_t odr)
 {
   uint8_t wbuf[0];
+  int ret;
 
-  nxsem_wait_uninterruptible(&priv->exclsem);
+  ret = nxsem_wait_uninterruptible(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   kxtj9_soft_reset(priv);
   kxtj9_set_mode_standby(priv);
@@ -387,8 +397,13 @@ static int kxtj9_configure(FAR struct kxtj9_dev_s *priv, uint8_t odr)
 static int kxtj9_enable(FAR struct kxtj9_dev_s *priv, bool on)
 {
   uint8_t wbuf[1];
+  int ret;
 
-  nxsem_wait_uninterruptible(&priv->exclsem);
+  ret = nxsem_wait_uninterruptible(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   if (!on && priv->power_enabled)
     {
@@ -429,8 +444,13 @@ static int kxtj9_read_sensor_data(FAR struct kxtj9_dev_s *priv,
 {
   int16_t acc_data[3];
   uint8_t data;
+  int ret;
 
-  nxsem_wait_uninterruptible(&priv->exclsem);
+  ret = nxsem_wait_uninterruptible(&priv->exclsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   kxtj9_reg_read(priv, XOUT_L, (uint8_t *)acc_data, 6);
 
@@ -506,7 +526,7 @@ static ssize_t kxtj9_read(FAR struct file *filep, FAR char *buffer,
 
   if (nsamples < 1)
     {
-      snerr("ERROR: Bufer too small %lu < %u\n",
+      snerr("ERROR: Buffer too small %lu < %u\n",
             buflen, sizeof(struct kxtj9_sensor_data));
       return (ssize_t)-EINVAL;
     }
@@ -523,7 +543,8 @@ static ssize_t kxtj9_read(FAR struct file *filep, FAR char *buffer,
     {
       /* Get the next sample data */
 
-      ret = kxtj9_read_sensor_data(priv, (FAR struct kxtj9_sensor_data *)buffer);
+      ret = kxtj9_read_sensor_data(priv,
+                                   (FAR struct kxtj9_sensor_data *)buffer);
       if (ret < 0)
         {
           snerr("ERROR: kxtj9_read_sensor_data failed: %d\n", ret);

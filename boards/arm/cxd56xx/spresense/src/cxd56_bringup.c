@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/cxd56xx/spresense/src/cxd56_bringup.c
  *
- *   Copyright 2018, 2020 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,14 +25,13 @@
 #include <nuttx/config.h>
 
 #include <stdio.h>
-#include <sys/mount.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <debug.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
-#include <nuttx/board.h>
+#include <nuttx/fs/fs.h>
 #include <arch/board/board.h>
 
 #ifdef CONFIG_RNDIS
@@ -126,10 +110,6 @@
 #endif
 
 #ifdef CONFIG_CXD56_CISIF
-#  ifdef CONFIG_VIDEO_ISX012
-#    include <nuttx/video/isx012.h>
-#  endif
-#  include <nuttx/video/video_halif.h>
 #  include <arch/chip/cisif.h>
 #endif
 
@@ -188,6 +168,7 @@ static void timer_initialize(void)
       snprintf(devname, sizeof(devname), "/dev/timer%d", i);
       cxd56_timer_initialize(devname, i);
     }
+
   return;
 }
 #endif
@@ -314,6 +295,7 @@ int cxd56_bringup(void)
       _err("ERROR: Failed to initialize SPI3.\n");
     }
 #  endif
+
 #  ifdef CONFIG_CXD56_SPI4
   ret = board_spidev_initialize(4);
   if (ret < 0)
@@ -321,6 +303,7 @@ int cxd56_bringup(void)
       _err("ERROR: Failed to initialize SPI4.\n");
     }
 #  endif
+
 #  ifdef CONFIG_CXD56_SPI5
   ret = board_spidev_initialize(5);
   if (ret < 0)
@@ -342,10 +325,10 @@ int cxd56_bringup(void)
     }
 #endif
 
-  ret = mount(NULL, CXD56_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
+  ret = nx_mount(NULL, CXD56_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
   if (ret < 0)
     {
-      _err("ERROR: Failed to mount the procfs: %d\n", errno);
+      _err("ERROR: Failed to mount the procfs: %d\n", ret);
     }
 #endif
 
@@ -377,7 +360,15 @@ int cxd56_bringup(void)
   ret = board_flash_initialize();
   if (ret < 0)
     {
-      _err("ERROR: Failed to initialize SPI-Flash. %d\n", errno);
+      _err("ERROR: Failed to initialize SPI-Flash. %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_AUDIO_CXD56
+  ret = board_audio_initialize_driver(1);
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize audio. %d\n", ret);
     }
 #endif
 
@@ -387,20 +378,13 @@ int cxd56_bringup(void)
     {
       _err("ERROR: Failed to initialize ISX012 board. %d\n", errno);
     }
-
-  g_video_sensctrl_ops = isx012_initialize();
-  if (g_video_sensctrl_ops == NULL)
-    {
-      _err("ERROR: Failed to populate ISX012 devops. %d\n", errno);
-      ret = ERROR;
-    }
 #endif /* CONFIG_VIDEO_ISX012 */
 
 #ifdef CONFIG_CXD56_CISIF
-  g_video_imgdata_ops = cxd56_cisif_initialize();
-  if (g_video_imgdata_ops == NULL)
+  ret = cxd56_cisif_initialize();
+  if (ret < 0)
     {
-      _err("ERROR: Failed to populate CISIF operations. %d\n", errno);
+      _err("ERROR: Failed to initialize CISIF. %d\n", errno);
       ret = ERROR;
     }
 #endif /* CONFIG_CXD56_CISIF */
@@ -471,6 +455,14 @@ int cxd56_bringup(void)
     }
 #endif
 
+#if defined(CONFIG_MODEM_ALT1250) && !defined(CONFIG_CXD56_LTE_LATE_INITIALIZE)
+  ret = board_alt1250_initialize("/dev/alt1250");
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize ALT1250. \n");
+    }
+#endif
+
 #ifdef CONFIG_CXD56_GNSS
   ret = cxd56_gnssinitialize("/dev/gps");
   if (ret < 0)
@@ -496,7 +488,7 @@ int cxd56_bringup(void)
 #endif
 
 #ifdef CONFIG_VIDEO_FB
-  ret = fb_register(0,0);
+  ret = fb_register(0, 0);
   if (ret < 0)
     {
       _err("ERROR: Failed to initialize Frame Buffer Driver.\n");

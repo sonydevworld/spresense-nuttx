@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/mtd/mtd_partition.c
  *
- *   Copyright (C) 2013-2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -80,6 +65,7 @@ struct mtd_partition_s
 
   struct mtd_dev_s child;       /* The "child" MTD vtable that manages the
                                  * sub-region */
+
   /* Other implementation specific data may follow here */
 
   FAR struct mtd_dev_s *parent; /* The "parent" MTD driver that manages the
@@ -323,8 +309,8 @@ static ssize_t part_bwrite(FAR struct mtd_dev_s *dev, off_t startblock,
  *
  ****************************************************************************/
 
-static ssize_t part_read(FAR struct mtd_dev_s *dev, off_t offset, size_t nbytes,
-                         FAR uint8_t *buffer)
+static ssize_t part_read(FAR struct mtd_dev_s *dev, off_t offset,
+                         size_t nbytes, FAR uint8_t *buffer)
 {
   FAR struct mtd_partition_s *priv = (FAR struct mtd_partition_s *)dev;
   off_t newoffset;
@@ -361,8 +347,8 @@ static ssize_t part_read(FAR struct mtd_dev_s *dev, off_t offset, size_t nbytes,
  ****************************************************************************/
 
 #ifdef CONFIG_MTD_BYTE_WRITE
-static ssize_t part_write(FAR struct mtd_dev_s *dev, off_t offset, size_t nbytes,
-                          FAR const uint8_t *buffer)
+static ssize_t part_write(FAR struct mtd_dev_s *dev, off_t offset,
+                          size_t nbytes, FAR const uint8_t *buffer)
 {
   FAR struct mtd_partition_s *priv = (FAR struct mtd_partition_s *)dev;
   off_t newoffset;
@@ -373,7 +359,9 @@ static ssize_t part_write(FAR struct mtd_dev_s *dev, off_t offset, size_t nbytes
 
   if (priv->parent->write)
     {
-      /* Make sure that write would not extend past the end of the partition */
+      /* Make sure that write would not extend past the end of the
+       * partition
+       */
 
       if (!part_bytecheck(priv, offset + nbytes - 1))
         {
@@ -413,8 +401,8 @@ static int part_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
           FAR struct mtd_geometry_s *geo = (FAR struct mtd_geometry_s *)arg;
           if (geo)
             {
-              /* Populate the geometry structure with information needed to know
-               * the capacity and how to access the device.
+              /* Populate the geometry structure with information needed to
+               * know the capacity and how to access the device.
                */
 
               geo->blocksize    = priv->blocksize;
@@ -432,17 +420,18 @@ static int part_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
 
           if (ppv)
             {
-              /* Get hte XIP base of the entire FLASH */
+              /* Get the XIP base of the entire FLASH */
 
               ret = priv->parent->ioctl(priv->parent, MTDIOC_XIPBASE,
                                         (unsigned long)((uintptr_t)&base));
               if (ret == OK)
                 {
-                  /* Add the offset of this partion to the XIP base and
+                  /* Add the offset of this partition to the XIP base and
                    * return the sum to the caller.
                    */
 
-                  *ppv = (FAR void *)(base + priv->firstblock * priv->blocksize);
+                  *ppv = (FAR void *)(base +
+                                      priv->firstblock * priv->blocksize);
                 }
             }
         }
@@ -497,7 +486,8 @@ static int part_procfs_open(FAR struct file *filep, FAR const char *relpath,
 
   /* Allocate a container to hold the task and attribute selection */
 
-  attr = (FAR struct part_procfs_file_s *)kmm_zalloc(sizeof(struct part_procfs_file_s));
+  attr = (FAR struct part_procfs_file_s *)
+         kmm_zalloc(sizeof(struct part_procfs_file_s));
   if (!attr)
     {
       ferr("ERROR: Failed to allocate file attributes\n");
@@ -571,7 +561,8 @@ static ssize_t part_procfs_read(FAR struct file *filep, FAR char *buffer,
       if (attr->nextpart == g_pfirstpartition)
         {
 #ifdef CONFIG_MTD_PARTITION_NAMES
-          total = snprintf(buffer, buflen, "%-*s  Start    Size   MTD\n", PART_NAME_MAX, "Name");
+          total = snprintf(buffer, buflen, "%-*s  Start    Size   MTD\n",
+                           PART_NAME_MAX, "Name");
 #else
           total = snprintf(buffer, buflen, "  Start    Size   MTD\n");
 #endif
@@ -591,8 +582,8 @@ static ssize_t part_procfs_read(FAR struct file *filep, FAR char *buffer,
               return 0;
             }
 
-          /* Get the number of blocks per erase.  There must be an even number
-           * of blocks in one erase blocks.
+          /* Get the number of blocks per erase.  There must be an even
+           * number of blocks in one erase blocks.
            */
 
           blkpererase = geo.erasesize / geo.blocksize;
@@ -623,13 +614,16 @@ static ssize_t part_procfs_read(FAR struct file *filep, FAR char *buffer,
 
           /* Terminate the partition name and add to output buffer */
 
-          ret = snprintf(&buffer[total], buflen - total, "%s%7d %7d   %s\n",
-                  partname, attr->nextpart->firstblock / blkpererase,
-                  attr->nextpart->neraseblocks, attr->nextpart->parent->name);
+          ret = snprintf(&buffer[total], buflen - total, "%s%7ju %ju   %s\n",
+                  partname,
+                  (uintmax_t)attr->nextpart->firstblock / blkpererase,
+                  (uintmax_t)attr->nextpart->neraseblocks,
+                  attr->nextpart->parent->name);
 #else
-          ret = snprintf(&buffer[total], buflen - total, "%7d %7d   %s\n",
-                  attr->nextpart->firstblock / blkpererase,
-                  attr->nextpart->neraseblocks, attr->nextpart->parent->name);
+          ret = snprintf(&buffer[total], buflen - total, "%7ju %7ju   %s\n",
+                  (uintmax_t)attr->nextpart->firstblock / blkpererase,
+                  (uintmax_t)attr->nextpart->neraseblocks,
+                  attr->nextpart->parent->name);
 #endif
 
           if (ret + total < buflen)
@@ -672,7 +666,8 @@ static ssize_t part_procfs_read(FAR struct file *filep, FAR char *buffer,
  *
  ****************************************************************************/
 
-static int part_procfs_dup(FAR const struct file *oldp, FAR struct file *newp)
+static int part_procfs_dup(FAR const struct file *oldp,
+                           FAR struct file *newp)
 {
   FAR struct part_procfs_file_s *oldattr;
   FAR struct part_procfs_file_s *newattr;
@@ -686,14 +681,15 @@ static int part_procfs_dup(FAR const struct file *oldp, FAR struct file *newp)
 
   /* Allocate a new container to hold the task and attribute selection */
 
-  newattr = (FAR struct part_procfs_file_s *)kmm_zalloc(sizeof(struct part_procfs_file_s));
+  newattr = (FAR struct part_procfs_file_s *)
+            kmm_zalloc(sizeof(struct part_procfs_file_s));
   if (!newattr)
     {
       ferr("ERROR: Failed to allocate file attributes\n");
       return -ENOMEM;
     }
 
-  /* The copy the file attribtes from the old attributes to the new */
+  /* The copy the file attribute from the old attributes to the new */
 
   memcpy(newattr, oldattr, sizeof(struct part_procfs_file_s));
 
@@ -753,7 +749,8 @@ static int part_procfs_stat(const char *relpath, struct stat *buf)
  *
  ****************************************************************************/
 
-FAR struct mtd_dev_s *mtd_partition(FAR struct mtd_dev_s *mtd, off_t firstblock,
+FAR struct mtd_dev_s *mtd_partition(FAR struct mtd_dev_s *mtd,
+                                    off_t firstblock,
                                     off_t nblocks)
 {
   FAR struct mtd_partition_s *part;
@@ -808,7 +805,8 @@ FAR struct mtd_dev_s *mtd_partition(FAR struct mtd_dev_s *mtd, off_t firstblock,
 
   /* Allocate a partition device structure */
 
-  part = (FAR struct mtd_partition_s *)kmm_zalloc(sizeof(struct mtd_partition_s));
+  part = (FAR struct mtd_partition_s *)
+         kmm_zalloc(sizeof(struct mtd_partition_s));
   if (!part)
     {
       ferr("ERROR: Failed to allocate memory for the partition device\n");
@@ -851,12 +849,14 @@ FAR struct mtd_dev_s *mtd_partition(FAR struct mtd_dev_s *mtd, off_t firstblock,
       struct mtd_partition_s *plast;
 
       /* Add the partition to the end of the list */
+
       part->pnext = NULL;
 
       plast = g_pfirstpartition;
       while (plast->pnext != NULL)
         {
           /* Get pointer to next partition */
+
           plast = plast->pnext;
         }
 
@@ -893,4 +893,3 @@ int mtd_setpartitionname(FAR struct mtd_dev_s *mtd, FAR const char *name)
   return OK;
 }
 #endif
-

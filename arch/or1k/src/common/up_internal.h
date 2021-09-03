@@ -1,35 +1,20 @@
 /****************************************************************************
- * arch/or1k/src/mor1kx/common/up_internal.h
+ * arch/or1k/src/common/up_internal.h
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -60,14 +45,8 @@
 #ifndef CONFIG_DEV_CONSOLE
 #  undef  USE_SERIALDRIVER
 #  undef  USE_EARLYSERIALINIT
-#  undef  CONFIG_DEV_LOWCONSOLE
-#  undef  CONFIG_RAMLOG_CONSOLE
 #else
-#  if defined(CONFIG_RAMLOG_CONSOLE)
-#    undef  USE_SERIALDRIVER
-#    undef  USE_EARLYSERIALINIT
-#    undef  CONFIG_DEV_LOWCONSOLE
-#  elif defined(CONFIG_DEV_LOWCONSOLE)
+#  if defined(CONFIG_CONSOLE_SYSLOG)
 #    undef  USE_SERIALDRIVER
 #    undef  USE_EARLYSERIALINIT
 #  else
@@ -89,7 +68,7 @@
 /* Check if an interrupt stack size is configured */
 
 #ifndef CONFIG_ARCH_INTERRUPTSTACK
-# define CONFIG_ARCH_INTERRUPTSTACK 0
+#  define CONFIG_ARCH_INTERRUPTSTACK 0
 #endif
 
 #define up_savestate(regs)  up_copyfullstate(regs, (uint32_t*)CURRENT_REGS)
@@ -169,14 +148,14 @@ EXTERN uint32_t g_intstackalloc; /* Allocated stack base */
 EXTERN uint32_t g_intstackbase;  /* Initial top of interrupt stack */
 #endif
 
-/* These 'addresses' of these values are setup by the linker script.  They are
- * not actual uint32_t storage locations! They are only used meaningfully in the
- * following way:
+/* These 'addresses' of these values are setup by the linker script.  They
+ * are not actual uint32_t storage locations! They are only used meaningfully
+ * in the following way:
  *
  *  - The linker script defines, for example, the symbol_sdata.
  *  - The declareion extern uint32_t _sdata; makes C happy.  C will believe
- *    that the value _sdata is the address of a uint32_t variable _data (it is
- *    not!).
+ *    that the value _sdata is the address of a uint32_t variable _data
+ *    (it is not!).
  *  - We can recoved the linker value then by simply taking the address of
  *    of _data.  like:  uint32_t *pdata = &_sdata;
  */
@@ -189,9 +168,9 @@ EXTERN uint32_t _edata;           /* End+1 of .data */
 EXTERN uint32_t _sbss;            /* Start of .bss */
 EXTERN uint32_t _ebss;            /* End+1 of .bss */
 
-/* Sometimes, functions must be executed from RAM.  In this case, the following
- * macro may be used (with GCC!) to specify a function that will execute from
- * RAM.  For example,
+/* Sometimes, functions must be executed from RAM.  In this case, the
+ * following macro may be used (with GCC!) to specify a function that will
+ * execute from RAM.  For example,
  *
  *   int __ramfunc__ foo (void);
  *   int __ramfunc__ foo (void) { return bar; }
@@ -231,12 +210,12 @@ EXTERN uint32_t _eramfuncs;       /* Copy destination end address in RAM */
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Functions Prototypes
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
 
-/* Low level initialization provided by board-level logic ******************/
+/* Low level initialization provided by board-level logic *******************/
 
 void or1k_boot(void);
 int  or1k_print_cpuinfo(void);
@@ -263,8 +242,6 @@ void up_pminitialize(void);
 
 /* Interrupt handling *******************************************************/
 
-void up_irqinitialize(void);
-
 /* Exception handling logic unique to the Cortex-M family */
 
 /* Interrupt acknowledge and dispatch */
@@ -285,10 +262,6 @@ uint32_t *or1k_doirq(int irq, uint32_t *regs);
 
 uint32_t *or1k_syscall(uint32_t *regs);
 
-/* System timer *************************************************************/
-
-void or1k_timer_initialize(void);
-
 /* Low level serial output **************************************************/
 
 void up_lowputc(char ch);
@@ -297,28 +270,14 @@ void up_lowputs(const char *str);
 
 #ifdef USE_SERIALDRIVER
 void up_serialinit(void);
-#else
-#  define up_serialinit()
 #endif
 
 #ifdef USE_EARLYSERIALINIT
 void up_earlyserialinit(void);
-#else
-#  define up_earlyserialinit()
 #endif
 
 #ifdef CONFIG_RPMSG_UART
 void rpmsg_serialinit(void);
-#else
-#  define rpmsg_serialinit()
-#endif
-
-/* Defined in drivers/lowconsole.c */
-
-#ifdef CONFIG_DEV_LOWCONSOLE
-void lowconsole_init(void);
-#else
-# define lowconsole_init()
 #endif
 
 /* DMA **********************************************************************/
@@ -349,10 +308,10 @@ void up_wdtinit(void);
 
 /* Networking ***************************************************************/
 
-/* Defined in board/xyz_network.c for board-specific Ethernet implementations,
- * or chip/xyx_ethernet.c for chip-specific Ethernet implementations, or
- * common/up_etherstub.c for a corner case where the network is enabled yet
- * there is no Ethernet driver to be initialized.
+/* Defined in board/xyz_network.c for board-specific Ethernet
+ * implementations, or chip/xyx_ethernet.c for chip-specific Ethernet
+ * implementations, or common/up_etherstub.c for a corner case where the
+ * network is enabled yet there is no Ethernet driver to be initialized.
  *
  * Use of common/up_etherstub.c is deprecated.  The preferred mechanism is to
  * use CONFIG_NETDEV_LATEINIT=y to suppress the call to up_netinitialize() in
@@ -386,4 +345,4 @@ void up_stack_color(FAR void *stackbase, size_t nbytes);
 #endif
 #endif /* __ASSEMBLY__ */
 
-#endif  /* __ARCH_OR1K_SRC_COMMON_UP_INTERNAL_H */
+#endif /* __ARCH_OR1K_SRC_COMMON_UP_INTERNAL_H */

@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/icmp/icmp.h
  *
- *   Copyright (C) 2014, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -70,10 +55,23 @@
  * Public types
  ****************************************************************************/
 
+struct socket;    /* Forward reference */
+struct sockaddr;  /* Forward reference */
+struct pollfd;    /* Forward reference */
+
 #ifdef CONFIG_NET_ICMP_SOCKET
 /* Representation of a IPPROTO_ICMP socket connection */
 
 struct devif_callback_s;         /* Forward reference */
+
+/* This is a container that holds the poll-related information */
+
+struct icmp_poll_s
+{
+  FAR struct socket *psock;        /* IPPROTO_ICMP socket structure */
+  FAR struct pollfd *fds;          /* Needed to handle poll events */
+  FAR struct devif_callback_s *cb; /* Needed to teardown the poll */
+};
 
 struct icmp_conn_s
 {
@@ -97,14 +95,18 @@ struct icmp_conn_s
 
   FAR struct net_driver_s *dev;  /* Needed to free the callback structure */
 
-#ifdef CONFIG_MM_IOB
   /* ICMP response read-ahead list.  A singly linked list of type struct
    * iob_qentry_s where the ICMP read-ahead data for the current ID is
    * retained.
    */
 
   struct iob_queue_s readahead;  /* Read-ahead buffering */
-#endif
+
+  /* The following is a list of poll structures of threads waiting for
+   * socket events.
+   */
+
+  struct icmp_poll_s pollinfo[CONFIG_NET_ICMP_NPOLLWAITERS];
 };
 #endif
 
@@ -129,10 +131,6 @@ EXTERN const struct sock_intf_s g_icmp_sockif;
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-
-struct socket;    /* Forward reference */
-struct sockaddr;  /* Forward reference */
-struct pollfd;    /* Forward reference */
 
 /****************************************************************************
  * Name: icmp_input
@@ -265,10 +263,10 @@ void icmp_poll(FAR struct net_driver_s *dev, FAR struct icmp_conn_s *conn);
 #endif
 
 /****************************************************************************
- * Name: icmp_sendto
+ * Name: icmp_sendmsg
  *
  * Description:
- *   Implements the sendto() operation for the case of the IPPROTO_ICMP
+ *   Implements the sendmsg() operation for the case of the IPPROTO_ICMP
  *   socket.  The 'buf' parameter points to a block of memory that includes
  *   an ICMP request header, followed by any payload that accompanies the
  *   request.  The 'len' parameter includes both the size of the ICMP header
@@ -276,59 +274,51 @@ void icmp_poll(FAR struct net_driver_s *dev, FAR struct icmp_conn_s *conn);
  *
  * Input Parameters:
  *   psock    A pointer to a NuttX-specific, internal socket structure
- *   buf      Data to send
- *   len      Length of data to send
+ *   msg      Message to send
  *   flags    Send flags
- *   to       Address of recipient
- *   tolen    The length of the address structure
  *
  * Returned Value:
- *   On success, returns the number of characters sent.  On  error, a negated
- *   errno value is returned (see send_to() for the list of appropriate error
+ *   On success, returns the number of characters sent.  On error, a negated
+ *   errno value is returned (see sendmsg() for the list of appropriate error
  *   values.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_NET_ICMP_SOCKET
-ssize_t icmp_sendto(FAR struct socket *psock, FAR const void *buf,
-                    size_t len, int flags, FAR const struct sockaddr *to,
-                    socklen_t tolen);
+ssize_t icmp_sendmsg(FAR struct socket *psock, FAR struct msghdr *msg,
+                     int flags);
 #endif
 
 /****************************************************************************
- * Name: icmp_recvfrom
+ * Name: icmp_recvmsg
  *
  * Description:
  *   Implements the socket recvfrom interface for the case of the AF_INET
- *   data gram socket with the IPPROTO_ICMP protocol.  icmp_recvfrom()
+ *   data gram socket with the IPPROTO_ICMP protocol.  icmp_recvmsg()
  *   receives ICMP ECHO replies for the a socket.
  *
- *   If 'from' is not NULL, and the underlying protocol provides the source
- *   address, this source address is filled in.  The argument 'fromlen' is
- *   initialized to the size of the buffer associated with from, and
+ *   If msg_name is not NULL, and the underlying protocol provides the source
+ *   address, this source address is filled in. The argument 'msg_namelen' is
+ *   initialized to the size of the buffer associated with msg_name, and
  *   modified on return to indicate the actual size of the address stored
  *   there.
  *
  * Input Parameters:
  *   psock    A pointer to a NuttX-specific, internal socket structure
- *   buf      Buffer to receive data
- *   len      Length of buffer
+ *   msg      Buffer to receive the message
  *   flags    Receive flags
- *   from     Address of source (may be NULL)
- *   fromlen  The length of the address structure
  *
  * Returned Value:
- *   On success, returns the number of characters received.  If no data is
+ *   On success, returns the number of characters received. If no data is
  *   available to be received and the peer has performed an orderly shutdown,
- *   recv() will return 0.  Otherwise, on errors, a negated errno value is
- *   returned (see recvfrom() for the list of appropriate error values).
+ *   recvmsg() will return 0.  Otherwise, on errors, a negated errno value is
+ *   returned (see recvmsg() for the list of appropriate error values).
  *
  ****************************************************************************/
 
 #ifdef CONFIG_NET_ICMP_SOCKET
-ssize_t icmp_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
-                      int flags, FAR struct sockaddr *from,
-                      FAR socklen_t *fromlen);
+ssize_t icmp_recvmsg(FAR struct socket *psock, FAR struct msghdr *msg,
+                     int flags);
 #endif
 
 /****************************************************************************

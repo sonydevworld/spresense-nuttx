@@ -43,7 +43,7 @@ NuttX Buildroot Toolchain
   Bitbucket download site (https://bitbucket.org/nuttx/buildroot/downloads/).
   This GNU toolchain builds and executes in the Linux or Cygwin environment.
 
-  1. You must have already configured Nuttx in <some-dir>/nuttx.
+  1. You must have already configured NuttX in <some-dir>/nuttx.
 
      tools/configure.sh nutiny-nuc120:<sub-dir>
 
@@ -71,7 +71,7 @@ NuttX Buildroot Toolchain
 LEDs
 ====
 
-  The NuTiny has a single green LED that can be controlled from sofware.
+  The NuTiny has a single green LED that can be controlled from software.
   This LED is connected to PIN17.  It is pulled high so a low value will
   illuminate the LED.
 
@@ -110,7 +110,7 @@ These pins are available on the NuTiny-SDC-NUC120 JP5.
   confusing!
 
 UART0 is an alternative that can be selected by modifying the default
-configuation.  UART0 RX (RXD0) is on PB.0, pin 17, and the TX signal (TXD0)
+configuration.  UART0 RX (RXD0) is on PB.0, pin 17, and the TX signal (TXD0)
 is on PB.1, pin 18.  These pins are available on the NuTiny-SDC-NUC120 JP1.
 
   NOTE: PB.0, pin 17, is also used to control the user LED on board (labeled
@@ -281,13 +281,13 @@ Where <subdir> is one of the following:
        b. Execute 'make menuconfig' in nuttx/ in order to start the
           reconfiguration process.
 
-    2. By default, this configuration uses the CodeSourcery toolchain
+    2. By default, this configuration uses the ARM EABI toolchain
        for Windows and builds under Cygwin (or probably MSYS).  That
        can easily be reconfigured, of course.
 
        CONFIG_HOST_WINDOWS=y                   : Builds under Windows
        CONFIG_WINDOWS_CYGWIN=y                 : Using Cygwin
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
     3. Serial Console.  A serial console is necessary to interrupt with
        NSH. The serial console is configured on UART1 which is available
@@ -330,5 +330,5 @@ Where <subdir> is one of the following:
          applications. Most of the memory used at runtime is allocated I/O
          buffers and the stack for the NSH main thread (1.5KB).
 
-       There is probably enough free memroy to support 3 or 4 application
+       There is probably enough free memory to support 3 or 4 application
        threads in addition to NSH.

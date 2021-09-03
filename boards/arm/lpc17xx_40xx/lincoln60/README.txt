@@ -181,7 +181,7 @@ Lincoln 60 Configuration Options
   also require CONFIG_NET and CONFIG_LPC17_40_ETHERNET.
 
     CONFIG_ETH0_PHY_KS8721 - Selects Micrel KS8721 PHY
-    CONFIG_LPC17_40_PHY_AUTONEG - Enable auto-negotion
+    CONFIG_LPC17_40_PHY_AUTONEG - Enable auto-negotiation
     CONFIG_LPC17_40_PHY_SPEED100 - Select 100Mbit vs. 10Mbit speed.
     CONFIG_LPC17_40_PHY_FDUPLEX - Select full (vs. half) duplex
 
@@ -293,7 +293,7 @@ Where <subdir> is one of the following:
           reconfiguration process.
 
     2. This configuration is setup to build under Windows with Cygwin using
-       the CodeSourcery toolchain.  That is, however, easily reconfigured.
+       the ARM EABI toolchain.  That is, however, easily reconfigured.
 
     3. This configuration uses a serial console on UART0 at 115200 8N1.
        This is the serial port at the connector labelled COM1 on the
@@ -343,16 +343,15 @@ Where <subdir> is one of the following:
 
     NOTES:
 
-    1. Uses the CodeSourcery EABI toolchain under Windows.  But that is
+    1. Uses the ARM EABI toolchain under Windows.  But that is
        easily reconfigured:
 
        CONFIG_HOST_WINDOWS=y                   : Windows
        CONFIG_HOST_WINDOWS_CYGWIN=y            : under Cygwin
-       CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery toolchain
+       CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
   STATUS:
     2015-06-06:  The BINFS CGI files are seems to be running, but the
       output that they generate does not appear in the browser window.
       I am suspecting that the redirected output is not working correctly
       with the BINFS applications.
-

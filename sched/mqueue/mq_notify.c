@@ -1,35 +1,20 @@
 /****************************************************************************
- *  sched/mqueue/mq_notify.c
+ * sched/mqueue/mq_notify.c
  *
- *   Copyright (C) 2007, 2009, 2011, 2013, 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -108,24 +93,34 @@
 
 int mq_notify(mqd_t mqdes, FAR const struct sigevent *notification)
 {
-  FAR struct tcb_s *rtcb;
   FAR struct mqueue_inode_s *msgq;
+  FAR struct inode *inode;
+  FAR struct file *filep;
+  FAR struct tcb_s *rtcb;
   int errval;
+
+  errval = fs_getfilep(mqdes, &filep);
+  if (errval < 0)
+    {
+      goto errout_without_lock;
+    }
+
+  inode = filep->f_inode;
+  msgq  = inode->i_private;
 
   /* Was a valid message queue descriptor provided? */
 
-  if (!mqdes)
+  if (!msgq)
     {
       /* No.. return EBADF */
 
       errval = EBADF;
-      goto errout;
+      goto errout_without_lock;
     }
 
   /* Get a pointer to the message queue */
 
   sched_lock();
-  msgq = mqdes->msgq;
 
   /* Get the current process ID */
 
@@ -133,7 +128,7 @@ int mq_notify(mqd_t mqdes, FAR const struct sigevent *notification)
 
   /* Is there already a notification attached */
 
-  if (!msgq->ntmqdes)
+  if (msgq->ntpid == INVALID_PROCESS_ID)
     {
       /* No... Have we been asked to establish one? */
 
@@ -154,8 +149,7 @@ int mq_notify(mqd_t mqdes, FAR const struct sigevent *notification)
           memcpy(&msgq->ntevent, notification,
                  sizeof(struct sigevent));
 
-          msgq->ntpid   = rtcb->pid;
-          msgq->ntmqdes = mqdes;
+          msgq->ntpid = rtcb->pid;
         }
     }
 
@@ -179,8 +173,7 @@ int mq_notify(mqd_t mqdes, FAR const struct sigevent *notification)
        */
 
       memset(&msgq->ntevent, 0, sizeof(struct sigevent));
-      msgq->ntpid   = INVALID_PROCESS_ID;
-      msgq->ntmqdes = NULL;
+      msgq->ntpid = INVALID_PROCESS_ID;
       nxsig_cancel_notification(&msgq->ntwork);
     }
 
@@ -188,7 +181,9 @@ int mq_notify(mqd_t mqdes, FAR const struct sigevent *notification)
   return OK;
 
 errout:
-  set_errno(errval);
   sched_unlock();
+
+errout_without_lock:
+  set_errno(errval);
   return ERROR;
 }

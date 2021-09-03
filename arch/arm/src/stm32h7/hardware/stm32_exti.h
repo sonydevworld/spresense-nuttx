@@ -1,44 +1,29 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/stm32h7/hardware/stm32_exti.h
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_STM32H7_HARDWARE_STM32_EXTI_H
 #define __ARCH_ARM_SRC_STM32H7_HARDWARE_STM32_EXTI_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 #include "chip.h"
@@ -48,13 +33,13 @@
  * families
  */
 
-#if defined(CONFIG_STM32H7_STM32H7X3XX)
+#if defined(CONFIG_STM32H7_STM32H7X3XX) || defined(CONFIG_STM32H7_STM32H7X7XX)
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
+ ****************************************************************************/
 
-/* Register Offsets *****************************************************************/
+/* Register Offsets *********************************************************/
 
 #define STM32_EXTI_INDEX(n)         ((n) >> 5)
 #define STM32_EXTI_SHIFT(n)         ((n) & 31)
@@ -104,7 +89,7 @@
 #define STM32_EXTI_CPUEMR3_OFFSET   0x00a4  /* EXTI event mask register 3 */
 #define STM32_EXTI_CPUPR3_OFFSET    0x00a8  /* EXTI pending register 3 */
 
-/* Register Addresses ***************************************************************/
+/* Register Addresses *******************************************************/
 
 #define STM32_EXTI_RTSR(n)          (STM32_EXTI_BASE + STM32_EXTI_RTSR_OFFSET(n))
 #define STM32_EXTI_FTSR(n)          (STM32_EXTI_BASE + STM32_EXTI_FTSR_OFFSET(n))
@@ -150,12 +135,15 @@
 #define STM32_EXTI_CPUEMR3          (STM32_EXTI_BASE + STM32_EXTI_CPUEMR3_OFFSET)
 #define STM32_EXTI_CPUPR3           (STM32_EXTI_BASE + STM32_EXTI_CPUPR3_OFFSET)
 
-/* Register Bitfield Definitions ****************************************************/
+/* Register Bitfield Definitions ********************************************/
 
-/* Rising Trigger selection register 1-3, Falling Trigger selection register 1-3,
- * Software interrupt event register 1-3, and D3 pending mask register 1-3:
+/* Rising Trigger selection register 1-3,
+ * Falling Trigger selection register 1-3,
+ * Software interrupt event register 1-3,
+ * and D3 pending mask register 1-3:
  *
- * Bit encoded, each bit corresponding to one of the input events enumerated below.
+ * Bit encoded, each bit corresponding to one of the input events enumerated
+ * below.
  */
 
 #define EXIT_EVENT(n)               STM32_EXTI_MASK(n)
@@ -183,71 +171,71 @@
 #define EXTI_D3PCRH_MASK(n)         (3 << EXTI_D3PCRL_SHIFT(n))
 #  define EXTI_D3PCRH(n,v)          ((uint32_t)(v) << EXTI_D3PCRL_SHIFT(n))
 
-/* EXTI event input mapping *********************************************************/
+/* EXTI event input mapping *************************************************/
 
 #define EXTI_EVENT_EXTI(n)          (1 << (n) /* 0-15 EXTI[15:0] */
-#define EXTI_EVENT_PVDAVD           16  /* PVD and AVD */
-#define EXTI_EVENT_RTCALARM         17  /* RTC alarms */
-#define EXTI_EVENT_RTC              18  /* RTC tamper, RTC timestamp, RCC LSECSS */
-#define EXTI_EVENT_RTCWKUP          19  /* RTC wakeup timer */
-#define EXTI_EVENT_COMP1            20  /* COMP1 */
-#define EXTI_EVENT_COMP2            21  /* COMP2 */
-#define EXTI_EVENT_I2C1WKUP         22  /* I2C1 wakeup */
-#define EXTI_EVENT_I2C2WKUP         23  /* I2C2 wakeup */
-#define EXTI_EVENT_I2C3WKUP         24  /* I2C3 wakeup */
-#define EXTI_EVENT_I2C4WKUP         25  /* I2C4 wakeup */
-#define EXTI_EVENT_USART1WKUP       26  /* USART1 wakeup */
-#define EXTI_EVENT_USART2WKUP       27  /* USART2 wakeup */
-#define EXTI_EVENT_USART3WKUP       28  /* USART3 wakeup */
-#define EXTI_EVENT_USART6WKUP       29  /* USART6 wakeup */
-#define EXTI_EVENT_UART4WKUP        30  /* UART4 wakeup */
-#define EXTI_EVENT_UART5WKUP        31  /* UART5 wakeup */
-#define EXTI_EVENT_UART7WKUP        32  /* UART7 wakeup */
-#define EXTI_EVENT_UART8WKUP        33  /* UART8 wakeup */
-#define EXTI_EVENT_LPUARTRXWKUP     34  /* LPUART1 RX wakeup */
-#define EXTI_EVENT_LPUARTTXWKUP     35  /* LPUART1 TX wakeup */
-#define EXTI_EVENT_SPI1WKUP         36  /* SPI1 wakeup */
-#define EXTI_EVENT_SPI2WKUP         37  /* SPI2 wakeup */
-#define EXTI_EVENT_SPI3WKUP         38  /* SPI3 wakeup */
-#define EXTI_EVENT_SPI4WKUP         39  /* SPI4 wakeup */
-#define EXTI_EVENT_SPI5WKUP         40  /* SPI5 wakeup */
-#define EXTI_EVENT_SPI6WKUP         41  /* SPI6 wakeup */
-#define EXTI_EVENT_MDIOWKUP         42  /* MDIO wakeup */
-#define EXTI_EVENT_USB1WKUP         43  /* USB1 wakeup */
-#define EXTI_EVENT_USB2WKUP         44  /* USB2 wakeup */
-#define EXTI_EVENT_LPTIM1WKUP       47  /* LPTIM1 wakeup */
-#define EXTI_EVENT_LPTIM2WKUP       48  /* LPTIM2 wakeup */
-#define EXTI_EVENT_LPTM2OUT         49  /* LPTIM2 output */
-#define EXTI_EVENT_LPTIM3WKUP       50  /* LPTIM3 wakeup */
-#define EXTI_EVENT_LPTIM3OUT        51  /* LPTIM3 output */
-#define EXTI_EVENT_LPTIM4WKUP       52  /* LPTIM4 wakeup */
-#define EXTI_EVENT_LPTIM5WKUP       53  /* LPTIM5 wakeup */
-#define EXTI_EVENT_SWPMIWKUP        54  /* SWPMI wakeup */
-#define EXTI_EVENT_WKUP1            55  /* WKUP1 */
-#define EXTI_EVENT_WKUP2            56  /* WKUP2 */
-#define EXTI_EVENT_WKUP3            57  /* WKUP3 */
-#define EXTI_EVENT_WKUP4            58  /* WKUP4 */
-#define EXTI_EVENT_WKUP5            59  /* WKUP5 */
-#define EXTI_EVENT_WKUP6            60  /* WKUP6 */
-#define EXTI_EVENT_RCC              61  /* RCC interrupt */
-#define EXTI_EVENT_I2C4EV           62  /* I2C4 Event interrupt */
-#define EXTI_EVENT_I2C4ERR          63  /* I2C4 Error interrupt */
-#define EXTI_EVENT_LPUART1          64  /* LPUART1 global Interrupt */
-#define EXTI_EVENT_SPI6             65  /* SPI6 interrupt */
-#define EXTI_EVENT_BDMA0            66  /* BDMA CH0 interrupt */
-#define EXTI_EVENT_BDMA1            67  /* BDMA CH1 interrupt */
-#define EXTI_EVENT_BDMA2            68  /* BDMA CH2 interrupt */
-#define EXTI_EVENT_BDMA3            69  /* BDMA CH3 interrupt */
-#define EXTI_EVENT_BDMA4            70  /* BDMA CH4 interrupt */
-#define EXTI_EVENT_RDMB5            71  /* BDMA CH5 interrupt */
-#define EXTI_EVENT_BDMA6            72  /* BDMA CH6 interrupt */
-#define EXTI_EVENT_BDMA7            73  /* BDMA CH7 interrupt */
-#define EXTI_EVENT_DMAMUX2          74  /* DMAMUX2 interrupt */
-#define EXTI_EVENT_ADC3             75  /* ADC3 interrupt */
-#define EXTI_EVENT_SAI4             76  /* SAI4 interrupt */
-#define EXTI_EVENT_CECWKUP          85  /* HDMI-CEC wakeup */
-#define EXTI_EVENT_ETHWKUP          86  /* Ethernet wakeup */
-#define EXTI_EVENT_HSECSS           87  /* HSECSS interrupt */
+#define EXTI_EVENT_PVDAVD           16        /* PVD and AVD */
+#define EXTI_EVENT_RTCALARM         17        /* RTC alarms */
+#define EXTI_EVENT_RTC              18        /* RTC tamper, RTC timestamp, RCC LSECSS */
+#define EXTI_EVENT_RTCWKUP          19        /* RTC wakeup timer */
+#define EXTI_EVENT_COMP1            20        /* COMP1 */
+#define EXTI_EVENT_COMP2            21        /* COMP2 */
+#define EXTI_EVENT_I2C1WKUP         22        /* I2C1 wakeup */
+#define EXTI_EVENT_I2C2WKUP         23        /* I2C2 wakeup */
+#define EXTI_EVENT_I2C3WKUP         24        /* I2C3 wakeup */
+#define EXTI_EVENT_I2C4WKUP         25        /* I2C4 wakeup */
+#define EXTI_EVENT_USART1WKUP       26        /* USART1 wakeup */
+#define EXTI_EVENT_USART2WKUP       27        /* USART2 wakeup */
+#define EXTI_EVENT_USART3WKUP       28        /* USART3 wakeup */
+#define EXTI_EVENT_USART6WKUP       29        /* USART6 wakeup */
+#define EXTI_EVENT_UART4WKUP        30        /* UART4 wakeup */
+#define EXTI_EVENT_UART5WKUP        31        /* UART5 wakeup */
+#define EXTI_EVENT_UART7WKUP        32        /* UART7 wakeup */
+#define EXTI_EVENT_UART8WKUP        33        /* UART8 wakeup */
+#define EXTI_EVENT_LPUARTRXWKUP     34        /* LPUART1 RX wakeup */
+#define EXTI_EVENT_LPUARTTXWKUP     35        /* LPUART1 TX wakeup */
+#define EXTI_EVENT_SPI1WKUP         36        /* SPI1 wakeup */
+#define EXTI_EVENT_SPI2WKUP         37        /* SPI2 wakeup */
+#define EXTI_EVENT_SPI3WKUP         38        /* SPI3 wakeup */
+#define EXTI_EVENT_SPI4WKUP         39        /* SPI4 wakeup */
+#define EXTI_EVENT_SPI5WKUP         40        /* SPI5 wakeup */
+#define EXTI_EVENT_SPI6WKUP         41        /* SPI6 wakeup */
+#define EXTI_EVENT_MDIOWKUP         42        /* MDIO wakeup */
+#define EXTI_EVENT_USB1WKUP         43        /* USB1 wakeup */
+#define EXTI_EVENT_USB2WKUP         44        /* USB2 wakeup */
+#define EXTI_EVENT_LPTIM1WKUP       47        /* LPTIM1 wakeup */
+#define EXTI_EVENT_LPTIM2WKUP       48        /* LPTIM2 wakeup */
+#define EXTI_EVENT_LPTM2OUT         49        /* LPTIM2 output */
+#define EXTI_EVENT_LPTIM3WKUP       50        /* LPTIM3 wakeup */
+#define EXTI_EVENT_LPTIM3OUT        51        /* LPTIM3 output */
+#define EXTI_EVENT_LPTIM4WKUP       52        /* LPTIM4 wakeup */
+#define EXTI_EVENT_LPTIM5WKUP       53        /* LPTIM5 wakeup */
+#define EXTI_EVENT_SWPMIWKUP        54        /* SWPMI wakeup */
+#define EXTI_EVENT_WKUP1            55        /* WKUP1 */
+#define EXTI_EVENT_WKUP2            56        /* WKUP2 */
+#define EXTI_EVENT_WKUP3            57        /* WKUP3 */
+#define EXTI_EVENT_WKUP4            58        /* WKUP4 */
+#define EXTI_EVENT_WKUP5            59        /* WKUP5 */
+#define EXTI_EVENT_WKUP6            60        /* WKUP6 */
+#define EXTI_EVENT_RCC              61        /* RCC interrupt */
+#define EXTI_EVENT_I2C4EV           62        /* I2C4 Event interrupt */
+#define EXTI_EVENT_I2C4ERR          63        /* I2C4 Error interrupt */
+#define EXTI_EVENT_LPUART1          64        /* LPUART1 global Interrupt */
+#define EXTI_EVENT_SPI6             65        /* SPI6 interrupt */
+#define EXTI_EVENT_BDMA0            66        /* BDMA CH0 interrupt */
+#define EXTI_EVENT_BDMA1            67        /* BDMA CH1 interrupt */
+#define EXTI_EVENT_BDMA2            68        /* BDMA CH2 interrupt */
+#define EXTI_EVENT_BDMA3            69        /* BDMA CH3 interrupt */
+#define EXTI_EVENT_BDMA4            70        /* BDMA CH4 interrupt */
+#define EXTI_EVENT_RDMB5            71        /* BDMA CH5 interrupt */
+#define EXTI_EVENT_BDMA6            72        /* BDMA CH6 interrupt */
+#define EXTI_EVENT_BDMA7            73        /* BDMA CH7 interrupt */
+#define EXTI_EVENT_DMAMUX2          74        /* DMAMUX2 interrupt */
+#define EXTI_EVENT_ADC3             75        /* ADC3 interrupt */
+#define EXTI_EVENT_SAI4             76        /* SAI4 interrupt */
+#define EXTI_EVENT_CECWKUP          85        /* HDMI-CEC wakeup */
+#define EXTI_EVENT_ETHWKUP          86        /* Ethernet wakeup */
+#define EXTI_EVENT_HSECSS           87        /* HSECSS interrupt */
 
-#endif /* CONFIG_STM32H7_STM32H7X3XX */
+#endif /* CONFIG_STM32H7_STM32H7X3XX || CONFIG_STM32H7_STM32H7X7XX */
 #endif /* __ARCH_ARM_SRC_STM32H7_HARDWARE_STM32_EXTI_H */

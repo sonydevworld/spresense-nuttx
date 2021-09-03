@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/sama5/sam_clockconfig.c
  *
- *   Copyright (C) 2013-2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -46,8 +31,8 @@
 #include <arch/board/board.h>
 #include <arch/sama5/chip.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "sam_periphclks.h"
 #include "sam_clockconfig.h"
@@ -72,7 +57,7 @@
 #if !defined(CONFIG_SAMA5_EHCI) && !defined(CONFIG_SAMA5_OHCI) && \
     !defined(CONFIG_SAMA5_UDPHS)
 
-   /* No... ignore the board setup */
+/* No... ignore the board setup */
 
 #  undef BOARD_USE_UPLL
 #endif
@@ -293,7 +278,9 @@ static void __ramfunc__ sam_plladivider(void)
 
   putreg32(regval, SAM_PMC_MCKR);
 
-  /* We changed the PLLA divider.  Wait for the main clock to be ready again */
+  /* We changed the PLLA divider.
+   * Wait for the main clock to be ready again
+   */
 
   sam_pmcwait(PMC_INT_MCKRDY);
 }
@@ -438,9 +425,9 @@ static inline void sam_usbclockconfig(void)
 
   /* The USB Host High Speed requires a 480 MHz clock (UPLLCK) for the
    * embedded High-speed transceivers. UPLLCK is the output of the 480 MHz
-   * UTMI PLL (UPLL).  The source clock of the UTMI PLL is the Main OSC output:
-   * Either the 12MHz internal oscillator on a 12MHz crystal.  The Main OSC
-   * must be 12MHz because the UPLL has a built-in 40x multiplier.
+   * UTMI PLL (UPLL).  The source clock of the UTMI PLL is the Main OSC
+   * output: either the 12MHz internal oscillator or a 12MHz crystal. The
+   * Main OSC must be 12MHz because the UPLL has a built-in 40x multiplier.
    *
    * For High-speed operations, the user has to perform the following:
    *
@@ -500,7 +487,7 @@ static inline void sam_usbclockconfig(void)
    * No idea why?  Let the board.h file decide which to use.
    */
 
-  regval |= PMC_USB_USBDIV(BOARD_UPLL_OHCI_DIV-1);
+  regval |= PMC_USB_USBDIV(BOARD_UPLL_OHCI_DIV - 1);
   putreg32(regval, SAM_PMC_USB);
 
 #else /* BOARD_USE_UPLL */
@@ -537,10 +524,10 @@ static inline void sam_usbclockconfig(void)
  * Description:
  *   Called to initialize the SAM3/4.  This does whatever setup is needed to
  *   put the SoC in a usable state.  This includes the initialization of
- *   clocking using the settings in board.h.  (After power-on reset, the SAMA5
- *   is initially running on a 12MHz internal RC clock).  This function also
- *   performs other low-level chip initialization of the chip including master
- *   clock, IRQ & watchdog configuration.
+ *   clocking using the settings in board.h. (After power-on reset, the SAMA5
+ *   is initially running on a 12MHz internal RC clock). This function also
+ *   performs other low-level chip initialization of the chip including
+ *   master clock, IRQ & watchdog configuration.
  *
  * Boot Sequence
  *
@@ -586,7 +573,7 @@ static inline void sam_usbclockconfig(void)
  *       a. Stack Setup for ARM supervisor mode
  *       b. Main Oscillator Detection:  The bootloader attempts to use an
  *          external crystal.  If this is not successful, then  the 12 MHz
- *          Fast RC internal oscillator is used as the main osciallator.
+ *          Fast RC internal oscillator is used as the main oscillator.
  *       c. Main Clock Selection: The Master Clock source is switched from
  *          to the main oscillator without prescaler. PCK and MCK are now
  *          the Main Clock.
@@ -627,8 +614,8 @@ void __ramfunc__ sam_clockconfig(void)
        * frequency:
        *
        *   - Enable the 32768 Hz oscillator if best accuracy is needed
-       *   - Reprogram the SMC setup, cycle, hold, mode timing registers for EBI
-       *     CS0, to adapt them to the new clock.
+       *   - Reprogram the SMC setup, cycle, hold, mode timing registers for
+       *     EBI CS0, to adapt them to the new clock.
        *
        * Then below:
        *
@@ -638,6 +625,7 @@ void __ramfunc__ sam_clockconfig(void)
        */
 
       /* Enable the 32768 Hz oscillator */
+
       /* REVISIT! */
 
       /* Reprogram the SMC setup, cycle, hold, mode timing registers for EBI
@@ -705,7 +693,7 @@ void __ramfunc__ sam_clockconfig(void)
 #ifdef ATSAMA5D2
   /* Enable clocking to the PIO module */
 
-  sam_pio_enableclk();
+  sam_pioa_enableclk();
 #endif
 
   /* Setup USB clocking */

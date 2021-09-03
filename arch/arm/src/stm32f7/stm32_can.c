@@ -1,7 +1,8 @@
 /****************************************************************************
- * arch/arm/src/stm32/stm32_can.c
+ * arch/arm/src/stm32f7/stm32_can.c
  *
- *   Copyright (C) 2011, 2016-2017, 2019 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2011, 2016-2017, 2019 Gregory Nutt.
+ *   All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  *   Copyright (C) 2016 Omni Hoverboards Inc. All rights reserved.
@@ -54,10 +55,12 @@
 #include <nuttx/arch.h>
 #include <nuttx/can/can.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "chip.h"
+
+#include "stm32_rcc.h"
 #include "stm32_can.h"
 #include "stm32_gpio.h"
 
@@ -847,7 +850,7 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
   FAR struct stm32_can_s *priv;
   int ret = -ENOTTY;
 
-  caninfo("cmd=%04x arg=%lu\n", cmd, arg);
+  caninfo("cmd=%04x arg=%" PRIu32 "\n", cmd, arg);
 
   DEBUGASSERT(dev && dev->cd_priv);
   priv = dev->cd_priv;
@@ -877,11 +880,15 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
           DEBUGASSERT(bt != NULL);
 
           regval       = stm32can_getreg(priv, STM32_CAN_BTR_OFFSET);
-          bt->bt_sjw   = ((regval & CAN_BTR_SJW_MASK) >> CAN_BTR_SJW_SHIFT) + 1;
-          bt->bt_tseg1 = ((regval & CAN_BTR_TS1_MASK) >> CAN_BTR_TS1_SHIFT) + 1;
-          bt->bt_tseg2 = ((regval & CAN_BTR_TS2_MASK) >> CAN_BTR_TS2_SHIFT) + 1;
+          bt->bt_sjw   = ((regval & CAN_BTR_SJW_MASK) >>
+                           CAN_BTR_SJW_SHIFT) + 1;
+          bt->bt_tseg1 = ((regval & CAN_BTR_TS1_MASK) >>
+                           CAN_BTR_TS1_SHIFT) + 1;
+          bt->bt_tseg2 = ((regval & CAN_BTR_TS2_MASK) >>
+                           CAN_BTR_TS2_SHIFT) + 1;
 
-          brp          = ((regval & CAN_BTR_BRP_MASK) >> CAN_BTR_BRP_SHIFT) + 1;
+          brp          = ((regval & CAN_BTR_BRP_MASK) >>
+                           CAN_BTR_BRP_SHIFT) + 1;
           bt->bt_baud  = STM32_PCLK1_FREQUENCY /
                          (brp * (bt->bt_tseg1 + bt->bt_tseg2 + 1));
           ret = OK;
@@ -901,8 +908,8 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
        * REVISIT: There is probably a limitation here:  If there are multiple
        * threads trying to send CAN packets, when one of these threads
        * reconfigures the bitrate, the MCAN hardware will be reset and the
-       * context of operation will be lost.  Hence, this IOCTL can only safely
-       * be executed in quiescent time periods.
+       * context of operation will be lost.  Hence, this IOCTL can only
+       * safely be executed in quiescent time periods.
        */
 
       case CANIOC_SET_BITTIMING:
@@ -949,7 +956,7 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
               DEBUGASSERT(brp >= 1 && brp <= CAN_BTR_BRP_MAX);
             }
 
-          caninfo("TS1: %d TS2: %d BRP: %d\n",
+          caninfo("TS1: %"PRId8 " TS2: %" PRId8 " BRP: %" PRIu32 "\n",
                   bt->bt_tseg1, bt->bt_tseg2, brp);
 
           /* Configure bit timing. */
@@ -1134,6 +1141,54 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
         }
         break;
 
+      case CANIOC_SET_NART:
+        {
+          uint32_t regval;
+          ret = stm32can_enterinitmode(priv);
+          if (ret != 0)
+            {
+              return ret;
+            }
+
+          regval = stm32can_getreg(priv, STM32_CAN_MCR_OFFSET);
+          if (arg == 1)
+            {
+              regval |= CAN_MCR_NART;
+            }
+          else
+            {
+              regval &= ~CAN_MCR_NART;
+            }
+
+          stm32can_putreg(priv, STM32_CAN_MCR_OFFSET, regval);
+          return stm32can_exitinitmode(priv);
+        }
+        break;
+
+      case CANIOC_SET_ABOM:
+        {
+          uint32_t regval;
+          ret = stm32can_enterinitmode(priv);
+          if (ret != 0)
+            {
+              return ret;
+            }
+
+          regval = stm32can_getreg(priv, STM32_CAN_MCR_OFFSET);
+          if (arg == 1)
+            {
+              regval |= CAN_MCR_ABOM;
+            }
+          else
+            {
+              regval &= ~CAN_MCR_ABOM;
+            }
+
+          stm32can_putreg(priv, STM32_CAN_MCR_OFFSET, regval);
+          return stm32can_exitinitmode(priv);
+        }
+        break;
+
       /* Unsupported/unrecognized command */
 
       default:
@@ -1175,7 +1230,7 @@ static int stm32can_remoterequest(FAR struct can_dev_s *dev, uint16_t id)
  *
  *    Byte 0:      Bits 0-7: Bits 3-10 of the 11-bit CAN identifier
  *    Byte 1:      Bits 5-7: Bits 0-2 of the 11-bit CAN identifier
- *                 Bit 4:    Remote Tranmission Request (RTR)
+ *                 Bit 4:    Remote Transmission Request (RTR)
  *                 Bits 0-3: Data Length Code (DLC)
  *    Bytes 2-10: CAN data
  *
@@ -1244,8 +1299,13 @@ static int stm32can_send(FAR struct can_dev_s *dev,
     }
 
 #else
-  regval &= ~CAN_TIR_STID_MASK;
-  regval |= (uint32_t)msg->cm_hdr.ch_id << CAN_TIR_STID_SHIFT;
+  regval |= (((uint32_t) msg->cm_hdr.ch_id << CAN_TIR_STID_SHIFT) &
+               CAN_TIR_STID_MASK);
+
+#endif
+
+#ifdef CONFIG_CAN_USE_RTR
+  regval |= (msg->cm_hdr.ch_rtr ? CAN_TIR_RTR : 0);
 #endif
 
   stm32can_putreg(priv, STM32_CAN_TIR_OFFSET(txmb), regval);
@@ -1354,7 +1414,7 @@ static bool stm32can_txready(FAR struct can_dev_s *dev)
   /* Return true if any mailbox is available */
 
   regval = stm32can_getreg(priv, STM32_CAN_TSR_OFFSET);
-  caninfo("CAN%d TSR: %08x\n", priv->port, regval);
+  caninfo("CAN%d TSR: %08" PRIx32 "\n", priv->port, regval);
 
   return stm32can_txmb0empty(regval) || stm32can_txmb1empty(regval) ||
          stm32can_txmb2empty(regval);
@@ -1386,7 +1446,7 @@ static bool stm32can_txempty(FAR struct can_dev_s *dev)
   /* Return true if all mailboxes are available */
 
   regval = stm32can_getreg(priv, STM32_CAN_TSR_OFFSET);
-  caninfo("CAN%d TSR: %08x\n", priv->port, regval);
+  caninfo("CAN%d TSR: %08" PRIx32 "\n", priv->port, regval);
 
   return stm32can_txmb0empty(regval) && stm32can_txmb1empty(regval) &&
          stm32can_txmb2empty(regval);
@@ -1692,7 +1752,7 @@ static int stm32can_bittiming(FAR struct stm32_can_s *priv)
   uint32_t ts1;
   uint32_t ts2;
 
-  caninfo("CAN%d PCLK1: %d baud: %d\n",
+  caninfo("CAN%d PCLK1: %" PRId32 " baud: %" PRId32 "\n",
           priv->port, STM32_PCLK1_FREQUENCY, priv->baud);
 
   /* Try to get CAN_BIT_QUANTA quanta in one bit_time.
@@ -1745,7 +1805,8 @@ static int stm32can_bittiming(FAR struct stm32_can_s *priv)
       DEBUGASSERT(brp >= 1 && brp <= CAN_BTR_BRP_MAX);
     }
 
-  caninfo("TS1: %d TS2: %d BRP: %d\n", ts1, ts2, brp);
+  caninfo("TS1: %" PRId32 " TS2: %" PRId32 " BRP: %" PRId32 "\n",
+               ts1, ts2, brp);
 
   /* Configure bit timing.  This also does the following, less obvious
    * things.  Unless loopback mode is enabled, it:
@@ -1757,8 +1818,10 @@ static int stm32can_bittiming(FAR struct stm32_can_s *priv)
    * know any better.
    */
 
-  tmp  = ((brp - 1) << CAN_BTR_BRP_SHIFT) | ((ts1 - 1) << CAN_BTR_TS1_SHIFT) |
-         ((ts2 - 1) << CAN_BTR_TS2_SHIFT) | ((1 - 1) << CAN_BTR_SJW_SHIFT);
+  tmp  = ((brp - 1) << CAN_BTR_BRP_SHIFT) |
+         ((ts1 - 1) << CAN_BTR_TS1_SHIFT) |
+         ((ts2 - 1) << CAN_BTR_TS2_SHIFT) |
+           ((1 - 1) << CAN_BTR_SJW_SHIFT);
 #ifdef CONFIG_CAN_LOOPBACK
   tmp |= CAN_BTR_LBKM;
 #endif
@@ -1862,8 +1925,8 @@ static int stm32can_exitinitmode(FAR struct stm32_can_s *priv)
 
   if (timeout < 1)
     {
-      canerr("ERROR: Timed out waiting to exit initialization mode: %08x\n",
-             regval);
+      canerr("ERROR: Timed out waiting to exit initialization mode: %08"
+                  PRIx32 "\n", regval);
       return -ETIMEDOUT;
     }
 
@@ -1956,7 +2019,7 @@ static int stm32can_cellinit(FAR struct stm32_can_s *priv)
  *   (but reserves CAN_NFILTERS/2 through CAN_NFILTERS-1).
  *
  *   32-bit IdMask mode is configured.  However, both the ID and the MASK
- *   are set to zero thus supressing all filtering because anything masked
+ *   are set to zero thus suppressing all filtering because anything masked
  *   with zero matches zero.
  *
  * Input Parameters:

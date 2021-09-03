@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/imxrt/imxrt_serial.c
  *
- *   Copyright (C) 2018, 2019 Gregory Nutt. All rights reserved.
- *   Author: Ivan Ucherdzhiev <ivanucherdjiev@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -61,8 +46,8 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "hardware/imxrt_lpuart.h"
 #include "imxrt_gpio.h"
@@ -257,6 +242,7 @@
  * UART 5-8 could be the console.  One of UART5-8 has already been
  * assigned to ttys0, 1, 2, 3, or 4.
  */
+
 #if defined(CONFIG_IMXRT_LPUART5) && !defined(UART5_ASSIGNED)
 #  define TTYS5_DEV           g_uart5port /* LPUART5 is ttyS5 */
 #  define UART5_ASSIGNED      1
@@ -320,29 +306,32 @@
 
 struct imxrt_uart_s
 {
-  uint32_t uartbase;    /* Base address of UART registers */
-  uint32_t baud;        /* Configured baud */
-  uint32_t ie;          /* Saved enabled interrupts */
-  uint8_t  irq;         /* IRQ associated with this UART */
-  uint8_t  parity;      /* 0=none, 1=odd, 2=even */
-  uint8_t  bits;        /* Number of bits (7 or 8) */
+  uint32_t uartbase;        /* Base address of UART registers */
+  uint32_t baud;            /* Configured baud */
+  uint32_t ie;              /* Saved enabled interrupts */
+  uint8_t  irq;             /* IRQ associated with this UART */
+  uint8_t  parity;          /* 0=none, 1=odd, 2=even */
+  uint8_t  bits;            /* Number of bits (7 or 8) */
 #if defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL)
-  uint8_t  inviflow:1;  /* Invert RTS sense */
+  uint8_t  inviflow:1;      /* Invert RTS sense */
   const uint32_t rts_gpio;  /* U[S]ART RTS GPIO pin configuration */
 #endif
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
   const uint32_t cts_gpio;  /* U[S]ART CTS GPIO pin configuration */
 #endif
+#ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
+  const uint32_t tx_gpio;   /* TX GPIO pin configuration */
+#endif
 
-  uint8_t  stopbits2:1; /* 1: Configure with 2 stop bits vs 1 */
+  uint8_t  stopbits2:1;     /* 1: Configure with 2 stop bits vs 1 */
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
-  uint8_t  iflow:1;     /* input flow control (RTS) enabled */
+  uint8_t  iflow:1;         /* input flow control (RTS) enabled */
 #endif
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
-  uint8_t  oflow:1;     /* output flow control (CTS) enabled */
+  uint8_t  oflow:1;         /* output flow control (CTS) enabled */
 #endif
 #ifdef CONFIG_SERIAL_RS485CONTROL
-  uint8_t rs485mode:1;  /* We are in RS485 (RTS on TX) mode */
+  uint8_t rs485mode:1;      /* We are in RS485 (RTS on TX) mode */
 #endif
 };
 
@@ -365,7 +354,7 @@ static int  imxrt_attach(struct uart_dev_s *dev);
 static void imxrt_detach(struct uart_dev_s *dev);
 static int  imxrt_interrupt(int irq, void *context, FAR void *arg);
 static int  imxrt_ioctl(struct file *filep, int cmd, unsigned long arg);
-static int  imxrt_receive(struct uart_dev_s *dev, uint32_t *status);
+static int  imxrt_receive(struct uart_dev_s *dev, unsigned int *status);
 static void imxrt_rxint(struct uart_dev_s *dev, bool enable);
 static bool imxrt_rxavailable(struct uart_dev_s *dev);
 static void imxrt_send(struct uart_dev_s *dev, int ch);
@@ -469,6 +458,9 @@ static struct imxrt_uart_s g_uart1priv =
    || (defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_LPUART1_IFLOWCONTROL)))
   .rts_gpio     = GPIO_LPUART1_RTS,
 #endif
+#ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
+  .tx_gpio      = GPIO_LPUART1_TX,
+#endif
 
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART1_INVERTIFLOWCONTROL))
@@ -519,6 +511,9 @@ static struct imxrt_uart_s g_uart2priv =
    || (defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_LPUART2_IFLOWCONTROL)))
   .rts_gpio     = GPIO_LPUART2_RTS,
 #endif
+#ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
+  .tx_gpio      = GPIO_LPUART2_TX,
+#endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART2_INVERTIFLOWCONTROL))
   .inviflow     = 1,
@@ -540,7 +535,7 @@ static struct uart_dev_s g_uart2port =
   {
     .size       = CONFIG_LPUART2_TXBUFSIZE,
     .buffer     = g_uart2txbuffer,
-   },
+  },
   .ops          = &g_uart_ops,
   .priv         = &g_uart2priv,
 };
@@ -565,6 +560,9 @@ static struct imxrt_uart_s g_uart3priv =
 # if ((defined(CONFIG_SERIAL_RS485CONTROL) && defined(CONFIG_LPUART3_RS485RTSCONTROL)) \
    || (defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_LPUART3_IFLOWCONTROL)))
   .rts_gpio     = GPIO_LPUART3_RTS,
+#endif
+#ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
+  .tx_gpio      = GPIO_LPUART3_TX,
 #endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART3_INVERTIFLOWCONTROL))
@@ -613,6 +611,9 @@ static struct imxrt_uart_s g_uart4priv =
    || (defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_LPUART4_IFLOWCONTROL)))
   .rts_gpio     = GPIO_LPUART4_RTS,
 #endif
+#ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
+  .tx_gpio      = GPIO_LPUART4_TX,
+#endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART4_INVERTIFLOWCONTROL))
   .inviflow     = 1,
@@ -659,6 +660,9 @@ static struct imxrt_uart_s g_uart5priv =
 # if ((defined(CONFIG_SERIAL_RS485CONTROL) && defined(CONFIG_LPUART5_RS485RTSCONTROL)) \
    || (defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_LPUART5_IFLOWCONTROL)))
   .rts_gpio     = GPIO_LPUART5_RTS,
+#endif
+#ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
+  .tx_gpio      = GPIO_LPUART5_TX,
 #endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART5_INVERTIFLOWCONTROL))
@@ -707,6 +711,9 @@ static struct imxrt_uart_s g_uart6priv =
    || (defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_LPUART6_IFLOWCONTROL)))
   .rts_gpio     = GPIO_LPUART6_RTS,
 #endif
+#ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
+  .tx_gpio      = GPIO_LPUART6_TX,
+#endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART6_INVERTIFLOWCONTROL))
   .inviflow     = 1,
@@ -754,6 +761,9 @@ static struct imxrt_uart_s g_uart7priv =
    || (defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_LPUART7_IFLOWCONTROL)))
   .rts_gpio     = GPIO_LPUART7_RTS,
 #endif
+#ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
+  .tx_gpio      = GPIO_LPUART7_TX,
+#endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART7_INVERTIFLOWCONTROL))
   .inviflow     = 1,
@@ -800,6 +810,9 @@ static struct imxrt_uart_s g_uart8priv =
 # if ((defined(CONFIG_SERIAL_RS485CONTROL) && defined(CONFIG_LPUART8_RS485RTSCONTROL)) \
    || (defined(CONFIG_SERIAL_IFLOWCONTROL) && defined(CONFIG_LPUART8_IFLOWCONTROL)))
   .rts_gpio     = GPIO_LPUART8_RTS,
+#endif
+#ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
+  .tx_gpio      = GPIO_LPUART8_TX,
 #endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART8_INVERTIFLOWCONTROL))
@@ -854,8 +867,8 @@ static inline uint32_t imxrt_serialin(struct imxrt_uart_s *priv,
  * Name: imxrt_serialout
  ****************************************************************************/
 
-static inline void imxrt_serialout(struct imxrt_uart_s *priv, uint32_t offset,
-                                   uint32_t value)
+static inline void imxrt_serialout(struct imxrt_uart_s *priv,
+                                   uint32_t offset, uint32_t value)
 {
   putreg32(value, priv->uartbase + offset);
 }
@@ -870,7 +883,7 @@ static inline void imxrt_disableuartint(struct imxrt_uart_s *priv,
   irqstate_t flags;
   uint32_t regval;
 
-  flags  = spin_lock_irqsave();
+  flags  = spin_lock_irqsave(NULL);
   regval = imxrt_serialin(priv, IMXRT_LPUART_CTRL_OFFSET);
 
   /* Return the current Rx and Tx interrupt state */
@@ -882,7 +895,7 @@ static inline void imxrt_disableuartint(struct imxrt_uart_s *priv,
 
   regval &= ~LPUART_ALL_INTS;
   imxrt_serialout(priv, IMXRT_LPUART_CTRL_OFFSET, regval);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -899,12 +912,12 @@ static inline void imxrt_restoreuartint(struct imxrt_uart_s *priv,
    * enabled/disabled.
    */
 
-  flags   = spin_lock_irqsave();
+  flags   = spin_lock_irqsave(NULL);
   regval  = imxrt_serialin(priv, IMXRT_LPUART_CTRL_OFFSET);
   regval &= ~LPUART_ALL_INTS;
   regval |= ie;
   imxrt_serialout(priv, IMXRT_LPUART_CTRL_OFFSET, regval);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -921,11 +934,11 @@ static int imxrt_setup(struct uart_dev_s *dev)
 {
   struct imxrt_uart_s *priv = (struct imxrt_uart_s *)dev->priv;
 #ifndef CONFIG_SUPPRESS_LPUART_CONFIG
+  int ret;
   struct uart_config_s config =
   {
     0
   };
-  int ret;
 
   /* Configure the UART */
 
@@ -948,11 +961,13 @@ static int imxrt_setup(struct uart_dev_s *dev)
 
   ret = imxrt_lpuart_configure(priv->uartbase, &config);
 
-  priv->ie = imxrt_serialin(priv, IMXRT_LPUART_CTRL_OFFSET) & LPUART_ALL_INTS;
+  priv->ie = imxrt_serialin(priv, IMXRT_LPUART_CTRL_OFFSET) & \
+             LPUART_ALL_INTS;
   return ret;
 
 #else
-  priv->ie = imxrt_serialin(priv, IMXRT_LPUART_CTRL_OFFSET) & LPUART_ALL_INTS;
+  priv->ie = imxrt_serialin(priv, IMXRT_LPUART_CTRL_OFFSET) & \
+             LPUART_ALL_INTS;
   return OK;
 #endif
 }
@@ -1120,6 +1135,7 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
 #if defined(CONFIG_SERIAL_TIOCSERGSTRUCT) || defined(CONFIG_SERIAL_TERMIOS)
   struct inode *inode = filep->f_inode;
   struct uart_dev_s *dev   = inode->i_private;
+  irqstate_t flags;
 #endif
   int ret   = OK;
 
@@ -1153,10 +1169,6 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
             break;
           }
 
-        /* Return baud */
-
-        cfsetispeed(termiosp, priv->baud);
-
         /* Return parity */
 
         termiosp->c_cflag = ((priv->parity != 0) ? PARENB : 0) |
@@ -1174,6 +1186,10 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
         termiosp->c_cflag |= ((priv->iflow) ? CRTS_IFLOW : 0);
 #endif
+        /* Return baud */
+
+        cfsetispeed(termiosp, priv->baud);
+
         /* Return number of bits */
 
         switch (priv->bits)
@@ -1195,9 +1211,11 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
             termiosp->c_cflag |= CS8;
             break;
 
+#if defined(CS9)
           case 9:
-            termiosp->c_cflag |= CS8 /* CS9 */;
+            termiosp->c_cflag |= CS9;
             break;
+#endif
           }
       }
       break;
@@ -1249,7 +1267,8 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
           case CS8:
             nbits = 8;
             break;
-#if 0
+
+#if defined(CS9)
           case CS9:
             nbits = 9;
             break;
@@ -1294,6 +1313,7 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
              * implement TCSADRAIN / TCSAFLUSH
              */
 
+            flags  = spin_lock_irqsave(NULL);
             imxrt_disableuartint(priv, &ie);
             ret = imxrt_setup(dev);
 
@@ -1301,10 +1321,49 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
 
             imxrt_restoreuartint(priv, ie);
             priv->ie = ie;
+            spin_unlock_irqrestore(NULL, flags);
           }
       }
       break;
 #endif /* CONFIG_SERIAL_TERMIOS */
+
+#ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
+    case TIOCSSINGLEWIRE:
+      {
+        uint32_t regval;
+        irqstate_t flags;
+        struct imxrt_uart_s *priv = (struct imxrt_uart_s *)dev->priv;
+
+        flags  = spin_lock_irqsave(NULL);
+        regval   = imxrt_serialin(priv, IMXRT_LPUART_CTRL_OFFSET);
+
+        if ((arg & SER_SINGLEWIRE_ENABLED) != 0)
+          {
+            uint32_t gpio_val = IOMUX_OPENDRAIN;
+            gpio_val |= (arg & SER_SINGLEWIRE_PULL_MASK) ==
+                         SER_SINGLEWIRE_PULLUP ?
+                                        IOMUX_PULL_UP_47K : IOMUX_PULL_NONE;
+            gpio_val |= (arg & SER_SINGLEWIRE_PULL_MASK) ==
+                         SER_SINGLEWIRE_PULLDOWN ?
+                                     IOMUX_PULL_DOWN_100K : IOMUX_PULL_NONE;
+            imxrt_config_gpio((priv->tx_gpio &
+                          ~(IOMUX_PULL_MASK | IOMUX_OPENDRAIN)) | gpio_val);
+            regval |= LPUART_CTRL_LOOPS | LPUART_CTRL_RSRC;
+          }
+        else
+          {
+            imxrt_config_gpio((priv->tx_gpio & ~(IOMUX_PULL_MASK |
+                                                 IOMUX_OPENDRAIN)) |
+                                                 IOMUX_PULL_NONE);
+            regval &= ~(LPUART_CTRL_LOOPS | LPUART_CTRL_RSRC);
+          }
+
+        imxrt_serialout(priv, IMXRT_LPUART_CTRL_OFFSET, regval);
+
+        spin_unlock_irqrestore(NULL, flags);
+      }
+      break;
+#endif
 
 #ifdef CONFIG_IMXRT_LPUART_INVERT
     case TIOCSINVERT:
@@ -1315,12 +1374,14 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
         irqstate_t flags;
         struct imxrt_uart_s *priv = (struct imxrt_uart_s *)dev->priv;
 
-        flags  = spin_lock_irqsave();
+        flags  = spin_lock_irqsave(NULL);
         ctrl   = imxrt_serialin(priv, IMXRT_LPUART_CTRL_OFFSET);
         stat   = imxrt_serialin(priv, IMXRT_LPUART_STAT_OFFSET);
         regval = ctrl;
 
-        /* {R|T}XINV bit field can only be written when the receiver is disabled (RE=0). */
+        /* {R|T}XINV bit field can only be written when the receiver
+         * is disabled (RE=0).
+         */
 
         regval &= ~LPUART_CTRL_RE;
 
@@ -1349,7 +1410,7 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
         imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, stat);
         imxrt_serialout(priv, IMXRT_LPUART_CTRL_OFFSET, ctrl);
 
-        spin_unlock_irqrestore(flags);
+        spin_unlock_irqrestore(NULL, flags);
       }
       break;
 #endif
@@ -1374,7 +1435,7 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
  *
  ****************************************************************************/
 
-static int imxrt_receive(struct uart_dev_s *dev, uint32_t *status)
+static int imxrt_receive(struct uart_dev_s *dev, unsigned int *status)
 {
   struct imxrt_uart_s *priv = (struct imxrt_uart_s *)dev->priv;
   uint32_t rxd;
@@ -1400,7 +1461,7 @@ static void imxrt_rxint(struct uart_dev_s *dev, bool enable)
 
   /* Enable interrupts for data available at Rx */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   if (enable)
     {
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
@@ -1416,7 +1477,7 @@ static void imxrt_rxint(struct uart_dev_s *dev, bool enable)
   regval &= ~LPUART_ALL_INTS;
   regval |= priv->ie;
   imxrt_serialout(priv, IMXRT_LPUART_CTRL_OFFSET, regval);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -1468,7 +1529,7 @@ static void imxrt_txint(struct uart_dev_s *dev, bool enable)
 
   /* Enable interrupt for TX complete */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   if (enable)
     {
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
@@ -1484,7 +1545,7 @@ static void imxrt_txint(struct uart_dev_s *dev, bool enable)
   regval &= ~LPUART_ALL_INTS;
   regval |= priv->ie;
   imxrt_serialout(priv, IMXRT_LPUART_CTRL_OFFSET, regval);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -1551,32 +1612,29 @@ static void up_pm_notify(struct pm_callback_s *cb, int domain,
       case(PM_NORMAL):
         {
           /* Logic for PM_NORMAL goes here */
-
         }
         break;
 
       case(PM_IDLE):
         {
           /* Logic for PM_IDLE goes here */
-
         }
         break;
 
       case(PM_STANDBY):
         {
           /* Logic for PM_STANDBY goes here */
-
         }
         break;
 
       case(PM_SLEEP):
         {
           /* Logic for PM_SLEEP goes here */
-
         }
         break;
 
       default:
+
         /* Should not get here */
 
         break;
@@ -1638,7 +1696,7 @@ static int up_pm_prepare(struct pm_callback_s *cb, int domain,
  * Description:
  *   Performs the low level UART initialization early in debug so that the
  *   serial console will be available during bootup.  This must be called
- *   before up_serialinit.
+ *   before arm_serialinit.
  *
  ****************************************************************************/
 
@@ -1660,7 +1718,7 @@ void imxrt_earlyserialinit(void)
 }
 
 /****************************************************************************
- * Name: up_serialinit
+ * Name: arm_serialinit
  *
  * Description:
  *   Register serial console and serial ports.  This assumes
@@ -1668,7 +1726,7 @@ void imxrt_earlyserialinit(void)
  *
  ****************************************************************************/
 
-void up_serialinit(void)
+void arm_serialinit(void)
 {
 #ifdef CONFIG_PM
   int ret;
@@ -1761,10 +1819,10 @@ int up_putc(int ch)
     {
       /* Add CR */
 
-      up_lowputc('\r');
+      arm_lowputc('\r');
     }
 
-  up_lowputc(ch);
+  arm_lowputc(ch);
 #endif
 
   return ch;

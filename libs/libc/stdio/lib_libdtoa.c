@@ -1,5 +1,5 @@
 /****************************************************************************
- * libs/libc/unistd/lib_libdtoa.c
+ * libs/libc/stdio/lib_libdtoa.c
  *
  * This file was ported to NuttX by Yolande Cates.
  *
@@ -46,7 +46,6 @@
 
 #include <nuttx/config.h>
 
-#include <sys/types.h>
 #include <stdbool.h>
 #include <math.h>
 #include <assert.h>
@@ -159,7 +158,7 @@ static void lib_dtoa_string(FAR struct lib_outstream_s *obj, const char *str)
  ****************************************************************************/
 
 static void lib_dtoa(FAR struct lib_outstream_s *obj, int fmt, int prec,
-                     uint16_t flags, double_t value)
+                     uint16_t flags, double value)
 {
   FAR char *digits;     /* String returned by __dtoa */
   FAR char *rve;        /* Points to the end of the return value */
@@ -169,17 +168,6 @@ static void lib_dtoa(FAR struct lib_outstream_s *obj, int fmt, int prec,
   int  nchars;          /* Number of characters to print */
   int  dsgn;            /* Unused sign indicator */
   int  i;
-
-#if defined(CONFIG_BUILD_FLAT) || defined(__KERNEL__)
-  /* This function may *NOT* be called within interrupt level logic.  That is
-   * because the logic in __dtoa may attempt to allocate memory.  That will
-   * lead to cryptic failures down the road within the memory manager.
-   * Better to explicitly assert upstream here.  Rule:  Don't use floating
-   * point formats on any output from interrupt handling logic.
-   */
-
-  DEBUGASSERT(up_interrupt_context() == false);
-#endif
 
   /* Set to default precision if none specified */
 
@@ -282,7 +270,9 @@ static void lib_dtoa(FAR struct lib_outstream_s *obj, int fmt, int prec,
         {
           obj->put(obj, '.');
 
-          /* Always print at least one digit to the right of the decimal point. */
+          /* Always print at least one digit to the right of the decimal
+           * point.
+           */
 
           if (notrailing)
             {

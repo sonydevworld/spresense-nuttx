@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/mount/fs_umount2.c
  *
- *   Copyright (C) 2007-2009, 2015, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,36 +38,32 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: umount2
+ * Name: nx_umount2
  *
  * Description:
- *   umount() detaches the filesystem mounted at the path specified by
- *  'target.'
+ *   nx_umount2() is similar to the standard 'umount2' interface except that
+ *   is not a cancellation point and it does not modify the errno variable.
+ *
+ *   nx_umount2() is an internal NuttX interface and should not be called
+ *   from applications.
  *
  * Returned Value:
- *   Zero is returned on success; -1 is returned on an error and errno is
- *   set appropriately:
- *
- *   EACCES A component of a path was not searchable or mounting a read-only
- *      filesystem was attempted without giving the MS_RDONLY flag.
- *   EBUSY The target could not be unmounted because it is busy.
- *   EFAULT The pointer argument points outside the user address space.
+ *   Zero is returned on success; a negated value is returned on any failure.
  *
  ****************************************************************************/
 
-int umount2(FAR const char *target, unsigned int flags)
+int nx_umount2(FAR const char *target, unsigned int flags)
 {
   FAR struct inode *mountpt_inode;
   FAR struct inode *blkdrvr_inode = NULL;
   struct inode_search_s desc;
-  int errcode = OK;
   int ret;
 
   /* Verify required pointer arguments */
 
   if (!target)
     {
-      errcode = EFAULT;
+      ret = -EFAULT;
       goto errout;
     }
 
@@ -93,7 +74,6 @@ int umount2(FAR const char *target, unsigned int flags)
   ret = inode_find(&desc);
   if (ret < 0)
     {
-      errcode = ENOENT;
       goto errout_with_search;
     }
 
@@ -106,7 +86,7 @@ int umount2(FAR const char *target, unsigned int flags)
 
   if (!INODE_IS_MOUNTPT(mountpt_inode))
     {
-      errcode = EINVAL;
+      ret = -EINVAL;
       goto errout_with_mountpt;
     }
 
@@ -118,7 +98,7 @@ int umount2(FAR const char *target, unsigned int flags)
     {
       /* The filesystem does not support the unbind operation ??? */
 
-      errcode = EINVAL;
+      ret = -EINVAL;
       goto errout_with_mountpt;
     }
 
@@ -127,19 +107,25 @@ int umount2(FAR const char *target, unsigned int flags)
    * performed, or a negated error code on a failure.
    */
 
-  inode_semtake(); /* Hold the semaphore through the unbind logic */
+  /* Hold the semaphore through the unbind logic */
+
+  ret = inode_semtake();
+  if (ret < 0)
+    {
+      goto errout_with_mountpt;
+    }
+
   ret = mountpt_inode->u.i_mops->unbind(mountpt_inode->i_private,
                                        &blkdrvr_inode, flags);
   if (ret < 0)
     {
       /* The inode is unhappy with the blkdrvr for some reason */
 
-      errcode = -ret;
       goto errout_with_semaphore;
     }
   else if (ret > 0)
     {
-      errcode = EBUSY;
+      ret = -EBUSY;
       goto errout_with_semaphore;
     }
 
@@ -160,6 +146,7 @@ int umount2(FAR const char *target, unsigned int flags)
 
       DEBUGASSERT(mountpt_inode->i_crefs > 0);
       mountpt_inode->i_crefs--;
+      inode_semgive();
     }
   else
 #endif
@@ -178,7 +165,6 @@ int umount2(FAR const char *target, unsigned int flags)
 
       if (ret != OK && ret != -EBUSY)
         {
-          errcode = -ret;
           goto errout_with_mountpt;
         }
 
@@ -216,6 +202,37 @@ errout_with_search:
   RELEASE_SEARCH(&desc);
 
 errout:
-  set_errno(errcode);
-  return ERROR;
+  return ret;
+}
+
+/****************************************************************************
+ * Name: umount2
+ *
+ * Description:
+ *   umount() detaches the filesystem mounted at the path specified by
+ *  'target.'
+ *
+ * Returned Value:
+ *   Zero is returned on success; -1 is returned on an error and errno is
+ *   set appropriately:
+ *
+ *   EACCES A component of a path was not searchable or mounting a read-only
+ *      filesystem was attempted without giving the MS_RDONLY flag.
+ *   EBUSY The target could not be unmounted because it is busy.
+ *   EFAULT The pointer argument points outside the user address space.
+ *
+ ****************************************************************************/
+
+int umount2(FAR const char *target, unsigned int flags)
+{
+  int ret;
+
+  ret = nx_umount2(target, flags);
+  if (ret < 0)
+    {
+      set_errno(-ret);
+      ret = ERROR;
+    }
+
+  return ret;
 }

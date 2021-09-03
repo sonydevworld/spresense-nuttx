@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/wireless/bluetooth/bt_uart_bcm4343x.c
  *
- *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
- *   Author: Dave Marples <dave@marples.net>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -58,8 +43,6 @@
 #include <nuttx/kthread.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/serial/tioctl.h>
-#include <nuttx/wireless/bluetooth/bt_uart.h>
-#include <nuttx/wireless/bluetooth/bt_uart_shim.h>
 #include <termios.h>
 
 #include "bt_uart.h"
@@ -107,7 +90,6 @@ extern const uint8_t g_bt_firmware_hcd[];
 
 static void hciuart_cb(FAR const struct btuart_lowerhalf_s *lower,
                        FAR void *param)
-
 {
   FAR sem_t *rxsem = (FAR sem_t *)param;
 
@@ -138,7 +120,6 @@ static int uartwriteconf(FAR const struct btuart_lowerhalf_s *lower,
                          FAR sem_t *rxsem,
                          FAR const uint8_t *dout, uint32_t doutl,
                          FAR const uint8_t *cmp, uint32_t maxl)
-
 {
   int ret;
   int gotlen = 0;
@@ -183,28 +164,29 @@ static int uartwriteconf(FAR const struct btuart_lowerhalf_s *lower,
         }
 
       ret = nxsem_timedwait_uninterruptible(rxsem, &abstime);
-      if (ret == -ETIMEDOUT)
+      if (ret < 0)
         {
           /* We didn't receive enough message, so fall out */
 
-          wlerr("Response timed out\n");
+          wlerr("Response timed out: %d\n", ret);
           goto exit_uartwriteconf;
         }
 
       ret = lower->read(lower, &din[gotlen], maxl - gotlen);
       if (ret < 0)
         {
-          wlerr("Couldn't read\n");
+          wlerr("Couldn't read: %d\n", ret);
           ret = -ECOMM;
           goto exit_uartwriteconf;
         }
+
       gotlen += ret;
     }
 
   ret = ((memcmp(din, cmp, maxl) == 0) ? 0 : -ECOMM);
 
 exit_uartwriteconf:
-  free(din);
+  kmm_free(din);
 exit_uartwriteconf_nofree:
   return ret;
 }
@@ -227,7 +209,6 @@ exit_uartwriteconf_nofree:
 
 static int set_baudrate(FAR const struct btuart_lowerhalf_s *lower,
                         FAR sem_t *rxsem, int targetspeed)
-
 {
   int ret;
   uint8_t baudrate_cmd[] =
@@ -267,7 +248,6 @@ static int set_baudrate(FAR const struct btuart_lowerhalf_s *lower,
  ****************************************************************************/
 
 static int load_bcm4343x_firmware(FAR const struct btuart_lowerhalf_s *lower)
-
 {
   FAR uint8_t *rp = (FAR uint8_t *)g_bt_firmware_hcd;
   int ret = OK;
@@ -281,31 +261,39 @@ static int load_bcm4343x_firmware(FAR const struct btuart_lowerhalf_s *lower)
 
   const uint8_t command_resp[] =
     {
-      0x04, 0x0e, 0x04, 0x01, g_hcd_write_command, g_hcd_command_byte2, 0x00
+      0x04, 0x0e, 0x04, 0x01, g_hcd_write_command, g_hcd_command_byte2,
+      0x00
     };
+
   const uint8_t launch_resp[] =
     {
-      0x04, 0x0e, 0x04, 0x01, g_hcd_launch_command, g_hcd_command_byte2, 0x00
+      0x04, 0x0e, 0x04, 0x01, g_hcd_launch_command, g_hcd_command_byte2,
+      0x00
     };
+
   const uint8_t download_resp[] =
     {
-      0x04, 0x0e, 0x04, 0x01, g_hcd_patchram_command, g_hcd_command_byte2, 0x00
+      0x04, 0x0e, 0x04, 0x01, g_hcd_patchram_command, g_hcd_command_byte2,
+      0x00
     };
 
   /* Command to switch the chip into download mode */
 
   const uint8_t enter_download_mode[] =
     {
-      0x01, g_hcd_patchram_command, g_hcd_command_byte2, 0x00
+      0x01, g_hcd_patchram_command, g_hcd_command_byte2,
+      0x00
     };
 
-  /* Let's temporarily connect to the hci uart rx callback so we can get data */
+  /* Let's temporarily connect to the hci uart rx callback so we can get
+   * data.
+   */
 
   lower->rxattach(lower, hciuart_cb, &rxsem);
   lower->rxenable(lower, true);
 
   nxsem_init(&rxsem, 0, 0);
-  nxsem_setprotocol(&rxsem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&rxsem, SEM_PRIO_NONE);
 
   /* It is possible this could fail if modem is already at high speed, so we
    * can safely ignore error return value.
@@ -428,7 +416,11 @@ int btuart_register(FAR const struct btuart_lowerhalf_s *lower)
 
   wlinfo("lower %p\n", lower);
 
-  DEBUGASSERT(lower != NULL);
+  if (lower == NULL)
+    {
+      wlerr("ERROR: btuart lower half is NULL\n");
+      return -ENODEV;
+    }
 
   /* Allocate a new instance of the upper half driver state structure */
 
@@ -463,7 +455,7 @@ int btuart_register(FAR const struct btuart_lowerhalf_s *lower)
   ret = bt_netdev_register(&upper->dev);
   if (ret < 0)
     {
-      wlerr("ERROR: bt_driver_register failed: %d\n", ret);
+      wlerr("ERROR: bt_netdev_register failed: %d\n", ret);
       kmm_free(upper);
     }
 

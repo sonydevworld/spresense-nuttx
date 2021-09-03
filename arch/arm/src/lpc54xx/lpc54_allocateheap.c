@@ -1,35 +1,20 @@
 /****************************************************************************
- * arch/arm/src/lpc54xx/lpx54_allocateheap.c
+ * arch/arm/src/lpc54xx/lpc54_allocateheap.c
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -49,8 +34,8 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/userspace.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "hardware/lpc54_memorymap.h"
 #include "lpc54_mpuinit.h"
@@ -60,7 +45,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* Terminology.  In the flat build (CONFIG_BUILD_FLAT=y), there is only a
  * single heap access with the standard allocations (malloc/free).  This
  * heap is referred to as the user heap.  In the protected build
@@ -132,7 +119,7 @@
  ****************************************************************************/
 
 /* _sbss is the start of the BSS region (see the linker script) _ebss is the
- * end of the BSS regsion (see the linker script). The idle task stack starts
+ * end of the BSS region (see the linker script). The idle task stack starts
  * at the end of BSS and is of size CONFIG_IDLETHREAD_STACKSIZE.  The IDLE
  * thread is the thread that the system boots on and, eventually, becomes the
  * idle, do nothing task that runs only when there is nothing else to run.
@@ -141,7 +128,8 @@
  * aligned).
  */
 
-const uint32_t g_idle_topstack = (uint32_t)&_ebss + CONFIG_IDLETHREAD_STACKSIZE;
+const uintptr_t g_idle_topstack = (uintptr_t)&_ebss +
+    CONFIG_IDLETHREAD_STACKSIZE;
 
 /****************************************************************************
  * Public Functions
@@ -176,7 +164,8 @@ const uint32_t g_idle_topstack = (uint32_t)&_ebss + CONFIG_IDLETHREAD_STACKSIZE;
  *
  *     Kernel .data region.  Size determined at link time.
  *     Kernel .bss  region  Size determined at link time.
- *     Kernel IDLE thread stack.  Size determined by CONFIG_IDLETHREAD_STACKSIZE.
+ *     Kernel IDLE thread stack.  Size determined by
+ *     CONFIG_IDLETHREAD_STACKSIZE.
  *     Padding for alignment
  *     User .data region.  Size determined at link time.
  *     User .bss region  Size determined at link time.
@@ -197,7 +186,8 @@ void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
    * of CONFIG_MM_KERNEL_HEAPSIZE (subject to alignment).
    */
 
-  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_MM_KERNEL_HEAPSIZE;
+  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend +
+                    CONFIG_MM_KERNEL_HEAPSIZE;
   size_t    usize = CONFIG_RAM_END - ubase;
 
   DEBUGASSERT(ubase < (uintptr_t)CONFIG_RAM_END);
@@ -236,7 +226,8 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
    * of CONFIG_MM_KERNEL_HEAPSIZE (subject to alignment).
    */
 
-  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_MM_KERNEL_HEAPSIZE;
+  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend +
+                    CONFIG_MM_KERNEL_HEAPSIZE;
   DEBUGASSERT(ubase < (uintptr_t)CONFIG_RAM_END);
 
   /* Return the kernel heap settings (i.e., the part of the heap region
@@ -249,7 +240,7 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
 #endif
 
 /****************************************************************************
- * Name: up_addregion
+ * Name: arm_addregion
  *
  * Description:
  *   Memory may be added in non-contiguous chunks.  Additional chunks are
@@ -258,7 +249,7 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
  ****************************************************************************/
 
 #if CONFIG_MM_REGIONS > 1
-void up_addregion(void)
+void arm_addregion(void)
 {
   int remaining = CONFIG_MM_REGIONS;
   FAR void *heapstart;
@@ -269,7 +260,8 @@ void up_addregion(void)
     {
       /* Add the SRAM to the user heap */
 
-      heapstart = (FAR void *)(LPC54_SRAMCS0_BASE + CONFIG_LPC54_EMC_STATIC_CS0_OFFSET);
+      heapstart = (FAR void *)(LPC54_SRAMCS0_BASE +
+                               CONFIG_LPC54_EMC_STATIC_CS0_OFFSET);
       heapsize  = CONFIG_LPC54_EMC_STATIC_CS0_SIZE;
       kumm_addregion(heapstart, heapsize);
 
@@ -287,7 +279,8 @@ void up_addregion(void)
     {
       /* Add the SRAM to the user heap */
 
-      heapstart = (FAR void *)(LPC54_SRAMCS1_BASE + CONFIG_LPC54_EMC_STATIC_CS1_OFFSET);
+      heapstart = (FAR void *)(LPC54_SRAMCS1_BASE +
+                               CONFIG_LPC54_EMC_STATIC_CS1_OFFSET);
       heapsize  = CONFIG_LPC54_EMC_STATIC_CS1_SIZE;
       kumm_addregion(heapstart, heapsize);
 
@@ -305,7 +298,8 @@ void up_addregion(void)
     {
       /* Add the SRAM to the user heap */
 
-      heapstart = (FAR void *)(LPC54_SRAMCS2_BASE + CONFIG_LPC54_EMC_STATIC_CS2_OFFSET);
+      heapstart = (FAR void *)(LPC54_SRAMCS2_BASE +
+                               CONFIG_LPC54_EMC_STATIC_CS2_OFFSET);
       heapsize  = CONFIG_LPC54_EMC_STATIC_CS2_SIZE;
       kumm_addregion(heapstart, heapsize);
 
@@ -323,7 +317,8 @@ void up_addregion(void)
     {
       /* Add the SRAM to the user heap */
 
-      heapstart = (FAR void *)(LPC54_SRAMCS3_BASE + CONFIG_LPC54_EMC_STATIC_CS3_OFFSET);
+      heapstart = (FAR void *)(LPC54_SRAMCS3_BASE +
+                               CONFIG_LPC54_EMC_STATIC_CS3_OFFSET);
       heapsize  = CONFIG_LPC54_EMC_STATIC_CS3_SIZE;
       kumm_addregion(heapstart, heapsize);
 
@@ -341,7 +336,8 @@ void up_addregion(void)
     {
       /* Add the SDRAM to the user heap */
 
-      heapstart = (FAR void *)(LPC54_DRAMCS0_BASE + CONFIG_LPC54_EMC_DYNAMIC_CS0_OFFSET);
+      heapstart = (FAR void *)(LPC54_DRAMCS0_BASE +
+                               CONFIG_LPC54_EMC_DYNAMIC_CS0_OFFSET);
       heapsize  = CONFIG_LPC54_EMC_DYNAMIC_CS0_SIZE;
       kumm_addregion(heapstart, heapsize);
 
@@ -359,7 +355,8 @@ void up_addregion(void)
     {
       /* Add the SDRAM to the user heap */
 
-      heapstart = (FAR void *)(LPC54_DRAMCS1_BASE + CONFIG_LPC54_EMC_DYNAMIC_CS1_OFFSET);
+      heapstart = (FAR void *)(LPC54_DRAMCS1_BASE +
+                               CONFIG_LPC54_EMC_DYNAMIC_CS1_OFFSET);
       heapsize  = CONFIG_LPC54_EMC_DYNAMIC_CS1_SIZE;
       kumm_addregion(heapstart, heapsize);
 
@@ -377,7 +374,8 @@ void up_addregion(void)
     {
       /* Add the SDRAM to the user heap */
 
-      heapstart = (FAR void *)(LPC54_DRAMCS2_BASE + CONFIG_LPC54_EMC_DYNAMIC_CS2_OFFSET);
+      heapstart = (FAR void *)(LPC54_DRAMCS2_BASE +
+                               CONFIG_LPC54_EMC_DYNAMIC_CS2_OFFSET);
       heapsize  = CONFIG_LPC54_EMC_DYNAMIC_CS2_SIZE;
       kumm_addregion(heapstart, heapsize);
 
@@ -395,7 +393,8 @@ void up_addregion(void)
     {
       /* Add the SDRAM to the user heap */
 
-      heapstart = (FAR void *)(LPC54_DRAMCS3_BASE + CONFIG_LPC54_EMC_DYNAMIC_CS3_OFFSET);
+      heapstart = (FAR void *)(LPC54_DRAMCS3_BASE +
+                               CONFIG_LPC54_EMC_DYNAMIC_CS3_OFFSET);
       heapsize  = CONFIG_LPC54_EMC_DYNAMIC_CS3_SIZE;
       kumm_addregion(heapstart, heapsize);
 

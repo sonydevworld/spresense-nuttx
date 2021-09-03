@@ -361,7 +361,7 @@ Cloudctrl-specific Configuration Options
     CONFIG_STM32_MII_MCO - Use MCO to clock the MII interface
     CONFIG_STM32_RMII - Support Ethernet RMII interface
     CONFIG_STM32_RMII_MCO - Use MCO to clock the RMII interface
-    CONFIG_STM32_AUTONEG - Use PHY autonegotion to determine speed and mode
+    CONFIG_STM32_AUTONEG - Use PHY autonegotiation to determine speed and mode
     CONFIG_STM32_ETHFD - If CONFIG_STM32_AUTONEG is not defined, then this
       may be defined to select full duplex mode. Default: half-duplex
     CONFIG_STM32_ETH100MBPS - If CONFIG_STM32_AUTONEG is not defined, then this
@@ -474,7 +474,7 @@ Where <subdir> is one of the following:
     Configures the NuttShell (nsh) located at apps/examples/nsh.  The
     Configuration enables both the serial and telnet NSH interfaces.
 
-    CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y   : CodeSourcery under Windows
+    CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y       : GNU EABI toolchain for Windows
     CONFIG_NSH_DHCPC=n                        : DHCP is disabled
     CONFIG_NSH_IPADDR=0x0a000002              : Target IP address 10.0.0.2
     CONFIG_NSH_DRIPADDR=0x0a000001            : Host IP address 10.0.0.1

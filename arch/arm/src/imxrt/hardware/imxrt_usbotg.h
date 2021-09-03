@@ -1,4 +1,4 @@
-/***************************************************************************
+/****************************************************************************
  * arch/arm/src/imxrt/hardware/imxrt_usbotg.h
  *
  *   Copyright (C) 2009-2011, 2019 Gregory Nutt. All rights reserved.
@@ -32,24 +32,24 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ***************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_IMXRT_HARDWARE_IMXRT_USBOTG_H
 #define __ARCH_ARM_SRC_IMXRT_HARDWARE_IMXRT_USBOTG_H
 
-/***************************************************************************
+/****************************************************************************
  * Included Files
- ***************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
-/***************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ***************************************************************************/
+ ****************************************************************************/
 
 #define IMXRT_EHCI_NRHPORT                 1     /* There is only a single root hub port */
 
-/* USBOTG register offsets (with respect to IMXRT_USB_BASE) *************************************/
+/* USBOTG register offsets (with respect to IMXRT_USB_BASE) *****************/
 
                                                  /* 0x000 - 0x0ff: Reserved */
 
@@ -119,6 +119,8 @@
 #define IMXRT_USBDEV_ENDPTFLUSH_OFFSET     0x1b4 /* Endpoint de-initialization */
 #define IMXRT_USBDEV_ENDPTSTATUS_OFFSET    0x1b8 /* Endpoint status */
 #define IMXRT_USBDEV_ENDPTCOMPLETE_OFFSET  0x1bc /* Endpoint complete */
+
+#define IMXRT_USBDEV_ENDPTCTRL_OFFSET(n)   (IMXRT_USBDEV_ENDPTCTRL0_OFFSET + ((n) * 4))
 #define IMXRT_USBDEV_ENDPTCTRL0_OFFSET     0x1c0 /* Endpoint control 0 */
 #define IMXRT_USBDEV_ENDPTCTRL1_OFFSET     0x1c4 /* Endpoint control 1 */
 #define IMXRT_USBDEV_ENDPTCTRL2_OFFSET     0x1c8 /* Endpoint control 2 */
@@ -133,7 +135,7 @@
 #define IMXRT_USBNC_USB_OTG1_CTRL_OFFSET        0x0800 /* OTG1 Control Register */
 #define IMXRT_USBNC_USB_OTG1_PHY_CTRL_0_OFFSET  0x0818 /* OTG1 Phy Control Register */
 
-/* USBOTG register (virtual) addresses **********************************************************/
+/* USBOTG register (virtual) addresses **************************************/
 
 /* Device/host capability registers */
 
@@ -199,6 +201,8 @@
 #define IMXRT_USBDEV_ENDPTFLUSH            (IMXRT_USB_BASE + IMXRT_USBDEV_ENDPTFLUSH_OFFSET)
 #define IMXRT_USBDEV_ENDPTSTATUS           (IMXRT_USB_BASE + IMXRT_USBDEV_ENDPTSTATUS_OFFSET)
 #define IMXRT_USBDEV_ENDPTCOMPLETE         (IMXRT_USB_BASE + IMXRT_USBDEV_ENDPTCOMPLETE_OFFSET)
+
+#define IMXRT_USBDEV_ENDPTCTRL(n)          (IMXRT_USB_BASE + IMXRT_USBDEV_ENDPTCTRL_OFFSET(n))
 #define IMXRT_USBDEV_ENDPTCTRL0            (IMXRT_USB_BASE + IMXRT_USBDEV_ENDPTCTRL0_OFFSET)
 #define IMXRT_USBDEV_ENDPTCTRL1            (IMXRT_USB_BASE + IMXRT_USBDEV_ENDPTCTRL1_OFFSET)
 #define IMXRT_USBDEV_ENDPTCTRL2            (IMXRT_USB_BASE + IMXRT_USBDEV_ENDPTCTRL2_OFFSET)
@@ -278,6 +282,7 @@
 #  define USBDEV_USBCMD_ITC16UF              (16 << USBDEV_USBCMD_ITC_SHIFT) /* 16 micro frames */
 #  define USBDEV_USBCMD_ITC32UF              (32 << USBDEV_USBCMD_ITC_SHIFT) /* 32 micro frames */
 #  define USBDEV_USBCMD_ITC64UF              (64 << USBDEV_USBCMD_ITC_SHIFT) /* 64 micro frames */
+
 #define USBDEV_USBCMD_ATDTW                  (1 << 14) /* Bit 14: Add dTD trip wire */
 #define USBDEV_USBCMD_SUTW                   (1 << 13) /* Bit 13: Setup trip wire */
 #define USBDEV_USBCMD_RST                    (1 << 1)  /* Bit 1:  1 Controller reset */
@@ -295,6 +300,7 @@
 #  define USBHOST_USBCMD_ITC16UF             (16 << USBHOST_USBCMD_ITC_SHIFT) /* 16 micro frames */
 #  define USBHOST_USBCMD_ITC32UF             (32 << USBHOST_USBCMD_ITC_SHIFT) /* 32 micro frames */
 #  define USBHOST_USBCMD_ITC64UF             (64 << USBHOST_USBCMD_ITC_SHIFT) /* 64 micro frames */
+
 #define USBHOST_USBCMD_FS2                   (1 << 15) /* Bit 15: Bit 2 of the Frame List Size bits */
 #define USBHOST_USBCMD_ASPE                  (1 << 11) /* Bit 11: Asynchronous Schedule Park Mode Enable */
 #define USBHOST_USBCMD_ASP_SHIFT             (8)       /* Bits 8-9: Asynchronous schedule park mode */
@@ -443,6 +449,7 @@
 #  define USBDEV_PRTSC1_PSPD_FS              (0 << USBDEV_PRTSC1_PSPD_SHIFT) /* Full-speed */
 #  define USBDEV_PRTSC1_PSPD_LS              (1 << USBDEV_PRTSC1_PSPD_SHIFT) /* Low-speed */
 #  define USBDEV_PRTSC1_PSPD_HS              (2 << USBDEV_PRTSC1_PSPD_SHIFT) /* High-speed */
+
 #define USBDEV_PRTSC1_PFSC                   (1 << 24) /* Bit 24: Port force full speed connect */
 #define USBDEV_PRTSC1_PHCD                   (1 << 23) /* Bit 23: PHY low power suspend - clock disable (PLPSCD) */
 #define USBDEV_PRTSC1_PTC_SHIFT              (16)      /* Bits 16-19: 19: Port test control */
@@ -454,11 +461,13 @@
 #  define USBDEV_PRTSC1_PTC_PACKET           (4 << USBDEV_PRTSC1_PTC_SHIFT) /* Packet */
 #  define USBDEV_PRTSC1_PTC_HS               (5 << USBDEV_PRTSC1_PTC_SHIFT) /* FORCE_ENABLE_HS */
 #  define USBDEV_PRTSC1_PTC_FS               (6 << USBDEV_PRTSC1_PTC_SHIFT) /* FORCE_ENABLE_FS */
+
 #define USBDEV_PRTSC1_PIC_SHIFT              (14)      /* Bits 14-15: Port indicator control */
 #define USBDEV_PRTSC1_PIC_MASK               (3 << USBDEV_PRTSC1_PIC_SHIFT)
 #  define USBDEV_PRTSC1_PIC_OFF              (0 << USBDEV_PRTSC1_PIC_SHIFT) /* 00 Port indicators are off */
 #  define USBDEV_PRTSC1_PIC_AMBER            (1 << USBDEV_PRTSC1_PIC_SHIFT) /* 01 amber */
 #  define USBDEV_PRTSC1_PIC_GREEN            (2 << USBDEV_PRTSC1_PIC_SHIFT) /* 10 green */
+
 #define USBDEV_PRTSC1_HSP                    (1 << 9)  /* Bit 9:  High-speed status */
 #define USBDEV_PRTSC1_PR                     (1 << 8)  /* Bit 8:  Port reset */
 #define USBDEV_PRTSC1_SUSP                   (1 << 7)  /* Bit 7:  Suspend */
@@ -474,6 +483,7 @@
 #  define USBHOST_PRTSC1_PSPD_FS             (0 << USBHOST_PRTSC1_PSPD_SHIFT) /* Full-speed */
 #  define USBHOST_PRTSC1_PSPD_LS             (1 << USBHOST_PRTSC1_PSPD_SHIFT) /* Low-speed */
 #  define USBHOST_PRTSC1_PSPD_HS             (2 << USBHOST_PRTSC1_PSPD_SHIFT) /* High-speed */
+
 #define USBHOST_PRTSC1_PFSC                  (1 << 24) /* Bit 24: Port force full speed connect */
 #define USBHOST_PRTSC1_PHCD                  (1 << 23) /* Bit 23: PHY low power suspend - clock disable (PLPSCD) */
 #define USBHOST_PRTSC1_WKOC                  (1 << 22) /* Bit 22: Wake on over-current enable (WKOC_E) */
@@ -489,17 +499,20 @@
 #  define USBHOST_PRTSC1_PTC_HS              (5 << USBHOST_PRTSC1_PTC_SHIFT) /* 0101 FORCE_ENABLE_HS */
 #  define USBHOST_PRTSC1_PTC_FS              (6 << USBHOST_PRTSC1_PTC_SHIFT) /* 0110 FORCE_ENABLE_FS */
 #  define USBHOST_PRTSC1_PTC_LS              (7 << USBHOST_PRTSC1_PTC_SHIFT) /* 0111 FORCE_ENABLE_LS */
+
 #define USBHOST_PRTSC1_PIC_SHIFT             (14)      /* Bits 14-15: Port indicator control */
 #define USBHOST_PRTSC1_PIC_MASK              (3 << USBHOST_PRTSC1_PIC_SHIFT)
 #  define USBHOST_PRTSC1_PIC_OFF             (0 << USBHOST_PRTSC1_PIC_SHIFT) /* 00 Port indicators are off */
 #  define USBHOST_PRTSC1_PIC_AMBER           (1 << USBHOST_PRTSC1_PIC_SHIFT) /* 01 Amber */
 #  define USBHOST_PRTSC1_PIC_GREEN           (2 << USBHOST_PRTSC1_PIC_SHIFT) /* 10 Green */
+
 #define USBHOST_PRTSC1_PP                    (1 << 12) /* Bit 12: Port power control */
 #define USBHOST_PRTSC1_LS_SHIFT              (10)      /* Bits 10-11: Line status */
 #define USBHOST_PRTSC1_LS_MASK               (3 << USBHOST_PRTSC1_LS_SHIFT)
 #  define USBHOST_PRTSC1_LS_SE0              (0 << USBHOST_PRTSC1_LS_SHIFT) /* SE0 (USB_DP and USB_DM LOW) */
 #  define USBHOST_PRTSC1_LS_JSTATE           (2 << USBHOST_PRTSC1_LS_SHIFT) /* J-state (USB_DP HIGH and USB_DM LOW) */
 #  define USBHOST_PRTSC1_LS_KSTATE           (1 << USBHOST_PRTSC1_LS_SHIFT) /* K-state (USB_DP LOW and USB_DM HIGH) */
+
 #define USBHOST_PRTSC1_HSP                   (1 << 9)  /* Bit 9:  High-speed status */
 #define USBHOST_PRTSC1_PR                    (1 << 8)  /* Bit 8:  Port reset */
 #define USBHOST_PRTSC1_SUSP                  (1 << 7)  /* Bit 7:  Suspend */
@@ -679,11 +692,13 @@
 #define USBDEV_ENDPTCTRL0_TXT_SHIFT          (18)      /* Bits 18-19: Tx endpoint type */
 #define USBDEV_ENDPTCTRL0_TXT_MASK           (3 << USBDEV_ENDPTCTRL0_TXT_SHIFT)
 #  define USBDEV_ENDPTCTRL0_TXT_CTRL         (0 << USBDEV_ENDPTCTRL0_TXT_SHIFT) /* Control */
+
 #define USBDEV_ENDPTCTRL0_TXS                (1 << 16) /* Bit 16: Tx endpoint stall */
 #define USBDEV_ENDPTCTRL0_RXE                (1 << 7)  /* Bit 7:  Rx endpoint enable */
 #define USBDEV_ENDPTCTRL0_RXT_SHIFT          (2)       /* Bits 2-3: Endpoint type */
 #define USBDEV_ENDPTCTR0L_RXT_MASK           (3 << USBDEV_ENDPTCTRL0_RXT_SHIFT)
 #  define USBDEV_ENDPTCTRL0_RXT_CTRL         (0 << USBDEV_ENDPTCTRL0_RXT_SHIFT) /* Control */
+
 #define USBDEV_ENDPTCTRL0_RXS                (1 << 0)  /* Bit 0:  Rx endpoint stall */
 
 /* USB Endpoint 1-7 control registers ENDPTCTRL1-ENDPPTCTRL7 */
@@ -697,6 +712,7 @@
 #  define USBDEV_ENDPTCTRL_TXT_ISOC          (1 << USBDEV_ENDPTCTRL_TXT_SHIFT) /* Isochronous */
 #  define USBDEV_ENDPTCTRL_TXT_BULK          (2 << USBDEV_ENDPTCTRL_TXT_SHIFT) /* Bulk */
 #  define USBDEV_ENDPTCTRL_TXT_INTR          (3 << USBDEV_ENDPTCTRL_TXT_SHIFT) /* Interrupt */
+
 #define USBDEV_ENDPTCTRL_TXS                 (1 << 16) /* Bit 16: Tx endpoint stall */
 #define USBDEV_ENDPTCTRL_RXE                 (1 << 7)  /* Bit 7:  Rx endpoint enable */
 #define USBDEV_ENDPTCTRL_RXR                 (1 << 6)  /* Bit 6:  Rx data toggle reset */
@@ -706,12 +722,17 @@
 #  define USBDEV_ENDPTCTRL_RXT_CTRL          (0 << USBDEV_ENDPTCTRL_RXT_SHIFT) /* Control */
 #  define USBDEV_ENDPTCTRL_RXT_ISOC          (1 << USBDEV_ENDPTCTRL_RXT_SHIFT) /* Isochronous */
 #  define USBDEV_ENDPTCTRL_RXT_BULK          (2 << USBDEV_ENDPTCTRL_RXT_SHIFT) /* Bulk */
+#  define USBDEV_ENDPTCTRL_RXT_INTR          (3 << USBDEV_ENDPTCTRL_RXT_SHIFT) /* Interrupt */
+
 #define USBDEV_ENDPTCTRL_RXS                 (1 << 0)  /* Bit 0:  Rx endpoint stall */
 
 /* Device non-core registers */
 
 /* USB OTG Control register */
-                                                       /* Bits 0-6: Reserved */
+
+/*                                                       Bits 0-6:
+ *                                                             Reserved
+ */
 #define USBNC_OVER_CUR_DIS                   (1 <<  7) /* Bit  7: Disable Over current detection */
 #define USBNC_OVER_CUR_POL                   (1 << 8)  /* Bit  8: Polarity of over current */
 #define USBNC_PWR_POL                        (1 << 9)  /* Bit  9: Power polarity */
@@ -725,17 +746,5 @@
 #define USBNC_WKUP_DPDM_EN                   (1 << 29) /* Bit 29: Wakeup on DPDM change enable */
                                                        /* Bit 30: Reserved */
 #define USBNC_WIR                            (1 << 31) /* Bit 31: Wake up interrupt request */
-
-/****************************************************************************
- * Public Types
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
 
 #endif /* __ARCH_ARM_SRC_IMXRT_HARDWARE_IMXRT_USBOTG_H */

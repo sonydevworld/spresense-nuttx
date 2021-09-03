@@ -1,35 +1,20 @@
 /****************************************************************************
  * include/nuttx/arch.h
  *
- *   Copyright (C) 2007-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,8 +38,7 @@
  *    This chip related declarations are retained in this header file.
  *
  *    NOTE: up_ is supposed to stand for microprocessor; the u is like the
- *    Greek letter micron: µ. So it would be µP which is a common shortening
- *    of the word microprocessor.
+ *    Greek letter micron.
  *
  * 2. Microprocessor-Specific Interfaces.
  *
@@ -79,7 +63,7 @@
  * 4. Board-Specific Interfaces.
  *
  *    Any interface that is unique to a board should be prefixed with
- *    the board name, for example stm32f4discovery_. Sometimes the board
+ *    the board name, for example stm32f4discovery_.  Sometimes the board
  *    name is too long so stm32_ would be okay too.  These should be
  *    prototyped in boards/<arch>/<chip><board>/src/<board>.h and should
  *    not be used outside of that board directory since board-specific
@@ -97,6 +81,7 @@
 #include <sched.h>
 
 #include <arch/arch.h>
+#include <arch/types.h>
 
 #include <nuttx/compiler.h>
 #include <nuttx/cache.h>
@@ -126,17 +111,18 @@ extern "C"
 #endif
 
 #ifdef CONFIG_SCHED_TICKLESS_LIMIT_MAX_SLEEP
-/* By default, the RTOS tickless logic assumes that range of times that can
- * be represented by the underlying hardware time is so large that no special
- * precautions need to taken.  That is not always the case.  If there is a
- * limit to the maximum timing interval that be represented by the timer,
- * then that limit must be respected.
+/* By default, the RTOS tickless logic assumes that the range of times that
+ * can be represented by the underlying hardware timer is so large that no
+ * special precautions need to be taken.  That is not always the case.  If
+ * there is a limit to the maximum timing interval that can be represented by
+ * the timer, then that limit must be respected.
  *
  * If CONFIG_SCHED_TICKLESS_LIMIT_MAX_SLEEP is defined, then use a 32-bit
- * global variable called g_oneshot_maxticks variable is enabled. This variable
- * is initialized by platform-specific logic at runtime to the maximum delay
- * that the timer can wait (in configured clock ticks).  The RTOS tickless
- * logic will then limit all requested delays to this value (in ticks).
+ * global variable called g_oneshot_maxticks variable is enabled. This
+ * variable is initialized by platform-specific logic at runtime to the
+ * maximum delay that the timer can wait (in configured clock ticks).
+ * The RTOS tickless logic will then limit all requested delays to this
+ * value (in ticks).
  */
 
 EXTERN uint32_t g_oneshot_maxticks;
@@ -160,6 +146,7 @@ EXTERN volatile bool g_rtc_enabled;
  */
 
 /* EXTERN const irq_mapped_t g_irqmap[NR_IRQS]; */
+
 #endif
 
 /****************************************************************************
@@ -206,10 +193,9 @@ void up_systemreset(void) noreturn_function;
  * Name: up_idle
  *
  * Description:
- *   up_idle() is the logic that will be executed
- *   when their is no other ready-to-run task.  This is processor
- *   idle time and will continue until some interrupt occurs to
- *   cause a context switch from the idle task.
+ *   up_idle() is the logic that will be executed when there is no other
+ *   ready-to-run task.  This is processor idle time and will continue until
+ *   some interrupt occurs to cause a context switch from the idle task.
  *
  *   Processing in this state may be processor-specific. e.g.,
  *   this is where power management operations might be performed.
@@ -222,13 +208,13 @@ void up_idle(void);
  * Name: up_initial_state
  *
  * Description:
- *   A new thread is being started and a new TCB
- *   has been created. This function is called to initialize
- *   the processor specific portions of the new TCB.
+ *   A new thread is being started and a new TCB has been created.
+ *   This function is called to initialize the processor specific portions
+ *   of the new TCB.
  *
- *   This function must setup the initial architecture registers
- *   and/or  stack so that execution will begin at tcb->start
- *   on the next context switch.
+ *   This function must setup the initial architecture registers and/or
+ *   stack so that execution will begin at tcb->start on the next context
+ *   switch.
  *
  ****************************************************************************/
 
@@ -278,8 +264,8 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype);
  * Name: up_use_stack
  *
  * Description:
- *   Setup up stack-related information in the TCB using pre-allocated stack
- *   memory.  This function is called only from task_init() when a task or
+ *   Setup stack-related information in the TCB using pre-allocated stack
+ *   memory.  This function is called only from nxtask_init() when a task or
  *   kernel thread is started (never for pthreads).
  *
  *   The following TCB fields must be initialized:
@@ -388,7 +374,7 @@ void up_release_stack(FAR struct tcb_s *dtcb, uint8_t ttype);
  *   tcb: Refers to the tcb to be unblocked.  This tcb is
  *     in one of the waiting tasks lists.  It must be moved to
  *     the ready-to-run list and, if it is the highest priority
- *     ready to run taks, executed.
+ *     ready to run task, executed.
  *
  ****************************************************************************/
 
@@ -398,21 +384,19 @@ void up_unblock_task(FAR struct tcb_s *tcb);
  * Name: up_block_task
  *
  * Description:
- *   The currently executing task at the head of
- *   the ready to run list must be stopped.  Save its context
- *   and move it to the inactive list specified by task_state.
+ *   The currently executing task at the head of the ready to run list must
+ *   be stopped.  Save its context and move it to the inactive list
+ *   specified by task_state.
  *
- *   This function is called only from the NuttX scheduling
- *   logic.  Interrupts will always be disabled when this
- *   function is called.
+ *   This function is called only from the NuttX scheduling logic.
+ *   Interrupts will always be disabled when this function is called.
  *
  * Input Parameters:
- *   tcb: Refers to a task in the ready-to-run list (normally
- *     the task at the head of the list).  It most be
- *     stopped, its context saved and moved into one of the
- *     waiting task lists.  It it was the task at the head
- *     of the ready-to-run list, then a context to the new
- *     ready to run task must be performed.
+ *   tcb: Refers to a task in the ready-to-run list (normally the task at
+ *     the head of the list).  It must be stopped, its context saved and
+ *     moved into one of the waiting task lists.  If it was the task at the
+ *     head of the ready-to-run list, then a context switch to the new ready
+ *     to run task must be performed.
  *   task_state: Specifies which waiting task list should be
  *     hold the blocked task TCB.
  *
@@ -466,7 +450,7 @@ void up_release_pending(void);
 void up_reprioritize_rtr(FAR struct tcb_s *tcb, uint8_t priority);
 
 /****************************************************************************
- * Name: _exit
+ * Name: up_exit
  *
  * Description:
  *   This function causes the currently executing task to cease
@@ -479,6 +463,9 @@ void up_reprioritize_rtr(FAR struct tcb_s *tcb, uint8_t priority);
  *   disable interrupts before performing scheduling operations.
  *
  ****************************************************************************/
+
+void up_exit() noreturn_function;
+
 /* Prototype is in unistd.h */
 
 /****************************************************************************
@@ -488,7 +475,8 @@ void up_reprioritize_rtr(FAR struct tcb_s *tcb, uint8_t priority);
  *   Assertions may be handled in an architecture-specific way.
  *
  ****************************************************************************/
-/* Prototype is in assert.h */
+
+void up_assert(FAR const char *filename, int linenum);
 
 /****************************************************************************
  * Name: up_schedule_sigaction
@@ -497,7 +485,7 @@ void up_reprioritize_rtr(FAR struct tcb_s *tcb, uint8_t priority);
  *   This function is called by the OS when one or more
  *   signal handling actions have been queued for execution.
  *   The architecture specific code must configure things so
- *   that the 'igdeliver' callback is executed on the thread
+ *   that the 'sigdeliver' callback is executed on the thread
  *   specified by 'tcb' as soon as possible.
  *
  *   This function may be called from interrupt handling logic.
@@ -550,8 +538,7 @@ void up_schedule_sigaction(FAR struct tcb_s *tcb, sig_deliver_t sigdeliver);
  *
  ****************************************************************************/
 
-#if (defined(CONFIG_BUILD_PROTECTED) && defined(__KERNEL__)) || \
-     defined(CONFIG_BUILD_KERNEL)
+#if !defined(CONFIG_BUILD_FLAT) && defined(__KERNEL__)
 void up_task_start(main_t taskentry, int argc, FAR char *argv[])
        noreturn_function;
 #endif
@@ -580,8 +567,8 @@ void up_task_start(main_t taskentry, int argc, FAR char *argv[])
  *
  ****************************************************************************/
 
-#if (defined(CONFIG_BUILD_PROTECTED) && defined(__KERNEL__)) || \
-     defined(CONFIG_BUILD_KERNEL) && !defined(CONFIG_DISABLE_PTHREAD)
+#if !defined(CONFIG_BUILD_FLAT) && defined(__KERNEL__) && \
+    !defined(CONFIG_DISABLE_PTHREAD)
 void up_pthread_start(pthread_startroutine_t entrypt, pthread_addr_t arg)
        noreturn_function;
 #endif
@@ -614,8 +601,7 @@ void up_pthread_start(pthread_startroutine_t entrypt, pthread_addr_t arg)
  *
  ****************************************************************************/
 
-#if (defined(CONFIG_BUILD_PROTECTED) && defined(__KERNEL__)) || \
-     defined(CONFIG_BUILD_KERNEL)
+#if !defined(CONFIG_BUILD_FLAT) && defined(__KERNEL__)
 void up_signal_dispatch(_sa_sigaction_t sighand, int signo,
                         FAR siginfo_t *info, FAR void *ucontext);
 #endif
@@ -639,7 +625,7 @@ void up_signal_dispatch(_sa_sigaction_t sighand, int signo,
  *
  ****************************************************************************/
 
-#if (defined(CONFIG_BUILD_PROTECTED) && !defined(__KERNEL__))
+#if defined(CONFIG_BUILD_PROTECTED) && !defined(__KERNEL__)
 void up_signal_handler(_sa_sigaction_t sighand, int signo,
                        FAR siginfo_t *info, FAR void *ucontext)
        noreturn_function;
@@ -696,12 +682,12 @@ void up_allocate_pgheap(FAR void **heap_start, size_t *heap_size);
  * Name: pgalloc
  *
  * Description:
- *   If there is a page allocator in the configuration and if and MMU is
- *   available to map physical addresses to virtual address, then function
- *   must be provided by the platform-specific code.  This is part of the
- *   implementation of sbrk().  This function will allocate the requested
- *   number of pages using the page allocator and map them into consecutive
- *   virtual addresses beginning with 'brkaddr'
+ *   If there is a page allocator in the configuration and if an MMU is
+ *   available to map physical addresses to virtual address, then this
+ *   function must be provided by the platform-specific code.  This is part
+ *   of the implementation of sbrk().  This function will allocate the
+ *   requested number of pages using the page allocator and map them into
+ *   consecutive virtual addresses beginning with 'brkaddr'
  *
  *   NOTE:  This function does not use the up_ naming standard because it
  *   is indirectly callable from user-space code via a system trap.
@@ -718,7 +704,8 @@ void up_allocate_pgheap(FAR void **heap_start, size_t *heap_size);
  *     will be contiguous beginning beginning at 'brkaddr'
  *
  * Returned Value:
- *   The (virtual) base address of the mapped page will returned on success.
+ *   The (virtual) base address of the mapped page will be returned on
+ *   success.
  *   Normally this will be the same as the 'brkaddr' input. However, if
  *   the 'brkaddr' input was zero, this will be the virtual address of the
  *   beginning of the heap.  Zero is returned on any failure.
@@ -731,30 +718,47 @@ uintptr_t pgalloc(uintptr_t brkaddr, unsigned int npages);
 #endif
 
 /****************************************************************************
- * Name: up_sched_have_garbage and up_sched_garbage_collection
+ * Name: up_module_text_init
  *
  * Description:
- *   Some architectures may support unique memory allocators.  If
- *   CONFIG_ARCH_HAVE_GARBAGE is defined, those architectures must provide
- *   both up_sched_have_garbage and up_sched_garbage_collection.  These will
- *   be tied into the NuttX memory garbage collection logic.
+ *   Initialize the module text allocator
  *
  ****************************************************************************/
 
-#ifdef CONFIG_ARCH_HAVE_GARBAGE
-bool up_sched_have_garbage(void);
-void up_sched_garbage_collection(void);
-#else
-#  define up_sched_have_garbage() false
-#  define up_sched_garbage_collection()
+#if defined(CONFIG_ARCH_USE_MODULE_TEXT)
+void up_module_text_init(void);
+#endif
+
+/****************************************************************************
+ * Name: up_module_text_alloc
+ *
+ * Description:
+ *   Allocate memory for module text.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_ARCH_USE_MODULE_TEXT)
+FAR void *up_module_text_alloc(size_t size);
+#endif
+
+/****************************************************************************
+ * Name: up_module_text_free
+ *
+ * Description:
+ *   Free memory for module text.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_ARCH_USE_MODULE_TEXT)
+void up_module_text_free(FAR void *p);
 #endif
 
 /****************************************************************************
  * Name: up_setpicbase and up_getpicbase
  *
  * Description:
- *   It NXFLAT external modules (or any other binary format that requires)
- *   PIC) are supported, then these macros must defined to (1) get or get
+ *   It NXFLAT external modules (or any other binary format that requires
+ *   PIC) are supported, then these macros must defined to (1) set or get
  *   the PIC base register value.  These must be implemented with in-line
  *   assembly.
  *
@@ -829,7 +833,8 @@ void up_sched_garbage_collection(void);
  * If CONFIG_ARCH_KERNEL_STACK=y is selected then the platform specific
  * code must export these additional interfaces:
  *
- *   up_addrenv_kstackalloc  - Create a stack in the kernel address environment
+ *   up_addrenv_kstackalloc  - Create a stack in the kernel address
+ *                             environment
  *   up_addrenv_kstackfree   - Destroy the kernel stack.
  *
  ****************************************************************************/
@@ -1178,10 +1183,10 @@ int up_addrenv_vustack(FAR const struct tcb_s *tcb, FAR void **vstack);
  *
  * Description:
  *   After an address environment has been established for a task's stack
- *   (via up_addrenv_ustackalloc().  This function may be called to instantiate
- *   that address environment in the virtual address space.  This is a
- *   necessary step before each context switch to the newly created thread
- *   (including the initial thread startup).
+ *   (via up_addrenv_ustackalloc().  This function may be called to
+ *   instantiate that address environment in the virtual address space.
+ *   This is a necessary step before each context switch to the newly created
+ *   thread (including the initial thread startup).
  *
  * Input Parameters:
  *   tcb - The TCB of the thread with the stack address environment to be
@@ -1267,7 +1272,8 @@ FAR void *up_addrenv_pa_to_va(uintptr_t pa);
  *   architecture-specific support?
  *
  * Input Parameters:
- *   va - The virtual address to be mapped.  Not supported by all architectures.
+ *   va - The virtual address to be mapped.  Not supported by all
+ *        architectures.
  *
  * Returned Value:
  *   Phy address on success; NULL on failure.
@@ -1332,6 +1338,12 @@ int up_shmdt(uintptr_t vaddr, unsigned int npages);
 /* See prototype in include/nuttx/elf.h */
 
 /****************************************************************************
+ * Name: up_irqinitialize
+ ****************************************************************************/
+
+void up_irqinitialize(void);
+
+/****************************************************************************
  * Name: up_interrupt_context
  *
  * Description:
@@ -1353,8 +1365,8 @@ bool up_interrupt_context(void);
  *
  *   This function implements enabling of the device specified by 'irq'
  *   at the interrupt controller level if supported by the architecture
- *   (up_irq_restore() supports the global level, the device level is hardware
- *   specific).
+ *   (up_irq_restore() supports the global level, the device level is
+ *   hardware specific).
  *
  *   Since this API is not supported on all architectures, it should be
  *   avoided in common implementations where possible.
@@ -1411,22 +1423,33 @@ int up_prioritize_irq(int irq, int priority);
 #endif
 
 /****************************************************************************
+ * Function:  up_timer_initialize
+ *
+ * Description:
+ *   This function is called during start-up to initialize
+ *   the timer hardware.
+ *
+ ****************************************************************************/
+
+void up_timer_initialize(void);
+
+/****************************************************************************
  * Tickless OS Support.
  *
  * When CONFIG_SCHED_TICKLESS is enabled, all support for timer interrupts
  * is suppressed and the platform specific code is expected to provide the
  * following custom functions.
  *
- *   Architecture specific timer initialiation logic initializes the timer
+ *   Architecture specific timer initialization logic initializes the timer
  *     facilities.  This happens early in the initialization sequence (via
  *     up_initialize()).
  *   int up_timer_gettime(FAR struct timespec *ts):  Returns the current
  *     time from the platform specific time source.
  *
  * The tickless option can be supported either via a simple interval timer
- * (plus elapsed time) or via an alarm.  The interval timer allows programming
- * events to occur after an interval.  With the alarm, you can set a time in
- * the future and get an event when that alarm goes off.
+ * (plus elapsed time) or via an alarm.  The interval timer allows
+ * programming events to occur after an interval.  With the alarm, you can
+ * set a time in the future and get an event when that alarm goes off.
  *
  *   int up_alarm_cancel(void):  Cancel the alarm.
  *   int up_alarm_start(FAR const struct timespec *ts): Enable (or re-anable
@@ -1541,7 +1564,8 @@ int up_alarm_cancel(FAR struct timespec *ts);
  *
  * Input Parameters:
  *   ts - The time in the future at the alarm is expected to occur.  When
- *        the alarm occurs the timer logic will call nxsched_alarm_expiration().
+ *        the alarm occurs the timer logic will call
+ *        nxsched_alarm_expiration().
  *
  * Returned Value:
  *   Zero (OK) is returned on success; a negated errno value is returned on
@@ -1659,14 +1683,12 @@ int up_timer_start(FAR const struct timespec *ts);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_TLS
 /* struct tls_info_s;
  * FAR struct tls_info_s *up_tls_info(void);
  *
  * The actual declaration or definition is provided in arch/tls.h.  The
- * actual implementation may be a MACRO or and inline function.
+ * actual implementation may be a MACRO or an inline function.
  */
-#endif
 
 /****************************************************************************
  * Multiple CPU support
@@ -1891,8 +1913,8 @@ bool up_cpu_pausereq(int cpu);
  * Description:
  *   Handle a pause request from another CPU.  Normally, this logic is
  *   executed from interrupt handling logic within the architecture-specific
- *   However, it is sometimes necessary necessary to perform the pending
- *   pause operation in other contexts where the interrupt cannot be taken
+ *   However, it is sometimes necessary to perform the pending pause
+ *   operation in other contexts where the interrupt cannot be taken
  *   in order to avoid deadlocks.
  *
  *   This function performs the following operations:
@@ -1924,8 +1946,8 @@ int up_cpu_paused(int cpu);
  *   state of the task at the head of the g_assignedtasks[cpu] list, and
  *   resume normal tasking.
  *
- *   This function is called after up_cpu_pause in order resume operation of
- *   the CPU after modifying its g_assignedtasks[cpu] list.
+ *   This function is called after up_cpu_pause in order ot resume operation
+ *   of the CPU after modifying its g_assignedtasks[cpu] list.
  *
  * Input Parameters:
  *   cpu - The index of the CPU being resumed.
@@ -1948,7 +1970,7 @@ int up_cpu_resume(int cpu);
  *
  * Description:
  *   In Harvard architectures, data accesses and instruction accesses occur
- *   on different busses, perhaps concurrently.  All data accesses are
+ *   on different buses, perhaps concurrently.  All data accesses are
  *   performed on the data bus unless special  machine instructions are
  *   used to read data from the instruction address space.  Also, in the
  *   typical MCU, the available SRAM data memory is much smaller that the
@@ -1971,8 +1993,8 @@ int up_cpu_resume(int cpu);
  *   lie in FLASH (string arguments for %s are still assumed to reside in
  *   SRAM). And (2), the string argument to puts and fputs is assumed to
  *   reside in FLASH.  Clearly, these assumptions may have to modified for
- *   the particular needs of your environment.  There is no "one-size-fits-all"
- *   solution for this problem.
+ *   the particular needs of your environment.  There is no
+ *   "one-size-fits-all" solution for this problem.
  *
  ****************************************************************************/
 
@@ -1987,7 +2009,7 @@ char up_romgetc(FAR const char *ptr);
  *
  * Description:
  *   Some device drivers may require that the plaform-specific logic
- *   provide these timing loops for short delays.
+ *   provides these timing loops for short delays.
  *
  ****************************************************************************/
 
@@ -1995,8 +2017,8 @@ void up_mdelay(unsigned int milliseconds);
 void up_udelay(useconds_t microseconds);
 
 /****************************************************************************
- * These are standard interfaces that are exported by the OS for use by thecd .
- * architecture specific logic
+ * These are standard interfaces that are exported by the OS for use by the
+ * architecture specific logic.
  ****************************************************************************/
 
 /****************************************************************************
@@ -2019,7 +2041,7 @@ void nxsched_process_timer(void);
  * Name:  nxsched_timer_expiration
  *
  * Description:
- *   if CONFIG_SCHED_TICKLESS is defined, then this function is provided by
+ *   If CONFIG_SCHED_TICKLESS is defined, then this function is provided by
  *   the RTOS base code and called from platform-specific code when the
  *   interval timer used to implement the tick-less OS expires.
  *
@@ -2069,7 +2091,7 @@ void nxsched_alarm_expiration(FAR const struct timespec *ts);
  * Description:
  *   Collect data that can be used for CPU load measurements.  When
  *   CONFIG_SCHED_CPULOAD_EXTCLK is defined, this is an exported interface,
- *   use the the external clock logic.  Otherwise, it is an OS Internal
+ *   use the the external clock logic.  Otherwise, it is an OS internal
  *   interface.
  *
  * Input Parameters:
@@ -2153,15 +2175,15 @@ size_t  up_check_intstack_remain(void);
 int up_rtc_initialize(void);
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: up_rtc_time
  *
  * Description:
  *   Get the current time in seconds.  This is similar to the standard time()
- *   function.  This interface is only required if the low-resolution RTC/counter
- *   hardware implementation selected.  It is only used by the RTOS during
- *   initialization to set up the system time when CONFIG_RTC is set but neither
- *   CONFIG_RTC_HIRES nor CONFIG_RTC_DATETIME are set.
+ *   function.  This interface is only required if the low-resolution
+ *   RTC/counter hardware implementation is selected.  It is only used by the
+ *   RTOS during initialization to set up the system time when CONFIG_RTC is
+ *   set but neither CONFIG_RTC_HIRES nor CONFIG_RTC_DATETIME are set.
  *
  * Input Parameters:
  *   None
@@ -2169,18 +2191,19 @@ int up_rtc_initialize(void);
  * Returned Value:
  *   The current time in seconds.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #if defined(CONFIG_RTC) && !defined(CONFIG_RTC_HIRES)
 time_t up_rtc_time(void);
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: up_rtc_gettime
  *
  * Description:
- *   Get the current time from the high resolution RTC clock/counter.  This interface
- *   is only supported by the high-resolution RTC/counter hardware implementation.
+ *   Get the current time from the high resolution RTC clock/counter.  This
+ *   interface is only supported by the high-resolution RTC/counter hardware
+ *   implementation.
  *   It is used to replace the system timer.
  *
  * Input Parameters:
@@ -2189,26 +2212,26 @@ time_t up_rtc_time(void);
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #if defined(CONFIG_RTC) && defined(CONFIG_RTC_HIRES)
 int up_rtc_gettime(FAR struct timespec *tp);
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: up_rtc_getdatetime
  *
  * Description:
  *   Get the current date and time from the date/time RTC.  This interface
  *   is only supported by the date/time RTC hardware implementation.
- *   It is used to replace the system timer.  It is only used by the RTOS during
- *   initialization to set up the system time when CONFIG_RTC and CONFIG_RTC_DATETIME
- *   are selected (and CONFIG_RTC_HIRES is not).
+ *   It is used to replace the system timer.  It is only used by the RTOS
+ *   during initialization to set up the system time when CONFIG_RTC and
+ *   CONFIG_RTC_DATETIME are selected (and CONFIG_RTC_HIRES is not).
  *
- *   NOTE: Some date/time RTC hardware is capability of sub-second accuracy.  That
- *   sub-second accuracy is lost in this interface.  However, since the system time
- *   is reinitialized on each power-up/reset, there will be no timing inaccuracy in
- *   the long run.
+ *   NOTE: Some date/time RTC hardware is capability of sub-second accuracy.
+ *   That sub-second accuracy is lost in this interface.  However, since the
+ *   system time is reinitialized on each power-up/reset, there will be no
+ *   timing inaccuracy in the long run.
  *
  * Input Parameters:
  *   tp - The location to return the high resolution time value.
@@ -2216,26 +2239,26 @@ int up_rtc_gettime(FAR struct timespec *tp);
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #if defined(CONFIG_RTC) && defined(CONFIG_RTC_DATETIME)
 int up_rtc_getdatetime(FAR struct tm *tp);
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: up_rtc_getdatetime_with_subseconds
  *
  * Description:
  *   Get the current date and time from the date/time RTC.  This interface
  *   is only supported by the date/time RTC hardware implementation.
- *   It is used to replace the system timer.  It is only used by the RTOS during
- *   initialization to set up the system time when CONFIG_RTC and CONFIG_RTC_DATETIME
- *   are selected (and CONFIG_RTC_HIRES is not).
+ *   It is used to replace the system timer.  It is only used by the RTOS
+ *   during initialization to set up the system time when CONFIG_RTC and
+ *   CONFIG_RTC_DATETIME are selected (and CONFIG_RTC_HIRES is not).
  *
- *   NOTE: This interface exposes sub-second accuracy capability of RTC hardware.
- *   This interface allow maintaining timing accuracy when system time needs constant
- *   resynchronization with RTC, for example on MCU with low-power state that
- *   stop system timer.
+ *   NOTE: This interface exposes sub-second accuracy capability of RTC
+ *   hardware. This interface allow maintaining timing accuracy when system
+ *   time needs constant resynchronization with RTC, for example on MCU with
+ *   low-power state that stop system timer.
  *
  * Input Parameters:
  *   tp - The location to return the high resolution time value.
@@ -2244,19 +2267,19 @@ int up_rtc_getdatetime(FAR struct tm *tp);
  * Returned Value:
  *   Zero (OK) on success; a negated errno on failure
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #if defined(CONFIG_RTC) && defined(CONFIG_RTC_DATETIME) && \
     defined(CONFIG_ARCH_HAVE_RTC_SUBSECONDS)
 int up_rtc_getdatetime_with_subseconds(FAR struct tm *tp, FAR long *nsec);
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: up_rtc_settime
  *
  * Description:
- *   Set the RTC to the provided time.  All RTC implementations must be able to
- *   set their time based on a standard timespec.
+ *   Set the RTC to the provided time.  All RTC implementations must be able
+ *   to set their time based on a standard timespec.
  *
  * Input Parameters:
  *   tp - the time to use
@@ -2264,7 +2287,7 @@ int up_rtc_getdatetime_with_subseconds(FAR struct tm *tp, FAR long *nsec);
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_RTC
 int up_rtc_settime(FAR const struct timespec *tp);
@@ -2323,7 +2346,7 @@ int up_rtc_settime(FAR const struct timespec *tp);
  *             signal tasks in user space.  A value of NULL can be passed
  *             in order to detach and disable the PHY interrupt.
  *   arg     - The argument that will accompany the interrupt
- *   enable  - A function pointer that be unsed to enable or disable the
+ *   enable  - A function pointer that be unused to enable or disable the
  *             PHY interrupt.
  *
  * Returned Value:
@@ -2361,7 +2384,7 @@ int up_putc(int ch);
 
 void up_puts(FAR const char *str);
 
-/********************************************************************************
+/****************************************************************************
  * Name: arch_sporadic_*
  *
  * Description:
@@ -2375,7 +2398,7 @@ void up_puts(FAR const char *str);
  * Returned Value:
  *   None
  *
- ********************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_SPORADIC_INSTRUMENTATION
 void arch_sporadic_start(FAR struct tcb_s *tcb);
@@ -2384,7 +2407,7 @@ void arch_sporadic_suspend(FAR struct tcb_s *tcb);
 void arch_sporadic_resume(FAR struct tcb_s *tcb);
 #endif
 
-/********************************************************************************
+/****************************************************************************
  * Name: up_critmon_*
  *
  * Description:
@@ -2401,7 +2424,7 @@ void arch_sporadic_resume(FAR struct tcb_s *tcb);
  *
  *   The second interface simple converts an elapsed time into well known
  *   units.
- ********************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_SCHED_CRITMONITOR
 uint32_t up_critmon_gettime(void);

@@ -77,14 +77,8 @@
 #ifndef CONFIG_DEV_CONSOLE
 #  undef  USE_SERIALDRIVER
 #  undef  USE_EARLYSERIALINIT
-#  undef  CONFIG_DEV_LOWCONSOLE
-#  undef  CONFIG_RAMLOG_CONSOLE
 #else
-#  if defined(CONFIG_RAMLOG_CONSOLE)
-#    undef  USE_SERIALDRIVER
-#    undef  USE_EARLYSERIALINIT
-#    undef  CONFIG_DEV_LOWCONSOLE
-#  elif defined(CONFIG_DEV_LOWCONSOLE)
+#  if defined(CONFIG_CONSOLE_SYSLOG)
 #    undef  USE_SERIALDRIVER
 #    undef  USE_EARLYSERIALINIT
 #  else
@@ -111,10 +105,10 @@ extern uint32_t g_idle_topstack;
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Functions Prototypes
  ****************************************************************************/
 
-/* Low level initialization provided by board-level logic ******************/
+/* Low level initialization provided by board-level logic *******************/
 
 void lm32_board_initialize(void);
 
@@ -127,10 +121,6 @@ void lm32_add_region(void);
 /* Context switching ********************************************************/
 
 void lm32_copystate(uint32_t *dest, uint32_t *src);
-
-/* IRQ initialization *******************************************************/
-
-void lm32_irq_initialize(void);
 
 /* Interrupt decode *********************************************************/
 

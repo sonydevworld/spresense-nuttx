@@ -1,4 +1,4 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/nrf52/hardware/nrf52_gpio.h
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
@@ -31,27 +31,35 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_NRF52_HARDWARE_NRF52_GPIO_H
 #define __ARCH_ARM_SRC_NRF52_HARDWARE_NRF52_GPIO_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 #include <stdint.h>
 #include "hardware/nrf52_memorymap.h"
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
+ ****************************************************************************/
 
-#define NRF52_GPIO_PORT0            0
-#define NRF52_GPIO_NPORTS           1
+#ifdef CONFIG_NRF52_HAVE_PORT1
+#  define NRF52_GPIO_NPORTS         2
+#  define NRF52_GPIO_PORT0          0
+#  define NRF52_GPIO_PORT1          1
+#else
+#  define NRF52_GPIO_PORT0          0
+#  define NRF52_GPIO_NPORTS         1
+#endif
 
-/* Register offsets *****************************************************************/
+#define NRF52_GPIO_NPINS            32
+
+/* Register offsets *********************************************************/
 
 #define NRF52_GPIO_OUT_OFFSET        0x0504 /* Write GPIO port */
 #define NRF52_GPIO_OUTSET_OFFSET     0x0508 /* Set individual bits in GPIO port */
@@ -65,7 +73,7 @@
 
 #define NRF52_GPIO_PIN_CNF_OFFSET(n) (0x0700 + (n << 2))
 
-/* Register addresses ***************************************************************/
+/* Register addresses *******************************************************/
 
 #define NRF52_GPIO0_OUT              (NRF52_GPIO_P0_BASE + NRF52_GPIO_OUT_OFFSET)
 #define NRF52_GPIO0_OUTSET           (NRF52_GPIO_P0_BASE + NRF52_GPIO_OUTSET_OFFSET)
@@ -76,12 +84,43 @@
 #define NRF52_GPIO0_DIRCLR           (NRF52_GPIO_P0_BASE + NRF52_GPIO_DIRCLR_OFFSET)
 #define NRF52_GPIO0_CNF(n)           (NRF52_GPIO_P0_BASE + NRF52_GPIO_PIN_CNF_OFFSET(n))
 
-/* Register bit definitions *********************************************************/
+#ifdef CONFIG_NRF52_HAVE_PORT1
+#  define NRF52_GPIO1_OUT            (NRF52_GPIO_P1_BASE + NRF52_GPIO_OUT_OFFSET)
+#  define NRF52_GPIO1_OUTSET         (NRF52_GPIO_P1_BASE + NRF52_GPIO_OUTSET_OFFSET)
+#  define NRF52_GPIO1_OUTCLR         (NRF52_GPIO_P1_BASE + NRF52_GPIO_OUTCLR_OFFSET)
+#  define NRF52_GPIO1_IN             (NRF52_GPIO_P1_BASE + NRF52_GPIO_IN_OFFSET)
+#  define NRF52_GPIO1_DIR            (NRF52_GPIO_P1_BASE + NRF52_GPIO_DIR_OFFSET)
+#  define NRF52_GPIO1_DIRSET         (NRF52_GPIO_P1_BASE + NRF52_GPIO_DIRSET_OFFSET)
+#  define NRF52_GPIO1_DIRCLR         (NRF52_GPIO_P1_BASE + NRF52_GPIO_DIRCLR_OFFSET)
+#  define NRF52_GPIO1_CNF(n)         (NRF52_GPIO_P1_BASE + NRF52_GPIO_PIN_CNF_OFFSET(n))
+#endif
 
-#define NRF52_GPIO_CNF_PULL_SHIFT       (2)
-#define NRF52_GPIO_CNF_PULL_MASK        (0x3 << NRF52_GPIO_CNF_PULL_SHIFT)
-#  define NRF52_GPIO_CNF_PULL_DISABLED  (0 << NRF52_GPIO_CNF_PULL_SHIFT)
-#  define NRF52_GPIO_CNF_PULL_DOWN      (1 << NRF52_GPIO_CNF_PULL_SHIFT)
-#  define NRF52_GPIO_CNF_PULL_UP        (3 << NRF52_GPIO_CNF_PULL_SHIFT)
+/* Register bit definitions *************************************************/
+
+#define GPIO_DETECTMODE_DEFAULT         (0)
+#define GPIO_DETECTMODE_LDETECT         (1)
+
+#define GPIO_CNF_DIR                    (1 << 0) /* Bit 0: Pin direction */
+#define GPIO_CNF_INPUT                  (1 << 1) /* Bit 1: Input buffer disconnect */
+#define GPIO_CNF_PULL_SHIFT             (2)
+#define GPIO_CNF_PULL_MASK              (0x3 << GPIO_CNF_PULL_SHIFT)
+#  define GPIO_CNF_PULL_DISABLED        (0 << GPIO_CNF_PULL_SHIFT)
+#  define GPIO_CNF_PULL_DOWN            (1 << GPIO_CNF_PULL_SHIFT)
+#  define GPIO_CNF_PULL_UP              (3 << GPIO_CNF_PULL_SHIFT)
+#define GPIO_CNF_DRIVE_SHIFT            (8)
+#define GPIO_CNF_DRIVE_MASK             (0x7 << GPIO_CNF_DRIVE_SHIFT)
+#  define GPIO_CNF_DRIVE_S0S1           (0 << GPIO_CNF_DRIVE_SHIFT)
+#  define GPIO_CNF_DRIVE_H0S1           (1 << GPIO_CNF_DRIVE_SHIFT)
+#  define GPIO_CNF_DRIVE_S0H1           (2 << GPIO_CNF_DRIVE_SHIFT)
+#  define GPIO_CNF_DRIVE_H0H1           (3 << GPIO_CNF_DRIVE_SHIFT)
+#  define GPIO_CNF_DRIVE_D0S1           (4 << GPIO_CNF_DRIVE_SHIFT)
+#  define GPIO_CNF_DRIVE_D0H1           (5 << GPIO_CNF_DRIVE_SHIFT)
+#  define GPIO_CNF_DRIVE_S0D1           (6 << GPIO_CNF_DRIVE_SHIFT)
+#  define GPIO_CNF_DRIVE_H0D1           (7 << GPIO_CNF_DRIVE_SHIFT)
+#define GPIO_CNF_SENSE_SHIFT            (16)
+#define GPIO_CNF_SENSE_MASK             (0x3 << GPIO_CNF_SENSE_SHIFT)
+#  define GPIO_CNF_SENSE_DISABLED       (0 << GPIO_CNF_SENSE_SHIFT)
+#  define GPIO_CNF_SENSE_HIGH           (2 << GPIO_CNF_SENSE_SHIFT)
+#  define GPIO_CNF_SENSE_LOW            (3 << GPIO_CNF_SENSE_SHIFT)
 
 #endif /* __ARCH_ARM_SRC_NRF52_HARDWARE_NRF52_GPIO_H */

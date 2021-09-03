@@ -1,38 +1,20 @@
 /****************************************************************************
  * drivers/sensors/lis3dsh.c
- * Character driver for the LIS3DSH 3-Axis acclerometer.
  *
- *   Copyright (C) 2016 DS-Automotion GmbH. All rights reserved.
- *   Author:  Alexander Entinger <a.entinger@ds-automotion.com>
- *            Thomas Ilk
- *            Florian Olbrich <flox@posteo.de>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -86,8 +68,11 @@ struct lis3dsh_dev_s
  * Private Function Prototypes
  ****************************************************************************/
 
+#ifdef CONFIG_DEBUG_SENSORS_INFO
 static void lis3dsh_read_register(FAR struct lis3dsh_dev_s *dev,
                                   uint8_t const reg_addr, uint8_t *reg_data);
+#endif
+
 static void lis3dsh_write_register(FAR struct lis3dsh_dev_s *dev,
                                    uint8_t const reg_addr,
                                    uint8_t const reg_data);
@@ -96,7 +81,8 @@ static void lis3dsh_read_measurement_data(FAR struct lis3dsh_dev_s *dev);
 static void lis3dsh_read_acclerometer_data(FAR struct lis3dsh_dev_s *dev,
                                            uint16_t *x_acc, uint16_t *y_acc,
                                            uint16_t *z_acc);
-static int lis3dsh_interrupt_handler(int irq, FAR void *context);
+static int lis3dsh_interrupt_handler(int irq, FAR void *context,
+                                     FAR void *arg);
 static void lis3dsh_worker(FAR void *arg);
 
 static int lis3dsh_open(FAR struct file *filep);
@@ -133,6 +119,7 @@ static struct lis3dsh_dev_s *g_lis3dsh_list = NULL;
  * Private Functions
  ****************************************************************************/
 
+#ifdef CONFIG_DEBUG_SENSORS_INFO
 /****************************************************************************
  * Name: lis3dsh_read_register
  ****************************************************************************/
@@ -140,7 +127,9 @@ static struct lis3dsh_dev_s *g_lis3dsh_list = NULL;
 static void lis3dsh_read_register(FAR struct lis3dsh_dev_s *dev,
                                   uint8_t const reg_addr, uint8_t * reg_data)
 {
-  /* Lock the SPI bus so that only one device can access it at the same time */
+  /* Lock the SPI bus so that only one device can access it at the same
+   * time
+   */
 
   SPI_LOCK(dev->spi, true);
 
@@ -166,6 +155,7 @@ static void lis3dsh_read_register(FAR struct lis3dsh_dev_s *dev,
 
   SPI_LOCK(dev->spi, false);
 }
+#endif
 
 /****************************************************************************
  * Name: lis3dsh_write_register
@@ -175,7 +165,9 @@ static void lis3dsh_write_register(FAR struct lis3dsh_dev_s *dev,
                                    uint8_t const reg_addr,
                                    uint8_t const reg_data)
 {
-  /* Lock the SPI bus so that only one device can access it at the same time */
+  /* Lock the SPI bus so that only one device can access it at the same
+   * time
+   */
 
   SPI_LOCK(dev->spi, true);
 
@@ -206,7 +198,8 @@ static void lis3dsh_write_register(FAR struct lis3dsh_dev_s *dev,
 
 static void lis3dsh_reset(FAR struct lis3dsh_dev_s *dev)
 {
-  lis3dsh_write_register(dev, LIS3DSH_CTRL_REG_6, LIS3DSH_CTRL_REG_6_BOOT_bm);
+  lis3dsh_write_register(dev, LIS3DSH_CTRL_REG_6,
+                         LIS3DSH_CTRL_REG_6_BOOT_BM);
 
   up_mdelay(100);
 }
@@ -226,12 +219,12 @@ static void lis3dsh_read_measurement_data(FAR struct lis3dsh_dev_s *dev)
 
   lis3dsh_read_acclerometer_data(dev, &x_acc, &y_acc, &z_acc);
 
-  /* Aquire the semaphore before the data is copied */
+  /* Acquire the semaphore before the data is copied */
 
   ret = nxsem_wait(&dev->datasem);
   if (ret < 0)
     {
-      snerr("ERROR: Could not aquire dev->datasem: %d\n", ret);
+      snerr("ERROR: Could not acquire dev->datasem: %d\n", ret);
       return;
     }
 
@@ -255,10 +248,13 @@ static void lis3dsh_read_measurement_data(FAR struct lis3dsh_dev_s *dev)
  ****************************************************************************/
 
 static void lis3dsh_read_acclerometer_data(FAR struct lis3dsh_dev_s *dev,
-                                           uint16_t * x_acc, uint16_t * y_acc,
+                                           uint16_t * x_acc,
+                                           uint16_t * y_acc,
                                            uint16_t * z_acc)
 {
-  /* Lock the SPI bus so that only one device can access it at the same time */
+  /* Lock the SPI bus so that only one device can access it at the same
+   * time
+   */
 
   SPI_LOCK(dev->spi, true);
 
@@ -266,8 +262,8 @@ static void lis3dsh_read_acclerometer_data(FAR struct lis3dsh_dev_s *dev,
 
   SPI_SELECT(dev->spi, dev->config->spi_devid, true);
 
-  /* Transmit the register address from where we want to start reading 0x80 ->
-   * MSB is set -> Read Indication.
+  /* Transmit the register address from where we want to start reading
+   * 0x80 -> MSB is set -> Read Indication.
    */
 
   SPI_SEND(dev->spi, (LIS3DSH_OUT_X_L_REG | 0x80));
@@ -296,10 +292,11 @@ static void lis3dsh_read_acclerometer_data(FAR struct lis3dsh_dev_s *dev,
  * Name: lis3dsh_interrupt_handler
  ****************************************************************************/
 
-static int lis3dsh_interrupt_handler(int irq, FAR void *context)
+static int lis3dsh_interrupt_handler(int irq, FAR void *context,
+                                     FAR void *arg)
 {
-  /* This function should be called upon a rising edge on the LIS3DSH new data
-   * interrupt pin since it signals that new data has been measured.
+  /* This function should be called upon a rising edge on the LIS3DSH new
+   * data interrupt pin since it signals that new data has been measured.
    */
 
   FAR struct lis3dsh_dev_s *priv = NULL;
@@ -309,15 +306,15 @@ static int lis3dsh_interrupt_handler(int irq, FAR void *context)
 
   for (priv = g_lis3dsh_list;
        priv && priv->config->irq != irq;
-       priv = priv->flink);
+       priv = priv->flink)
     {
     }
 
   DEBUGASSERT(priv != NULL);
 
   /* Task the worker with retrieving the latest sensor data. We should not do
-   * this in a interrupt since it might take too long. Also we cannot lock the
-   * SPI bus from within an interrupt.
+   * this in a interrupt since it might take too long. Also we cannot lock
+   * the SPI bus from within an interrupt.
    */
 
   if (work_available(&priv->work))
@@ -365,51 +362,57 @@ static int lis3dsh_open(FAR struct file *filep)
   /* Enable - the full scale range (FS = +/- 16 g) */
 
   lis3dsh_write_register(priv,
-                         LIS3DSH_CTRL_REG_5, LIS3DSH_CTRL_REG_5_FSCALE_2_bm);
+                         LIS3DSH_CTRL_REG_5, LIS3DSH_CTRL_REG_5_FSCALE_2_BM);
 
   /* Enable - Auto increment of address when reading multiple bytes */
 
   lis3dsh_write_register(priv,
-                         LIS3DSH_CTRL_REG_6, LIS3DSH_CTRL_REG_6_ADD_INC_bm);
+                         LIS3DSH_CTRL_REG_6, LIS3DSH_CTRL_REG_6_ADD_INC_BM);
 
   /* Enable - Measurement of X-, Y-, and Z-axis - Block data update for
-   * accelerating data This should prevent race conditions when reading sensor
-   * data - fastest output data rate (ODR = 1600 Hz) */
+   * accelerating data This should prevent race conditions when reading
+   * sensor data - fastest output data rate (ODR = 1600 Hz).
+   */
 
   lis3dsh_write_register(priv,
                          LIS3DSH_CTRL_REG_4,
-                         LIS3DSH_CTRL_REG_4_XEN_bm | LIS3DSH_CTRL_REG_4_YEN_bm |
-                         LIS3DSH_CTRL_REG_4_ZEN_bm | LIS3DSH_CTRL_REG_4_BDU_bm |
-                         LIS3DSH_CTRL_REG_4_ODR_3_bm | LIS3DSH_CTRL_REG_4_ODR_0_bm);
+                         LIS3DSH_CTRL_REG_4_XEN_BM |
+                         LIS3DSH_CTRL_REG_4_YEN_BM |
+                         LIS3DSH_CTRL_REG_4_ZEN_BM |
+                         LIS3DSH_CTRL_REG_4_BDU_BM |
+                         LIS3DSH_CTRL_REG_4_ODR_3_BM |
+                         LIS3DSH_CTRL_REG_4_ODR_0_BM);
 
   /* Enable - DRDY signal enable to INT 1 */
 
   lis3dsh_write_register(priv,
                          LIS3DSH_CTRL_REG_3,
-                         LIS3DSH_CTRL_REG_3_DR_EN_bm | LIS3DSH_CTRL_REG_3_IEA_bm |
-                         LIS3DSH_CTRL_REG_3_IEL_bm | LIS3DSH_CTRL_REG_3_INT1_EN_bm);
+                         LIS3DSH_CTRL_REG_3_DR_EN_BM |
+                         LIS3DSH_CTRL_REG_3_IEA_BM |
+                         LIS3DSH_CTRL_REG_3_IEL_BM |
+                         LIS3DSH_CTRL_REG_3_INT1_EN_BM);
 
   /* Read back the content of all control registers for debug purposes */
 
 #ifdef CONFIG_DEBUG_SENSORS_INFO
-  {
-    uint8_t reg_content = 0;
+    {
+      uint8_t reg_content = 0;
 
-    lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_1, &reg_content);
-    sninfo("LIS3DSH_CTRL_REG_1 = %04x\n", reg_content);
-    lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_2, &reg_content);
-    sninfo("LIS3DSH_CTRL_REG_2 = %04x\n", reg_content);
-    lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_3, &reg_content);
-    sninfo("LIS3DSH_CTRL_REG_3 = %04x\n", reg_content);
-    lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_4, &reg_content);
-    sninfo("LIS3DSH_CTRL_REG_4 = %04x\n", reg_content);
-    lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_5, &reg_content);
-    sninfo("LIS3DSH_CTRL_REG_5 = %04x\n", reg_content);
-    lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_6, &reg_content);
-    sninfo("LIS3DSH_CTRL_REG_6 = %04x\n", reg_content);
-    lis3dsh_read_register(priv, LIS3DSH_STATUS_REG, &reg_content);
-    sninfo("STATUS_REG = %04x\n", reg_content);
-  }
+      lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_1, &reg_content);
+      sninfo("LIS3DSH_CTRL_REG_1 = %04x\n", reg_content);
+      lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_2, &reg_content);
+      sninfo("LIS3DSH_CTRL_REG_2 = %04x\n", reg_content);
+      lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_3, &reg_content);
+      sninfo("LIS3DSH_CTRL_REG_3 = %04x\n", reg_content);
+      lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_4, &reg_content);
+      sninfo("LIS3DSH_CTRL_REG_4 = %04x\n", reg_content);
+      lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_5, &reg_content);
+      sninfo("LIS3DSH_CTRL_REG_5 = %04x\n", reg_content);
+      lis3dsh_read_register(priv, LIS3DSH_CTRL_REG_6, &reg_content);
+      sninfo("LIS3DSH_CTRL_REG_6 = %04x\n", reg_content);
+      lis3dsh_read_register(priv, LIS3DSH_STATUS_REG, &reg_content);
+      sninfo("STATUS_REG = %04x\n", reg_content);
+    }
 #endif
 
   return OK;
@@ -451,16 +454,17 @@ static ssize_t lis3dsh_read(FAR struct file *filep, FAR char *buffer,
 
   if (buflen < sizeof(FAR struct lis3dsh_sensor_data_s))
     {
-      snerr("ERROR: Not enough memory for reading out a sensor data sample\n");
+      snerr("ERROR: Not enough memory for reading out a sensor data"
+            " sample\n");
       return -ENOSYS;
     }
 
-  /* Aquire the semaphore before the data is copied */
+  /* Acquire the semaphore before the data is copied */
 
   ret = nxsem_wait(&priv->datasem);
   if (ret < 0)
     {
-      snerr("ERROR: Could not aquire priv->datasem: %d\n", ret);
+      snerr("ERROR: Could not acquire priv->datasem: %d\n", ret);
       return ret;
     }
 
@@ -545,7 +549,8 @@ int lis3dsh_register(FAR const char *devpath, FAR struct spi_dev_s *spi,
 
   /* Initialize the LIS3DSH device structure */
 
-  priv = (FAR struct lis3dsh_dev_s *)kmm_malloc(sizeof(struct lis3dsh_dev_s));
+  priv =
+      (FAR struct lis3dsh_dev_s *)kmm_malloc(sizeof(struct lis3dsh_dev_s));
   if (priv == NULL)
     {
       snerr("ERROR: Failed to allocate instance\n");

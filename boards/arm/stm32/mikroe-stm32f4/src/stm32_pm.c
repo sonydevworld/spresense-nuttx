@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/stm32/mikroe_stm32f4/src/stm32_pm.c
+ * boards/arm/stm32/mikroe-stm32f4/src/stm32_pm.c
  *
  *   Copyright (C) 2012-2013 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
@@ -42,7 +42,7 @@
 
 #include <nuttx/power/pm.h>
 
-#include "up_internal.h"
+#include "arm_internal.h"
 #include "stm32_pm.h"
 #include "mikroe-stm32f4.h"
 
@@ -53,7 +53,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_pminitialize
+ * Name: arm_pminitialize
  *
  * Description:
  *   This function is called by MCU-specific logic at power-on reset in
@@ -70,7 +70,7 @@
  *
  ****************************************************************************/
 
-void up_pminitialize(void)
+void arm_pminitialize(void)
 {
   /* Then initialize the NuttX power management subsystem proper */
 

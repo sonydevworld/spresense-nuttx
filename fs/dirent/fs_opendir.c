@@ -1,36 +1,20 @@
 /****************************************************************************
  * fs/dirent/fs_opendir.c
  *
- *   Copyright (C) 2007-2009, 2011, 2013-2014, 2017-2018 Gregory Nutt. All
- *     rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -42,7 +26,6 @@
 
 #include <stdbool.h>
 #include <string.h>
-#include <ctype.h>
 #include <dirent.h>
 #include <assert.h>
 #include <errno.h>
@@ -233,52 +216,7 @@ FAR DIR *opendir(FAR const char *path)
 #ifndef CONFIG_DISABLE_MOUNTPOINT
   FAR const char *relpath = NULL;
 #endif
-  FAR char *alloc = NULL;
-  bool isroot = false;
-  int len;
   int ret;
-
-  /* Strip off any trailing whitespace or '/' characters.  In this case we
-   * must make a copy of the user string so we can chop off bytes on the
-   * 'right' without modifying the user's const string.
-   */
-
-  if (path != NULL)
-    {
-      /* Length of the string excludes NUL terminator */
-
-      len = strlen(path);
-
-      /* Check for whitespace or a dangling '/' at the end of the string.
-       * But don't muck with the string any further if it has been reduced
-       * to "/"
-       */
-
-      while (len > 0 && strcmp(path, "/") != 0 &&
-             (isspace(path[len - 1]) || path[len - 1] == '/'))
-        {
-          /* Have we already allocated memory for the modified string? */
-
-          if (alloc == NULL)
-            {
-              alloc = strdup(path); /* Allocates one too many bytes */
-              if (alloc == NULL)
-                {
-                  ret = ENOMEM;
-                  goto errout;
-                }
-
-              /* Use the cloned, writable string instead of the user string */
-
-              path = alloc;
-            }
-
-          /* Chop off the final character */
-
-          len--;
-          alloc[len] = '\0';
-        }
-    }
 
   /* If we are given 'nothing' then we will interpret this as
    * request for the root inode.
@@ -286,33 +224,23 @@ FAR DIR *opendir(FAR const char *path)
 
   SETUP_SEARCH(&desc, path, false);
 
-  inode_semtake();
-  if (path == NULL || *path == '\0' || strcmp(path, "/") == 0)
+  ret = inode_semtake();
+  if (ret < 0)
     {
-      inode   = g_root_inode;
-      isroot  = true;
+      ret = -ret;
+      goto errout;
     }
-  else
+
+  /* Find the node matching the path. */
+
+  ret = inode_search(&desc);
+  if (ret >= 0)
     {
-      /* We don't know what to do with relative paths */
-
-      if (*path != '/')
-        {
-          ret = ENOTDIR;
-          goto errout_with_semaphore;
-        }
-
-      /* Find the node matching the path. */
-
-      ret = inode_search(&desc);
-      if (ret >= 0)
-        {
-          inode   = desc.node;
-          DEBUGASSERT(inode != NULL);
+      inode   = desc.node;
+      DEBUGASSERT(inode != NULL);
 #ifndef CONFIG_DISABLE_MOUNTPOINT
-          relpath = desc.relpath;
+      relpath = desc.relpath;
 #endif
-        }
     }
 
   /* Did we get an inode? */
@@ -345,25 +273,10 @@ FAR DIR *opendir(FAR const char *path)
 
   dir->fd_position = 0;      /* This is the position in the read stream */
 
-  /* First, handle the special case of the root inode.  This must be
-   * special-cased here because the root inode might ALSO be a mountpoint.
-   */
-
-  if (isroot)
-    {
-      /* Whatever payload the root inode carries, the root inode is always
-       * a directory inode in the pseudo-file system
-       */
-
-      open_pseudodir(inode, dir);
-    }
-
-  /* Is this a node in the pseudo filesystem? Or a mountpoint?  If the node
-   * is the root (isroot == TRUE), then this is a special case.
-   */
+  /* Is this a node in the pseudo filesystem? Or a mountpoint? */
 
 #ifndef CONFIG_DISABLE_MOUNTPOINT
-  else if (INODE_IS_MOUNTPT(inode))
+  if (INODE_IS_MOUNTPT(inode))
     {
       /* Yes, the node is a file system mountpoint */
 
@@ -377,8 +290,8 @@ FAR DIR *opendir(FAR const char *path)
           goto errout_with_direntry;
         }
     }
-#endif
   else
+#endif
     {
       /* The node is part of the root pseudo file system.  Does the inode
        * have a child? If so that the child would be the 'root' of a list
@@ -409,14 +322,6 @@ FAR DIR *opendir(FAR const char *path)
 
   RELEASE_SEARCH(&desc);
   inode_semgive();
-
-  /* Free any allocated string memory */
-
-  if (alloc != NULL)
-    {
-      kmm_free(alloc);
-    }
-
   return ((FAR DIR *)dir);
 
   /* Nasty goto's make error handling simpler */
@@ -427,13 +332,6 @@ errout_with_direntry:
 errout_with_semaphore:
   RELEASE_SEARCH(&desc);
   inode_semgive();
-
-  /* Free any allocated string memory */
-
-  if (alloc != NULL)
-    {
-      kmm_free(alloc);
-    }
 
 errout:
   set_errno(ret);

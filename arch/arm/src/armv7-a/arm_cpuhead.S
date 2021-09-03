@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/armv7-a/arm_cpuhead.S
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -39,24 +24,21 @@
 
 #include <nuttx/config.h>
 
-#include <arch/board/board.h>
-
 #include "arm.h"
 #include "cp15.h"
 #include "sctlr.h"
 #include "mmu.h"
 #include "smp.h"
-
 #include "chip.h"
-#include "up_internal.h"
+#include "arm_internal.h"
 
 #ifdef CONFIG_SMP
 
 	.file	"arm_cpuhead.S"
 
-/**********************************************************************************
+/****************************************************************************
  * Configuration
- **********************************************************************************/
+ ****************************************************************************/
 
 /* Hard-coded options */
 
@@ -365,7 +347,7 @@ __cpu3_start:
 	/* Then write the configured control register */
 
 	mcr		CP15_SCTLR(r0)			/* Write control reg */
-	.rept	12						/* Cortex A8 wants lots of NOPs here */
+	.rept		12				/* Cortex A8 wants lots of NOPs here */
 	nop
 	.endr
 
@@ -420,13 +402,14 @@ __cpu3_start:
 	 */
 
 	adr		r3, .Lstkinit
-	ldmia	r3, {r0, r1, r2}	/* R0 = start of IDLE stack; R1 = Size of stack; R2 = coloration */
+	mov		r0, sp		/* R0 = end of IDLE stack */
+	ldmia		r3, {r1, r2}	/* R1 = Size of stack; R2 = coloration */
 
-1:								/* Top of the loop */
+1:							/* Top of the loop */
 	sub		r1, r1, #1			/* R1 = Number of words remaining */
 	cmp		r1, #0				/* Check (nwords == 0) */
-	str		r2, [r0], #4		/* Save stack color word, increment stack address */
-	bne		1b					/* Bottom of the loop */
+	str		r2, [r0, #-4]!			/* Save stack color word, increment stack address */
+	bne		1b				/* Bottom of the loop */
 #endif
 
 	/* Branch to continue C level CPU initialization */
@@ -434,7 +417,7 @@ __cpu3_start:
 	mov		fp, #0				/* Clear framepointer */
 	mov		lr, #0				/* LR = return address (none) */
 	mov		r0, r5				/* Input parameter = CPU index */
-	b		arm_cpu_boot		/* Branch to C level CPU initialization */
+	b		arm_cpu_boot			/* Branch to C level CPU initialization */
 	.size	.Lcpu_vstart, .-.Lcpu_vstart
 
 /***************************************************************************
@@ -494,5 +477,5 @@ g_cpu3_idlestack:
 #endif /* CONFIG_SMP_NCPUS > 3 */
 #endif /* CONFIG_SMP_NCPUS > 2 */
 #endif /* CONFIG_SMP_NCPUS > 1 */
-#endif
+#endif /* CONFIG_SMP */
 	.end

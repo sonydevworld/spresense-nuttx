@@ -2,7 +2,7 @@
  * net/tcp/tcp_timer.c
  * Poll for the availability of TCP TX data
  *
- *   Copyright (C) 2007-2010, 2015-2016, 2018 Gregory Nutt. All rights
+ *   Copyright (C) 2007-2010, 2015-2016, 2018, 2020 Gregory Nutt. All rights
  *     reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
@@ -61,6 +61,20 @@
 #include "tcp/tcp.h"
 
 /****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Per RFC 1122:  "... an ACK should not be excessively delayed; in
+ * particular, the delay MUST be less than 0.5 seconds ..."
+ *
+ * NOTE:  We only have 0.5 timing resolution here so the delay will be
+ * between 0.5 and 1.0 seconds, and may be delayed further, depending on the
+ * polling rate of the the driver (often 1 second).
+ */
+
+#define ACK_DELAY (1)
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -73,7 +87,7 @@
  * Input Parameters:
  *   dev  - The device driver structure to use in the send operation
  *   conn - The TCP "connection" to poll for TX data
- *   hsed - The polling interval in halves of a second
+ *   hsec - The polling interval in units of halves of a second
  *
  * Returned Value:
  *   None
@@ -143,11 +157,11 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 
       /* Check if the timer exceeds the timeout value */
 
-      if (newtimer >= TCP_TIME_WAIT_TIMEOUT)
+      if (newtimer >= (TCP_TIME_WAIT_TIMEOUT * HSEC_PER_SEC))
         {
           /* Set the timer to the maximum value */
 
-          conn->timer = TCP_TIME_WAIT_TIMEOUT;
+          conn->timer = TCP_TIME_WAIT_TIMEOUT * HSEC_PER_SEC;
 
           /* The TCP connection was established and, hence, should be bound
            * to a device. Make sure that the polling device is the one that
@@ -168,7 +182,7 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 
               /* Notify upper layers about the timeout */
 
-              result = tcp_callback(dev, conn, TCP_TIMEDOUT);
+              tcp_callback(dev, conn, TCP_TIMEDOUT);
 
               ninfo("TCP state: TCP_CLOSED\n");
             }
@@ -187,7 +201,7 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
        * retransmit.
        */
 
-      if (conn->unacked > 0)
+      if (conn->tx_unacked > 0)
         {
           /* The connection has outstanding data */
 
@@ -247,7 +261,7 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
                        * connection has timed out.
                        */
 
-                      result = tcp_callback(dev, listener, TCP_TIMEDOUT);
+                      tcp_callback(dev, listener, TCP_TIMEDOUT);
                     }
 
                   /* We also send a reset packet to the remote host. */
@@ -256,6 +270,7 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 
                   /* Finally, we must free this TCP connection structure */
 
+                  conn->crefs = 0;
                   tcp_free(conn);
                   goto done;
                 }
@@ -283,7 +298,7 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
                    * timed out.
                    */
 
-                  result = tcp_callback(dev, conn, TCP_TIMEDOUT);
+                  tcp_callback(dev, conn, TCP_TIMEDOUT);
 
                   /* We also send a reset packet to the remote host. */
 
@@ -315,14 +330,14 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
                      * SYNACK.
                      */
 
-                    tcp_ack(dev, conn, TCP_ACK | TCP_SYN);
+                    tcp_synack(dev, conn, TCP_ACK | TCP_SYN);
                     goto done;
 
                   case TCP_SYN_SENT:
 
                     /* In the SYN_SENT state, we retransmit out SYN. */
 
-                    tcp_ack(dev, conn, TCP_SYN);
+                    tcp_synack(dev, conn, TCP_SYN);
                     goto done;
 
                   case TCP_ESTABLISHED:
@@ -409,9 +424,9 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
                           unsigned int tcpiplen;
 
                           /* No.. we need to send another probe.
-                           *
-                           * Get the size of the IP header and the TCP header.
+                           * Get the size of the IP and TCP header.
                            */
+
 #ifdef CONFIG_NET_IPv4
 #ifdef CONFIG_NET_IPv6
                           if (conn->domain == PF_INET)
@@ -429,14 +444,13 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
                             }
 #endif
 
-                          /* And send the probe (along with a garbage byte).
-                           * The packet we sned must have these properties:
+                          /* And send the probe.
+                           * The packet we send must have these properties:
                            *
                            *   - TCP_ACK flag (only) is set.
                            *   - Sequence number is the sequence number of
                            *     previously ACKed data, i.e., the expected
                            *     sequence number minus one.
-                           *   - The data payload is one or two bytes.
                            *
                            * tcp_send() will send the TCP sequence number as
                            * conn->sndseq.  Rather than creating a new
@@ -446,15 +460,9 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
                           saveseq = tcp_getsequence(conn->sndseq);
                           tcp_setsequence(conn->sndseq, saveseq - 1);
 
-                          tcp_send(dev, conn, TCP_ACK, tcpiplen + 1);
+                          tcp_send(dev, conn, TCP_ACK, tcpiplen);
 
                           tcp_setsequence(conn->sndseq, saveseq);
-
-                          /* Increment the number of un-ACKed bytes due to the
-                           * dummy byte that we just sent.
-                           */
-
-                          conn->unacked++;
 
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
                           /* Increment the un-ACKed sequence number */
@@ -463,7 +471,7 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
 #endif
                           /* Update for the next probe */
 
-                          conn->keeptime = clock_systimer();
+                          conn->keeptime = clock_systime_ticks();
                           conn->keepretries++;
                         }
 
@@ -472,9 +480,40 @@ void tcp_timer(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
                 }
 #endif
 
+#ifdef CONFIG_NET_TCP_DELAYED_ACK
+              /* Handle delayed acknowledgments.  Is there a segment with a
+               * delayed acknowledgment?
+               */
+
+              if (conn->rx_unackseg > 0)
+                {
+                  /* Increment the ACK delay. */
+
+                  conn->rx_acktimer += hsec;
+
+                  /* Per RFC 1122:  "...an ACK should not be excessively
+                   * delayed; in particular, the delay must be less than
+                   * 0.5 seconds..."
+                   */
+
+                  if (conn->rx_acktimer >= ACK_DELAY)
+                    {
+                      /* Reset the delayed ACK state and send the ACK
+                       * packet.
+                       */
+
+                      conn->rx_unackseg = 0;
+                      conn->rx_acktimer = 0;
+                      tcp_synack(dev, conn, TCP_ACK);
+                      goto done;
+                    }
+                }
+#endif
+
               /* There was no need for a retransmission and there was no
-               * need to probe the remote peer.  We poll the application for
-               * new outgoing data.
+               * need to probe the remote peer and there was no need to
+               * send a delayed ACK.  We poll the application for new
+               * outgoing data.
                */
 
               result = tcp_callback(dev, conn, TCP_POLL);

@@ -1,10 +1,5 @@
-/Make.dep
-/.depend
-/Cygwin-names.dat
-/Msys-names.dat
-/Linux-names.dat
-/nuttx.rel
+/nuttx-names.dat
+/nuttx.ld
 /hostfs.h
-/GNU
 /chip
 /board

@@ -4,11 +4,6 @@
  *   Copyright (C) 2013-2014, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
- * References:
- *
- *   SAMA5D3 Series Data Sheet
- *   Atmel NoOS sample code (for bit timing configuration).
- *
  * The Atmel sample code has a BSD compatible license that requires this
  * copyright notice:
  *
@@ -43,6 +38,12 @@
  *
  ****************************************************************************/
 
+/* References:
+ *
+ *   SAMA5D3 Series Data Sheet
+ *   Atmel NoOS sample code (for bit timing configuration).
+ */
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -62,20 +63,21 @@
 #include <nuttx/can/can.h>
 #include <nuttx/semaphore.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
-
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "hardware/sam_pinmap.h"
 #include "sam_periphclks.h"
 #include "sam_pio.h"
 #include "sam_can.h"
 
-#if defined(CONFIG_CAN) && (defined(CONFIG_SAMA5_CAN0) || defined(CONFIG_SAMA5_CAN1))
+#if defined(CONFIG_CAN) && (defined(CONFIG_SAMA5_CAN0) || \
+    defined(CONFIG_SAMA5_CAN1))
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Common definitions *******************************************************/
 
 #ifndef MIN
@@ -95,10 +97,11 @@
 #if SAM_CAN_NMAILBOXES == 8
 #  define CAN_ALL_MAILBOXES 0xff /* 8 mailboxes */
 #else
-#  error Unsupport/undefined number of mailboxes
+#  error Unsupported/undefined number of mailboxes
 #endif
 
 /* Interrupts ***************************************************************/
+
 /* If debug is enabled, then print some diagnostic info if any of these
  * events occur:
  *
@@ -114,7 +117,8 @@
  *
  * CAN_INT_CERR      YES    Bit 24: Mailbox CRC Error
  * CAN_INT_SERR      YES    Bit 25: Mailbox Stuffing Error
- * CAN_INT_AERR      NO     Bit 26: Acknowledgment Error (uusally means no CAN bus)
+ * CAN_INT_AERR      NO     Bit 26: Acknowledgment Error (usally means no
+ *                                  CAN bus)
  * CAN_INT_FERR      YES    Bit 27: Form Error
  *
  * CAN_INT_BERR      YES    Bit 28: Bit Error
@@ -130,6 +134,7 @@
 /****************************************************************************
  * Private Types
  ****************************************************************************/
+
 /* This structure describes receive mailbox filtering */
 
 struct sam_filter_s
@@ -164,7 +169,10 @@ struct sam_config_s
 
 struct sam_can_s
 {
-  const struct sam_config_s *config; /* The constant configuration */
+  /* The constant configuration */
+
+  const struct sam_config_s *config;
+
   bool initialized;         /* TRUE: Device has been initialized */
   uint8_t freemb;           /* Rhe set of unalloated mailboxes */
   uint8_t rxmbset;          /* The set of mailboxes configured for receive */
@@ -187,9 +195,11 @@ struct sam_can_s
 /* CAN Register access */
 
 static uint32_t can_getreg(FAR struct sam_can_s *priv, int offset);
-static void can_putreg(FAR struct sam_can_s *priv, int offset, uint32_t regval);
+static void can_putreg(FAR struct sam_can_s *priv, int offset,
+              uint32_t regval);
 #ifdef CONFIG_SAMA5_CAN_REGDEBUG
-static void can_dumpctrlregs(FAR struct sam_can_s *priv, FAR const char *msg);
+static void can_dumpctrlregs(FAR struct sam_can_s *priv,
+              FAR const char *msg);
 static void can_dumpmbregs(FAR struct sam_can_s *priv, FAR const char *msg);
 #else
 #  define can_dumpctrlregs(priv,msg)
@@ -198,7 +208,8 @@ static void can_dumpmbregs(FAR struct sam_can_s *priv, FAR const char *msg);
 
 /* Semaphore helpers */
 
-static void can_semtake(FAR struct sam_can_s *priv);
+static int  can_semtake(FAR struct sam_can_s *priv);
+static int  can_semtake_noncancelable(FAR struct sam_can_s *priv);
 #define can_semgive(priv) nxsem_post(&priv->exclsem)
 
 /* Mailboxes */
@@ -421,7 +432,8 @@ static uint32_t can_getreg(FAR struct sam_can_s *priv, int offset)
  ****************************************************************************/
 
 #ifdef CONFIG_SAMA5_CAN_REGDEBUG
-static void can_putreg(FAR struct sam_can_s *priv, int offset, uint32_t regval)
+static void can_putreg(FAR struct sam_can_s *priv, int offset,
+                       uint32_t regval)
 {
   FAR const struct sam_config_s *config = priv->config;
   uintptr_t regaddr = config->base + offset;
@@ -436,7 +448,8 @@ static void can_putreg(FAR struct sam_can_s *priv, int offset, uint32_t regval)
 }
 
 #else
-static void can_putreg(FAR struct sam_can_s *priv, int offset, uint32_t regval)
+static void can_putreg(FAR struct sam_can_s *priv, int offset,
+                       uint32_t regval)
 {
   FAR const struct sam_config_s *config = priv->config;
   putreg32(regval, config->base + offset);
@@ -523,7 +536,7 @@ static void can_dumpmbregs(FAR struct sam_can_s *priv, FAR const char *msg)
 
   for (i = 0; i < SAM_CAN_NMAILBOXES; i++)
     {
-      mbbase = config->base + SAM_CAN_MBn_OFFSET(i);
+      mbbase = config->base + SAM_CAN_MBN_OFFSET(i);
       caninfo("  MB%d:\n", i);
 
       /* CAN mailbox registers */
@@ -552,13 +565,48 @@ static void can_dumpmbregs(FAR struct sam_can_s *priv, FAR const char *msg)
  *   priv - A reference to the CAN peripheral state
  *
  * Returned Value:
- *  None
+ *  Normally success (OK) is returned, but the error -ECANCELED may be
+ *  return in the event that task has been canceled.
  *
  ****************************************************************************/
 
-static void can_semtake(FAR struct sam_can_s *priv)
+static int can_semtake(FAR struct sam_can_s *priv)
 {
-  nxsem_wait_uninterruptible(&priv->exclsem);
+  return nxsem_wait_uninterruptible(&priv->exclsem);
+}
+
+/****************************************************************************
+ * Name: can_semtake_noncancelable
+ *
+ * Description:
+ *   This is just a wrapper to handle the annoying behavior of semaphore
+ *   waits that return due to the receipt of a signal.  This version also
+ *   ignores attempts to cancel the thread.
+ *
+ ****************************************************************************/
+
+static int can_semtake_noncancelable(FAR struct sam_can_s *priv)
+{
+  int result;
+  int ret = OK;
+
+  do
+    {
+      result = nxsem_wait_uninterruptible(&priv->exclsem);
+
+      /* The only expected error is ECANCELED which would occur if the
+       * calling thread were canceled.
+       */
+
+      DEBUGASSERT(result == OK || result == -ECANCELED);
+      if (ret == OK && result < 0)
+        {
+          ret = result;
+        }
+    }
+  while (result < 0);
+
+  return ret;
 }
 
 /****************************************************************************
@@ -638,7 +686,7 @@ static void can_mbfree(FAR struct sam_can_s *priv, int mbndx)
 
   /* Disable the mailbox */
 
-  can_putreg(priv, SAM_CAN_MnMR_OFFSET(mbndx), 0);
+  can_putreg(priv, SAM_CAN_MNMR_OFFSET(mbndx), 0);
 
   /* Free the mailbox by clearing the corresponding bit in the freemb and
    * txmbset (only TX mailboxes are freed in this way.
@@ -703,14 +751,14 @@ static int can_recvsetup(FAR struct sam_can_s *priv)
        */
 
 #ifdef CONFIG_CAN_EXTID
-      can_putreg(priv, SAM_CAN_MnID_OFFSET(mbndx),
+      can_putreg(priv, SAM_CAN_MNID_OFFSET(mbndx),
                  CAN_MID_EXTID(config->filter[mbno].addr));
-      can_putreg(priv, SAM_CAN_MnAM_OFFSET(mbndx),
+      can_putreg(priv, SAM_CAN_MNAM_OFFSET(mbndx),
                  CAN_MAM_EXTID(config->filter[mbno].mask));
 #else
-      can_putreg(priv, SAM_CAN_MnID_OFFSET(mbndx),
+      can_putreg(priv, SAM_CAN_MNID_OFFSET(mbndx),
                  CAN_MID_STDID(config->filter[mbno].addr));
-      can_putreg(priv, SAM_CAN_MnAM_OFFSET(mbndx),
+      can_putreg(priv, SAM_CAN_MNAM_OFFSET(mbndx),
                  CAN_MAM_STDID(config->filter[mbno].mask));
 #endif
 
@@ -721,11 +769,11 @@ static int can_recvsetup(FAR struct sam_can_s *priv)
        * multipart messages.
        */
 
-      can_putreg(priv, SAM_CAN_MnMR_OFFSET(mbndx), CAN_MMR_MOT_RX);
+      can_putreg(priv, SAM_CAN_MNMR_OFFSET(mbndx), CAN_MMR_MOT_RX);
 
       /* Clear pending interrupts and start reception of the next message */
 
-      can_putreg(priv, SAM_CAN_MnCR_OFFSET(mbndx), CAN_MCR_MTCR);
+      can_putreg(priv, SAM_CAN_MNCR_OFFSET(mbndx), CAN_MCR_MTCR);
 
       /* Enable interrupts from this mailbox */
 
@@ -754,6 +802,7 @@ static void can_reset(FAR struct can_dev_s *dev)
 {
   FAR struct sam_can_s *priv;
   FAR const struct sam_config_s *config;
+  int ret;
   int i;
 
   DEBUGASSERT(dev);
@@ -767,7 +816,7 @@ static void can_reset(FAR struct can_dev_s *dev)
 
   /* Get exclusive access to the CAN peripheral */
 
-  can_semtake(priv);
+  can_semtake_noncancelable();
 
   /* Disable all interrupts */
 
@@ -777,7 +826,7 @@ static void can_reset(FAR struct can_dev_s *dev)
 
   for (i = 0; i < SAM_CAN_NMAILBOXES; i++)
     {
-      can_putreg(priv, SAM_CAN_MnMR_OFFSET(i), 0);
+      can_putreg(priv, SAM_CAN_MNMR_OFFSET(i), 0);
     }
 
   /* All mailboxes are again available */
@@ -823,14 +872,19 @@ static int can_setup(FAR struct can_dev_s *dev)
 
   /* Get exclusive access to the CAN peripheral */
 
-  can_semtake(priv);
+  ret = can_semtake(priv);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* CAN hardware initialization */
 
   ret = can_hwinitialize(priv);
   if (ret < 0)
     {
-      canerr("ERROR: CAN%d H/W initialization failed: %d\n", config->port, ret);
+      canerr("ERROR: CAN%d H/W initialization failed: %d\n",
+             config->port, ret);
       return ret;
     }
 
@@ -842,7 +896,8 @@ static int can_setup(FAR struct can_dev_s *dev)
   ret = irq_attach(config->pid, can_interrupt, dev);
   if (ret < 0)
     {
-      canerr("ERROR: Failed to attach CAN%d IRQ (%d)", config->port, config->pid);
+      canerr("ERROR: Failed to attach CAN%d IRQ (%d)",
+             config->port, config->pid);
       return ret;
     }
 
@@ -851,7 +906,8 @@ static int can_setup(FAR struct can_dev_s *dev)
   ret = can_recvsetup(priv);
   if (ret < 0)
     {
-      canerr("ERROR: CAN%d H/W initialization failed: %d\n", config->port, ret);
+      canerr("ERROR: CAN%d H/W initialization failed: %d\n",
+             config->port, ret);
       return ret;
     }
 
@@ -901,7 +957,7 @@ static void can_shutdown(FAR struct can_dev_s *dev)
 
   /* Get exclusive access to the CAN peripheral */
 
-  can_semtake(priv);
+  can_semtake_noncancelable(priv);
 
   /* Disable the CAN interrupts */
 
@@ -973,7 +1029,7 @@ static void can_txint(FAR struct can_dev_s *dev, bool enable)
 
   /* Get exclusive access to the CAN peripheral */
 
-  can_semtake(priv);
+  can_semtake_noncancelable(priv);
 
   /* Support disabling interrupts on any mailboxes that are actively
    * transmitting (txmbset); also suppress enabling new TX mailbox until
@@ -1047,7 +1103,7 @@ static int can_remoterequest(FAR struct can_dev_s *dev, uint16_t id)
  *
  *    Byte 0:      Bits 0-7: Bits 3-10 of the 11-bit CAN identifier
  *    Byte 1:      Bits 5-7: Bits 0-2 of the 11-bit CAN identifier
- *                 Bit 4:    Remote Tranmission Request (RTR)
+ *                 Bit 4:    Remote Transmission Request (RTR)
  *                 Bits 0-3: Data Length Code (DLC)
  *    Bytes 2-10: CAN data
  *
@@ -1076,7 +1132,11 @@ static int can_send(FAR struct can_dev_s *dev, FAR struct can_msg_s *msg)
 
   /* Get exclusive access to the CAN peripheral */
 
-  can_semtake(priv);
+  ret = can_semtake(priv);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Allocate a mailbox */
 
@@ -1100,15 +1160,17 @@ static int can_send(FAR struct can_dev_s *dev, FAR struct can_msg_s *msg)
 #ifdef CONFIG_CAN_EXTID
   DEBUGASSERT(msg->cm_hdr.ch_extid);
   DEBUGASSERT(msg->cm_hdr.ch_id < (1 << 29));
-  can_putreg(priv, SAM_CAN_MnID_OFFSET(mbndx), CAN_MID_EXTID(msg->cm_hdr.ch_id));
+  can_putreg(priv, SAM_CAN_MNID_OFFSET(mbndx),
+             CAN_MID_EXTID(msg->cm_hdr.ch_id));
 #else
   DEBUGASSERT(msg->cm_hdr.ch_id < (1 << 11));
-  can_putreg(priv, SAM_CAN_MnID_OFFSET(mbndx), CAN_MID_STDID(msg->cm_hdr.ch_id));
+  can_putreg(priv, SAM_CAN_MNID_OFFSET(mbndx),
+             CAN_MID_STDID(msg->cm_hdr.ch_id));
 #endif
 
   /* Enable transmit mode */
 
-  can_putreg(priv, SAM_CAN_MnMR_OFFSET(mbndx), CAN_MMR_MOT_TX);
+  can_putreg(priv, SAM_CAN_MNMR_OFFSET(mbndx), CAN_MMR_MOT_TX);
 
   /* After Transmit Mode is enabled, the MRDY flag in the CAN_MSR register
    * is automatically set until the first command is sent. When the MRDY
@@ -1118,7 +1180,8 @@ static int can_send(FAR struct can_dev_s *dev, FAR struct can_msg_s *msg)
    * message data length in the CAN_MCRx register.
    */
 
-  DEBUGASSERT((can_getreg(priv, SAM_CAN_MnSR_OFFSET(mbndx)) & CAN_MSR_MRDY) != 0);
+  DEBUGASSERT((can_getreg(priv, SAM_CAN_MNSR_OFFSET(mbndx)) &
+               CAN_MSR_MRDY) != 0);
 
   /* Bytes are received/sent on the bus in the following order:
    *
@@ -1136,21 +1199,25 @@ static int can_send(FAR struct can_dev_s *dev, FAR struct can_msg_s *msg)
 #  warning REVISIT
 #endif
 
-  /* The message buffer is probably not properaly aligned for 32-bit accesses */
+  /* The message buffer is probably not properaly aligned for 32-bit
+   * accesses
+   */
 
   ptr    = msg->cm_data;
-  regval = CAN_MDL0(ptr[0]) | CAN_MDL1(ptr[1]) | CAN_MDL2(ptr[2]) | CAN_MDL3(ptr[3]);
-  can_putreg(priv, SAM_CAN_MnDL_OFFSET(mbndx), regval);
+  regval = CAN_MDL0(ptr[0]) | CAN_MDL1(ptr[1]) | CAN_MDL2(ptr[2]) |
+           CAN_MDL3(ptr[3]);
+  can_putreg(priv, SAM_CAN_MNDL_OFFSET(mbndx), regval);
 
-  regval = CAN_MDH4(ptr[4]) | CAN_MDH5(ptr[5]) | CAN_MDH6(ptr[6]) | CAN_MDH7(ptr[7]);
-  can_putreg(priv, SAM_CAN_MnDH_OFFSET(mbndx), regval);
+  regval = CAN_MDH4(ptr[4]) | CAN_MDH5(ptr[5]) | CAN_MDH6(ptr[6]) |
+           CAN_MDH7(ptr[7]);
+  can_putreg(priv, SAM_CAN_MNDH_OFFSET(mbndx), regval);
 
   /* Set the DLC value in the CAN_MCRx register.  Set the MTCR register
    * clearing MRDY, and indicating that the message is ready to be sent.
    */
 
   regval = CAN_MCR_MDLC(msg->cm_hdr.ch_dlc) | CAN_MCR_MTCR;
-  can_putreg(priv, SAM_CAN_MnCR_OFFSET(mbndx), regval);
+  can_putreg(priv, SAM_CAN_MNCR_OFFSET(mbndx), regval);
 
   /* If we have not been asked to suppress TX interrupts, then enable
    * interrupts from this mailbox now.
@@ -1187,7 +1254,11 @@ static bool can_txready(FAR struct can_dev_s *dev)
 
   /* Get exclusive access to the CAN peripheral */
 
-  can_semtake(priv);
+  ret = can_semtake(priv);
+  if (ret < 0)
+    {
+      return false;
+    }
 
   /* Return true not all mailboxes are in-use */
 
@@ -1267,16 +1338,16 @@ static inline void can_rxinterrupt(FAR struct can_dev_s *dev, int mbndx,
 #  warning REVISIT
 #endif
 
-  md[0] = can_getreg(priv, SAM_CAN_MnDH_OFFSET(mbndx));
-  md[1] = can_getreg(priv, SAM_CAN_MnDL_OFFSET(mbndx));
+  md[0] = can_getreg(priv, SAM_CAN_MNDH_OFFSET(mbndx));
+  md[1] = can_getreg(priv, SAM_CAN_MNDL_OFFSET(mbndx));
 
-  /* Get the ID associated with the newly received message: )nce a new message
-   * is received, its ID is masked with the CAN_MAMx value and compared
-   * with the CAN_MIDx value. If accepted, the message ID is copied to the
-   * CAN_MIDx register.
+  /* Get the ID associated with the newly received message: )nce a new
+   * message is received, its ID is masked with the CAN_MAMx value and
+   * compared with the CAN_MIDx value. If accepted, the message ID is
+   * copied to the CAN_MIDx register.
    */
 
-  mid = can_getreg(priv, SAM_CAN_MnID_OFFSET(mbndx));
+  mid = can_getreg(priv, SAM_CAN_MNID_OFFSET(mbndx));
 
   /* Format the CAN header.
    * REVISIT: This logic should be capable of receiving standard messages
@@ -1314,7 +1385,7 @@ static inline void can_rxinterrupt(FAR struct can_dev_s *dev, int mbndx,
    * requests a new RX transfer.
    */
 
-  can_putreg(priv, SAM_CAN_MnCR_OFFSET(mbndx), CAN_MCR_MTCR);
+  can_putreg(priv, SAM_CAN_MNCR_OFFSET(mbndx), CAN_MCR_MTCR);
 }
 
 /****************************************************************************
@@ -1381,12 +1452,12 @@ static inline void can_mbinterrupt(FAR struct can_dev_s *dev, int mbndx)
    * register.
    */
 
-  msr = can_getreg(priv, SAM_CAN_MnSR_OFFSET(mbndx));
+  msr = can_getreg(priv, SAM_CAN_MNSR_OFFSET(mbndx));
   if ((msr & (CAN_MSR_MRDY | CAN_MSR_MABT)) != 0)
     {
       /* Handle the result based on how the mailbox was configured */
 
-      mmr = can_getreg(priv, SAM_CAN_MnMR_OFFSET(mbndx));
+      mmr = can_getreg(priv, SAM_CAN_MNMR_OFFSET(mbndx));
       switch (mmr & CAN_MMR_MOT_MASK)
         {
           case CAN_MMR_MOT_RX:       /* Reception Mailbox */
@@ -1401,7 +1472,8 @@ static inline void can_mbinterrupt(FAR struct can_dev_s *dev, int mbndx)
           case CAN_MMR_MOT_CONSUMER: /* Consumer Mailbox */
           case CAN_MMR_MOT_PRODUCER: /* Producer Mailbox */
           case CAN_MMR_MOT_DISABLED: /* Mailbox is disabled */
-            canerr("ERROR: CAN%d MB%d: Unsupported or invalid mailbox type\n",
+            canerr("ERROR: CAN%d MB%d: Unsupported or "
+                    "invalid mailbox type\n",
                    priv->config->port, mbndx);
             canerr("       MSR: %08x MMR: %08x\n", msr, mmr);
             break;
@@ -1438,8 +1510,9 @@ static void can_interrupt(int irq, void *context, FAR void *arg)
   /* Get the set of pending interrupts.
    *
    * All interrupts are cleared by clearing the interrupt source except for
-   * the internal timer counter overflow interrupt and the timestamp interrupt.
-   * These interrupts are cleared by reading the CAN_SR register.
+   * the internal timer counter overflow interrupt and the timestamp
+   * interrupt. * These interrupts are cleared by reading the CAN_SR
+   * register.
    */
 
   sr      = can_getreg(priv, SAM_CAN_SR_OFFSET);
@@ -1529,7 +1602,7 @@ static void can_interrupt(int irq, void *context, FAR void *arg)
  *   1. Synchronization segment (SYNC_SEG): a bit change is expected to occur
  *      within this time segment. It has a fixed length of one time quantum
  *      (1 x tCAN).
- *   2. Propogation segment (PROP_SEG):  This part of the bit time is used
+ *   2. Propagation segment (PROP_SEG):  This part of the bit time is used
  *      to compensate for the physical delay times within the network. It is
  *      twice the sum of the signal’s propagation time on the bus line, the
  *      input comparator delay, and the output driver delay. It is
@@ -1537,7 +1610,7 @@ static void can_interrupt(int irq, void *context, FAR void *arg)
  *      PROPAG field of the CAN Baudrate Register.
  *   3. Phase segment 1 (PHASE_SEG1): defines the location of the sample
  *      point.  Phase Segment 1 is programmable to be 1-8 Tq long.
- *   4. Phase segement 2 (PHASE_SEG2):  defines the location of the transmit
+ *   4. Phase segment 2 (PHASE_SEG2):  defines the location of the transmit
  *      point.Phase Segment 2 length has to be at least as long as the
  *      Information Processing Time (IPT) and may not be more than the
  *      length of Phase Segment 1 (since Phase Segment 2 also begins at the
@@ -1654,7 +1727,7 @@ static int can_bittiming(struct sam_can_s *priv)
 
   t1t2 = tq - 1 - (propag + 1);
 
-  /* Calcuate phase1 and phase2 */
+  /* Calculate phase1 and phase2 */
 
   phase1 = (t1t2 >> 1) - 1;
   phase2 = phase1;
@@ -1677,7 +1750,8 @@ static int can_bittiming(struct sam_can_s *priv)
 
   if ((propag + phase1 + phase2) != (uint32_t)(tq - 4))
     {
-      canerr("CAN%d ERROR: Could not realize baud %d\n", config->port, config->baud);
+      canerr("CAN%d ERROR: Could not realize baud %d\n",
+             config->port, config->baud);
       return -EINVAL;
     }
 
@@ -1730,11 +1804,11 @@ static int can_autobaud(struct sam_can_s *priv)
 #warning Missing Logic
 
       /* Autobaud Mode. The autobaud feature is enabled by setting the ABM
-       * field in the CAN_MR register. In this mode, the CAN controller is only
-       * listening to the line without acknowledging the received messages. It
-       * can not send any message. The errors flags are updated. The bit timing
-       * can be adjusted until no error occurs (good configuration found). In
-       * this mode, the error counters are frozen.
+       * field in the CAN_MR register. In this mode, the CAN controller is
+       * only listening to the line without acknowledging the received
+       * messages. It can not send any message. The errors flags are
+       * updated. The bit timing can be adjusted until no error occurs (good
+       * configuration found).  In this mode, the error counters are frozen.
        */
 
       regval  = can_getreg(priv, SAM_CAN_MR_OFFSET);

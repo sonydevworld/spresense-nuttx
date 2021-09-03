@@ -1,5 +1,5 @@
-/************************************************************************************
- * arm/arm/src/stm32l4/stm32l4_tim.c
+/****************************************************************************
+ * arch/arm/src/stm32l4/stm32l4_tim.c
  *
  *   Copyright (C) 2011 Uros Platise. All rights reserved.
  *   Author: Uros Platise <uros.platise@isotel.eu>
@@ -37,11 +37,11 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
@@ -56,36 +56,38 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "stm32l4.h"
 #include "stm32l4_gpio.h"
 #include "stm32l4_tim.h"
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
+ ****************************************************************************/
 
-/* Configuration ********************************************************************/
-/* Timer devices may be used for different purposes.  Such special purposes include:
+/* Configuration ************************************************************/
+
+/* Timer devices may be used for different purposes.
+ * Such special purposes include:
  *
  * - To generate modulated outputs for such things as motor control.  If
- *   CONFIG_STM32L4_TIMn is defined then the CONFIG_STM32L4_TIMn_PWM may also be
- *   defined to indicate that the timer is intended to be used for pulsed output
- *   modulation.
+ *   CONFIG_STM32L4_TIMn is defined then the CONFIG_STM32L4_TIMn_PWM may also
+ *   be defined to indicate that the timer is intended to be used for pulsed
+ *   output modulation.
  *
- * - To control periodic ADC input sampling.  If CONFIG_STM32L4_TIMn is defined then
- *   CONFIG_STM32L4_TIMn_ADC may also be defined to indicate that timer "n" is
- *   intended to be used for that purpose.
+ * - To control periodic ADC input sampling.  If CONFIG_STM32L4_TIMn is
+ *   defined then CONFIG_STM32L4_TIMn_ADC may also be defined to indicate
+ *   that timer "n" is intended to be used for that purpose.
  *
  * - To control periodic DAC outputs.  If CONFIG_STM32L4_TIMn is defined then
- *   CONFIG_STM32L4_TIMn_DAC may also be defined to indicate that timer "n" is
- *   intended to be used for that purpose.
+ *   CONFIG_STM32L4_TIMn_DAC may also be defined to indicate that timer "n"
+ *   is intended to be used for that purpose.
  *
  * - To use a Quadrature Encoder.  If CONFIG_STM32L4_TIMn is defined then
- *   CONFIG_STM32L4_TIMn_QE may also be defined to indicate that timer "n" is
- *   intended to be used for that purpose.
+ *   CONFIG_STM32L4_TIMn_QE may also be defined to indicate that timer "n"
+ *   is intended to be used for that purpose.
  *
  * In any of these cases, the timer will not be used by this timer module.
  */
@@ -208,8 +210,8 @@
 #endif
 #endif
 
-/* This module then only compiles if there are enabled timers that are not intended for
- * some other purpose.
+/* This module then only compiles if there are enabled timers that are not
+ * intended for some other purpose.
  */
 
 #if defined(CONFIG_STM32L4_TIM1)  || defined(CONFIG_STM32L4_TIM2)  || \
@@ -219,9 +221,9 @@
     defined(CONFIG_STM32L4_TIM15) || defined(CONFIG_STM32L4_TIM16) || \
     defined(CONFIG_STM32L4_TIM17)
 
-/************************************************************************************
+/****************************************************************************
  * Private Types
- ************************************************************************************/
+ ****************************************************************************/
 
 /* TIM Device Structure */
 
@@ -232,9 +234,9 @@ struct stm32l4_tim_priv_s
   uint32_t base;                      /* TIMn base address */
 };
 
-/************************************************************************************
+/****************************************************************************
  * Private Function prototypes
- ************************************************************************************/
+ ****************************************************************************/
 
 /* Register helpers */
 
@@ -261,13 +263,17 @@ static void stm32l4_tim_reset(FAR struct stm32l4_tim_dev_s *dev);
     defined(HAVE_TIM5_GPIOCONFIG) || defined(HAVE_TIM8_GPIOCONFIG) || \
     defined(HAVE_TIM15_GPIOCONFIG) || defined(HAVE_TIM16_GPIOCONFIG) || \
     defined(HAVE_TIM17_GPIOCONFIG)
-static void stm32l4_tim_gpioconfig(uint32_t cfg, enum stm32l4_tim_channel_e mode);
+static void stm32l4_tim_gpioconfig(uint32_t cfg,
+                                   enum stm32l4_tim_channel_e mode);
 #endif
+static void stm32l4_tim_dumpregs(FAR struct stm32l4_tim_dev_s *dev);
 
 /* Timer methods */
 
 static int stm32l4_tim_setmode(FAR struct stm32l4_tim_dev_s *dev,
                                enum stm32l4_tim_mode_e mode);
+static int stm32l4_tim_setfreq(FAR struct stm32l4_tim_dev_s *dev,
+                              uint32_t freq);
 static int stm32l4_tim_setclock(FAR struct stm32l4_tim_dev_s *dev,
                                 uint32_t freq);
 static uint32_t  stm32l4_tim_getclock(FAR struct stm32l4_tim_dev_s *dev);
@@ -276,7 +282,8 @@ static void stm32l4_tim_setperiod(FAR struct stm32l4_tim_dev_s *dev,
 static uint32_t stm32l4_tim_getperiod(FAR struct stm32l4_tim_dev_s *dev);
 static uint32_t stm32l4_tim_getcounter(FAR struct stm32l4_tim_dev_s *dev);
 static int stm32l4_tim_setchannel(FAR struct stm32l4_tim_dev_s *dev,
-                                  uint8_t channel, enum stm32l4_tim_channel_e mode);
+                                  uint8_t channel,
+                                  enum stm32l4_tim_channel_e mode);
 static int stm32l4_tim_setcompare(FAR struct stm32l4_tim_dev_s *dev,
                                   uint8_t channel, uint32_t compare);
 static int stm32l4_tim_getcapture(FAR struct stm32l4_tim_dev_s *dev,
@@ -287,16 +294,21 @@ static void stm32l4_tim_enableint(FAR struct stm32l4_tim_dev_s *dev,
                                   int source);
 static void stm32l4_tim_disableint(FAR struct stm32l4_tim_dev_s *dev,
                                    int source);
-static void stm32l4_tim_ackint(FAR struct stm32l4_tim_dev_s *dev, int source);
-static int stm32l4_tim_checkint(FAR struct stm32l4_tim_dev_s *dev, int source);
+static void stm32l4_tim_ackint(FAR struct stm32l4_tim_dev_s *dev,
+                               int source);
+static int stm32l4_tim_checkint(FAR struct stm32l4_tim_dev_s *dev,
+                                int source);
 
-/************************************************************************************
+/****************************************************************************
  * Private Data
- ************************************************************************************/
+ ****************************************************************************/
 
 static const struct stm32l4_tim_ops_s stm32l4_tim_ops =
 {
+  .enable     = stm32l4_tim_enable,
+  .disable    = stm32l4_tim_disable,
   .setmode    = stm32l4_tim_setmode,
+  .setfreq    = stm32l4_tim_setfreq,
   .setclock   = stm32l4_tim_setclock,
   .getclock   = stm32l4_tim_getclock,
   .setperiod  = stm32l4_tim_setperiod,
@@ -310,6 +322,7 @@ static const struct stm32l4_tim_ops_s stm32l4_tim_ops =
   .disableint = stm32l4_tim_disableint,
   .ackint     = stm32l4_tim_ackint,
   .checkint   = stm32l4_tim_checkint,
+  .dump_regs  = stm32l4_tim_dumpregs,
 };
 
 #ifdef CONFIG_STM32L4_TIM1
@@ -410,17 +423,17 @@ struct stm32l4_tim_priv_s stm32l4_tim17_priv =
 };
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Private Functions
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_getreg16
  *
  * Description:
  *   Get a 16-bit register value by offset
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline uint16_t stm32l4_getreg16(FAR struct stm32l4_tim_dev_s *dev,
                                         uint8_t offset)
@@ -428,13 +441,13 @@ static inline uint16_t stm32l4_getreg16(FAR struct stm32l4_tim_dev_s *dev,
   return getreg16(((struct stm32l4_tim_priv_s *)dev)->base + offset);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_putreg16
  *
  * Description:
  *   Put a 16-bit register value by offset
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32l4_putreg16(FAR struct stm32l4_tim_dev_s *dev,
                                     uint8_t offset, uint16_t value)
@@ -442,13 +455,13 @@ static inline void stm32l4_putreg16(FAR struct stm32l4_tim_dev_s *dev,
   putreg16(value, ((struct stm32l4_tim_priv_s *)dev)->base + offset);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_modifyreg16
  *
  * Description:
  *   Modify a 16-bit register value by offset
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32l4_modifyreg16(FAR struct stm32l4_tim_dev_s *dev,
                                        uint8_t offset, uint16_t clearbits,
@@ -458,14 +471,14 @@ static inline void stm32l4_modifyreg16(FAR struct stm32l4_tim_dev_s *dev,
               setbits);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_getreg32
  *
  * Description:
- *   Get a 32-bit register value by offset.  This applies only for the STM32 F4
- *   32-bit registers (CNT, ARR, CRR1-4) in the 32-bit timers TIM2-5.
+ *   Get a 32-bit register value by offset.  This applies only for the STM32
+ *   F4 32-bit registers (CNT, ARR, CRR1-4) in the 32-bit timers TIM2-5.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline uint32_t stm32l4_getreg32(FAR struct stm32l4_tim_dev_s *dev,
                                         uint8_t offset)
@@ -473,14 +486,14 @@ static inline uint32_t stm32l4_getreg32(FAR struct stm32l4_tim_dev_s *dev,
   return getreg32(((struct stm32l4_tim_priv_s *)dev)->base + offset);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_putreg32
  *
  * Description:
- *   Put a 32-bit register value by offset.  This applies only for the STM32 F4
- *   32-bit registers (CNT, ARR, CRR1-4) in the 32-bit timers TIM2-5.
+ *   Put a 32-bit register value by offset.  This applies only for the STM32
+ *   F4 32-bit registers (CNT, ARR, CRR1-4) in the 32-bit timers TIM2-5.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32l4_putreg32(FAR struct stm32l4_tim_dev_s *dev,
                                     uint8_t offset, uint32_t value)
@@ -488,9 +501,9 @@ static inline void stm32l4_putreg32(FAR struct stm32l4_tim_dev_s *dev,
   putreg32(value, ((struct stm32l4_tim_priv_s *)dev)->base + offset);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_reload_counter
- ************************************************************************************/
+ ****************************************************************************/
 
 static void stm32l4_tim_reload_counter(FAR struct stm32l4_tim_dev_s *dev)
 {
@@ -499,21 +512,22 @@ static void stm32l4_tim_reload_counter(FAR struct stm32l4_tim_dev_s *dev)
   stm32l4_putreg16(dev, STM32L4_BTIM_EGR_OFFSET, val);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_enable
- ************************************************************************************/
+ ****************************************************************************/
 
 static void stm32l4_tim_enable(FAR struct stm32l4_tim_dev_s *dev)
 {
   uint16_t val = stm32l4_getreg16(dev, STM32L4_BTIM_CR1_OFFSET);
+
   val |= ATIM_CR1_CEN;
   stm32l4_tim_reload_counter(dev);
   stm32l4_putreg16(dev, STM32L4_BTIM_CR1_OFFSET, val);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_disable
- ************************************************************************************/
+ ****************************************************************************/
 
 static void stm32l4_tim_disable(FAR struct stm32l4_tim_dev_s *dev)
 {
@@ -522,13 +536,14 @@ static void stm32l4_tim_disable(FAR struct stm32l4_tim_dev_s *dev)
   stm32l4_putreg16(dev, STM32L4_BTIM_CR1_OFFSET, val);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_reset
  *
  * Description:
- *   Reset timer into system default state, but do not affect output/input pins
+ *   Reset timer into system default state, but do not affect output/input
+ *   pins
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static void stm32l4_tim_reset(FAR struct stm32l4_tim_dev_s *dev)
 {
@@ -536,18 +551,21 @@ static void stm32l4_tim_reset(FAR struct stm32l4_tim_dev_s *dev)
   stm32l4_tim_disable(dev);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_gpioconfig
- ************************************************************************************/
+ ****************************************************************************/
 
 #if defined(HAVE_TIM1_GPIOCONFIG) || defined(HAVE_TIM2_GPIOCONFIG) || \
     defined(HAVE_TIM3_GPIOCONFIG) || defined(HAVE_TIM4_GPIOCONFIG) || \
     defined(HAVE_TIM5_GPIOCONFIG) || defined(HAVE_TIM8_GPIOCONFIG) || \
     defined(HAVE_TIM15_GPIOCONFIG) || defined(HAVE_TIM16_GPIOCONFIG) || \
     defined(HAVE_TIM17_GPIOCONFIG)
-static void stm32l4_tim_gpioconfig(uint32_t cfg, enum stm32l4_tim_channel_e mode)
+static void stm32l4_tim_gpioconfig(uint32_t cfg,
+                                   enum stm32l4_tim_channel_e mode)
 {
-  /* TODO: Add support for input capture and bipolar dual outputs for TIM8 */
+  /* TODO:
+   * Add support for input capture and bipolar dual outputs for TIM8
+   */
 
   if (mode & STM32L4_TIM_CH_MODE_MASK)
     {
@@ -560,9 +578,57 @@ static void stm32l4_tim_gpioconfig(uint32_t cfg, enum stm32l4_tim_channel_e mode
 }
 #endif
 
-/************************************************************************************
+/****************************************************************************
+ * Name: stm32l4_tim_dumpregs
+ ****************************************************************************/
+
+static void stm32l4_tim_dumpregs(FAR struct stm32l4_tim_dev_s *dev)
+{
+  struct stm32l4_tim_priv_s *priv = (struct stm32l4_tim_priv_s *)dev;
+
+  ainfo("  CR1: %04x CR2:  %04x SMCR:  %04x DIER:  %04x\n",
+          stm32l4_getreg16(dev, STM32L4_GTIM_CR1_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_CR2_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_SMCR_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_DIER_OFFSET)
+        );
+  ainfo("   SR: %04x EGR:  0000 CCMR1: %04x CCMR2: %04x\n",
+          stm32l4_getreg16(dev, STM32L4_GTIM_SR_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_CCMR1_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_CCMR2_OFFSET)
+        );
+  ainfo(" CCER: %04x CNT:  %04x PSC:   %04x ARR:   %04x\n",
+          stm32l4_getreg16(dev, STM32L4_GTIM_CCER_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_CNT_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_PSC_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_ARR_OFFSET)
+        );
+  ainfo(" CCR1: %04x CCR2: %04x CCR3:  %04x CCR4:  %04x\n",
+          stm32l4_getreg16(dev, STM32L4_GTIM_CCR1_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_CCR2_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_CCR3_OFFSET),
+          stm32l4_getreg16(dev, STM32L4_GTIM_CCR4_OFFSET)
+        );
+
+  if (priv->base == STM32L4_TIM1_BASE || priv->base == STM32L4_TIM8_BASE)
+    {
+      ainfo("  RCR: %04x BDTR: %04x DCR:   %04x DMAR:  %04x\n",
+            stm32l4_getreg16(dev, STM32L4_ATIM_RCR_OFFSET),
+            stm32l4_getreg16(dev, STM32L4_ATIM_BDTR_OFFSET),
+            stm32l4_getreg16(dev, STM32L4_ATIM_DCR_OFFSET),
+            stm32l4_getreg16(dev, STM32L4_ATIM_DMAR_OFFSET));
+    }
+  else
+    {
+      ainfo("  DCR: %04x DMAR: %04x\n",
+            stm32l4_getreg16(dev, STM32L4_GTIM_DCR_OFFSET),
+            stm32l4_getreg16(dev, STM32L4_GTIM_DMAR_OFFSET));
+    }
+}
+
+/****************************************************************************
  * Name: stm32l4_tim_setmode
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32l4_tim_setmode(FAR struct stm32l4_tim_dev_s *dev,
                                enum stm32l4_tim_mode_e mode)
@@ -598,13 +664,19 @@ static int stm32l4_tim_setmode(FAR struct stm32l4_tim_dev_s *dev,
 
       case STM32L4_TIM_MODE_DOWN:
         val |= ATIM_CR1_DIR;
+        break;
 
       case STM32L4_TIM_MODE_UP:
+        val &= ~ATIM_CR1_DIR;
         break;
 
       case STM32L4_TIM_MODE_UPDOWN:
         val |= ATIM_CR1_CENTER1;
-        // Our default: Interrupts are generated on compare, when counting down
+
+        /* Our default:
+         * Interrupts are generated on compare, when counting down
+         */
+
         break;
 
       case STM32L4_TIM_MODE_PULSE:
@@ -631,9 +703,170 @@ static int stm32l4_tim_setmode(FAR struct stm32l4_tim_dev_s *dev,
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
+ * Name: stm32l4_tim_setfreq
+ ****************************************************************************/
+
+static int stm32l4_tim_setfreq(FAR struct stm32l4_tim_dev_s *dev,
+                              uint32_t freq)
+{
+  uint32_t freqin;
+  int prescaler;
+  uint32_t reload;
+  uint32_t timclk;
+
+  DEBUGASSERT(dev != NULL);
+
+  /* Disable Timer? */
+
+  if (freq == 0)
+    {
+      stm32l4_tim_disable(dev);
+      return 0;
+    }
+
+  /* Get the input clock frequency for this timer.  These vary with
+   * different timer clock sources, MCU-specific timer configuration, and
+   * board-specific clock configuration.  The correct input clock frequency
+   * must be defined in the board.h header file.
+   */
+
+  switch (((struct stm32l4_tim_priv_s *)dev)->base)
+    {
+#ifdef CONFIG_STM32L4_TIM1
+      case STM32L4_TIM1_BASE:
+        freqin = BOARD_TIM1_FREQUENCY;
+        break;
+#endif
+
+#ifdef CONFIG_STM32L4_TIM2
+      case STM32L4_TIM2_BASE:
+        freqin = BOARD_TIM2_FREQUENCY;
+        break;
+#endif
+
+#ifdef CONFIG_STM32L4_TIM3
+      case STM32L4_TIM3_BASE:
+        freqin = BOARD_TIM3_FREQUENCY;
+        break;
+#endif
+
+#ifdef CONFIG_STM32L4_TIM4
+      case STM32L4_TIM4_BASE:
+        freqin = BOARD_TIM4_FREQUENCY;
+        break;
+#endif
+
+#ifdef CONFIG_STM32L4_TIM5
+      case STM32L4_TIM5_BASE:
+        freqin = BOARD_TIM5_FREQUENCY;
+        break;
+#endif
+
+#ifdef CONFIG_STM32L4_TIM6
+      case STM32L4_TIM6_BASE:
+        freqin = BOARD_TIM6_FREQUENCY;
+        break;
+#endif
+
+#ifdef CONFIG_STM32L4_TIM7
+      case STM32L4_TIM7_BASE:
+        freqin = BOARD_TIM7_FREQUENCY;
+        break;
+#endif
+
+#ifdef CONFIG_STM32L4_TIM8
+      case STM32L4_TIM8_BASE:
+        freqin = BOARD_TIM8_FREQUENCY;
+        break;
+#endif
+
+#ifdef CONFIG_STM32L4_TIM15
+      case STM32L4_TIM15_BASE:
+        freqin = BOARD_TIM15_FREQUENCY;
+        break;
+#endif
+#ifdef CONFIG_STM32L4_TIM16
+      case STM32L4_TIM16_BASE:
+        freqin = BOARD_TIM16_FREQUENCY;
+        break;
+#endif
+
+#ifdef CONFIG_STM32L4_TIM17
+      case STM32L4_TIM17_BASE:
+        freqin = BOARD_TIM17_FREQUENCY;
+        break;
+#endif
+
+      default:
+        return -EINVAL;
+    }
+
+  /* Select a pre-scaler value for this timer using the input clock
+   * frequency.
+   *
+   * Calculate optimal values for the timer prescaler and for the timer
+   * reload register.  If freq is the desired frequency, then
+   *
+   *   reload = timclk / freq
+   *   reload = (pclck / prescaler) / freq
+   *
+   * There are many solutions to do this, but the best solution will be the
+   * one that has the largest reload value and the smallest prescaler value.
+   * That is the solution that should give us the most accuracy in the timer
+   * control.  Subject to:
+   *
+   *   0 <= prescaler  <= 65536
+   *   1 <= reload <= 65535
+   *
+   * So ( prescaler = pclck / 65535 / freq ) would be optimal.
+   */
+
+  prescaler = (freqin / freq + 65534) / 65535;
+
+  /* We need to decrement value for '1', but only if that will not to
+   * cause underflow.
+   */
+
+  if (prescaler < 1)
+    {
+      awarn("WARNING: Prescaler underflowed.\n");
+      prescaler = 1;
+    }
+
+  /* Check for overflow as well. */
+
+  if (prescaler > 65536)
+    {
+      awarn("WARNING: Prescaler overflowed.\n");
+      prescaler = 65536;
+    }
+
+  timclk = freqin / prescaler;
+
+  reload = timclk / freq;
+  if (reload < 1)
+    {
+      awarn("WARNING: Reload value underflowed.\n");
+      reload = 1;
+    }
+  else if (reload > 65535)
+    {
+      awarn("WARNING: Reload value overflowed.\n");
+      reload = 65535;
+    }
+
+  /* Set the reload and prescaler values */
+
+  stm32l4_putreg16(dev, STM32L4_GTIM_PSC_OFFSET, prescaler - 1);
+  stm32l4_putreg16(dev, STM32L4_GTIM_ARR_OFFSET, reload);
+
+  return (timclk / reload);
+}
+
+/****************************************************************************
  * Name: stm32l4_tim_setclock
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32l4_tim_setclock(FAR struct stm32l4_tim_dev_s *dev,
                                 uint32_t freq)
@@ -751,14 +984,13 @@ static int stm32l4_tim_setclock(FAR struct stm32l4_tim_dev_s *dev,
     }
 
   stm32l4_putreg16(dev, STM32L4_BTIM_PSC_OFFSET, prescaler);
-  stm32l4_tim_enable(dev);
 
   return prescaler;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_getclock
- ************************************************************************************/
+ ****************************************************************************/
 
 static uint32_t stm32l4_tim_getclock(FAR struct stm32l4_tim_dev_s *dev)
 {
@@ -846,9 +1078,9 @@ static uint32_t stm32l4_tim_getclock(FAR struct stm32l4_tim_dev_s *dev)
   return clock;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_setperiod
- ************************************************************************************/
+ ****************************************************************************/
 
 static void stm32l4_tim_setperiod(FAR struct stm32l4_tim_dev_s *dev,
                                 uint32_t period)
@@ -857,9 +1089,9 @@ static void stm32l4_tim_setperiod(FAR struct stm32l4_tim_dev_s *dev,
   stm32l4_putreg32(dev, STM32L4_BTIM_ARR_OFFSET, period);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_getperiod
- ************************************************************************************/
+ ****************************************************************************/
 
 static uint32_t stm32l4_tim_getperiod (FAR struct stm32l4_tim_dev_s *dev)
 {
@@ -867,9 +1099,9 @@ static uint32_t stm32l4_tim_getperiod (FAR struct stm32l4_tim_dev_s *dev)
   return stm32l4_getreg32 (dev, STM32L4_BTIM_ARR_OFFSET);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_getcounter
- ************************************************************************************/
+ ****************************************************************************/
 
 static uint32_t stm32l4_tim_getcounter(FAR struct stm32l4_tim_dev_s *dev)
 {
@@ -892,19 +1124,20 @@ static uint32_t stm32l4_tim_getcounter(FAR struct stm32l4_tim_dev_s *dev)
         return counter;
 
       default:
-        return counter & 0x0000FFFF;
+        return counter & 0x0000ffff;
     }
 #else
-  return counter & 0x0000FFFF;
+  return counter & 0x0000ffff;
 #endif
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_setchannel
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32l4_tim_setchannel(FAR struct stm32l4_tim_dev_s *dev,
-                                  uint8_t channel, enum stm32l4_tim_channel_e mode)
+                                  uint8_t channel,
+                                  enum stm32l4_tim_channel_e mode)
 {
   uint16_t ccmr_orig   = 0;
   uint16_t ccmr_val    = 0;
@@ -951,7 +1184,8 @@ static int stm32l4_tim_setchannel(FAR struct stm32l4_tim_dev_s *dev,
         break;
 
       case STM32L4_TIM_CH_OUTPWM:
-        ccmr_val  =  (ATIM_CCMR_MODE_PWM1 << ATIM_CCMR1_OC1M_SHIFT) + ATIM_CCMR1_OC1PE;
+        ccmr_val  =  (ATIM_CCMR_MODE_PWM1 << ATIM_CCMR1_OC1M_SHIFT) +
+                     ATIM_CCMR1_OC1PE;
         ccer_val |= ATIM_CCER_CC1E << (channel << 2);
         break;
 
@@ -1293,9 +1527,9 @@ static int stm32l4_tim_setchannel(FAR struct stm32l4_tim_dev_s *dev,
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_setcompare
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32l4_tim_setcompare(FAR struct stm32l4_tim_dev_s *dev,
                                   uint8_t channel, uint32_t compare)
@@ -1327,9 +1561,9 @@ static int stm32l4_tim_setcompare(FAR struct stm32l4_tim_dev_s *dev,
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_getcapture
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32l4_tim_getcapture(FAR struct stm32l4_tim_dev_s *dev,
                                   uint8_t channel)
@@ -1354,9 +1588,9 @@ static int stm32l4_tim_getcapture(FAR struct stm32l4_tim_dev_s *dev,
   return -EINVAL;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_setisr
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32l4_tim_setisr(FAR struct stm32l4_tim_dev_s *dev,
                               xcpt_t handler, void *arg, int source)
@@ -1453,19 +1687,20 @@ static int stm32l4_tim_setisr(FAR struct stm32l4_tim_dev_s *dev,
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_enableint
- ************************************************************************************/
+ ****************************************************************************/
 
-static void stm32l4_tim_enableint(FAR struct stm32l4_tim_dev_s *dev, int source)
+static void stm32l4_tim_enableint(FAR struct stm32l4_tim_dev_s *dev,
+                                  int source)
 {
   DEBUGASSERT(dev != NULL);
   stm32l4_modifyreg16(dev, STM32L4_BTIM_DIER_OFFSET, 0, ATIM_DIER_UIE);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_disableint
- ************************************************************************************/
+ ****************************************************************************/
 
 static void stm32l4_tim_disableint(FAR struct stm32l4_tim_dev_s *dev,
                                    int source)
@@ -1474,32 +1709,33 @@ static void stm32l4_tim_disableint(FAR struct stm32l4_tim_dev_s *dev,
   stm32l4_modifyreg16(dev, STM32L4_BTIM_DIER_OFFSET, ATIM_DIER_UIE, 0);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_ackint
- ************************************************************************************/
+ ****************************************************************************/
 
 static void stm32l4_tim_ackint(FAR struct stm32l4_tim_dev_s *dev, int source)
 {
   stm32l4_putreg16(dev, STM32L4_BTIM_SR_OFFSET, ~ATIM_SR_UIF);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_checkint
- ************************************************************************************/
+ ****************************************************************************/
 
-static int stm32l4_tim_checkint(FAR struct stm32l4_tim_dev_s *dev, int source)
+static int stm32l4_tim_checkint(FAR struct stm32l4_tim_dev_s *dev,
+                                int source)
 {
   uint16_t regval = stm32l4_getreg16(dev, STM32L4_BTIM_SR_OFFSET);
   return (regval & ATIM_SR_UIF) ? 1 : 0;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Pubic Functions
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_init
- ************************************************************************************/
+ ****************************************************************************/
 
 FAR struct stm32l4_tim_dev_s *stm32l4_tim_init(int timer)
 {
@@ -1601,12 +1837,12 @@ FAR struct stm32l4_tim_dev_s *stm32l4_tim_init(int timer)
   return dev;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32l4_tim_deinit
  *
  * TODO: Detach interrupts, and close down all TIM Channels
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 int stm32l4_tim_deinit(FAR struct stm32l4_tim_dev_s *dev)
 {

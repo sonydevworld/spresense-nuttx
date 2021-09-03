@@ -8,6 +8,7 @@ menu "TCP/IP Networking"
 config NET_TCP
 	bool "TCP/IP Networking"
 	default n
+	select NET_READAHEAD if !NET_TCP_NO_STACK
 	---help---
 		Enable or disable TCP networking support.
 
@@ -19,6 +20,20 @@ config NET_TCP_NO_STACK
 		Build without TCP/IP stack even if TCP networking support enabled.
 
 if NET_TCP && !NET_TCP_NO_STACK
+
+config NET_TCP_DELAYED_ACK
+	bool "TCP/IP Delayed ACK"
+	default n
+	---help---
+		RFC 1122:  A host that is receiving a stream of TCP data segments
+		can increase efficiency in both the Internet and the hosts
+		by sending fewer than one ACK (acknowledgment) segment per data
+		segment received; this is known as a "delayed ACK".
+
+		TCP should implement a delayed ACK, but an ACK should not be
+		excessively delayed; in particular, the delay MUST be less than
+		0.5 seconds, and in a stream of full-sized segments there should
+		be an ACK for at least every second segments.
 
 config NET_TCP_KEEPALIVE
 	bool "TCP/IP Keep-alive support"
@@ -41,6 +56,10 @@ config NET_TCP_CONNS
 	---help---
 		Maximum number of TCP/IP connections (all tasks)
 
+config NET_TCP_NPOLLWAITERS
+	int "Number of TCP poll waiters"
+	default 1
+
 config NET_TCP_RTO
 	int "RTO of TCP/IP connections"
 	default 3
@@ -51,7 +70,8 @@ config NET_TCP_WAIT_TIMEOUT
 	int "TIME_WAIT Length of TCP/IP connections"
 	default 120
 	---help---
-		TIME_WAIT Length of TCP/IP connections (all tasks)
+		TIME_WAIT Length of TCP/IP connections (all tasks).  In units
+		of seconds.
 
 config NET_MAX_LISTENPORTS
 	int "Number of listening ports"
@@ -59,7 +79,34 @@ config NET_MAX_LISTENPORTS
 	---help---
 		Maximum number of listening TCP/IP ports (all tasks).  Default: 20
 
-config TCP_NOTIFIER
+config NET_TCP_FAST_RETRANSMIT_WATERMARK
+	int "WaterMark to trigger Fast Retransmission"
+	default 3
+	---help---
+		RFC2001:
+		3.  Fast Retransmit
+			Modifications to the congestion avoidance algorithm were proposed in
+			1990 [3].  Before describing the change, realize that TCP may
+			generate an immediate acknowledgment (a duplicate ACK) when an out-
+			of-order segment is received (Section 4.2.2.21 of [1], with a note
+			that one reason for doing so was for the experimental fast-
+			retransmit algorithm).  This duplicate ACK should not be delayed.
+			The purpose of this duplicate ACK is to let the other end know that a
+			segment was received out of order, and to tell it what sequence
+			number is expected.
+
+			Since TCP does not know whether a duplicate ACK is caused by a lost
+			segment or just a reordering of segments, it waits for a small number
+			of duplicate ACKs to be received.  It is assumed that if there is
+			just a reordering of the segments, there will be only one or two
+			duplicate ACKs before the reordered segment is processed, which will
+			then generate a new ACK.  If three or more duplicate ACKs are
+			received in a row, it is a strong indication that a segment has been
+			lost.  TCP then performs a retransmission of what appears to be the
+			missing segment, without waiting for a retransmission timer to
+			expire.
+
+config NET_TCP_NOTIFIER
 	bool "Support TCP notifications"
 	default n
 	depends on SCHED_WORKQUEUE
@@ -71,30 +118,10 @@ config TCP_NOTIFIER
 		purpose notifier, but was developed specifically to support poll()
 		logic where the poll must wait for these events.
 
-config NET_TCP_READAHEAD
-	bool "Enable TCP/IP read-ahead buffering"
-	default y
-	select NET_READAHEAD
-	select MM_IOB
-	---help---
-		Read-ahead buffers allows buffering of TCP/IP packets when there is no
-		receive in place to catch the TCP packet.  In that case, the packet
-		will be retained in the NuttX read-ahead buffers.
-
-		You might want to disable TCP/IP read-ahead buffering on a highly
-		memory constrained system that does not have any TCP/IP packet rate
-		issues.  But, if disabled, there will probably be more packet
-		retransmissions or even packet loss.
-
-		Make sure that you check the setting in the I/O Buffering menu.
-		These settings are critical to the reasonable operation of read-
-		ahead buffering.
-
 config NET_TCP_WRITE_BUFFERS
 	bool "Enable TCP/IP write buffering"
 	default n
 	select NET_WRITE_BUFFERS
-	select MM_IOB
 	---help---
 		Write buffers allows buffering of ongoing TCP/IP packets, providing
 		for higher performance, streamed output.
@@ -137,20 +164,6 @@ config NET_TCP_WRBUFFER_DUMP
 		detail.
 
 endif # NET_TCP_WRITE_BUFFERS
-
-config NET_TCP_RECVDELAY
-	int "TCP Rx delay"
-	default 0
-	---help---
-		If NET_TCP_READAHEAD_BUFFERS is undefined, then there will be no buffering
-		of TCP/IP packets:  Any TCP/IP packet received will be ACKed, but its contents
-		will be dropped in the bit-bucket.
-
-		One low-performance option is delay for a short period of time after a
-		TCP/IP packet is received to see if another comes right behind it. Then
-		the packet data from both can be combined.  This option only makes since
-		if performance is not an issue and you need to handle short bursts of
-		small, back-to-back packets.  The delay is in units of deciseconds.
 
 config NET_TCPBACKLOG
 	bool "TCP/IP backlog support"

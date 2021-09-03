@@ -1,5 +1,5 @@
 ############################################################################
-# drivers/ieee802154/xbee/Make.defs
+# drivers/wireless/ieee802154/xbee/Make.defs
 #
 #   Copyright (C) 2017 Verge Inc. All rights reserved.
 #   Author: Anthony Merlino <anthony@vergeaero.com>
@@ -43,6 +43,6 @@ CSRCS += xbee_ioctl.c xbee_mac.c xbee_netdev.c xbee.c
 
 DEPPATH += --dep-path wireless$(DELIM)ieee802154$(DELIM)xbee
 VPATH += :wireless$(DELIM)ieee802154$(DELIM)xbee
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)wireless$(DELIM)ieee802154$(DELIM)xbee}
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)wireless$(DELIM)ieee802154$(DELIM)xbee}
 
 endif # CONFIG_IEEE802154_XBEE

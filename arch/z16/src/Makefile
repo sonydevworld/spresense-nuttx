@@ -1,59 +1,35 @@
 ############################################################################
 # arch/z16/src/Makefile
 #
-#   Copyright (C) 2008, 2011-2012, 2014 Gregory Nutt. All rights reserved.
-#   Author: Gregory Nutt <gnutt@nuttx.org>
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.  The
+# ASF licenses this file to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance with the
+# License.  You may obtain a copy of the License at
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
-# 3. Neither the name NuttX nor the names of its contributors may be
-#    used to endorse or promote products derived from this software
-#    without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
-# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(TOPDIR)/Make.defs
 -include chip/Make.defs
 
 COMPILER = ${shell basename "$(CC)"}
 ARCHSRCDIR = $(TOPDIR)/arch/$(CONFIG_ARCH)/src
 
-ifeq ($(CONFIG_WINDOWS_NATIVE),y)
-  USRINCLUDES = -usrinc:'.;$(TOPDIR)/sched;$(ARCHSRCDIR)$(DELIM)chip;$(ARCHSRCDIR)$(DELIM)common'
-else
-ifeq ($(COMPILER),zneocc.exe)
-  WARCHSRCDIR := ${shell cygpath -w $(ARCHSRCDIR)}
-  USRINCLUDES = -usrinc:'.;$(WTOPDIR)\sched;$(WARCHSRCDIR)$(DELIM)chip;$(WARCHSRCDIR)$(DELIM)common'
-else
-  WARCHSRCDIR = $(ARCHSRCDIR)
-  USRINCLUDES = -I$(TOPDIR)/sched -I$(ARCHSRCDIR)$(DELIM)chip -I$(ARCHSRCDIR)$(DELIM)common
-endif
-endif
+INCLUDES += ${shell $(INCDIR) "$(CC)" $(ARCHSRCDIR)$(DELIM)chip}
+INCLUDES += ${shell $(INCDIR) "$(CC)" $(ARCHSRCDIR)$(DELIM)common}
+INCLUDES += ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)sched}
 
-INCLUDES = $(ARCHSTDINCLUDES) $(USRINCLUDES)
-CFLAGS = $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(INCLUDES) $(ARCHDEFINES) $(EXTRADEFINES)
-CPPFLAGS += -I$(ARCHSRCDIR) $(EXTRADEFINES)
+CFLAGS += $(INCLUDES)
+CPPFLAGS += $(INCLUDES)
 
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
   LDFLAGS += @"$(ARCHSRCDIR)/nuttx.linkcmd"
@@ -103,7 +79,7 @@ libarch$(LIBEXT): $(OBJS)
 	$(call ARCHIVE, $@, $(OBJS))
 
 board/libboard$(LIBEXT):
-	$(Q) $(MAKE) -C board TOPDIR="$(TOPDIR)" libboard$(LIBEXT) EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C board libboard$(LIBEXT) EXTRAFLAGS="$(EXTRAFLAGS)"
 
 ifeq ($(COMPILER),zneocc.exe)
 nuttx.linkcmd: $(LINKCMDTEMPLATE)
@@ -135,10 +111,10 @@ nuttx$(EXEEXT): $(HEAD_OBJ) board/libboard$(LIBEXT) nuttx.linkcmd
 
 .depend: Makefile chip/Make.defs $(DEPSRCS) $(TOPDIR)$(DELIM).config
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
-	$(Q) if exist board$(DELIM)Makefile ( $(MAKE) -C board TOPDIR="$(TOPDIR)" depend )
+	$(Q) if exist board$(DELIM)Makefile ( $(MAKE) -C board depend )
 else
 	$(Q) if [ -e board/Makefile ]; then \
-		$(MAKE) -C board TOPDIR="$(TOPDIR)" depend ; \
+		$(MAKE) -C board depend ; \
 	fi
 endif
 	$(Q) $(MKDEP) --dep-path chip --dep-path common "$(CC)" -- $(CFLAGS) -- $(DEPSRCS) >Make.dep
@@ -162,12 +138,16 @@ endif
 
 depend: .depend
 
+context::
+
+clean_context::
+
 clean:
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
-	$(Q) if exist board$(DELIM)Makefile ( $(MAKE) -C board TOPDIR="$(TOPDIR)" clean )
+	$(Q) if exist board$(DELIM)Makefile ( $(MAKE) -C board clean )
 else
 	$(Q) if [ -e board/Makefile ]; then \
-		$(MAKE) -C board TOPDIR="$(TOPDIR)" clean ; \
+		$(MAKE) -C board clean ; \
 	fi
 endif
 ifeq ($(COMPILER),zneocc.exe)
@@ -181,10 +161,10 @@ endif
 
 distclean: clean
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
-	$(Q) if exist board$(DELIM)Makefile ( $(MAKE) -C board TOPDIR="$(TOPDIR)" distclean )
+	$(Q) if exist board$(DELIM)Makefile ( $(MAKE) -C board distclean )
 else
 	$(Q) if [ -e board/Makefile ]; then \
-		$(MAKE) -C board TOPDIR="$(TOPDIR)" distclean ; \
+		$(MAKE) -C board distclean ; \
 	fi
 endif
 	$(call DELFILE, Make.dep)

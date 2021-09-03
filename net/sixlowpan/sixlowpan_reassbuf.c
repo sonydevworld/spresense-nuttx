@@ -1,35 +1,20 @@
 /****************************************************************************
- *  net/sixlowpan/sixlowpan_reassbuf.c
+ * net/sixlowpan/sixlowpan_reassbuf.c
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -45,7 +30,6 @@
 #include <assert.h>
 #include <errno.h>
 
-#include <nuttx/clock.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/mm/iob.h>
 
@@ -63,9 +47,9 @@
  * Private Data
  ****************************************************************************/
 
-/* The g_free_reass is a list of reassembly buffer structures that are available for
- * general use.  The number of messages in this list is a system configuration
- * item.  Protected only by the network lock.
+/* The g_free_reass is a list of reassembly buffer structures that are
+ * available for general use.  The number of messages in this list is a
+ * system configuration item.  Protected only by the network lock.
  */
 
 static FAR struct sixlowpan_reassbuf_s *g_free_reass;
@@ -74,9 +58,10 @@ static FAR struct sixlowpan_reassbuf_s *g_free_reass;
 
 static FAR struct sixlowpan_reassbuf_s *g_active_reass;
 
-/* Pool of pre-allocated reassembly buffer stuctures */
+/* Pool of pre-allocated reassembly buffer structures */
 
-static struct sixlowpan_reassbuf_s g_metadata_pool[CONFIG_NET_6LOWPAN_NREASSBUF];
+static struct sixlowpan_reassbuf_s
+              g_metadata_pool[CONFIG_NET_6LOWPAN_NREASSBUF];
 
 /****************************************************************************
  * Public Functions
@@ -87,7 +72,7 @@ static struct sixlowpan_reassbuf_s g_metadata_pool[CONFIG_NET_6LOWPAN_NREASSBUF]
  *
  * Description:
  *   Check if the fragment that we just received is from the same source as
- *   the previosly received fragements.
+ *   the previously received fragments.
  *
  * Input Parameters:
  *   radio    - Radio network device driver state instance
@@ -99,7 +84,7 @@ static struct sixlowpan_reassbuf_s g_metadata_pool[CONFIG_NET_6LOWPAN_NREASSBUF]
  ****************************************************************************/
 
 static bool sixlowpan_compare_fragsrc(FAR struct sixlowpan_reassbuf_s *reass,
-                                      FAR const struct netdev_varaddr_s *fragsrc)
+                                  FAR const struct netdev_varaddr_s *fragsrc)
 {
   /* The addresses cannot match if they are not the same size */
 
@@ -157,11 +142,11 @@ static void sixlowpan_reass_expire(void)
         {
           /* Get the elpased time of the reassembly */
 
-          elapsed = clock_systimer() - reass->rb_time;
+          elapsed = clock_systime_ticks() - reass->rb_time;
 
           /* If the reassembly has expired, then free the reassembly buffer */
 
-          if (elapsed > NET_6LOWPAN_TIMEOUT)
+          if (elapsed >= NET_6LOWPAN_TIMEOUT)
             {
               nwarn("WARNING: Reassembly timed out\n");
               sixlowpan_reass_free(reass);
@@ -246,8 +231,8 @@ void sixlowpan_reass_initialize(void)
   FAR struct sixlowpan_reassbuf_s *reass;
   int i;
 
-  /* Initialize g_free_reass, the list of reassembly buffer structures that are
-   * available for allocation.
+  /* Initialize g_free_reass, the list of reassembly buffer structures that
+   * are available for allocation.
    */
 
   g_free_reass = NULL;
@@ -315,8 +300,8 @@ FAR struct sixlowpan_reassbuf_s *
 #ifdef CONFIG_NET_6LOWPAN_REASS_STATIC
       reass         = NULL;
 #else
-      /* If we cannot get a reassembly buffer instance from the free list, then we
-       * will have to allocate one from the kernal memory pool.
+      /* If we cannot get a reassembly buffer instance from the free list,
+       * then we will have to allocate one from the kernel memory pool.
        */
 
       reass = (FAR struct sixlowpan_reassbuf_s *)
@@ -336,7 +321,7 @@ FAR struct sixlowpan_reassbuf_s *
       reass->rb_pool     = pool;
       reass->rb_active   = true;
       reass->rb_reasstag = reasstag;
-      reass->rb_time     = clock_systimer();
+      reass->rb_time     = clock_systime_ticks();
 
       /* Add the reassembly buffer to the list of active reassembly buffers */
 
@@ -429,8 +414,8 @@ void sixlowpan_reass_free(FAR struct sixlowpan_reassbuf_s *reass)
 
   sixlowpan_remove_active(reass);
 
-  /* If this is a pre-allocated reassembly buffer structure, then just put it back
-   * in the free list.
+  /* If this is a pre-allocated reassembly buffer structure, then just put it
+   * back in the free list.
    */
 
   if (reass->rb_pool == REASS_POOL_PREALLOCATED)
@@ -447,7 +432,7 @@ void sixlowpan_reass_free(FAR struct sixlowpan_reassbuf_s *reass)
 
       /* Otherwise, deallocate it. */
 
-      sched_kfree(reass);
+      kmm_free(reass);
 #endif
     }
 

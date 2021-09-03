@@ -1,36 +1,20 @@
 /****************************************************************************
  * include/nuttx/sdio.h
  *
- *   Copyright (C) 2009, 2011-2013, 2017, 2019 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -55,7 +39,8 @@
 
 /* SDIO events needed by the driver
  *
- * Wait events are used for event-waiting by SDIO_WAITENABLE and SDIO_EVENTWAIT
+ * Wait events are used for event-waiting by SDIO_WAITENABLE and
+ * SDIO_EVENTWAIT
  */
 
 #define SDIOWAIT_CMDDONE       (1 << 0) /* Bit 0: Command complete */
@@ -65,10 +50,10 @@
 #define SDIOWAIT_ERROR         (1 << 4) /* Bit 4: Some other error occurred */
 
 /* SDIOWAIT_WRCOMPLETE (optional) : Certain SDIO driver can use D0 busy
- *   signalling to detect Write Complete.  Used of D0 busy signalling will
+ *   signaling to detect Write Complete.  Used of D0 busy signaling will
  *   avoid potentially very long (600Ms+) busy waiting in the MMCSD driver.
  *
- *   To implement D0 Busy signalling, the underlying SDIO driver must be
+ *   To implement D0 Busy signaling, the underlying SDIO driver must be
  *   capable of switching the D0 GPIO to be a rising edge sensitive
  *   interrupt pin. It must then, condition that pin to detect the rising
  *   edge on receipt of SDWAIT_WRCOMPLETE in the SDIO_WAITENABLE call and
@@ -88,8 +73,8 @@
 #define SDIOMEDIA_EJECTED       (1 << 0) /* Bit 0: Media removed */
 #define SDIOMEDIA_INSERTED      (1 << 1) /* Bit 1: Media inserted */
 
-/* Commands are bit-encoded to provide as much information to the SDIO driver as
- * possible in 32-bits.  The encoding is as follows:
+/* Commands are bit-encoded to provide as much information to the SDIO
+ * driver as possible in 32-bits.  The encoding is as follows:
  *
  * ---- ---- ---- ---- ---T TTRR RRCC CCCC
  *
@@ -336,7 +321,8 @@
 
 /* SDIO Card Common Control Registers definitions
  * see https://www.sdcard.org/developers/overview/sdio/
- *                             sdio_spec/Simplified_SDIO_Card_Spec.pdf */
+ *                             sdio_spec/Simplified_SDIO_Card_Spec.pdf
+ */
 
 #define SDIO_CCCR_REV                    0x00 /* CCCR/SDIO Revision        */
 #define SDIO_CCCR_SD_SPEC_REV            0x01 /* SD Specification Revision */
@@ -346,7 +332,7 @@
 #define SDIO_CCCR_INTPEND                0x05 /* Int Pending               */
 #define SDIO_CCCR_IOABORT                0x06 /* I/O Abort                 */
 #define SDIO_CCCR_BUS_IF                 0x07 /* Bus Interface Control     */
-#define SDIO_CCCR_CARD_CAP               0x08 /* Card Capabilitiy          */
+#define SDIO_CCCR_CARD_CAP               0x08 /* Card Capability          */
 #define SDIO_CCCR_CCP                    0x09 /* Common CIS Pointer        */
 #define SDIO_CCCR_BUS_SUSP               0x0C /* Bus Suspend               */
 #define SDIO_CCCR_FUNCSEL                0x0D /* Function Select           */
@@ -556,8 +542,9 @@
  *   (interrupt driven mode).  This method will do whatever controller setup
  *   is necessary.  This would be called for SD memory just BEFORE sending
  *   CMD13 (SEND_STATUS), CMD17 (READ_SINGLE_BLOCK), CMD18
- *   (READ_MULTIPLE_BLOCKS), ACMD51 (SEND_SCR), etc.  Normally, SDIO_WAITEVENT
- *   will be called to receive the indication that the transfer is complete.
+ *   (READ_MULTIPLE_BLOCKS), ACMD51 (SEND_SCR), etc.  Normally,
+ *   SDIO_WAITEVENT will be called to receive the indication that the
+ *   transfer is complete.
  *
  * Input Parameters:
  *   dev    - An instance of the SDIO device interface
@@ -575,9 +562,9 @@
  * Name: SDIO_SENDSETUP
  *
  * Description:
- *   Setup hardware in preparation for data transfer from the card.  This method
- *   will do whatever controller setup is necessary.  This would be called
- *   for SD memory just AFTER sending CMD24 (WRITE_BLOCK), CMD25
+ *   Setup hardware in preparation for data transfer from the card.  This
+ *   method will do whatever controller setup is necessary.  This would be
+ *   called for SD memory just AFTER sending CMD24 (WRITE_BLOCK), CMD25
  *   (WRITE_MULTIPLE_BLOCK), ... and before SDIO_SENDDATA is called.
  *
  * Input Parameters:
@@ -646,20 +633,20 @@
  *
  * Returned Value:
  *   Number of bytes sent on success; a negated errno on failure.  Here a
- *   failure means only a faiure to obtain the requested reponse (due to
+ *   failure means only a faiure to obtain the requested response (due to
  *   transport problem -- timeout, CRC, etc.).  The implementation only
  *   assures that the response is returned intacta and does not check errors
  *   within the response itself.
  *
  ****************************************************************************/
 
-#define SDIO_RECVR1(dev,cmd,R1) ((dev)->recvR1(dev,cmd,R1)) /* 48-bit */
-#define SDIO_RECVR2(dev,cmd,R2) ((dev)->recvR2(dev,cmd,R2)) /* 136-bit */
-#define SDIO_RECVR3(dev,cmd,R3) ((dev)->recvR3(dev,cmd,R3)) /* 48-bit */
-#define SDIO_RECVR4(dev,cmd,R4) ((dev)->recvR4(dev,cmd,R4)) /* 48-bit */
-#define SDIO_RECVR5(dev,cmd,R5) ((dev)->recvR5(dev,cmd,R5)) /* 48-bit */
-#define SDIO_RECVR6(dev,cmd,R6) ((dev)->recvR6(dev,cmd,R6)) /* 48-bit */
-#define SDIO_RECVR7(dev,cmd,R7) ((dev)->recvR7(dev,cmd,R7)) /* 48-bit */
+#define SDIO_RECVR1(dev,cmd,r1) ((dev)->recv_r1(dev,cmd,r1)) /* 48-bit */
+#define SDIO_RECVR2(dev,cmd,r2) ((dev)->recv_r2(dev,cmd,r2)) /* 136-bit */
+#define SDIO_RECVR3(dev,cmd,r3) ((dev)->recv_r3(dev,cmd,r3)) /* 48-bit */
+#define SDIO_RECVR4(dev,cmd,r4) ((dev)->recv_r4(dev,cmd,r4)) /* 48-bit */
+#define SDIO_RECVR5(dev,cmd,r5) ((dev)->recv_r5(dev,cmd,r5)) /* 48-bit */
+#define SDIO_RECVR6(dev,cmd,r6) ((dev)->recv_r6(dev,cmd,r6)) /* 48-bit */
+#define SDIO_RECVR7(dev,cmd,r7) ((dev)->recv_r7(dev,cmd,r7)) /* 48-bit */
 
 /****************************************************************************
  * Name: SDIO_WAITENABLE
@@ -679,8 +666,8 @@
  *     SDIO_WAITEVENT:     Wait for the event of interest (which might
  *                         already have occurred)
  *
- *   This sequence should eliminate race conditions between the command/transfer
- *   setup and the subsequent events.
+ *   This sequence should eliminate race conditions between the command/
+ *   transfer setup and the subsequent events.
  *
  *   The enabled events persist until either (1) SDIO_WAITENABLE is called
  *   again specifying a different set of wait events, or (2) SDIO_EVENTWAIT
@@ -696,7 +683,7 @@
  *
  ****************************************************************************/
 
-#define SDIO_WAITENABLE(dev,eventset)  ((dev)->waitenable(dev,eventset))
+#define SDIO_WAITENABLE(dev,eventset,timeout)  ((dev)->waitenable(dev,eventset,timeout))
 
 /****************************************************************************
  * Name: SDIO_EVENTWAIT
@@ -719,7 +706,7 @@
  *
  ****************************************************************************/
 
-#define SDIO_EVENTWAIT(dev,timeout)  ((dev)->eventwait(dev,timeout))
+#define SDIO_EVENTWAIT(dev)  ((dev)->eventwait(dev))
 
 /****************************************************************************
  * Name: SDIO_CALLBACKENABLE
@@ -823,31 +810,6 @@
 #endif
 
 /****************************************************************************
- * Name: SDIO_DMADELYDINVLDT
- *
- * Description:
- *   Delayed D-cache invalidation.
- *   This function should be called after receive DMA completion to perform
- *   D-cache invalidation. This eliminates the need for cache aligned DMA
- *   buffers when the D-cache is in store-through mode.
- *
- * Input Parameters:
- *   dev    - An instance of the SDIO device interface
- *   buffer - The memory to DMA from
- *   buflen - The size of the DMA transfer in bytes
- *
- * Returned Value:
- *   OK on success; a negated errno on failure
- *
- ****************************************************************************/
-
-#if defined(CONFIG_SDIO_DMA) && defined(CONFIG_ARCH_HAVE_SDIO_DELAYED_INVLDT)
-#  define SDIO_DMADELYDINVLDT(dev,buffer,len) ((dev)->dmadelydinvldt(dev,buffer,len))
-#else
-#  define SDIO_DMADELYDINVLDT(dev,buffer,len) (OK)
-#endif
-
-/****************************************************************************
  * Name: SDIO_DMASENDSETUP
  *
  * Description:
@@ -887,8 +849,8 @@ enum sdio_clock_e
   CLOCK_SD_TRANSFER_4BIT   /* SD normal operation clocking (wide 4-bit mode) */
 };
 
-/* Event set.  A uint8_t is big enough to hold a set of 8-events.  If more are
- * needed, change this to a uint16_t.
+/* Event set.  A uint8_t is big enough to hold a set of 8-events.  If more
+ * are needed, change this to a uint16_t.
  */
 
 typedef uint8_t sdio_eventset_t;
@@ -948,18 +910,19 @@ struct sdio_dev_s
   int   (*cancel)(FAR struct sdio_dev_s *dev);
 
   int   (*waitresponse)(FAR struct sdio_dev_s *dev, uint32_t cmd);
-  int   (*recvR1)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R1);
-  int   (*recvR2)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t R2[4]);
-  int   (*recvR3)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R3);
-  int   (*recvR4)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R4);
-  int   (*recvR5)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R5);
-  int   (*recvR6)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R6);
-  int   (*recvR7)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R7);
+  int   (*recv_r1)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R1);
+  int   (*recv_r2)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t R2[4]);
+  int   (*recv_r3)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R3);
+  int   (*recv_r4)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R4);
+  int   (*recv_r5)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R5);
+  int   (*recv_r6)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R6);
+  int   (*recv_r7)(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *R7);
 
   /* Event/Callback support */
 
-  void  (*waitenable)(FAR struct sdio_dev_s *dev, sdio_eventset_t eventset);
-  sdio_eventset_t (*eventwait)(FAR struct sdio_dev_s *dev, uint32_t timeout);
+  void  (*waitenable)(FAR struct sdio_dev_s *dev, sdio_eventset_t eventset,
+          uint32_t timeout);
+  sdio_eventset_t (*eventwait)(FAR struct sdio_dev_s *dev);
   void  (*callbackenable)(FAR struct sdio_dev_s *dev,
           sdio_eventset_t eventset);
 
@@ -982,15 +945,11 @@ struct sdio_dev_s
           size_t buflen);
   int   (*dmasendsetup)(FAR struct sdio_dev_s *dev,
           FAR const uint8_t *buffer, size_t buflen);
-#ifdef CONFIG_ARCH_HAVE_SDIO_DELAYED_INVLDT
-  int   (*dmadelydinvldt)(FAR struct sdio_dev_s *dev,
-          FAR const uint8_t *buffer, size_t buflen);
-#endif
 #endif /* CONFIG_SDIO_DMA */
 };
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 #undef EXTERN

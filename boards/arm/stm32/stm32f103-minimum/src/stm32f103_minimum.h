@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32/stm32f103-minimum/src/stm32f103_minimum.h
  *
- *   Copyright (C) 2016, 2018 Gregory Nutt. All rights reserved.
- *   Author: Laurent Latil <laurent@latil.nom.fr>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -105,7 +90,8 @@
 #  undef CONFIG_STM32_SPI2
 #endif
 
-/* GPIOs **************************************************************/
+/* GPIOs ********************************************************************/
+
 /* LEDs */
 
 /* The Blue/Red pills have a different pinout to the Black pill,
@@ -131,20 +117,6 @@
 #define MIN_IRQBUTTON     BUTTON_USER1
 #define MAX_IRQBUTTON     BUTTON_USER2
 #define NUM_IRQBUTTONS    (BUTTON_USER1 - BUTTON_USER2 + 1)
-
-/* ZERO CROSS pin definition */
-
-#define GPIO_ZEROCROSS    (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_PORTA|GPIO_PIN0)
-
-/* Pins config to use with HC-SR04 sensor */
-
-#define GPIO_HCSR04_INT   (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_PORTA|GPIO_PIN0)
-#define GPIO_HCSR04_TRIG  (GPIO_OUTPUT|GPIO_CNF_OUTPP|GPIO_MODE_50MHz|\
-                           GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN1)
-
-/* Pin for APDS-9960 sensor */
-
-#define GPIO_APDS9960_INT (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_PORTA|GPIO_PIN0)
 
 /* SPI chip selects */
 
@@ -178,7 +150,7 @@
 #define STM32_LCD_CD      (GPIO_OUTPUT|GPIO_CNF_OUTPP|GPIO_MODE_50MHz|\
                            GPIO_OUTPUT_SET|GPIO_PORTA|GPIO_PIN2)
 
-/* PWN Configuration */
+/* PWM Configuration */
 
 #define STM32F103MINIMUM_PWMTIMER   3
 #define STM32F103MINIMUM_PWMCHANNEL 3
@@ -188,15 +160,6 @@
 #define GPIO_LM75_OSINT (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_PORTA|GPIO_PIN0)
 
 /* nRF24 Configuration */
-
-/* NRF24L01 chip enable:  PB.1 */
-
-#define GPIO_NRF24L01_CE  (GPIO_OUTPUT|GPIO_CNF_OUTPP|GPIO_MODE_50MHz|\
-                           GPIO_OUTPUT_CLEAR|GPIO_PORTB|GPIO_PIN1)
-
-/* NRF24L01 IRQ line:  PA.0 */
-
-#define GPIO_NRF24L01_IRQ (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_PORTA|GPIO_PIN0)
 
 /* MCP2515 IRQ line: PB.0 */
 
@@ -219,8 +182,13 @@
 
 #define GPIO_INT1         (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_PORTA|GPIO_PIN2)
 
+/* WS2812 LEDs */
+
+#define WS2812_NLEDS 2
+#define WS2812_SPI 1
+
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
@@ -239,7 +207,7 @@
  *   Otherwise CONFIG_BOARD_LATE_INITIALIZE=y:
  *     Called from board_late_initialize().
  *
- *   Otherise, bad news:  Never called
+ *   Otherwise, bad news:  Never called
  *
  ****************************************************************************/
 
@@ -258,18 +226,6 @@ int stm32_gpio_initialize(void);
 #endif
 
 /****************************************************************************
- * Name: stm32_zerocross_initialize
- *
- * Description:
- *   Initialize and register the zero cross driver
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_ZEROCROSS
-int stm32_zerocross_initialize(void);
-#endif
-
-/****************************************************************************
  * Name: stm32_adc_setup
  *
  * Description:
@@ -282,35 +238,11 @@ int stm32_adc_setup(void);
 #endif
 
 /****************************************************************************
- * Name: stm32_apds9960initialize
- *
- * Description:
- *   Initialize APDS-9960 gesture sensor
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_APDS9960
-int stm32_apds9960initialize(FAR const char *devpath);
-#endif
-
-/****************************************************************************
- * Name: stm32_bmp180initialize
- *
- * Description:
- *   Called to configure an I2C and to register BMP180 for the stm32f4discovery
- *   board.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_BMP180
-int stm32_bmp180initialize(FAR const char *devpath);
-#endif
-
-/****************************************************************************
  * Name: stm32_spidev_initialize
  *
  * Description:
- *   Called to configure SPI chip select GPIO pins for the Hy-Mini STM32v board.
+ *   Called to configure SPI chip select GPIO pins for the Hy-Mini STM32v
+ *   board.
  *
  ****************************************************************************/
 
@@ -329,52 +261,6 @@ int stm32_mmcsd_initialize(int minor);
 #endif
 
 /****************************************************************************
- * Name: nunchuck_initialize
- *
- * Description:
- *   Initialize and register the button joystick driver
- *
- ****************************************************************************/
-
-#ifdef CONFIG_INPUT_NUNCHUCK
-int nunchuck_initialize(FAR char *devname);
-#endif
-
-/****************************************************************************
- * Name: stm32_hcsr04_initialize
- *
- * Description:
- *   Called to initialize the HC-SR04 sensor
- *
- ****************************************************************************/
-
-int stm32_hcsr04_initialize(FAR const char *devname);
-
-/****************************************************************************
- * Name: stm32_lm75initialize
- *
- * Description:
- *   Called to initialize LM75 temperature sensor
- *
- ****************************************************************************/
-
-#ifdef CONFIG_LM75_I2C
-int stm32_lm75initialize(FAR const char *devpath);
-#endif
-
-/****************************************************************************
- * Name: stm32_max6675initialize
- *
- * Description:
- *   Called to initialize MAX6675 temperature sensor
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_MAX6675
-int stm32_max6675initialize(FAR const char *devpath);
-#endif
-
-/****************************************************************************
  * Name: stm32_w25initialize
  *
  * Description:
@@ -383,18 +269,6 @@ int stm32_max6675initialize(FAR const char *devpath);
  ****************************************************************************/
 
 int stm32_w25initialize(int minor);
-
-/****************************************************************************
- * Name: stm32_qencoder_initialize
- *
- * Description:
- *   Initialize and register a qencoder
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_QENCODER
-int stm32_qencoder_initialize(FAR const char *devpath, int timer);
-#endif
 
 /****************************************************************************
  * Name: stm32_rgbled_setup
@@ -414,18 +288,6 @@ int stm32_qencoder_initialize(FAR const char *devpath, int timer);
 
 #ifdef CONFIG_RGBLED
 int stm32_rgbled_setup(void);
-#endif
-
-/****************************************************************************
- * Name: stm32_apa102init
- *
- * Description:
- *   Initialize and register the APA102 LED Strip driver
- *
- ****************************************************************************/
-
-#ifdef CONFIG_LEDS_APA102
-int stm32_apa102init(FAR const char *devpath);
 #endif
 
 /****************************************************************************
@@ -463,24 +325,6 @@ int stm32_pwm_setup(void);
 #endif
 
 /****************************************************************************
- * Name: stm32_wlinitialize
- *
- * Description:
- *   Initialize the NRF24L01 wireless module
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-#ifdef CONFIG_WL_NRF24L01
-void stm32_wlinitialize(void);
-#endif
-
-/****************************************************************************
  * Name: stm32_mfrc522initialize
  *
  * Description:
@@ -490,31 +334,6 @@ void stm32_wlinitialize(void);
 
 #ifdef CONFIG_CL_MFRC522
 int stm32_mfrc522initialize(FAR const char *devpath);
-#endif
-
-/****************************************************************************
- * Name: stm32_tone_setup
- *
- * Description:
- *   Function used to initialize a PWM and Oneshot timers to Audio Tone Generator.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_AUDIO_TONE
-int stm32_tone_setup(void);
-#endif
-
-/****************************************************************************
- * Name: stm32_veml6070initialize
- *
- * Description:
- *   Called to configure an I2C and to register VEML6070 for the stm32f103-minimum
- *   board.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SENSORS_VEML6070
-int stm32_veml6070initialize(FAR const char *devpath);
 #endif
 
 #endif /* __ASSEMBLY__ */

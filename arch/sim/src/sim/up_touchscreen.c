@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/sim/src/sim/up_touchscreen.c
  *
- *   Copyright (C) 2011-2012, 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -66,6 +51,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
 
 #ifndef CONFIG_SIM_TCNWAITERS
@@ -73,6 +59,7 @@
 #endif
 
 /* Driver support ***********************************************************/
+
 /* This format is used to construct the /dev/input[n] device driver path.  It
  * defined here so that it will be used consistently in all places.
  */
@@ -108,6 +95,7 @@ struct up_sample_s
 
 struct up_dev_s
 {
+  int eventloop;
   volatile uint8_t nwaiters;           /* Number of threads waiting for touchscreen data */
   uint8_t id;                          /* Current touch point ID */
   uint8_t minor;                       /* Minor device number */
@@ -178,24 +166,10 @@ static void up_notify(FAR struct up_dev_s *priv)
 {
   int i;
 
-  /* If there are threads waiting for read data, then signal one of them
-   * that the read data is available.
-   */
-
-  iinfo("contact=%d nwaiters=%d\n", priv->sample.contact, priv->nwaiters);
-  if (priv->nwaiters > 0)
-    {
-      /* After posting this semaphore, we need to exit because the touchscreen
-       * is no longer avaialable.
-       */
-
-      nxsem_post(&priv->waitsem);
-    }
-
-  /* If there are threads waiting on poll() for touchscreen data to become available,
-   * then wake them up now.  NOTE: we wake up all waiting threads because we
-   * do not know what they are going to do.  If they all try to read the data,
-   * then some make end up blocking after all.
+  /* If there are threads waiting on poll() for touchscreen data to become
+   * available, then wake them up now.  NOTE: we wake up all waiting threads
+   * because we do not know what they are going to do.  If they all try to
+   * read the data then some make end up blocking after all.
    */
 
   for (i = 0; i < CONFIG_SIM_TCNWAITERS; i++)
@@ -207,6 +181,20 @@ static void up_notify(FAR struct up_dev_s *priv)
           iinfo("Report events: %02x\n", fds->revents);
           nxsem_post(fds->sem);
         }
+    }
+
+  /* If there are threads waiting for read data, then signal one of them
+   * that the read data is available.
+   */
+
+  iinfo("contact=%d nwaiters=%d\n", priv->sample.contact, priv->nwaiters);
+  if (priv->nwaiters > 0)
+    {
+      /* After posting this semaphore, we need to exit because
+       * the touchscreen is no longer available.
+       */
+
+      nxsem_post(&priv->waitsem);
     }
 }
 
@@ -236,17 +224,19 @@ static int up_sample(FAR struct up_dev_s *priv,
 
       if (sample->contact == CONTACT_UP)
         {
-          /* Next.. no contract.  Increment the ID so that next contact ID will be unique */
+          /* Next.. no contract.  Increment the ID so that next contact ID
+           * will be unique
+           */
 
           priv->sample.contact = CONTACT_NONE;
           priv->id++;
         }
       else if (sample->contact == CONTACT_DOWN)
-       {
+        {
           /* First report -- next report will be a movement */
 
-         priv->sample.contact = CONTACT_MOVE;
-       }
+          priv->sample.contact = CONTACT_MOVE;
+        }
 
       priv->penchange = false;
       iinfo("penchange=%d contact=%d id=%d\n",
@@ -306,8 +296,8 @@ static int up_waitsample(FAR struct up_dev_s *priv,
         }
     }
 
-  /* Re-acquire the semaphore that manages mutually exclusive access to
-   * the device structure.  We may have to wait here.  But we have our sample.
+  /* Re-acquire the semaphore that manages mutually exclusive access to the
+   * device structure.  We may have to wait here.  But we have our sample.
    * Interrupts and pre-emption will be re-enabled while we wait.
    */
 
@@ -363,7 +353,7 @@ static ssize_t up_read(FAR struct file *filep, FAR char *buffer, size_t len)
   struct up_sample_s         sample;
   int                        ret;
 
-  iinfo("len=%d\n", len);
+  iinfo("len=%zd\n", len);
 
   DEBUGASSERT(filep);
   inode = filep->f_inode;
@@ -406,7 +396,7 @@ static ssize_t up_read(FAR struct file *filep, FAR char *buffer, size_t len)
         {
           ret = -EAGAIN;
           goto errout;
-       }
+        }
 
       /* Wait for sample data */
 
@@ -445,13 +435,15 @@ static ssize_t up_read(FAR struct file *filep, FAR char *buffer, size_t len)
     {
       /* First contact */
 
-      report->point[0].flags  = TOUCH_DOWN | TOUCH_ID_VALID | TOUCH_POS_VALID | TOUCH_PRESSURE_VALID;
+      report->point[0].flags  = TOUCH_DOWN | TOUCH_ID_VALID |
+                                TOUCH_POS_VALID | TOUCH_PRESSURE_VALID;
     }
   else /* if (sample->contact == CONTACT_MOVE) */
     {
       /* Movement of the same contact */
 
-      report->point[0].flags  = TOUCH_MOVE | TOUCH_ID_VALID | TOUCH_POS_VALID | TOUCH_PRESSURE_VALID;
+      report->point[0].flags  = TOUCH_MOVE | TOUCH_ID_VALID |
+                                TOUCH_POS_VALID | TOUCH_PRESSURE_VALID;
     }
 
   ret = SIZEOF_TOUCH_SAMPLE_S(1);
@@ -632,7 +624,7 @@ int sim_tsc_initialize(int minor)
    * priority inheritance enabled.
    */
 
-  nxsem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&priv->waitsem, SEM_PRIO_NONE);
 
   priv->minor = minor;
 
@@ -650,7 +642,7 @@ int sim_tsc_initialize(int minor)
 
   /* Enable X11 event processing from the IDLE loop */
 
-  g_eventloop = 1;
+  priv->eventloop = 1;
 
   /* And return success */
 
@@ -672,26 +664,30 @@ errout_with_priv:
  *   None
  *
  * Returned Value:
- *   None.
+ *   Return OK if success or negative value of the error.
  *
  ****************************************************************************/
 
-void sim_tsc_uninitialize(void)
+int sim_tsc_uninitialize(void)
 {
   FAR struct up_dev_s *priv = (FAR struct up_dev_s *)&g_simtouchscreen;
   char devname[DEV_NAMELEN];
-  int ret;
+  int ret = OK;
 
   /* Get exclusive access */
 
-  nxsem_wait_uninterruptible(&priv->devsem);
+  ret = nxsem_wait_uninterruptible(&priv->devsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Stop the event loop (Hmm.. the caller must be sure that there are no
    * open references to the touchscreen driver.  This might better be
    * done in close() using a reference count).
    */
 
-  g_eventloop = 0;
+  priv->eventloop = 0;
 
   /* Un-register the device */
 
@@ -708,16 +704,23 @@ void sim_tsc_uninitialize(void)
 
   nxsem_destroy(&priv->waitsem);
   nxsem_destroy(&priv->devsem);
+
+  return ret;
 }
 
 /****************************************************************************
  * Name: up_buttonevent
  ****************************************************************************/
 
-int up_buttonevent(int x, int y, int buttons)
+void up_buttonevent(int x, int y, int buttons)
 {
   FAR struct up_dev_s *priv = (FAR struct up_dev_s *)&g_simtouchscreen;
   bool                 pendown;  /* true: pen is down */
+
+  if (priv->eventloop == 0)
+    {
+      return;
+    }
 
   iinfo("x=%d y=%d buttons=%02x\n", x, y, buttons);
   iinfo("contact=%d nwaiters=%d\n", priv->sample.contact, priv->nwaiters);
@@ -730,13 +733,14 @@ int up_buttonevent(int x, int y, int buttons)
 
   if (!pendown)
     {
-      /* Ignore the pend up if the pen was already up (CONTACT_NONE == pen up and
-       * already reported.  CONTACT_UP == pen up, but not reported)
+      /* Ignore the pend up if the pen was already up
+       * (CONTACT_NONE == pen up and  already reported.
+       *  CONTACT_UP == pen up, but not reported)
        */
 
       if (priv->sample.contact == CONTACT_NONE)
         {
-          return OK;
+          return;
         }
 
       /* Not yet reported */
@@ -750,8 +754,8 @@ int up_buttonevent(int x, int y, int buttons)
       priv->sample.x = x;
       priv->sample.y = y;
 
-      /* Note the availability of new measurements */
-      /* If this is the first (acknowledged) pen down report, then report
+      /* Note the availability of new measurements:
+       * If this is the first (acknowledged) pen down report, then report
        * this as the first contact.  If contact == CONTACT_DOWN, it will be
        * set to set to CONTACT_MOVE after the contact is first sampled.
        */
@@ -772,5 +776,4 @@ int up_buttonevent(int x, int y, int buttons)
   /* Notify any waiters that new touchscreen data is available */
 
   up_notify(priv);
-  return OK;
 }

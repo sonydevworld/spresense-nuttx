@@ -1,39 +1,20 @@
 /****************************************************************************
  * drivers/sensors/mcp9844.c
- * Character driver for the MCP9844 Temperature Sensor
  *
- *   Copyright (C) 2015 DS-Automotion GmbH. All rights reserved.
- *   Author: Alexander Entinger <a.entinger@ds-automotion.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -154,7 +135,7 @@ static int mcp9844_read_u16(FAR struct mcp9844_dev_s *priv,
 
   /* Copy the content of the buffer to the location of the uint16_t pointer */
 
-  *value = (((uint16_t)(buffer[0]))<<8) + ((uint16_t)(buffer[1]));
+  *value = (((uint16_t)(buffer[0])) << 8) + ((uint16_t)(buffer[1]));
 
   sninfo("addr: %02x value: %08x ret: %d\n", regaddr, *value, ret);
   return OK;
@@ -267,8 +248,8 @@ static int mcp9844_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           uint16_t raw_temperature = 0;
           ret = mcp9844_read_u16(priv, MCP9844_TEMP_REG, &raw_temperature);
 
-          /* Convert from the proprietary sensor temperature data representation
-           * to a more user friendly version.
+          /* Convert from the proprietary sensor temperature data
+           * representation to a more user-friendly version.
            */
 
           if (ret == OK)
@@ -284,19 +265,25 @@ static int mcp9844_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
                * need to be masked out.
                */
 
-              raw_temperature &= 0x0FFF; /* 0x0FFF = 0b 0000 1111 1111 1111 */
+              raw_temperature &= 0x0fff; /* 0x0fff = 0b 0000 1111 1111 1111 */
 
-              /* The post comma temperature value is encoded in BIT3 to BIT0 */
+              /* The post comma temperature value is encoded in BIT3 to
+               * BIT0
+               */
 
-              temp_result->temp_post_comma = (uint8_t)(raw_temperature & 0x000F);
+              temp_result->temp_post_comma =
+                                  (uint8_t)(raw_temperature & 0x000f);
 
-              /* The pre comma temperature value is encoded in BIT11 to BIT4 */
+              /* The pre comma temperature value is encoded in BIT11 to
+               * BIT4
+               */
 
               temp_result->temp_pre_comma = (int8_t)(raw_temperature >> 4);
             }
           else
             {
-              snerr("ERROR: ioctl::SNIOC_READTEMP - mcp9844_read_u16 failed - no temperature retrieved\n");
+              snerr("ERROR: ioctl::SNIOC_READTEMP - mcp9844_read_u16 failed"
+                    " - no temperature retrieved\n");
             }
         }
         break;
@@ -306,7 +293,58 @@ static int mcp9844_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           ret = mcp9844_write_u16(priv, MCP9844_RESO_REG, (uint16_t)(arg));
           if (ret != OK)
             {
-              snerr("ERROR: ioctl::SNIOC_SETRESOLUTION - mcp9844_write_u16 failed - no resolution set\n");
+              snerr("ERROR: ioctl::SNIOC_SETRESOLUTION - mcp9844_write_u16"
+                  "failed - no resolution set\n");
+            }
+        }
+        break;
+
+      case SNIOC_SHUTDOWN:
+        {
+          uint16_t config_reg;
+
+          /* Perform a read-modify-write cycle on the config register */
+
+          ret = mcp9844_read_u16(priv, MCP9844_CONF_REG, &config_reg);
+          if (ret == OK)
+            {
+              config_reg |= MCP9844_CONF_REG_SHDN;
+              ret = mcp9844_write_u16(priv, MCP9844_CONF_REG, config_reg);
+              if (ret != OK)
+                {
+                  snerr("ERROR: ioctl::SNIOC_SHUTDOWN - "
+                        "mcp9844_write_u16 failed\n");
+                }
+            }
+          else
+            {
+              snerr("ERROR: ioctl::SNIOC_SHUTDOWN - "
+                    "mcp9844_read_u16 failed\n");
+            }
+        }
+        break;
+
+      case SNIOC_POWERUP:
+        {
+          uint16_t config_reg;
+
+          /* Perform a read-modify-write cycle on the config register */
+
+          ret = mcp9844_read_u16(priv, MCP9844_CONF_REG, &config_reg);
+          if (ret == OK)
+            {
+              config_reg &= ~MCP9844_CONF_REG_SHDN;
+              ret = mcp9844_write_u16(priv, MCP9844_CONF_REG, config_reg);
+              if (ret != OK)
+                {
+                  snerr("ERROR: ioctl::SNIOC_POWERUP - "
+                        "mcp9844_write_u16 failed\n");
+                }
+            }
+          else
+            {
+              snerr("ERROR: ioctl::SNIOC_POWERUP - "
+                    "mcp9844_read_u16 failed\n");
             }
         }
         break;
@@ -332,7 +370,8 @@ static int mcp9844_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  *
  * Input Parameters:
  *   devpath - The full path to the driver to register. E.g., "/dev/temp0"
- *   i2c - An instance of the I2C interface to use to communicate with MCP9844
+ *   i2c - An instance of the I2C interface to use to communicate with
+ *         MCP9844
  *   addr - The I2C address of the MCP9844.
  *
  * Returned Value:
@@ -347,7 +386,7 @@ int mcp9844_register(FAR const char *devpath, FAR struct i2c_master_s *i2c,
 
   DEBUGASSERT(i2c != NULL);
 
-  /* Initialize the LM-75 device structure */
+  /* Initialize the MCP9844 device structure */
 
   FAR struct mcp9844_dev_s *priv =
     (FAR struct mcp9844_dev_s *)kmm_malloc(sizeof(struct mcp9844_dev_s));

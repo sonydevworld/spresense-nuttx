@@ -1,36 +1,20 @@
 /****************************************************************************
  * fs/mount/fs_mount.c
  *
- *   Copyright (C) 2007-2009, 2011-2013, 2015, 2017-2019 Gregory Nutt. All
- *     rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,14 +35,6 @@
 
 #include "inode/inode.h"
 #include "driver/driver.h"
-
-/* At least one filesystem must be defined, or this file will not compile.
- * It may be desire-able to make file systems dynamically registered at
- * some time in the future, but at present, this file needs to know about
- * every configured filesystem.
- */
-
-#ifdef CONFIG_FS_READABLE
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -81,7 +57,8 @@
 
 /* These file systems require MTD drivers */
 
-#if defined(CONFIG_FS_SPIFFS) || defined(CONFIG_FS_LITTLEFS)
+#if (defined(CONFIG_FS_SPIFFS) || defined(CONFIG_FS_LITTLEFS)) && \
+    defined(CONFIG_MTD)
 #  define MDFS_SUPPORT 1
 #endif
 
@@ -90,7 +67,8 @@
 #if defined(CONFIG_FS_NXFFS) || defined(CONFIG_FS_BINFS) || \
     defined(CONFIG_FS_PROCFS) || defined(CONFIG_NFS) || \
     defined(CONFIG_FS_TMPFS) || defined(CONFIG_FS_USERFS) || \
-    defined(CONFIG_FS_CROMFS) || defined(CONFIG_FS_UNIONFS)
+    defined(CONFIG_FS_CROMFS) || defined(CONFIG_FS_UNIONFS) || \
+    defined(CONFIG_FS_HOSTFS)
 #  define NODFS_SUPPORT
 #endif
 
@@ -269,32 +247,23 @@ mount_findfs(FAR const struct fsmap_t *fstab, FAR const char *filesystemtype)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: mount
+ * Name: nx_mount
  *
  * Description:
- *   mount() attaches the filesystem specified by the 'source' block device
- *   name into the root file system at the path specified by 'target.'
+ *   nx_mount() is similar to the standard 'mount' interface except that is
+ *   not a cancellation point and it does not modify the errno variable.
+ *
+ *   nx_mount() is an internal NuttX interface and should not be called from
+ *   applications.
  *
  * Returned Value:
- *   Zero is returned on success; -1 is returned on an error and errno is
- *   set appropriately:
- *
- *   EACCES A component of a path was not searchable or mounting a read-only
- *      filesystem was attempted without giving the MS_RDONLY flag.
- *   EBUSY 'source' is already  mounted.
- *   EFAULT One of the pointer arguments points outside the user address
- *      space.
- *   EINVAL 'source' had an invalid superblock.
- *   ENODEV 'filesystemtype' not configured
- *   ENOENT A pathname was empty or had a nonexistent component.
- *   ENOMEM Could not allocate a memory to copy filenames or data into.
- *   ENOTBLK 'source' is not a block device
+ *   Zero is returned on success; a negated value is returned on any failure.
  *
  ****************************************************************************/
 
-int mount(FAR const char *source, FAR const char *target,
-          FAR const char *filesystemtype, unsigned long mountflags,
-          FAR const void *data)
+int nx_mount(FAR const char *source, FAR const char *target,
+             FAR const char *filesystemtype, unsigned long mountflags,
+             FAR const void *data)
 {
 #if defined(BDFS_SUPPORT) || defined(MDFS_SUPPORT) || defined(NODFS_SUPPORT)
 #if defined(BDFS_SUPPORT) || defined(MDFS_SUPPORT)
@@ -306,18 +275,17 @@ int mount(FAR const char *source, FAR const char *target,
   struct inode_search_s desc;
 #endif
   void *fshandle;
-  int errcode;
   int ret;
 
   /* Verify required pointer arguments */
 
   DEBUGASSERT(target && filesystemtype);
 
-  /* Find the specified filesystem.  Try the block driver file systems first */
+  /* Find the specified filesystem. Try the block driver filesystems first */
 
 #ifdef BDFS_SUPPORT
   if (source != NULL &&
-      (ret = find_blockdriver(source, mountflags, &drvr_inode)) >= 0)
+      find_blockdriver(source, mountflags, &drvr_inode) >= 0)
     {
       /* Find the block based file system */
 
@@ -327,7 +295,7 @@ int mount(FAR const char *source, FAR const char *target,
           ferr("ERROR: Failed to find block based file system %s\n",
                filesystemtype);
 
-          errcode = ENODEV;
+          ret = -ENODEV;
           goto errout_with_inode;
         }
     }
@@ -344,7 +312,7 @@ int mount(FAR const char *source, FAR const char *target,
           ferr("ERROR: Failed to find MTD based file system %s\n",
                filesystemtype);
 
-          errcode = ENODEV;
+          ret = -ENODEV;
           goto errout_with_inode;
         }
     }
@@ -359,11 +327,15 @@ int mount(FAR const char *source, FAR const char *target,
     {
       ferr("ERROR: Failed to find block driver %s\n", source);
 
-      errcode = ENOTBLK;
+      ret = -ENOTBLK;
       goto errout;
     }
 
-  inode_semtake();
+  ret = inode_semtake();
+  if (ret < 0)
+    {
+      goto errout_with_inode;
+    }
 
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
   /* Check if the inode already exists */
@@ -384,10 +356,10 @@ int mount(FAR const char *source, FAR const char *target,
        * node)?
        */
 
-      if (INODE_IS_SPECIAL(mountpt_inode))
+      if (!INODE_IS_PSEUDODIR(mountpt_inode))
         {
           ferr("ERROR: target %s exists and is a special node\n", target);
-          errcode = -ENOTDIR;
+          ret = -ENOTDIR;
           inode_release(mountpt_inode);
           goto errout_with_semaphore;
         }
@@ -416,7 +388,6 @@ int mount(FAR const char *source, FAR const char *target,
            */
 
           ferr("ERROR: Failed to reserve inode for target %s\n", target);
-          errcode = -ret;
           goto errout_with_semaphore;
         }
     }
@@ -431,7 +402,7 @@ int mount(FAR const char *source, FAR const char *target,
       /* The filesystem does not support the bind operation ??? */
 
       ferr("ERROR: Filesystem does not support bind\n");
-      errcode = EINVAL;
+      ret = -EINVAL;
       goto errout_with_mountpt;
     }
 
@@ -471,7 +442,6 @@ int mount(FAR const char *source, FAR const char *target,
         }
 #endif
 
-      errcode = -ret;
       goto errout_with_mountpt;
     }
 
@@ -518,27 +488,61 @@ errout_with_semaphore:
   RELEASE_SEARCH(&desc);
 #endif
 
-#if defined(BDFS_SUPPORT) || defined(MDFS_SUPPORT)
 errout_with_inode:
 
-#ifdef NODFS_SUPPORT
+#if defined(BDFS_SUPPORT) || defined(MDFS_SUPPORT)
   if (drvr_inode != NULL)
-#endif
     {
       inode_release(drvr_inode);
     }
 #endif
 
 errout:
-  set_errno(errcode);
-  return ERROR;
+  return ret;
 
 #else
   ferr("ERROR: No filesystems enabled\n");
-  set_errno(ENOSYS);
-  return ERROR;
+  return -ENOSYS;
 #endif /* BDFS_SUPPORT || MDFS_SUPPORT || NODFS_SUPPORT */
 }
 
-#endif /* CONFIG_FS_READABLE */
+/****************************************************************************
+ * Name: mount
+ *
+ * Description:
+ *   mount() attaches the filesystem specified by the 'source' block device
+ *   name into the root file system at the path specified by 'target.'
+ *
+ * Returned Value:
+ *   Zero is returned on success; -1 is returned on an error and errno is
+ *   set appropriately:
+ *
+ *   EACCES A component of a path was not searchable or mounting a read-only
+ *      filesystem was attempted without giving the MS_RDONLY flag.
+ *   EBUSY 'source' is already  mounted.
+ *   EFAULT One of the pointer arguments points outside the user address
+ *      space.
+ *   EINVAL 'source' had an invalid superblock.
+ *   ENODEV 'filesystemtype' not configured
+ *   ENOENT A pathname was empty or had a nonexistent component.
+ *   ENOMEM Could not allocate a memory to copy filenames or data into.
+ *   ENOTBLK 'source' is not a block device
+ *
+ ****************************************************************************/
+
+int mount(FAR const char *source, FAR const char *target,
+          FAR const char *filesystemtype, unsigned long mountflags,
+          FAR const void *data)
+{
+  int ret;
+
+  ret = nx_mount(source, target, filesystemtype, mountflags, data);
+  if (ret < 0)
+    {
+      set_errno(-ret);
+      ret = ERROR;
+    }
+
+  return ret;
+}
 

@@ -20,7 +20,7 @@ config NX_LCDDRIVER
 	---help---
 		By default, the NX graphics system uses the frame buffer driver interface
 		defined in include/nuttx/video/fb.h.  However, if LCD is support is enabled,
-		this this option is provide to select, instead, the LCD driver interface
+		this option is provided to select, instead, the LCD driver interface
 		defined in include/nuttx/lcd/lcd.h.
 
 config NX_NDISPLAYS
@@ -47,7 +47,7 @@ config NX_RAMBACKED
 	default n
 	---help---
 		If this option is selected, then windows may be optionally created
-		with a RAM frambuffer backing up the window content.  Rending into
+		with a RAM framebuffer backing up the window content.  Rending into
 		the window will result in rending into the backup framebuffer, then
 		updating the physical display from the framebuffer.
 
@@ -69,11 +69,6 @@ config NX_RAMBACKED
 		taller size.  In that case, the redraw callback will till occur.
 		It is necessary in that case to provide new graphic content for the
 		extended window area.
-
-		Redraw requests in other cases are also suppressed:  Changes to window
-		position, size, etc.  As a consequence, some manual updates will be
-		required when certain events occur (like removing a toolbar from a
-		window).
 
 		NOTE:  A significant amount of RAM, usually external SDRAM, may be
 		required to use per-window framebuffers.
@@ -107,8 +102,8 @@ config NX_SWCURSOR
 		     internal buffer.  Neither of  those are implemented.
 
 config NX_HWCURSOR
-	bool "Software cursor support"
-	depends on (FB_HWCURSOR || LCD_HWCURSOR) && EXPERIMENTAL
+	bool "Hardware cursor support"
+	depends on FB_HWCURSOR && EXPERIMENTAL
 	---help---
 		Hardware cursor support has not been implemented, hence the
 		EXPERIMENTAL dependency.
@@ -116,7 +111,7 @@ config NX_HWCURSOR
 endchoice # Cursor support
 
 config NX_HWCURSORIMAGE
-	bool "Support cursor images"
+	bool "Support hardware cursor images"
 	default n
 	depends on NX_HWCURSOR
 
@@ -148,7 +143,7 @@ config NX_WRITEONLY
 
 config NX_UPDATE
 	bool "Display update hooks"
-	default n
+	default FB_UPDATE && !NX_LCDDRIVER
 	---help---
 		Enable a callout to inform some external module that the display has
 		been updated.  This would be useful in a couple for cases.
@@ -163,8 +158,11 @@ config NX_UPDATE
 		When this feature is enabled, some external logic must provide this
 		interface:
 
-		  void nx_notify_rectangle(FAR NX_PLANEINFOTYPE *pinfo,
-		                           FAR const struct nxgl_rect_s *rect);
+		  fb_vtable_s
+		  {
+		    int (*updatearea)(FAR struct fb_vtable_s *vtable,
+		                      FAR const struct fb_area_s *area);
+		  };
 
 		That is the function that will handle the notification.  It
 		receives the rectangular region that was updated in the provided
@@ -299,7 +297,7 @@ config NXTK_BORDERWIDTH
 	int "Border Width"
 	default 4
 	---help---
-		Specifies with with of the border (in pixels) used with framed windows.
+		Specifies the width of the border (in pixels) used with framed windows.
 		The default is 4.
 
 config NXTK_DEFAULT_BORDERCOLORS
@@ -497,11 +495,11 @@ config NXSTART_EXTERNINIT
 	select LCD_EXTERNINIT if LCD && LCD_FRAMEBUFFER && NX_LCDDRIVER
 	---help---
 		Define to support external display initialization by platform-
-		specific code.  This this option is defined, then nxmu_start()
-		will call board_graphics_setup(CONFIG_NXSTART_DEVNO) to initialize
-		the graphics device.  This option is necessary if display is used
-		that cannot be initialized using the standard LCD or framebuffer
-		interfaces.
+		specific code.  If this option is defined, then nxmu_start()
+		will call board_graphics_setup(CONFIG_NXSTART_DEVNO) to
+		initialize the graphics device.  This option is necessary if
+		display is used that cannot be initialized using the standard
+		LCD or framebuffer interfaces.
 
 config NXSTART_SERVERPRIO
 	int "NX Server priority"
@@ -514,7 +512,7 @@ config NXSTART_SERVERPRIO
 
 config NXSTART_SERVERSTACK
 	int "NX Server Stack Size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		NX server thread stack size (in multi-user mode).  Default 2048
 

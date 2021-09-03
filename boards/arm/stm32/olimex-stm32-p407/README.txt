@@ -192,9 +192,9 @@ OTGFS Host
 
    Olimex STM32 P407 Configuration:
 
-     CONFIG_STM32F4DISCO_OLIMEXP407_PRIO - Priority of the USB host watier
+     CONFIG_STM32F_OLIMEXP407_PRIO - Priority of the USB host watier
        thread (default 100).
-     CONFIG_STM32F4DISCO_OLIMEXP407_STACKSIZE - Stacksize of the USB host
+     CONFIG_STM32_OLIMEXP407_STACKSIZE - Stacksize of the USB host
        waiter thread (default 1024)
 
   Class Driver Configuration
@@ -385,7 +385,7 @@ must be is one of the following.
     The STM32 free-running timer is also required.
 
   hidkbd
-  
+
      This is another NSH configuration that supports a USB HID Keyboard
      device and the HID keyboard example at apps/examples/hidkbd.
 
@@ -620,7 +620,7 @@ must be is one of the following.
 
     The transferred file will lie in the /tmp directory.
 
-    Thn on the target side:
+    Then on the target side:
 
       [on target]
       nsh sz <filename>

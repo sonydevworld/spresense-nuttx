@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/nfs/nfs_util.c
  *
- *   Copyright (C) 2012-2013, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -41,18 +26,15 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
+#include <inttypes.h>
 #include <stdint.h>
-#include <queue.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include <assert.h>
 #include <debug.h>
-
-#include <nuttx/fs/dirent.h>
 
 #include "rpc.h"
 #include "nfs.h"
@@ -104,8 +86,8 @@ static inline int nfs_pathsegment(FAR const char **path, FAR char *buffer,
         }
       else if (nbytes >= NAME_MAX)
         {
-          ferr("ERROR: File name segment is too long: %d\n", *path);
-          return EFBIG;
+          ferr("ERROR: File name segment is too long: %d\n", nbytes);
+          return -EFBIG;
         }
       else
         {
@@ -122,77 +104,25 @@ static inline int nfs_pathsegment(FAR const char **path, FAR char *buffer,
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nfs_semtake
- ****************************************************************************/
-
-void nfs_semtake(struct nfsmount *nmp)
-{
-  nxsem_wait_uninterruptible(&nmp->nm_sem);
-}
-
-/****************************************************************************
- * Name: nfs_semgive
- ****************************************************************************/
-
-void nfs_semgive(struct nfsmount *nmp)
-{
-  nxsem_post(&nmp->nm_sem);
-}
-
-/****************************************************************************
- * Name: nfs_checkmount
- *
- * Description: Check if the mountpoint is still valid.
- *
- *   The caller should hold the mountpoint semaphore
- *
- ****************************************************************************/
-
-int nfs_checkmount(struct nfsmount *nmp)
-{
-  struct nfsnode *file;
-
-  /* If the nm_mounted flag is false, then we have already handled the loss
-   * of the mount.
-   */
-
-  DEBUGASSERT(nmp);
-  if (!nmp->nm_mounted)
-    {
-      /* Make sure that this is flagged in every opened file */
-
-      for (file = nmp->nm_head; file; file = file->n_next)
-        {
-          file->n_flags &= ~NFSNODE_OPEN;
-        }
-
-      return -ENODEV;
-    }
-
-  return 0;
-}
-
-/****************************************************************************
  * Name: nfs_request
  *
  * Description:
- *   Perform the NFS request. On successful receipt, it verifies the NFS level of the
- *   returned values.
+ *   Perform the NFS request. On successful receipt, it verifies the NFS
+ *   level of the returned values.
  *
  * Returned Value:
- *   Zero on success; a positive errno value on failure.
+ *   Zero on success; a negative errno value on failure.
  *
  ****************************************************************************/
 
-int nfs_request(struct nfsmount *nmp, int procnum,
+int nfs_request(FAR struct nfsmount *nmp, int procnum,
                 FAR void *request, size_t reqlen,
                 FAR void *response, size_t resplen)
 {
-  struct rpcclnt *clnt = nmp->nm_rpcclnt;
+  FAR struct rpcclnt *clnt = nmp->nm_rpcclnt;
   struct nfs_reply_header replyh;
   int error;
 
-tryagain:
   error = rpcclnt_request(clnt, procnum, NFS_PROG, NFS_VER3,
                           request, reqlen, response, resplen);
   if (error != 0)
@@ -205,31 +135,16 @@ tryagain:
 
   if (replyh.nfs_status != 0)
     {
-      if (fxdr_unsigned(uint32_t, replyh.nfs_status) > 32)
-        {
-          error = EOPNOTSUPP;
-        }
-      else
-        {
-          /* NFS_ERRORS are the same as NuttX errno values */
+      /* NFS_ERRORS are the same as NuttX errno values */
 
-          error = fxdr_unsigned(uint32_t, replyh.nfs_status);
-        }
-
-      return error;
+      return -fxdr_unsigned(uint32_t, replyh.nfs_status);
     }
 
-  if (replyh.rpc_verfi.authtype != 0)
+  if (replyh.rh.rpc_verfi.authtype != 0)
     {
-      error = fxdr_unsigned(int, replyh.rpc_verfi.authtype);
-
-      if (error == EAGAIN)
-        {
-          error = 0;
-          goto tryagain;
-        }
-
-      ferr("ERROR: NFS error %d from server\n", error);
+      error = -EOPNOTSUPP;
+      ferr("ERROR: NFS authtype %d from server\n",
+           fxdr_unsigned(int, replyh.rh.rpc_verfi.authtype));
       return error;
     }
 
@@ -251,7 +166,7 @@ tryagain:
  *
  ****************************************************************************/
 
-int nfs_lookup(struct nfsmount *nmp, FAR const char *filename,
+int nfs_lookup(FAR struct nfsmount *nmp, FAR const char *filename,
                FAR struct file_handle *fhandle,
                FAR struct nfs_fattr *obj_attributes,
                FAR struct nfs_fattr *dir_attributes)
@@ -270,7 +185,7 @@ int nfs_lookup(struct nfsmount *nmp, FAR const char *filename,
   if (namelen > NAME_MAX)
     {
       ferr("ERROR: Length of the string is too long: %d\n", namelen);
-      return E2BIG;
+      return -E2BIG;
     }
 
   /* Initialize the request */
@@ -284,7 +199,7 @@ int nfs_lookup(struct nfsmount *nmp, FAR const char *filename,
   reqlen += sizeof(uint32_t);
 
   memcpy(ptr, &fhandle->handle, fhandle->length);
-  reqlen += fhandle->length;
+  reqlen += uint32_alignup(fhandle->length);
   ptr    += uint32_increment(fhandle->length);
 
   /* Copy the variable-length file name */
@@ -313,7 +228,8 @@ int nfs_lookup(struct nfsmount *nmp, FAR const char *filename,
    * may differ in size whereas struct rpc_reply_lookup uses a fixed size.
    */
 
-  ptr = (FAR uint32_t *)&((FAR struct rpc_reply_lookup *)nmp->nm_iobuffer)->lookup;
+  ptr = (FAR uint32_t *)
+    &((FAR struct rpc_reply_lookup *)nmp->nm_iobuffer)->lookup;
 
   /* Get the length of the file handle */
 
@@ -321,8 +237,8 @@ int nfs_lookup(struct nfsmount *nmp, FAR const char *filename,
   value = fxdr_unsigned(uint32_t, value);
   if (value > NFSX_V3FHMAX)
     {
-      ferr("ERROR: Bad file handle length: %d\n", value);
-      return EIO;
+      ferr("ERROR: Bad file handle length: %" PRId32 "\n", value);
+      return -EIO;
     }
 
   /* Return the file handle */
@@ -367,11 +283,11 @@ int nfs_lookup(struct nfsmount *nmp, FAR const char *filename,
  *   return the handle of the directory entry of the requested object.
  *
  * Returned Value:
- *   Zero on success; a positive errno value on failure.
+ *   Zero on success; a negative errno value on failure.
  *
  ****************************************************************************/
 
-int nfs_findnode(struct nfsmount *nmp, FAR const char *relpath,
+int nfs_findnode(FAR struct nfsmount *nmp, FAR const char *relpath,
                  FAR struct file_handle *fhandle,
                  FAR struct nfs_fattr *obj_attributes,
                  FAR struct nfs_fattr *dir_attributes)
@@ -385,13 +301,13 @@ int nfs_findnode(struct nfsmount *nmp, FAR const char *relpath,
   /* Start with the file handle of the root directory.  */
 
   fhandle->length = nmp->nm_fhsize;
-  memcpy(&fhandle->handle, &nmp->nm_fh, nmp->nm_fhsize);
+  memcpy(&fhandle->handle, nmp->nm_fh, nmp->nm_fhsize);
 
   /* If no path was provided, then the root directory must be exactly what
    * the caller is looking for.
    */
 
-  if (*path == '\0' || strlen(path) == 0)
+  if (*path == '\0')
     {
       /* Return the root directory attributes */
 
@@ -408,8 +324,8 @@ int nfs_findnode(struct nfsmount *nmp, FAR const char *relpath,
       return OK;
     }
 
-  /* This is not the root directory. Loop until the directory entry corresponding
-   * to the path is found.
+  /* This is not the root directory. Loop until the directory entry
+   * corresponding to the path is found.
    */
 
   for (; ; )
@@ -428,7 +344,8 @@ int nfs_findnode(struct nfsmount *nmp, FAR const char *relpath,
 
       /* Look-up this path segment */
 
-      error = nfs_lookup(nmp, buffer, fhandle, obj_attributes, dir_attributes);
+      error = nfs_lookup(nmp, buffer, fhandle, obj_attributes,
+                         dir_attributes);
       if (error != OK)
         {
           ferr("ERROR: nfs_lookup of \"%s\" failed at \"%s\": %d\n",
@@ -444,7 +361,8 @@ int nfs_findnode(struct nfsmount *nmp, FAR const char *relpath,
       if (!terminator)
         {
           /* Return success meaning that the description the matching
-           * directory entry is in fhandle, obj_attributes, and dir_attributes.
+           * directory entry is in fhandle, obj_attributes, and
+           * dir_attributes.
            */
 
           return OK;
@@ -460,9 +378,10 @@ int nfs_findnode(struct nfsmount *nmp, FAR const char *relpath,
         {
           /* Ooops.. we found something else */
 
-          ferr("ERROR: Intermediate segment \"%s\" of \'%s\" is not a directory\n",
-               buffer, path);
-          return ENOTDIR;
+          ferr("ERROR: Intermediate segment \"%s\" of \'%s\" is not a "
+               "directory\n",
+               buffer, relpath);
+          return -ENOTDIR;
         }
     }
 }
@@ -476,11 +395,11 @@ int nfs_findnode(struct nfsmount *nmp, FAR const char *relpath,
  *   object.
  *
  * Returned Value:
- *   Zero on success; a positive errno value on failure.
+ *   Zero on success; a negative errno value on failure.
  *
  ****************************************************************************/
 
-int nfs_finddir(struct nfsmount *nmp, FAR const char *relpath,
+int nfs_finddir(FAR struct nfsmount *nmp, FAR const char *relpath,
                 FAR struct file_handle *fhandle,
                 FAR struct nfs_fattr *attributes, FAR char *filename)
 {
@@ -491,17 +410,15 @@ int nfs_finddir(struct nfsmount *nmp, FAR const char *relpath,
 
   /* Verify that a path was provided */
 
-  if (*path == '\0' || strlen(path) == 0)
+  if (*path == '\0')
     {
-      /* Return the root directory attributes */
-
-      return ENOENT;
+      return -ENOENT;
     }
 
   /* Start with the file handle of the root directory.  */
 
   fhandle->length = nmp->nm_fhsize;
-  memcpy(&fhandle->handle, &nmp->nm_fh, nmp->nm_fhsize);
+  memcpy(&fhandle->handle, nmp->nm_fh, nmp->nm_fhsize);
   memcpy(attributes, &nmp->nm_fattr, sizeof(struct nfs_fattr));
 
   /* Loop until the directory entry containing the path is found. */
@@ -551,9 +468,10 @@ int nfs_finddir(struct nfsmount *nmp, FAR const char *relpath,
         {
           /* Ooops.. we found something else */
 
-          ferr("ERROR: Intermediate segment \"%s\" of \'%s\" is not a directory\n",
-               filename, path);
-          return ENOTDIR;
+          ferr("ERROR: Intermediate segment \"%s\" of \'%s\" is not a "
+               "directory\n",
+               filename, relpath);
+          return -ENOTDIR;
         }
     }
 }
@@ -573,11 +491,16 @@ void nfs_attrupdate(FAR struct nfsnode *np, FAR struct nfs_fattr *attributes)
 {
   struct timespec ts;
 
-  /* Save a few of the files attribute values in file structure (host order) */
+  /* Save a few of the files attribute values in file structure (host
+   * order).
+   */
 
   np->n_type   = fxdr_unsigned(uint8_t, attributes->fa_type);
   np->n_mode   = fxdr_unsigned(uint16_t, attributes->fa_mode);
   np->n_size   = fxdr_hyper(&attributes->fa_size);
+
+  fxdr_nfsv3time(&attributes->fa_atime, &ts);
+  np->n_atime  = ts.tv_sec;
 
   fxdr_nfsv3time(&attributes->fa_mtime, &ts);
   np->n_mtime  = ts.tv_sec;

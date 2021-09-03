@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/lpc43xx/lpc43_allocateheap.c
  *
- *   Copyright (C) 2012-2013, 2015-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,8 +38,8 @@
 
 #include "mpu.h"
 #include "chip.h"
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "lpc43_mpuinit.h"
 #include "lpc43_emacram.h"
@@ -126,12 +111,12 @@
  * Configuration A:
  *   Program memory     = FLASH
  *   Data memory        = Local RAM Bank 0
- *   Additional regions = Local RAM Bank 1 + AHB SRAM (exluding DMA buffers)
+ *   Additional regions = Local RAM Bank 1 + AHB SRAM (excluding DMA buffers)
  *
  * Configuration B:
  *   Program memory     = Local RAM Bank 0
  *   Data memory        = Local RAM Bank 1
- *   Additional regions = AHB SRAM (exluding DMA buffers)
+ *   Additional regions = AHB SRAM (excluding DMA buffers)
  *
  * This file supports only memory configuration A.
  *
@@ -188,13 +173,16 @@
 #ifndef CONFIG_LPC43_BOOT_SRAM
 
 /* Configuration A */
+
 /* CONFIG_RAM_START should be set to the base of local SRAM, Bank 0. */
 
 #  if CONFIG_RAM_START != LPC43_LOCSRAM_BANK0_BASE
 #    error "CONFIG_RAM_START must be set to the base address of RAM bank 0"
 #  endif
 
-/* The configured RAM size should be equal to the size of local SRAM Bank 0. */
+/* The configured RAM size should be equal to the size of local SRAM Bank
+ * 0.
+ */
 
 #  if CONFIG_RAM_SIZE != LPC43_LOCSRAM_BANK0_SIZE
 #    error "CONFIG_RAM_SIZE must be set to size of local SRAM Bank 0"
@@ -213,13 +201,16 @@
 #else /* CONFIG_LPC43_BOOT_SRAM */
 
 /* Configuration B */
+
 /* CONFIG_RAM_START should be set to the base of local SRAM, Bank 1. */
 
 #  if CONFIG_RAM_START != LPC43_LOCSRAM_BANK1_BASE
 #    error "CONFIG_RAM_START must be set to the base address of RAM bank 1"
 #  endif
 
-/* The configured RAM size should be equal to the size of local SRAM Bank 1. */
+/* The configured RAM size should be equal to the size of local SRAM Bank
+ * 1.
+ */
 
 #  if CONFIG_RAM_SIZE != LPC43_LOCSRAM_BANK1_SIZE
 #    error "CONFIG_RAM_SIZE must be set to size of local SRAM Bank 1"
@@ -325,7 +316,7 @@
  ****************************************************************************/
 
 /* _sbss is the start of the BSS region (see the linker script) _ebss is the
- * end of the BSS regsion (see the linker script). The idle task stack starts
+ * end of the BSS region (see the linker script). The idle task stack starts
  * at the end of BSS and is of size CONFIG_IDLETHREAD_STACKSIZE.  The IDLE
  * thread is the thread that the system boots on and, eventually, becomes the
  * idle, do nothing task that runs only when there is nothing else to run.
@@ -334,7 +325,8 @@
  * aligned).
  */
 
-const uint32_t g_idle_topstack = (uint32_t)&_ebss + CONFIG_IDLETHREAD_STACKSIZE;
+const uintptr_t g_idle_topstack = (uintptr_t)&_ebss +
+    CONFIG_IDLETHREAD_STACKSIZE;
 
 #ifdef MM_HAVE_REGION
 static uint8_t g_mem_region_next = 0;
@@ -408,7 +400,8 @@ static void mem_addregion(FAR void *region_start, size_t region_size)
  *
  *     Kernel .data region.  Size determined at link time.
  *     Kernel .bss  region  Size determined at link time.
- *     Kernel IDLE thread stack.  Size determined by CONFIG_IDLETHREAD_STACKSIZE.
+ *     Kernel IDLE thread stack.  Size determined by
+ *     CONFIG_IDLETHREAD_STACKSIZE.
  *     Padding for alignment
  *     User .data region.  Size determined at link time.
  *     User .bss region  Size determined at link time.
@@ -425,7 +418,8 @@ void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
    * of CONFIG_MM_KERNEL_HEAPSIZE (subject to alignment).
    */
 
-  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_MM_KERNEL_HEAPSIZE;
+  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend +
+                               CONFIG_MM_KERNEL_HEAPSIZE;
   size_t    usize = CONFIG_RAM_END - ubase;
   int       log2;
 
@@ -492,14 +486,15 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
    * of CONFIG_MM_KERNEL_HEAPSIZE (subject to alignment).
    */
 
-  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_MM_KERNEL_HEAPSIZE;
+  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend +
+                               CONFIG_MM_KERNEL_HEAPSIZE;
   size_t    usize = CONFIG_RAM_END - ubase;
   int       log2;
 
-  DEBUGASSERT(ubase < (uintptr_t)SRAM1_END);
+  DEBUGASSERT(ubase < (uintptr_t)CONFIG_RAM_END);
 
   /* Adjust that size to account for MPU alignment requirements.
-   * NOTE that there is an implicit assumption that the SRAM1_END
+   * NOTE that there is an implicit assumption that the CONFIG_RAM_END
    * is aligned to the MPU requirement.
    */
 
@@ -519,7 +514,7 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
 #endif
 
 /****************************************************************************
- * Name: up_addregion
+ * Name: arm_addregion
  *
  * Description:
  *   Memory may be added in non-contiguous chunks.  Additional chunks are
@@ -528,7 +523,7 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
  ****************************************************************************/
 
 #if CONFIG_MM_REGIONS > 1
-void up_addregion(void)
+void arm_addregion(void)
 {
 #ifdef MM_HAVE_REGION
   /* start from second region */
@@ -538,36 +533,42 @@ void up_addregion(void)
 #ifdef MM_USE_LOCSRAM_BANK1
   /* Add the SRAM to the user heap */
 
-  mem_addregion((FAR void *)LPC43_LOCSRAM_BANK1_BASE, LPC43_LOCSRAM_BANK1_SIZE);
+  mem_addregion((FAR void *)LPC43_LOCSRAM_BANK1_BASE,
+                            LPC43_LOCSRAM_BANK1_SIZE);
 
 #if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
   /* Allow user-mode access to the SRAM heap */
 
-  lpc43_mpu_uheap((uintptr_t)LPC43_LOCSRAM_BANK1_BASE, LPC43_LOCSRAM_BANK1_SIZE);
+  lpc43_mpu_uheap((uintptr_t)LPC43_LOCSRAM_BANK1_BASE,
+                             LPC43_LOCSRAM_BANK1_SIZE);
 #endif
 #endif
 
 #ifdef MM_USE_AHBSRAM_BANK0
   /* Add the SRAM to the user heap */
 
-  mem_addregion((FAR void *)LPC43_AHBSRAM_BANK0_BASE, LPC43_AHBSRAM_BANK0_SIZE);
+  mem_addregion((FAR void *)LPC43_AHBSRAM_BANK0_BASE,
+                            LPC43_AHBSRAM_BANK0_SIZE);
 
 #if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
   /* Allow user-mode access to the SRAM heap */
 
-  lpc43_mpu_uheap((uintptr_t)LPC43_AHBSRAM_BANK0_BASE, LPC43_AHBSRAM_BANK0_SIZE);
+  lpc43_mpu_uheap((uintptr_t)LPC43_AHBSRAM_BANK0_BASE,
+                             LPC43_AHBSRAM_BANK0_SIZE);
 #endif
 #endif
 
 #ifdef MM_USE_AHBSRAM_BANK1
   /* Add the SRAM to the user heap */
 
-  mem_addregion((FAR void *)LPC43_AHBSRAM_BANK1_BASE, LPC43_AHBSRAM_BANK1_SIZE);
+  mem_addregion((FAR void *)LPC43_AHBSRAM_BANK1_BASE,
+                            LPC43_AHBSRAM_BANK1_SIZE);
 
 #if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
   /* Allow user-mode access to the SRAM heap */
 
-  lpc43_mpu_uheap((uintptr_t)LPC43_AHBSRAM_BANK1_BASE, LPC43_AHBSRAM_BANK1_SIZE);
+  lpc43_mpu_uheap((uintptr_t)LPC43_AHBSRAM_BANK1_BASE,
+                             LPC43_AHBSRAM_BANK1_SIZE);
 #endif
 #endif
 

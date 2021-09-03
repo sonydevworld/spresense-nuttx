@@ -2,35 +2,20 @@
  * wireless/bluetooth/bt_queue.c
  * Inter-thread buffer queue management
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -94,10 +79,9 @@ struct bt_bufmsg_s
  ****************************************************************************/
 
 int bt_queue_open(FAR const char *name, int oflags, int nmsgs,
-                  FAR mqd_t *mqd)
+                  FAR struct file *mqd)
 {
   struct mq_attr attr;
-  mqd_t newmqd;
   int ret = OK;
 
   /* Initialize the message queue attributes */
@@ -106,17 +90,12 @@ int bt_queue_open(FAR const char *name, int oflags, int nmsgs,
   attr.mq_msgsize = BT_MSGSIZE;
   attr.mq_flags   = BT_MSGFLAGS;
 
-  newmqd = mq_open(name, oflags, 0666, &attr);
-  if (newmqd == (mqd_t)-1)
+  ret = file_mq_open(mqd, name, oflags, 0666, &attr);
+  if (ret < 0)
     {
-      /* REVISIT: mq_open() modifies the errno value */
-
-      ret = -get_errno();
-      gerr("ERROR: mq_open(%s) failed: %d\n", name, ret);
-      newmqd = NULL;
+      gerr("ERROR: file_mq_open(%s) failed: %d\n", name, ret);
     }
 
-  *mqd = newmqd;
   return ret;
 }
 
@@ -127,7 +106,8 @@ int bt_queue_open(FAR const char *name, int oflags, int nmsgs,
  *   Block until the next buffer is received on the queue.
  *
  * Input Parameters:
- *   mqd - The message queue descriptor previously returned by bt_open_*queue.
+ *   mqd - The message queue descriptor previously returned by
+ *         bt_open_*queue.
  *   buf - The location in which to return the received buffer.
  *
  * Returned Value:
@@ -136,7 +116,7 @@ int bt_queue_open(FAR const char *name, int oflags, int nmsgs,
  *
  ****************************************************************************/
 
-int bt_queue_receive(mqd_t mqd, FAR struct bt_buf_s **buf)
+int bt_queue_receive(struct file *mqd, FAR struct bt_buf_s **buf)
 {
   union
   {
@@ -152,10 +132,10 @@ int bt_queue_receive(mqd_t mqd, FAR struct bt_buf_s **buf)
   /* Wait for the next message */
 
   u.msg.buf = NULL;
-  msgsize = nxmq_receive(mqd, u.msgbuf, BT_MSGSIZE, &priority);
+  msgsize = file_mq_receive(mqd, u.msgbuf, BT_MSGSIZE, &priority);
   if (msgsize < 0)
     {
-      wlerr("ERROR: nxmq_receive() failed: %ld\n", (long)msgsize);
+      wlerr("ERROR: file_mq_receive() failed: %ld\n", (long)msgsize);
       return (int)msgsize;
     }
 
@@ -192,7 +172,9 @@ int bt_queue_receive(mqd_t mqd, FAR struct bt_buf_s **buf)
  *
  ****************************************************************************/
 
-int bt_queue_send(mqd_t mqd, FAR struct bt_buf_s *buf, unsigned int priority)
+int bt_queue_send(struct file *mqd,
+                  FAR struct bt_buf_s *buf,
+                  unsigned int priority)
 {
   struct bt_bufmsg_s msg;
   int ret;
@@ -202,11 +184,11 @@ int bt_queue_send(mqd_t mqd, FAR struct bt_buf_s *buf, unsigned int priority)
   /* Format and send the buffer message */
 
   msg.buf = buf;
-  ret = nxmq_send(mqd, (FAR const char *)&msg, sizeof(struct bt_bufmsg_s),
-                  priority);
+  ret = file_mq_send(mqd, (FAR const char *)&msg,
+                     sizeof(struct bt_bufmsg_s), priority);
   if (ret < 0)
     {
-      wlerr("ERROR: mq_send() failed: %d\n", ret);
+      wlerr("ERROR: file_mq_send() failed: %d\n", ret);
     }
 
   return ret;

@@ -1,5 +1,5 @@
 /****************************************************************************
- * include/nuttx/sensors/lsm303agr.h [from the IKS01A2 MEMS board STM]
+ * include/nuttx/sensors/lsm303agr.h
  *
  *   Copyright (C) 2016 Omni Hoverboards Inc. All rights reserved.
  *   Author: Paul Alexander Patience <paul-a.patience@polymtl.ca>
@@ -55,11 +55,11 @@
 
 /* Accelerometer addresses */
 
-#define LSM303AGRACCELERO_ADDR  (0x32>>1)
+#define LSM303AGRACCELERO_ADDR  (0x32 >> 1)
 
 /* Magnetometer addresses */
 
-#define LSM303AGRMAGNETO_ADDR  (0x3C>>1) /* 7-bit */
+#define LSM303AGRMAGNETO_ADDR  (0x3C >> 1) /* 7-bit */
 
 /* Register Addresses *******************************************************/
 
@@ -93,7 +93,7 @@
 #define LSM303AGR_OUT_Z_L_A                               0x2C
 #define LSM303AGR_OUT_Z_H_A                               0x2D
 
-#define LSM303AGR_OUTX_L_A_SHIFT                          0 
+#define LSM303AGR_OUTX_L_A_SHIFT                          0
 #define LSM303AGR_OUTX_L_A_MASK                           (255 << LSM303AGR_OUTX_L_A_SHIFT)
 
 #define LSM303AGR_FIFO_CTRL_REG_A                         0x2E
@@ -142,7 +142,7 @@
 #define LSM303AGR_OUTZ_L_REG_M                            0x6C
 #define LSM303AGR_OUTZ_H_REG_M                            0x6D
 
-#define LSM303AGR_OUTX_L_M_SHIFT                          0 
+#define LSM303AGR_OUTX_L_M_SHIFT                          0
 #define LSM303AGR_OUTX_L_M_MASK                           (255 << LSM303AGR_OUTX_L_M_SHIFT)
 
 /****************************************************************************
@@ -166,7 +166,7 @@ struct lsm303agr_sensor_data_s
 };
 
 /****************************************************************************
- * Private Types
+ * Public Types
  ****************************************************************************/
 
 struct lsm303agr_dev_s;
@@ -183,12 +183,12 @@ struct lsm303agr_ops_s
 
 struct lsm303agr_dev_s
 {
-  FAR struct i2c_master_s          *i2c; /* I2C interface */
+  FAR struct i2c_master_s          *i2c;  /* I2C interface */
   uint8_t                           addr; /* I2C address */
 
   FAR const struct lsm303agr_ops_s *ops;
 
-  uint8_t                           datareg; /* Output data register of X low byte */
+  uint8_t                           datareg;     /* Output data register of X low byte */
   struct lsm303agr_sensor_data_s    sensor_data; /* Sensor data container */
 };
 
@@ -218,7 +218,7 @@ extern "C"
  ****************************************************************************/
 
 int lsm303agr_sensor_register(FAR const char *devpath,
-                              FAR struct i2c_master_s *i2c,uint8_t addr);
+                              FAR struct i2c_master_s *i2c, uint8_t addr);
 
 #ifdef __cplusplus
 }

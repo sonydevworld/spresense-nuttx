@@ -1,36 +1,20 @@
 /****************************************************************************
  * sched/task/task_exit.c
  *
- *   Copyright (C) 2008-2009, 2012-2014, 2016, 2018 Gregory Nutt. All
- *     rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,6 +27,10 @@
 #include  <sched.h>
 
 #include  "sched/sched.h"
+
+#ifdef CONFIG_SMP
+#  include "irq/irq.h"
+#endif
 
 #include "signal/signal.h"
 #include "task/task.h"
@@ -64,9 +52,9 @@
  *   never be called from normal user code, but only from the architecture-
  *   specific implementation of exit.
  *
- *   Threads/tasks could also be terminated via pthread_cancel, task_delete(),
- *   and task_restart().  In the last two cases, the task will be terminated
- *   as though exit() were called.
+ *   Threads/tasks could also be terminated via pthread_cancel,
+ *   task_delete(), and task_restart().  In the last two cases, the
+ *   task will be terminated as though exit() were called.
  *
  * Input Parameters:
  *   None
@@ -100,15 +88,28 @@ int nxtask_exit(void)
   dtcb = this_task();
 #endif
 
-  /* Remove the TCB of the current task from the ready-to-run list.  A context
-   * switch will definitely be necessary -- that must be done by the
-   * architecture-specific logic.
+  /* Update scheduler parameters */
+
+  nxsched_suspend_scheduler(dtcb);
+
+  /* Remove the TCB of the current task from the ready-to-run list.  A
+   * context switch will definitely be necessary -- that must be done
+   * by the architecture-specific logic.
    *
-   * sched_removereadytorun will mark the task at the head of the ready-to-run
-   * with state == TSTATE_TASK_RUNNING
+   * nxsched_remove_readytorun will mark the task at the head of the
+   * ready-to-run with state == TSTATE_TASK_RUNNING
    */
 
-  sched_removereadytorun(dtcb);
+  nxsched_remove_readytorun(dtcb);
+
+  /* If there are any pending tasks, then add them to the ready-to-run
+   * task list now
+   */
+
+  if (g_pendingtasks.head != NULL)
+    {
+      nxsched_merge_pending();
+    }
 
   /* Get the new task at the head of the ready to run list */
 
@@ -118,18 +119,16 @@ int nxtask_exit(void)
   rtcb = this_task();
 #endif
 
-#ifdef CONFIG_SMP
-  /* Because clearing the global IRQ control in sched_removereadytorun()
-   * was moved to sched_resume_scheduler(). So call the API here.
+  /* NOTE: nxsched_resume_scheduler() was moved to up_exit()
+   * because the global IRQ control for SMP should be deferred until
+   * context switching, otherwise, the context switching would be done
+   * without a critical section
    */
-
-  sched_resume_scheduler(rtcb);
-#endif
 
   /* We are now in a bad state -- the head of the ready to run task list
    * does not correspond to the thread that is running.  Disabling pre-
    * emption on this TCB and marking the new ready-to-run task as not
-   * running (see, for example, get_errno_ptr()).
+   * running.
    *
    * We disable pre-emption here by directly incrementing the lockcount
    * (vs. calling sched_lock()).
@@ -147,13 +146,31 @@ int nxtask_exit(void)
   rtcb->task_state = TSTATE_TASK_READYTORUN;
 
   /* Move the TCB to the specified blocked task list and delete it.  Calling
-   * nxtask_terminate with non-blocking true will suppress atexit() and on-exit()
-   * calls and will cause buffered I/O to fail to be flushed.  The former
-   * is required _exit() behavior; the latter is optional _exit() behavior.
+   * nxtask_terminate with non-blocking true will suppress atexit() and
+   * on-exit() calls and will cause buffered I/O to fail to be flushed.  The
+   * former is required _exit() behavior; the latter is optional _exit()
+   * behavior.
    */
 
-  sched_addblocked(dtcb, TSTATE_TASK_INACTIVE);
+  nxsched_add_blocked(dtcb, TSTATE_TASK_INACTIVE);
+
+#ifdef CONFIG_SMP
+  /* NOTE:
+   * During nxtask_terminate(), enter_critical_section() will be called
+   * to deallocate tcb. However, this would acquire g_cpu_irqlock if
+   * rtcb->irqcount = 0, event though we are in critical section.
+   * To prevent from acquiring, increment rtcb->irqcount here.
+   */
+
+  rtcb->irqcount++;
+#endif
+
   ret = nxtask_terminate(dtcb->pid, true);
+
+#ifdef CONFIG_SMP
+  rtcb->irqcount--;
+#endif
+
   rtcb->task_state = TSTATE_TASK_RUNNING;
 
   /* Decrement the lockcount on rctb. */
@@ -169,15 +186,6 @@ int nxtask_exit(void)
                   &g_cpu_schedlock);
     }
 #endif
-
-  /* If there are any pending tasks, then add them to the ready-to-run
-   * task list now
-   */
-
-  if (g_pendingtasks.head != NULL)
-    {
-      sched_mergepending();
-    }
 
   return ret;
 }

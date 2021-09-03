@@ -437,7 +437,7 @@ Toolchains
 
   Another option is the mips-elf toolchain used with the Pinguino project.  This
   is a relatively current mips-elf GCC and should provide free C++ support as
-  well. This toolchain can be downloded from the Pinguino website:
+  well. This toolchain can be downloaded from the Pinguino website:
   http://wiki.pinguino.cc/index.php/Main_Page#Download .
 
   See also boards/mirtoo/README.txt.  There is an experimental (untested)
@@ -478,7 +478,7 @@ Toolchains
      but you might easily find some new path problems.  If so, check out 'cygpath -w'
 
   2. Windows toolchains cannot follow Cygwin symbolic links.  Many symbolic links
-     are used in Nuttx (e.g., include/arch).  The make system works around these
+     are used in NuttX (e.g., include/arch).  The make system works around these
      problems for the Windows tools by copying directories instead of linking them.
      But this can also cause some confusion for you:  For example, you may edit
      a file in a "linked" directory and find that your changes had no effect.
@@ -546,29 +546,31 @@ Creating Compatible NuttX HEX files
     file to contain physical addresses.  But the nuttx.hex file generated from the
     top-level make will have address in the KSEG0 and KSEG1 regions.
 
-  tools/pic32mx/mkpichex:
+  tools/pic32/mkpichex:
   ----------------------
 
-    There is a simple tool in the NuttX tools/pic32mx directory that can be
+    There is a simple tool in the NuttX tools/pic32 directory that can be
     used to solve both issues with the nuttx.hex file.  But, first, you must
     build the tool:
 
-      cd tools/pic32mx
-      make
+      cd tools/pic32
+      make -f Makefile.host
 
-    Now you will have an excecutable file call mkpichex (or mkpichex.exe on
+    Now you will have an executable file call mkpichex (or mkpichex.exe on
     Cygwin).  This program will take the nutt.hex file as an input, it will
     convert all of the KSEG0 and KSEG1 addresses to physical address, and
     it will write the modified file, replacing the original nuttx.hex.
 
     To use this file, you need to do the following things:
 
-      export PATH=???  # Add the NuttX tools/pic32mx directory to your
+      export PATH=???  # Add the NuttX tools/pic32 directory to your
                        # PATH variable
       make             # Build nuttx and nuttx.hex
       mkpichex $PWD    #  Convert addresses in nuttx.hex.  $PWD is the path
                        # to the top-level build directory.  It is the only
                        # required input to mkpichex.
+
+      This procedure is automatically performed at the end of a build.
 
 Serial Console: MEB
 ===================
@@ -577,7 +579,7 @@ Serial Console: MEB
    gotten any serial UART output to work from the MEB.]]
 
   A serial console is not required to use NuttX.  However, all of the
-  Nuttx example code in the apps/examples assumes that you have a
+  NuttX example code in the apps/examples assumes that you have a
   serial console.  The Ethernet Starter Kit(even with the MEB) does not
   have any RS-232 connector needed to drive the serial console.
 
@@ -973,7 +975,7 @@ PIC32MX specific PHY/Ethernet device driver settings
     CONFIG_ETH0_PHY_KS8721 - Selects the Micrel KS8721 PHY
     CONFIG_ETH0_PHY_DP83848C - Selects the National Semiconductor DP83848C PHY
     CONFIG_ETH0_PHY_LAN8720 - Selects the SMSC LAN8720 PHY
-    CONFIG_PIC32MX_PHY_AUTONEG - Enable auto-negotion
+    CONFIG_PIC32MX_PHY_AUTONEG - Enable auto-negotiation
     CONFIG_PIC32MX_PHY_SPEED100 - Select 100Mbit vs. 10Mbit speed.
     CONFIG_PIC32MX_PHY_FDUPLEX - Select full (vs. half) duplex
     CONFIG_PIC32MX_ETH_NTXDESC - Configured number of Tx descriptors. Default: 2
@@ -1073,13 +1075,13 @@ Where <subdir> is one of the following:
           available.
 
        b. This example can support an FTP client.  In order to build in FTP client
-          support simply add the following to the Nuttx configuration file:
+          support simply add the following to the NuttX configuration file:
 
          CONFIG_NETUTILS_FTPC=y
          CONFIG_EXAMPLES_FTPC=y
 
        c. This example can support an FTP server.  In order to build in FTP server
-          support simply add the following to the Nuttx configuration file:
+          support simply add the following to the NuttX configuration file:
 
          CONFIG_NETUTILS_FTPD=y
          CONFIG_EXAMPLES_FTPD=y
@@ -1111,7 +1113,6 @@ Where <subdir> is one of the following:
     3. The RAM log is enabled"
 
       CONFIG_RAMLOG=y             : Enable the RAM-based logging feature.
-      CONFIG_RAMLOG_CONSOLE=n     : (there is no default console device)
       CONFIG_RAMLOG_SYSLOG=y      : This enables the RAM-based logger as the
                                     system logger.
 

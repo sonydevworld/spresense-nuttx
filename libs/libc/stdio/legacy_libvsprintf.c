@@ -1,35 +1,20 @@
 /****************************************************************************
  * libs/libc/stdio/legacy_libvsprintf.c
  *
- *   Copyright (C) 2007-2012, 2018-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -39,7 +24,6 @@
 
 #include <nuttx/compiler.h>
 
-#include <sys/types.h>
 #include <wchar.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -49,6 +33,12 @@
 #include <nuttx/arch.h>
 
 #include "libc.h"
+
+/* Include floating point functions */
+
+#ifdef CONFIG_LIBC_FLOATINGPOINT
+#  include "stdio/lib_libdtoa.c"
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -100,7 +90,7 @@
  * string data cannot be accessed by simply de-referencing the format string
  * pointer.  This might be in the case in Harvard architectures where string
  * data might be stored in instruction space or if string data were stored
- * on some media like EEPROM or external serial FLASH.  In all of these cases,
+ * on some media like EEPROM or external serial FLASH. In all of these cases,
  * string data has to be accessed indirectly using the architecture-supplied
  * up_romgetc().  The following mechanisms attempt to make these different
  * access methods indistinguishable in the following code.
@@ -177,11 +167,14 @@ static int  getlusize(uint8_t fmt, FAR uint16_t flags, unsigned long ln);
 /* Unsigned long long int to ASCII conversions */
 
 #if defined(CONFIG_HAVE_LONG_LONG) && defined(CONFIG_LIBC_LONG_LONG)
-static void llutodec(FAR struct lib_outstream_s *obj, unsigned long long lln);
-static void llutohex(FAR struct lib_outstream_s *obj, unsigned long long lln,
-                     uint8_t a);
-static void llutooct(FAR struct lib_outstream_s *obj, unsigned long long lln);
-static void llutobin(FAR struct lib_outstream_s *obj, unsigned long long lln);
+static void llutodec(FAR struct lib_outstream_s *obj,
+                     unsigned long long lln);
+static void llutohex(FAR struct lib_outstream_s *obj,
+                     unsigned long long lln, uint8_t a);
+static void llutooct(FAR struct lib_outstream_s *obj,
+                     unsigned long long lln);
+static void llutobin(FAR struct lib_outstream_s *obj,
+                     unsigned long long lln);
 static void llutoascii(FAR struct lib_outstream_s *obj, uint8_t fmt,
                        uint16_t flags, unsigned long long lln);
 static void llfixup(uint8_t fmt, FAR uint16_t *flags, FAR long long *lln);
@@ -206,12 +199,6 @@ static const char g_nullstring[] = "(null)";
  * Private Functions
  ****************************************************************************/
 
-/* Include floating point functions */
-
-#ifdef CONFIG_LIBC_FLOATINGPOINT
-#  include "stdio/lib_libdtoa.c"
-#endif
-
 /****************************************************************************
  * Name: ptohex
  ****************************************************************************/
@@ -220,12 +207,12 @@ static const char g_nullstring[] = "(null)";
 static void ptohex(FAR struct lib_outstream_s *obj, uint16_t flags,
                    FAR void *p)
 {
+  uint8_t bits;
   union
   {
     uint32_t  dw;
     FAR void *p;
   } u;
-  uint8_t bits;
 
   /* Check for alternate form */
 
@@ -506,7 +493,7 @@ static int getusize(uint8_t fmt, uint16_t flags, unsigned int n)
  ****************************************************************************/
 
 #ifdef CONFIG_LIBC_FLOATINGPOINT
-static int getdblsize(uint8_t fmt, int trunc, uint16_t flags, double_t n)
+static int getdblsize(uint8_t fmt, int trunc, uint16_t flags, double n)
 {
   struct lib_outstream_s nulloutstream;
   lib_nulloutstream(&nulloutstream);
@@ -1210,22 +1197,22 @@ int lib_vsprintf(FAR struct lib_outstream_s *obj, FAR const IPTR char *src,
 
       if (FMT_CHAR != '%')
         {
-           /* Output the character */
+          /* Output the character */
 
-           obj->put(obj, FMT_CHAR);
+          obj->put(obj, FMT_CHAR);
 
-           /* Flush the buffer if a newline is encountered */
+          /* Flush the buffer if a newline is encountered */
 
-           if (FMT_CHAR == '\n')
-             {
-               /* Should return an error on a failure to flush */
+          if (FMT_CHAR == '\n')
+            {
+              /* Should return an error on a failure to flush */
 
-               obj->flush(obj);
-             }
+              obj->flush(obj);
+            }
 
-           /* Process the next character in the format */
+          /* Process the next character in the format */
 
-           continue;
+          continue;
         }
 
       /* We have found a format specifier. Move past it. */
@@ -1263,6 +1250,7 @@ int lib_vsprintf(FAR struct lib_outstream_s *obj, FAR const IPTR char *src,
             {
               justify = FMT_RJUST0;
             }
+
 #if 0
           /* Center justification. */
 
@@ -1562,7 +1550,7 @@ int lib_vsprintf(FAR struct lib_outstream_s *obj, FAR const IPTR char *src,
 #ifdef CONFIG_LIBC_FLOATINGPOINT
       else if (strchr("eEfgG", FMT_CHAR))
         {
-          double_t dblval = va_arg(ap, double_t);
+          double dblval = va_arg(ap, double);
           int dblsize;
 
           if (FMT_CHAR == 'g' || FMT_CHAR == 'G')

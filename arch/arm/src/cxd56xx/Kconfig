@@ -75,6 +75,17 @@ config CXD56_PMIC
 	default y if CXD56_MAINCORE
 	default n if CXD56_SUBCORE
 
+if CXD56_PMIC
+
+config CXD56_PMIC_INT
+	bool "PMIC interrupt"
+	default n
+	depends on SCHED_LPWORK
+	---help---
+		Enable PMIC interrupt.
+
+endif
+
 config CXD56_CPUFIFO
 	bool
 	default y
@@ -224,6 +235,37 @@ config CXD56_PM_PROCFS
 	---help---
 		Enable the power domain status or the clock frequency monitor.
 
+config CXD56_PM_DEBUG
+	bool "Power Management Debug Features"
+	default n
+	---help---
+		Enable power management debug features.
+
+if CXD56_PM_DEBUG
+
+config CXD56_PM_DEBUG_ERROR
+	bool "Power Management Error Output"
+	default n
+	depends on DEBUG_ERROR
+	---help---
+		Enable power management error output to SYSLOG.
+
+config CXD56_PM_DEBUG_WARN
+	bool "Power Management Warnings Output"
+	default n
+	depends on DEBUG_WARN
+	---help---
+		Enable power management warning output to SYSLOG.
+
+config CXD56_PM_DEBUG_INFO
+	bool "Power Management Informational Output"
+	default n
+	depends on DEBUG_INFO
+	---help---
+		Enable power management informational output to SYSLOG.
+
+endif # CXD56_PM_DEBUG
+
 endif # CXD56_PM
 
 config CXD56_GAUGE
@@ -356,6 +398,15 @@ config CXD56_SPI_DRIVER
 		Build in support for a character driver at /dev/spi[N] that may be
 		used to perform SPI bus transfers from applications.  The intent of
 		this driver is to support SPI testing.
+
+config CXD56_SPI_DMATHRESHOLD
+       int "SPI DMA threshold"
+       default 64
+       depends on CXD56_DMAC
+	---help---
+		When SPI DMA is enabled, small DMA transfers will still be performed
+		by polling logic.  But we need a threshold value to determine what
+		is small.
 
 config CXD56_SPI0
 	bool "SPI0"
@@ -1225,6 +1276,16 @@ config CXD56_EMMC
 	---help---
 		Emmc driver for cxd56xx chip
 
+if CXD56_EMMC
+
+config CXD56_EMMC_VENDOR_TOSHIBA
+	bool "Toshiba eMMC device"
+	default n
+	---help---
+		Enable vendor-specific commands for Toshiba eMMC device.
+
+endif # CXD56_EMMC
+
 endmenu
 
 config CXD56_GE2D
@@ -1315,4 +1376,27 @@ config CXD56_GEOFENCE
 
 endif
 
+config CXD56_TESTSET
+	bool "Use custom testset for spinlock"
+	default y
+	depends on SMP
+	---help---
+		Use custom testset
+
+if CXD56_TESTSET
+
+config CXD56_TESTSET_WITH_HWSEM
+	bool "Use custom testset based on hardware semaphore"
+	default n if CXD56_USE_SYSBUS
+	default y if !CXD56_USE_SYSBUS
+	---help---
+
+endif
+
+config CXD56_USE_SYSBUS
+	bool "Use the system bus for the data section"
+	default y
+	select ARCH_USE_MODULE_TEXT if ELF
+	---help---
+		To make ldrex/strex work correctly, this option must be enabled
 endmenu

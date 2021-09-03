@@ -19,17 +19,17 @@ SECTIONS
 		_exvectors_start = .;
 		KEEP(*(.exvectors))
 		_exvectors_end = .;
-	} > ROM 
+	} > ROM
 	.fvectors 0xFFFFFFFC: AT(0xFFFFFFFC)
 	{
 		KEEP(*(.fvectors))
 	} > ROM
 /*	RSK-RX65N-1MB */
 
-	.text 0xFFF00000: AT(0xFFF00000)
+/*	.text 0xFFF00000: AT(0xFFF00000) */
 
 /*	RSK-RX65N-2MB | GR-ROSE */
-	/*.text 0xFFE00000: AT(0xFFE00000) */
+	.text 0xFFE00000: AT(0xFFE00000) 
 	{
 		*(.text)
 		. = ALIGN(4);
@@ -44,7 +44,7 @@ SECTIONS
 		KEEP(*(.rvectors))
 		_rvectors_end = .;
 	} > ROM
-	/*.exvectors : 
+	/*.exvectors :
 	{
 		_exvectors_start = .;
 		KEEP(*(.exvectors))

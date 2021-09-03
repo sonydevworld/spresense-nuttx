@@ -1,42 +1,20 @@
 /****************************************************************************
  * fs/fat/fs_fat32.c
  *
- *   Copyright (C) 2007-2009, 2011-2015, 2017-2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References:
- *   Microsoft FAT documentation
- *   Some good ideas were leveraged from the FAT implementation:
- *     'Copyright (C) 2007, ChaN, all right reserved.'
- *     which has an unrestricted license.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -150,7 +128,7 @@ const struct mountpt_operations fat_operations =
   fat_unbind,        /* unbind */
   fat_statfs,        /* statfs */
 
-  fat_unlink,        /* unlinke */
+  fat_unlink,        /* unlink */
   fat_mkdir,         /* mkdir */
   fat_rmdir,         /* rmdir */
   fat_rename,        /* rename */
@@ -190,7 +168,12 @@ static int fat_open(FAR struct file *filep, FAR const char *relpath,
 
   /* Check if the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -336,7 +319,9 @@ static int fat_open(FAR struct file *filep, FAR const char *relpath,
       goto errout_with_struct;
     }
 
-  /* Initialize the file private data (only need to initialize non-zero elements) */
+  /* Initialize the file private data (only need to initialize non-zero
+   * elements).
+   */
 
   ff->ff_oflags           = oflags;
 
@@ -370,7 +355,9 @@ static int fat_open(FAR struct file *filep, FAR const char *relpath,
 
   fat_semgive(fs);
 
-  /* In write/append mode, we need to set the file pointer to the end of the file */
+  /* In write/append mode, we need to set the file pointer to the end of
+   * the file.
+   */
 
   if ((oflags & (O_APPEND | O_WRONLY)) == (O_APPEND | O_WRONLY))
     {
@@ -517,7 +504,12 @@ static ssize_t fat_read(FAR struct file *filep, FAR char *buffer,
 
   /* Make sure that the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -642,7 +634,8 @@ fat_read_restart:
 
               if (ret == -EFAULT && !force_indirect)
                 {
-                  ferr("ERROR: DMA read alignment error, restarting indirect\n");
+                  ferr("ERROR: DMA read alignment error,"
+                       " restarting indirect\n");
                   force_indirect = true;
                   goto fat_read_restart;
                 }
@@ -763,7 +756,12 @@ static ssize_t fat_write(FAR struct file *filep, FAR const char *buffer,
 
   /* Make sure that the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -902,7 +900,8 @@ fat_write_restart:
 
               if (ret == -EFAULT && !force_indirect)
                 {
-                  ferr("ERROR: DMA write alignment error, restarting indirect\n");
+                  ferr("ERROR: DMA write alignment error,"
+                        " restarting indirect\n");
                   force_indirect = true;
                   goto fat_write_restart;
                 }
@@ -926,7 +925,8 @@ fat_write_restart:
            * There are two cases where we can avoid this read:
            *
            * - If we are performing a whole-sector write that was rejected
-           *   by fat_hwwrite(), i.e. sectorindex == 0 and buflen >= sector size.
+           *   by fat_hwwrite(), i.e. sectorindex == 0 and buflen >= sector
+           *   size.
            *
            * - If the write is aligned to the beginning of the sector and
            *   extends beyond the end of the file, i.e. sectorindex == 0 and
@@ -975,7 +975,8 @@ fat_write_restart:
           else
             {
               /* We will write to the end of the buffer (or beyond).  Bump
-               * up the current sector number (actually the next sector number).
+               * up the current sector number (actually the next sector
+               * number).
                */
 
               ff->ff_sectorsincluster--;
@@ -1089,7 +1090,12 @@ static off_t fat_seek(FAR struct file *filep, off_t offset, int whence)
 
   /* Make sure that the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -1104,7 +1110,7 @@ static off_t fat_seek(FAR struct file *filep, off_t offset, int whence)
       goto errout_with_semaphore;
     }
 
-  /* Attempts to set the position beyound the end of file will
+  /* Attempts to set the position beyond the end of file will
    * work if the file is open for write access.
    */
 
@@ -1297,7 +1303,12 @@ static int fat_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   /* Make sure that the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -1349,7 +1360,12 @@ static int fat_sync(FAR struct file *filep)
 
   /* Make sure that the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -1360,6 +1376,8 @@ static int fat_sync(FAR struct file *filep)
 
   if ((ff->ff_bflags & FFBUFF_MODIFIED) != 0)
     {
+      uint8_t dircopy[DIR_SIZE];
+
       /* Flush any unwritten data in the file buffer */
 
       ret = fat_ffcacheflush(fs, ff);
@@ -1382,7 +1400,12 @@ static int fat_sync(FAR struct file *filep)
        * in the sector using the saved directory index.
        */
 
-      direntry = &fs->fs_buffer[(ff->ff_dirindex & DIRSEC_NDXMASK(fs)) * DIR_SIZE];
+      direntry = &fs->fs_buffer[(ff->ff_dirindex & DIRSEC_NDXMASK(fs)) *
+                                 DIR_SIZE];
+
+      /* Copy directory entry */
+
+      memcpy(dircopy, direntry, DIR_SIZE);
 
       /* Set the archive bit, set the write time, and update
        * anything that may have* changed in the directory
@@ -1403,11 +1426,17 @@ static int fat_sync(FAR struct file *filep)
 
       ff->ff_bflags &= ~FFBUFF_MODIFIED;
 
+      /* Compare old and new directory entry */
+
+      if (memcmp(direntry, dircopy, DIR_SIZE) != 0)
+        {
+          fs->fs_dirty = true;
+        }
+
       /* Flush these change to disk and update FSINFO (if
        * appropriate.
        */
 
-      fs->fs_dirty = true;
       ret          = fat_updatefsinfo(fs);
     }
 
@@ -1457,7 +1486,12 @@ static int fat_dup(FAR const struct file *oldp, FAR struct file *newp)
 
   /* Check if the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -1495,7 +1529,7 @@ static int fat_dup(FAR const struct file *oldp, FAR struct file *newp)
    *    the opened file will be unknown to the other.  That is a lurking
    *    bug!
    *
-   *    One good solution to this might be to add a refernce count to the
+   *    One good solution to this might be to add a reference count to the
    *    file structure.  Then, instead of dup'ing the whole structure
    *    as is done here, just increment the reference count on the
    *    structure.  The would have to be integrated with open logic as
@@ -1567,7 +1601,12 @@ static int fat_opendir(FAR struct inode *mountpt, FAR const char *relpath,
 
   /* Make sure that the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -1597,7 +1636,9 @@ static int fat_opendir(FAR struct inode *mountpt, FAR const char *relpath,
     }
   else
     {
-      /* This is not the root directory.  Verify that it is some kind of directory */
+      /* This is not the root directory.  Verify that it is some kind of
+       * directory.
+       */
 
       direntry = &fs->fs_buffer[dirinfo.fd_seq.ds_offset];
 
@@ -1616,7 +1657,8 @@ static int fat_opendir(FAR struct inode *mountpt, FAR const char *relpath,
               ((uint32_t)DIR_GETFSTCLUSTHI(direntry) << 16) |
                          DIR_GETFSTCLUSTLO(direntry);
           dir->u.fat.fd_currcluster  = dir->u.fat.fd_startcluster;
-          dir->u.fat.fd_currsector   = fat_cluster2sector(fs, dir->u.fat.fd_currcluster);
+          dir->u.fat.fd_currsector   = fat_cluster2sector(fs,
+                                         dir->u.fat.fd_currcluster);
           dir->u.fat.fd_index        = 2;
         }
     }
@@ -1660,7 +1702,12 @@ static int fat_fstat(FAR const struct file *filep, FAR struct stat *buf)
 
   /* Check if the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -1685,7 +1732,8 @@ static int fat_fstat(FAR const struct file *filep, FAR struct stat *buf)
    * the saved directory index.
    */
 
-  direntry = &fs->fs_buffer[(ff->ff_dirindex & DIRSEC_NDXMASK(fs)) * DIR_SIZE];
+  direntry = &fs->fs_buffer[(ff->ff_dirindex & DIRSEC_NDXMASK(fs)) *
+                             DIR_SIZE];
 
   /* Call fat_stat_file() to create the buf and to save information to
    * it.
@@ -1735,7 +1783,12 @@ static int fat_truncate(FAR struct file *filep, off_t length)
 
   /* Make sure that the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -1840,7 +1893,8 @@ errout_with_semaphore:
  *
  ****************************************************************************/
 
-static int fat_readdir(FAR struct inode *mountpt, FAR struct fs_dirent_s *dir)
+static int fat_readdir(FAR struct inode *mountpt,
+                       FAR struct fs_dirent_s *dir)
 {
   FAR struct fat_mountpt_s *fs;
   unsigned int dirindex;
@@ -1862,7 +1916,12 @@ static int fat_readdir(FAR struct inode *mountpt, FAR struct fs_dirent_s *dir)
    * REVISIT: What if a forced unmount was done since opendir() was called?
    */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -1936,7 +1995,8 @@ static int fat_readdir(FAR struct inode *mountpt, FAR struct fs_dirent_s *dir)
                * entry.
                */
 
-              dirindex = (dir->u.fat.fd_index & DIRSEC_NDXMASK(fs)) * DIR_SIZE;
+              dirindex = (dir->u.fat.fd_index & DIRSEC_NDXMASK(fs)) *
+                          DIR_SIZE;
               direntry = &fs->fs_buffer[dirindex];
 
               /* Then re-read the attributes from the short file name entry */
@@ -1954,8 +2014,8 @@ static int fat_readdir(FAR struct inode *mountpt, FAR struct fs_dirent_s *dir)
                   dir->fd_dir.d_type = DTYPE_DIRECTORY;
                 }
 
-              /* Mark the entry found.  We will set up the next directory index,
-               * and then exit with success.
+              /* Mark the entry found.  We will set up the next directory
+               * index, and then exit with success.
                */
 
               found = true;
@@ -2004,7 +2064,12 @@ static int fat_rewinddir(FAR struct inode *mountpt,
    * REVISIT: What if a forced unmount was done since opendir() was called?
    */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -2034,14 +2099,15 @@ static int fat_rewinddir(FAR struct inode *mountpt,
       dir->u.fat.fd_index       = 0;
     }
 
-  /* This is not the root directory.  Here the fd_index is set to 2, skipping over
-   * both the "." and ".." entries.
+  /* This is not the root directory.  Here the fd_index is set to 2, skipping
+   * over both the "." and ".." entries.
    */
 
   else
     {
       dir->u.fat.fd_currcluster  = dir->u.fat.fd_startcluster;
-      dir->u.fat.fd_currsector   = fat_cluster2sector(fs, dir->u.fat.fd_currcluster);
+      dir->u.fat.fd_currsector   = fat_cluster2sector(fs,
+                                     dir->u.fat.fd_currcluster);
       dir->u.fat.fd_index        = 2;
     }
 
@@ -2128,6 +2194,7 @@ static int fat_unbind(FAR void *handle, FAR struct inode **blkdriver,
                       unsigned int flags)
 {
   FAR struct fat_mountpt_s *fs = (FAR struct fat_mountpt_s *)handle;
+  int ret;
 
   if (!fs)
     {
@@ -2136,7 +2203,12 @@ static int fat_unbind(FAR void *handle, FAR struct inode **blkdriver,
 
   /* Check if there are sill any files opened on the filesystem. */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   if (fs->fs_head)
     {
       /* There are open files.  We umount now unless we are forced with the
@@ -2230,7 +2302,12 @@ static int fat_statfs(FAR struct inode *mountpt, FAR struct statfs *buf)
 
   /* Check if the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret < 0)
     {
@@ -2242,7 +2319,9 @@ static int fat_statfs(FAR struct inode *mountpt, FAR struct statfs *buf)
   memset(buf, 0, sizeof(struct statfs));
   buf->f_type    = MSDOS_SUPER_MAGIC;
 
-  /* We will claim that the optimal transfer size is the size of a cluster in bytes */
+  /* We will claim that the optimal transfer size is the size of a cluster
+   * in bytes.
+   */
 
   buf->f_bsize   = fs->fs_fatsecperclus * fs->fs_hwsectorsize;
 
@@ -2251,8 +2330,10 @@ static int fat_statfs(FAR struct inode *mountpt, FAR struct statfs *buf)
   ret = fat_nfreeclusters(fs, &buf->f_bfree); /* Free blocks in the file system */
   if (ret >= 0)
     {
-      buf->f_blocks  = fs->fs_nclusters;      /* Total data blocks in the file system */
-      buf->f_bavail  = buf->f_bfree;          /* Free blocks avail to non-superuser */
+      buf->f_blocks  = fs->fs_nclusters;      /* Total data blocks in the
+                                               * file system */
+      buf->f_bavail  = buf->f_bfree;          /* Free blocks avail to non-
+                                               * superuser */
 #ifdef CONFIG_FAT_LFN
       buf->f_namelen = LDIR_MAXFNAME;         /* Maximum length of filenames */
 #else
@@ -2287,7 +2368,12 @@ static int fat_unlink(FAR struct inode *mountpt, FAR const char *relpath)
 
   /* Check if the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret == OK)
     {
@@ -2340,7 +2426,12 @@ static int fat_mkdir(FAR struct inode *mountpt, FAR const char *relpath,
 
   /* Check if the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -2434,7 +2525,9 @@ static int fat_mkdir(FAR struct inode *mountpt, FAR const char *relpath,
   fs->fs_currentsector = dirsector;
   memset(direntry, 0, fs->fs_hwsectorsize);
 
-  /* Now clear all sectors in the new directory cluster (except for the first) */
+  /* Now clear all sectors in the new directory cluster (except for the
+   * first).
+   */
 
   for (i = 1; i < fs->fs_fatsecperclus; i++)
     {
@@ -2446,8 +2539,8 @@ static int fat_mkdir(FAR struct inode *mountpt, FAR const char *relpath,
     }
 
   /* Now create the "." directory entry in the first directory slot.  These
-   * are special directory entries and are not handled by the normal directory
-   * management routines.
+   * are special directory entries and are not handled by the normal
+   * directory management routines.
    */
 
   memset(&direntry[DIR_NAME], ' ', DIR_MAXFNAME);
@@ -2549,13 +2642,18 @@ int fat_rmdir(FAR struct inode *mountpt, FAR const char *relpath)
 
   /* Check if the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret == OK)
     {
-      /* If the directory is open, the correct behavior is to remove the directory
-       * name, but to keep the directory cluster chain in place until the last
-       * open reference to the directory is closed.
+      /* If the directory is open, the correct behavior is to remove the
+       * directory name, but to keep the directory cluster chain in place
+       * until the last open reference to the directory is closed.
        */
 
       /* Remove the directory.
@@ -2597,7 +2695,12 @@ int fat_rename(FAR struct inode *mountpt, FAR const char *oldrelpath,
 
   /* Check if the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {
@@ -2860,7 +2963,12 @@ static int fat_stat(FAR struct inode *mountpt, FAR const char *relpath,
 
   /* Check if the mount is still healthy */
 
-  fat_semtake(fs);
+  ret = fat_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = fat_checkmount(fs);
   if (ret != OK)
     {

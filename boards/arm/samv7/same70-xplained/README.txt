@@ -395,7 +395,6 @@ Selecting the GMAC peripheral
     CONFIG_NET_ARP_SEND=y                : Use ARP to get peer address before sending
     CONFIG_NET_TCP=y                     : Enable TCP/IP networking
     CONFIG_NET_TCPBACKLOG=y              : Support TCP/IP backlog
-    CONFIG_NET_TCP_READAHEAD=y           : Enable TCP read-ahead buffering
     CONFIG_NET_TCP_WRITE_BUFFERS=y       : Enable TCP write buffering
     CONFIG_NET_UDP=y                     : Enable UDP networking
     CONFIG_NET_BROADCAST=y               : Support UDP broadcast packets
@@ -513,7 +512,7 @@ You can also log into the NSH from the host PC like this:
     cp          free        kill        mkrd        put         usleep
     cmp         get         losetup     mh          rm          wget
     dd          help        ls          mount       rmdir       xd
-    df          hexdump     mb          mv          sh
+    df          hexdump     mb          mv          source
 
   Builtin Apps:
   nsh>
@@ -634,7 +633,7 @@ serial device class:
 
   Device Drivers -> USB Device Driver Support
     CONFIG_CDCACM=y                           : USB Modem (CDC ACM) support
-    CONFIG_CDCACM_EP0MAXPACKET=64             : Enpoint 0 packet size
+    CONFIG_CDCACM_EP0MAXPACKET=64             : Endpoint 0 packet size
     CONFIG_CDCACM_EPINTIN=1                   : Interrupt IN endpoint number
     CONFIG_CDCACM_EPINTIN_FSSIZE=64           : Full speed packet size
     CONFIG_CDCACM_EPINTIN_HSSIZE=64           : High speed packet size
@@ -905,7 +904,7 @@ Click Shield
   click mikroBUSes.  The above discusses on the UNO shield.  I know that the
   serial ports, at least, differ on the two shields.
 
-  UPDATE: And it appears the that Mega shield is *not* compatible with the
+  UPDATE: And it appears that the Mega shield is *not* compatible with the
   SAME70-Xplained.  I am told that the SPI in mikroBUS slots does not connect
   to pins on the  SAME70-Xplained that can support the SPI communications.
   Avoid this triple mikroBUS shield!
@@ -1088,7 +1087,7 @@ Debugging
 
   This is a simple command line utility for programming ARM-based MCUs
   (currently only Atmel) though CMSIS-DAP SWD interface. It works on Linux,
-  Mac OS X and Windows.  Very useful to around especially if you have the
+  macOS and Windows.  Very useful to around especially if you have the
   following issue:
 
   Booting to FLASH or the ROM Bootloader
@@ -1411,7 +1410,6 @@ Configuration sub-directories
          CONFIG_PTHREAD_STACK_DEFAULT=2048
          CONFIG_POSIX_SPAWN_PROXY_STACKSIZE=1024
          CONFIG_TASK_SPAWN_DEFAULT_STACKSIZE=2048
-         CONFIG_BUILTIN_PROXY_STACKSIZE=1024
          CONFIG_NSH_TELNETD_DAEMONSTACKSIZE=2048
          CONFIG_NSH_TELNETD_CLIENTSTACKSIZE=2048
 
@@ -1581,12 +1579,12 @@ Configuration sub-directories
          Where <cmd> is one of:
 
            Show help     : ?
-           List busses   : bus
+           List buses    : bus
            List devices  : dev [OPTIONS] <first> <last>
-           Read register : get [OPTIONS] [<repititions>]
+           Read register : get [OPTIONS] [<repetitions>]
            Show help     : help
-           Write register: set [OPTIONS] <value> [<repititions>]
-           Verify access : verf [OPTIONS] [<value>] [<repititions>]
+           Write register: set [OPTIONS] <value> [<repetitions>]
+           Verify access : verf [OPTIONS] [<value>] [<repetitions>]
 
          Where common "sticky" OPTIONS include:
            [-a addr] is the I2C device address (hex).  Default: 03 Current: 03
@@ -1594,7 +1592,7 @@ Configuration sub-directories
            [-r regaddr] is the I2C device register address (hex).  Default: 00 Current: 00
            [-w width] is the data width (8 or 16 decimal).  Default: 8 Current: 8
            [-s|n], send/don't send start between command and data.  Default: -n Current: -n
-           [-i|j], Auto increment|don't increment regaddr on repititions.  Default: NO Current: NO
+           [-i|j], Auto increment|don't increment regaddr on repetitions.  Default: NO Current: NO
            [-f freq] I2C frequency.  Default: 400000 Current: 400000
 
          NOTES:
@@ -1694,4 +1692,3 @@ Configuration sub-directories
          most of the issues.  Things look good on real, local hardware
          (see boards/lpcxpresso-lpc54628/twm4nx).  VNC is just not mature
          enough for this kind of usage at this time.
-

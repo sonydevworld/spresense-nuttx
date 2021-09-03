@@ -7,8 +7,6 @@ config FS_FAT
 	bool "FAT file system"
 	default n
 	depends on !DISABLE_MOUNTPOINT
-	select FS_READABLE
-	select FS_WRITABLE
 	---help---
 		Enable FAT filesystem support
 
@@ -27,7 +25,7 @@ config FAT_LFN
 	---help---
 		Enable FAT long file names.  NOTE:  Microsoft claims
 		patents on FAT long file name technology.  Please read the
-		disclaimer in the top-level COPYING file and only enable this
+		disclaimer in the top-level NOTICE file and only enable this
 		feature if you understand these issues.
 
 config FAT_MAXFNAME
@@ -59,6 +57,13 @@ config FAT_LFN_ALIAS_HASH
 		format of FI0123~1.TXT where the four digits are a hash of the original
 		filename. This method is similar to what is used by Windows 2000 and
 		later.
+
+config FAT_LFN_UTF8
+	bool "Allow UTF8 long filenames"
+	depends on FAT_LFN
+	default n
+	---help---
+		UTF8 long filenames are accepted and converted to UCS2.
 
 config FAT_LFN_ALIAS_TRAILCHARS
 	int "Number of trailing characters to use for 8.3 alias"
@@ -110,7 +115,7 @@ config FAT_FORCE_INDIRECT
 		from mixed locations, some of which are DMA-able and some of
 		which are not.  But CONFIG_FAT_FORCE_INDIRECT could be used
 		without CONFIG_FAT_DMAMEMORY if there is, for example, only a
-		memory aligment constraints.
+		memory alignment constraints.
 
 			FORCE_   DMA    DIRECT EXAMPLE USAGE
 			INDIRECT MEMORY RETRY
@@ -184,7 +189,7 @@ config FAT_DIRECT_RETRY
 		The lower level SDIO driver may have, certain requirements on the
 		memory buffer in order to perform the transfer.  Perhaps special
 		DMA memory should be used (with CONFIG_FAT_DMAMEMORY) or perhaps
-		some special memory alignment is required to interace with the
+		some special memory alignment is required to interface with the
 		hardware.
 
 		If this option is selected, then the FAT file system will first

@@ -9,28 +9,30 @@
  *  Adapted for NuttX by:
  *  Author:  Gregory Nutt <gnutt@nuttx.org>
  *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of STMicroelectronics nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *   3. Neither the name of STMicroelectronics nor the names of its
+ *      contributors may be used to endorse or promote products derived from
+ *      this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  ******************************************************************************/
 
@@ -108,7 +110,8 @@ int spirit_gpio_enable_tempsensor(FAR struct spirit_library_s *spirit,
   DEBUGASSERT(IS_SPIRIT_FUNCTIONAL_STATE(newstate));
 
   /* Reads the ANA_FUNC_CONF0 register and mask the result to enable or disable
-   * the temperature sensor */
+   * the temperature sensor.
+   */
 
   ret = spirit_reg_read(spirit, ANA_FUNC_CONF0_BASE, &regval, 1);
   if (ret >= 0)
@@ -280,7 +283,8 @@ int spirit_gpio_enable_clockoutput(FAR struct spirit_library_s *spirit,
   DEBUGASSERT(IS_SPIRIT_FUNCTIONAL_STATE(newstate));
 
   /* Reads the MCU_CK_CONF register and mask the result to enable or disable
-   * the clock output */
+   * the clock output.
+   */
 
   ret = spirit_reg_read(spirit, MCU_CK_CONF_BASE, &regval, 1);
   if (ret >= 0)
@@ -309,7 +313,8 @@ int spirit_gpio_enable_clockoutput(FAR struct spirit_library_s *spirit,
  *   Initializes the SPIRIT Clock Output according to the specified parameters
  *   in the xClockOutputInitStruct.
  *
- *   NOTE: The function spirit_gpio_enable_clockoutput() must be called in order to
+ *   NOTE:
+ *   The function spirit_gpio_enable_clockoutput() must be called in order to
  *   enable or disable the MCU clock dividers.
  *
  * Input Parameters:
@@ -323,8 +328,9 @@ int spirit_gpio_enable_clockoutput(FAR struct spirit_library_s *spirit,
  *
  ******************************************************************************/
 
-int spirit_gpio_clockoutput_initialize(FAR struct spirit_library_s *spirit,
-                                       FAR const struct spirit_clockoutput_init_s *clockoutput)
+int spirit_gpio_clockoutput_initialize(
+                   FAR struct spirit_library_s *spirit,
+                   FAR const struct spirit_clockoutput_init_s *clockoutput)
 {
   uint8_t regval = 0;
 
@@ -335,7 +341,8 @@ int spirit_gpio_clockoutput_initialize(FAR struct spirit_library_s *spirit,
   DEBUGASSERT(IS_SPIRIT_CLOCK_OUTPUT_EXTRA_CYCLES(clockoutput->xtracycles));
 
   /* Calculates the register value to write according to the specified
-   * configuration */
+   * configuration.
+   */
 
   regval = ((uint8_t)(clockoutput->xoprescaler) |
             (uint8_t)(clockoutput->rcoprescaler) |
@@ -364,7 +371,7 @@ int spirit_gpio_clockoutput_initialize(FAR struct spirit_library_s *spirit,
  ******************************************************************************/
 
 int spirit_gpio_set_xoprescaler(FAR struct spirit_library_s *spirit,
-                                enum spirit_clockoutput_xoprescaler_e xoprescaler)
+                        enum spirit_clockoutput_xoprescaler_e xoprescaler)
 {
   uint8_t regval = 0;
   int ret;
@@ -437,7 +444,7 @@ enum spirit_clockoutput_xoprescaler_e
  ******************************************************************************/
 
 int spirit_gpio_set_rcoprescaler(FAR struct spirit_library_s *spirit,
-                                 enum spirit_clockoutput_rcoprescaler_e rcoprescaler)
+                         enum spirit_clockoutput_rcoprescaler_e rcoprescaler)
 {
   uint8_t regval = 0;
   int ret;
@@ -529,9 +536,9 @@ int spirit_gpio_set_extracycles(FAR struct spirit_library_s *spirit,
       regval &= 0x9f;
       regval |= (uint8_t)xtracycles;
 
-     /* Write to the new number of extra clock cycles in the MCU_CLOCK
-      * register.
-      */
+      /* Write to the new number of extra clock cycles in the MCU_CLOCK
+       * register.
+       */
 
       ret = spirit_reg_write(spirit, MCU_CK_CONF_BASE, &regval, 1);
     }

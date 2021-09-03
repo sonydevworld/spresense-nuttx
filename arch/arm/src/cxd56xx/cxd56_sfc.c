@@ -1,36 +1,25 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_sfc.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
@@ -38,6 +27,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
@@ -48,6 +38,10 @@ int fw_fm_rawwrite(uint32_t offset, const void *buf, uint32_t size);
 int fw_fm_rawverifywrite(uint32_t offset, const void *buf, uint32_t size);
 int fw_fm_rawread(uint32_t offset, void *buf, uint32_t size);
 int fw_fm_rawerasesector(uint32_t sector);
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
 
 #ifndef CONFIG_CXD56_SPIFLASHSIZE
 #  define CONFIG_CXD56_SPIFLASHSIZE (16 * 1024 * 1024)
@@ -63,9 +57,8 @@ int fw_fm_rawerasesector(uint32_t sector);
 #endif
 #define PAGE_SIZE (1 << PAGE_SHIFT)
 
-/**
- * Flash device information
- */
+/* Flash device information */
+
 struct flash_controller_s
 {
   struct mtd_dev_s mtd; /* MTD interface */
@@ -75,8 +68,13 @@ struct flash_controller_s
 static struct flash_controller_s g_sfc;
 
 /****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
  * Name: cxd56_erase
  ****************************************************************************/
+
 static int cxd56_erase(FAR struct mtd_dev_s *dev, off_t startblock,
                        size_t nblocks)
 {
@@ -90,10 +88,10 @@ static int cxd56_erase(FAR struct mtd_dev_s *dev, off_t startblock,
       ret = fw_fm_rawerasesector(startblock + i);
       if (ret < 0)
         {
-          set_errno(-ret);
-          return ERROR;
+          return ret;
         }
     }
+
   return OK;
 }
 
@@ -104,11 +102,11 @@ static ssize_t cxd56_bread(FAR struct mtd_dev_s *dev, off_t startblock,
 
   finfo("bread: %08lx (%u blocks)\n", startblock << PAGE_SHIFT, nblocks);
 
-  ret = fw_fm_rawread(startblock << PAGE_SHIFT, buffer, nblocks << PAGE_SHIFT);
+  ret = fw_fm_rawread(startblock << PAGE_SHIFT, buffer,
+                      nblocks << PAGE_SHIFT);
   if (ret < 0)
     {
-      set_errno(-ret);
-      return ERROR;
+      return ret;
     }
 
   return nblocks;
@@ -130,8 +128,7 @@ static ssize_t cxd56_bwrite(FAR struct mtd_dev_s *dev, off_t startblock,
 #endif
   if (ret < 0)
     {
-      set_errno(-ret);
-      return ERROR;
+      return ret;
     }
 
   return nblocks;
@@ -147,8 +144,7 @@ static ssize_t cxd56_read(FAR struct mtd_dev_s *dev, off_t offset,
   ret = fw_fm_rawread(offset, buffer, nbytes);
   if (ret < 0)
     {
-      set_errno(-ret);
-      return ERROR;
+      return ret;
     }
 
   return nbytes;
@@ -169,8 +165,7 @@ static ssize_t cxd56_write(FAR struct mtd_dev_s *dev, off_t offset,
 #endif
   if (ret < 0)
     {
-      set_errno(-ret);
-      return ERROR;
+      return ret;
     }
 
   return nbytes;
@@ -191,13 +186,14 @@ static int cxd56_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
           finfo("cmd: GEOM\n");
           if (geo)
             {
-              /* Populate the geometry structure with information need to know
-               * the capacity and how to access the device.
+              /* Populate the geometry structure with information need to
+               * know the capacity and how to access the device.
                *
-               * NOTE: that the device is treated as though it where just an
-               * array of fixed size blocks.  That is most likely not true,
-               * but the client will expect the device logic to do whatever is
-               * necessary to make it appear so.
+               * NOTE: that the device is treated as though it where just
+               * an array of fixed size blocks.
+               * That is most likely not true, but the client will expect
+               * the device logic to do whatever is necessary to make it
+               * appear so.
                */
 
               geo->blocksize    = PAGE_SIZE;
@@ -205,7 +201,8 @@ static int cxd56_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
               geo->neraseblocks = priv->density >> SECTOR_SHIFT;
               ret               = OK;
 
-              finfo("blocksize: %d erasesize: %d neraseblocks: %d\n",
+              finfo("blocksize: %" PRId32 " erasesize: %" PRId32
+                    " neraseblocks: %" PRId32 "\n",
                     geo->blocksize, geo->erasesize, geo->neraseblocks);
             }
         }

@@ -49,7 +49,7 @@ config NUNGET_CHARS
 	default 2
 	---help---
 		Number of characters that can be buffered by ungetc() (Only if
-		NFILE_STREAMS > 0)
+		FILE_STREAM equals y)
 
 config LIBC_PRINT_LEGACY
 	bool "Enable legacy printf logic"
@@ -137,14 +137,5 @@ config EOL_IS_EITHER_CRLF
 	bool "EOL is CR or LF"
 
 endchoice
-
-config MEMCPY_VIK
-	bool "Vik memcpy()"
-	default n
-	depends on !LIBC_ARCH_MEMCPY
-	---help---
-		Select this option to use the optimized memcpy() function by Daniel Vik.
-		Select this option for improved performance at the expense of increased
-		size. See licensing information in the top-level COPYING file.
 
 endmenu #Standard C I/O

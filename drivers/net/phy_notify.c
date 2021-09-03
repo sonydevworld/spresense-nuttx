@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/net/phy_notify.c
  *
- *   Copyright (C) 2014, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,6 +38,7 @@
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
+#include <net/if.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
@@ -104,7 +90,7 @@
 struct phy_notify_s
 {
   bool assigned;
-  char intf[CONFIG_PHY_NOTIFICATION_MAXINTFLEN+1];
+  char intf[IFNAMSIZ + 1];
   pid_t pid;
   struct sigevent event;
   struct sigwork_s work;
@@ -115,7 +101,7 @@ struct phy_notify_s
  * Private Function Prototypes
  ****************************************************************************/
 
-static void phy_semtake(void);
+static int phy_semtake(void);
 static FAR struct phy_notify_s *phy_find_unassigned(void);
 static FAR struct phy_notify_s *phy_find_assigned(FAR const char *intf,
                                                   pid_t pid);
@@ -131,7 +117,8 @@ static sem_t g_notify_clients_sem = SEM_INITIALIZER(1);
 
 /* This is a array the hold information for each PHY notification client */
 
-static struct phy_notify_s g_notify_clients[CONFIG_PHY_NOTIFICATION_NCLIENTS];
+static struct phy_notify_s
+  g_notify_clients[CONFIG_PHY_NOTIFICATION_NCLIENTS];
 
 /****************************************************************************
  * Private Functions
@@ -141,9 +128,9 @@ static struct phy_notify_s g_notify_clients[CONFIG_PHY_NOTIFICATION_NCLIENTS];
  * Name: phy_semtake
  ****************************************************************************/
 
-static void phy_semtake(void)
+static int phy_semtake(void)
 {
-  nxsem_wait_uninterruptible(&g_notify_clients_sem);
+  return nxsem_wait_uninterruptible(&g_notify_clients_sem);
 }
 
 #define phy_semgive() nxsem_post(&g_notify_clients_sem);
@@ -155,9 +142,16 @@ static void phy_semtake(void)
 static FAR struct phy_notify_s *phy_find_unassigned(void)
 {
   FAR struct phy_notify_s *client;
+  int ret;
   int i;
 
-  phy_semtake();
+  ret = phy_semtake();
+  if (ret < 0)
+    {
+      phyerr("ERROR: phy_semtake failed: %d\n", ret);
+      return NULL;
+    }
+
   for (i = 0; i < CONFIG_PHY_NOTIFICATION_NCLIENTS; i++)
     {
       client = &g_notify_clients[i];
@@ -193,14 +187,21 @@ static FAR struct phy_notify_s *phy_find_assigned(FAR const char *intf,
                                                   pid_t pid)
 {
   FAR struct phy_notify_s *client;
+  int ret;
   int i;
 
-  phy_semtake();
+  ret = phy_semtake();
+  if (ret < 0)
+    {
+      phyerr("ERROR: phy_semtake failed: %d\n", ret);
+      return NULL;
+    }
+
   for (i = 0; i < CONFIG_PHY_NOTIFICATION_NCLIENTS; i++)
     {
       client = &g_notify_clients[i];
       if (client->assigned && client->pid == pid &&
-          strncmp(client->intf, intf, CONFIG_PHY_NOTIFICATION_MAXINTFLEN) == 0)
+          strncmp(client->intf, intf, IFNAMSIZ) == 0)
         {
           /* Return the matching client entry to the caller */
 
@@ -262,8 +263,6 @@ static int phy_handler(int irq, FAR void *context, FAR void *arg)
  *
  * Input Parameters:
  *   intf  - Provides the name of the network interface, for example, "eth0".
- *           The length of intf must not exceed 4 bytes (excluding NULL
- *           terminator).  Configurable with CONFIG_PHY_NOTIFICATION_MAXINTFLEN.
  *   pid   - Identifies the task to receive the signal.  The special value
  *           of zero means to use the pid of the current task.
  *   event - Describes the way a task is to be notified
@@ -291,10 +290,17 @@ int phy_notify_subscribe(FAR const char *intf, pid_t pid,
       phyinfo("Actual PID=%d\n", pid);
     }
 
+  /* Unsubscribe if sigev_notify field equals SIGEV_NONE */
+
+  if (event->sigev_notify == SIGEV_NONE)
+    {
+      return phy_notify_unsubscribe(intf, pid);
+    }
+
   /* Check if this client already exists */
 
   client = phy_find_assigned(intf, pid);
-  if (client)
+  if (client != NULL)
     {
       /* Yes.. update the signal number and argument */
 
@@ -305,7 +311,7 @@ int phy_notify_subscribe(FAR const char *intf, pid_t pid,
       /* No, allocate a new slot in the client notification table */
 
       client = phy_find_unassigned();
-      if (!client)
+      if (client == NULL)
         {
           phyerr("ERROR: Failed to allocate a client entry\n");
           return -ENOMEM;
@@ -315,8 +321,8 @@ int phy_notify_subscribe(FAR const char *intf, pid_t pid,
 
       client->pid   = pid;
       client->event = *event;
-      strncpy(client->intf, intf, CONFIG_PHY_NOTIFICATION_MAXINTFLEN + 1);
-      client->intf[CONFIG_PHY_NOTIFICATION_MAXINTFLEN] = '\0';
+      strncpy(client->intf, intf, IFNAMSIZ + 1);
+      client->intf[IFNAMSIZ] = '\0';
 
       /* Attach/re-attach the PHY interrupt */
 
@@ -343,8 +349,6 @@ int phy_notify_subscribe(FAR const char *intf, pid_t pid,
  *
  * Input Parameters:
  *   intf  - Provides the name of the network interface, for example, "eth0".
- *           The length of 'intf' must not exceed 4 bytes (excluding NULL
- *           terminator).  Configurable with CONFIG_PHY_NOTIFICATION_MAXINTFLEN.
  *   pid   - Identifies the task that was receiving notifications.
  *
  * Returned Value:
@@ -355,13 +359,14 @@ int phy_notify_subscribe(FAR const char *intf, pid_t pid,
 int phy_notify_unsubscribe(FAR const char *intf, pid_t pid)
 {
   FAR struct phy_notify_s *client;
+  int ret;
 
   phyinfo("%s: PID=%d\n", intf, pid);
 
   /* Find the client entry for this interface */
 
   client = phy_find_assigned(intf, pid);
-  if (!client)
+  if (client == NULL)
     {
       phyerr("ERROR: No such client\n");
       return -ENOENT;
@@ -369,20 +374,24 @@ int phy_notify_unsubscribe(FAR const char *intf, pid_t pid)
 
   /* Detach and disable the PHY interrupt */
 
-  phy_semtake();
-  arch_phy_irq(intf, NULL, NULL, NULL);
+  ret = phy_semtake();
+  if (ret >= 0)
+    {
+      arch_phy_irq(intf, NULL, NULL, NULL);
 
-  /* Cancel any pending notification */
+      /* Cancel any pending notification */
 
-  nxsig_cancel_notification(&client->work);
+      nxsig_cancel_notification(&client->work);
 
-  /* Un-initialize the client entry */
+      /* Un-initialize the client entry */
 
-  client->assigned = false;
-  client->intf[0]  = '\0';
-  client->pid      = -1;
+      client->assigned = false;
+      client->intf[0]  = '\0';
+      client->pid      = -1;
 
-  phy_semgive();
+      phy_semgive();
+    }
+
   return OK;
 }
 

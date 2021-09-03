@@ -1,35 +1,20 @@
 /****************************************************************************
- * net/socket/icmp_sockif.c
+ * net/icmp/icmp_sockif.c
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -76,8 +61,6 @@ static int        icmp_accept(FAR struct socket *psock,
                     FAR struct socket *newsock);
 static int        icmp_netpoll(FAR struct socket *psock,
                     FAR struct pollfd *fds, bool setup);
-static ssize_t    icmp_send(FAR struct socket *psock, FAR const void *buf,
-                    size_t len, int flags);
 static int        icmp_close(FAR struct socket *psock);
 
 /****************************************************************************
@@ -96,12 +79,8 @@ const struct sock_intf_s g_icmp_sockif =
   icmp_connect,     /* si_connect */
   icmp_accept,      /* si_accept */
   icmp_netpoll,     /* si_poll */
-  icmp_send,        /* si_send */
-  icmp_sendto,      /* si_sendto */
-#ifdef CONFIG_NET_SENDFILE
-  NULL,             /* si_sendfile */
-#endif
-  icmp_recvfrom,    /* si_recvfrom */
+  icmp_sendmsg,     /* si_sendmsg */
+  icmp_recvmsg,     /* si_recvmsg */
   icmp_close        /* si_close */
 };
 
@@ -189,7 +168,7 @@ static sockcaps_t icmp_sockcaps(FAR struct socket *psock)
  * Name: icmp_addref
  *
  * Description:
- *   Increment the refernce count on the underlying connection structure.
+ *   Increment the reference count on the underlying connection structure.
  *
  * Input Parameters:
  *   psock - Socket structure of the socket whose reference count will be
@@ -238,7 +217,7 @@ static void icmp_addref(FAR struct socket *psock)
  *   addrlen   Length of actual 'addr'
  *
  * Returned Value:
- *   0 on success; a negated errno value on failue.  See connect() for the
+ *   0 on success; a negated errno value on failure.  See connect() for the
  *   list of appropriate errno values to be returned.
  *
  ****************************************************************************/
@@ -280,12 +259,13 @@ static int icmp_connect(FAR struct socket *psock,
  * Input Parameters:
  *   psock    Reference to the listening socket structure
  *   addr     Receives the address of the connecting client
- *   addrlen  Input: allocated size of 'addr', Return: returned size of 'addr'
+ *   addrlen  Input: allocated size of 'addr',
+ *            Return: returned size of 'addr'
  *   newsock  Location to return the accepted socket information.
  *
  * Returned Value:
  *   Returns 0 (OK) on success.  On failure, it returns a negated errno
- *   value.  See accept() for a desrciption of the approriate error value.
+ *   value.  See accept() for a description of the appropriate error value.
  *
  * Assumptions:
  *   The network is locked.
@@ -318,7 +298,8 @@ static int icmp_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
  *
  ****************************************************************************/
 
-static int icmp_bind(FAR struct socket *psock, FAR const struct sockaddr *addr,
+static int icmp_bind(FAR struct socket *psock,
+                     FAR const struct sockaddr *addr,
                      socklen_t addrlen)
 {
   /* An ICMP socket cannot be bound to a local address */
@@ -364,10 +345,10 @@ static int icmp_getsockname(FAR struct socket *psock,
  * Name: icmp_getpeername
  *
  * Description:
- *   The icmp_getpeername() function retrieves the remote-connected name of the
- *   specified packet socket, stores this address in the sockaddr structure
- *   pointed to by the 'addr' argument, and stores the length of this
- *   address in the object pointed to by the 'addrlen' argument.
+ *   The icmp_getpeername() function retrieves the remote-connected name of
+ *   the specified packet socket, stores this address in the sockaddr
+ *   structure pointed to by the 'addr' argument, and stores the length of
+ *   this address in the object pointed to by the 'addrlen' argument.
  *
  *   If the actual length of the address is greater than the length of the
  *   supplied sockaddr structure, the stored address will be truncated.
@@ -415,7 +396,7 @@ static int icmp_getpeername(FAR struct socket *psock,
  *
  * Returned Value:
  *   On success, zero is returned. On error, a negated errno value is
- *   returned.  See list() for the set of appropriate error values.
+ *   returned.  See listen() for the set of appropriate error values.
  *
  ****************************************************************************/
 
@@ -445,7 +426,6 @@ int icmp_listen(FAR struct socket *psock, int backlog)
 static int icmp_netpoll(FAR struct socket *psock, FAR struct pollfd *fds,
                         bool setup)
 {
-#ifdef CONFIG_MM_IOB
   /* Check if we are setting up or tearing down the poll */
 
   if (setup)
@@ -460,38 +440,6 @@ static int icmp_netpoll(FAR struct socket *psock, FAR struct pollfd *fds,
 
       return icmp_pollteardown(psock, fds);
     }
-#else
-  return -ENOSYS;
-#endif /* CONFIG_MM_IOB */
-}
-
-/****************************************************************************
- * Name: icmp_send
- *
- * Description:
- *   Socket send() method for the raw packet socket.
- *
- * Input Parameters:
- *   psock    An instance of the internal socket structure.
- *   buf      Data to send
- *   len      Length of data to send
- *   flags    Send flags
- *
- * Returned Value:
- *   On success, returns the number of characters sent.  On  error, a negated
- *   errno value is returned (see send() for the list of appropriate error
- *   values.
- *
- ****************************************************************************/
-
-static ssize_t icmp_send(FAR struct socket *psock, FAR const void *buf,
-                        size_t len, int flags)
-{
-  /* ICMP sockets cannot be bound and, hence, cannot support any connection-
-   * oriented data transfer.
-   */
-
-  return -EDESTADDRREQ;
 }
 
 /****************************************************************************
