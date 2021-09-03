@@ -8,6 +8,8 @@ menu "Netlink Socket Support"
 config NET_NETLINK
 	bool "Netlink socket support"
 	default n
+	depends on SCHED_WORKQUEUE
+	select WQUEUE_NOTIFIER
 	---help---
 		Enable support for Netlink-like IPC sockets that will permit user-
 		space applications to interact with network services.
@@ -55,18 +57,6 @@ config NETLINK_DISABLE_GETROUTE
 		RTM_GETROUTE is used to retrieve routing tables.
 
 endif # NETLINK_ROUTE
-
-config NETLINK_CRYPTO
-	bool "Netlink Crypto protocol"
-	default n
-	depends on EXPERIMENTAL
-	---help---
-		Support the NETLINK_CRYPTO protocol option.
-
-if NETLINK_CRYPTO
-
-endif # NETLINK_CRYPTO
 endmenu # Netlink Protocols
 endif # NET_NETLINK
 endmenu # Netlink Socket Support
-

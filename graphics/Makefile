@@ -1,56 +1,32 @@
 ############################################################################
 # graphics/Makefile
 #
-#   Copyright (C) 2008-2009, 2011-2012, 2016, 2019 Gregory Nutt. All
-#     rights reserved.
-#   Author: Gregory Nutt <gnutt@nuttx.org>
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.  The
+# ASF licenses this file to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance with the
+# License.  You may obtain a copy of the License at
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
-# 3. Neither the name NuttX nor the names of its contributors may be
-#    used to endorse or promote products derived from this software
-#    without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
-# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
-
-DEPPATH = --dep-path .
-
-ifeq ($(WINTOOL),y)
-INCDIROPT = -w
-endif
-
-ASRCS =
-CSRCS =
-VPATH =
+include $(TOPDIR)/Make.defs
 
 include nxglib/Make.defs
 include nxbe/Make.defs
 include nxmu/Make.defs
 include nxterm/Make.defs
 include vnc/Make.defs
+
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)graphics}
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))
@@ -66,57 +42,57 @@ all: mklibgraphics
 	 gen32bppsources
 
 gen1bppsources:
-	$(Q) $(MAKE) -C nxglib -f Makefile.devblit TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=1 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.devblit NXGLIB_BITSPERPIXEL=1 EXTRAFLAGS="$(EXTRAFLAGS)"
 ifeq ($(CONFIG_NX_RAMBACKED),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=1 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb NXGLIB_BITSPERPIXEL=1 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 
 gen2bppsource:
-	$(Q) $(MAKE) -C nxglib -f Makefile.devblit TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=2 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.devblit NXGLIB_BITSPERPIXEL=2 EXTRAFLAGS="$(EXTRAFLAGS)"
 ifeq ($(CONFIG_NX_RAMBACKED),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=2 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb NXGLIB_BITSPERPIXEL=2 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 
 gen4bppsource:
-	$(Q) $(MAKE) -C nxglib -f Makefile.devblit TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=4 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.devblit NXGLIB_BITSPERPIXEL=4 EXTRAFLAGS="$(EXTRAFLAGS)"
 ifeq ($(CONFIG_NX_RAMBACKED),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=4 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb NXGLIB_BITSPERPIXEL=4 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 
 gen8bppsource:
-	$(Q) $(MAKE) -C nxglib -f Makefile.devblit TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=8 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.devblit NXGLIB_BITSPERPIXEL=8 EXTRAFLAGS="$(EXTRAFLAGS)"
 ifeq ($(CONFIG_NX_RAMBACKED),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=8 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb NXGLIB_BITSPERPIXEL=8 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 ifeq ($(CONFIG_NX_SWCURSOR),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.cursor TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=8 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.cursor NXGLIB_BITSPERPIXEL=8 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 
 gen16bppsource:
-	$(Q) $(MAKE) -C nxglib -f Makefile.devblit TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=16 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.devblit NXGLIB_BITSPERPIXEL=16 EXTRAFLAGS="$(EXTRAFLAGS)"
 ifeq ($(CONFIG_NX_RAMBACKED),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=16 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb NXGLIB_BITSPERPIXEL=16 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 ifeq ($(CONFIG_NX_SWCURSOR),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.cursor TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=16 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.cursor NXGLIB_BITSPERPIXEL=16 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 
 gen24bppsource:
-	$(Q) $(MAKE) -C nxglib -f Makefile.devblit TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=24 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.devblit NXGLIB_BITSPERPIXEL=24 EXTRAFLAGS="$(EXTRAFLAGS)"
 ifeq ($(CONFIG_NX_RAMBACKED),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=24 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb NXGLIB_BITSPERPIXEL=24 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 ifeq ($(CONFIG_NX_SWCURSOR),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.cursor TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=24 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.cursor NXGLIB_BITSPERPIXEL=24 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 
 gen32bppsources:
-	$(Q) $(MAKE) -C nxglib -f Makefile.devblit TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=32 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.devblit NXGLIB_BITSPERPIXEL=32 EXTRAFLAGS="$(EXTRAFLAGS)"
 ifeq ($(CONFIG_NX_RAMBACKED),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=32 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb NXGLIB_BITSPERPIXEL=32 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 ifeq ($(CONFIG_NX_SWCURSOR),y)
-	$(Q) $(MAKE) -C nxglib -f Makefile.cursor TOPDIR=$(TOPDIR) NXGLIB_BITSPERPIXEL=32 EXTRADEFINES=$(EXTRADEFINES)
+	$(Q) $(MAKE) -C nxglib -f Makefile.cursor NXGLIB_BITSPERPIXEL=32 EXTRAFLAGS="$(EXTRAFLAGS)"
 endif
 
 gensources: gen1bppsources gen2bppsource gen4bppsource gen8bppsource gen16bppsource gen24bppsource gen32bppsources
@@ -132,25 +108,28 @@ $(BIN): $(OBJS)
 
 mklibgraphics: $(BIN)
 
+makedepfile: $(CSRCS:.c=.ddc) $(ASRCS:.S=.dds)
+	$(call CATFILE, Make.dep, $^)
+	$(call DELFILE, $^)
+
 .depend: gensources Makefile $(SRCS) $(TOPDIR)$(DELIM).config
-	$(Q) $(MKDEP) $(DEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
+	$(Q) $(MAKE) makedepfile
 	$(Q) touch $@
 
 depend: .depend
 
+clean_context:
+	$(Q) $(MAKE) -C nxglib -f Makefile.devblit distclean EXTRAFLAGS="$(EXTRAFLAGS)"
+	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb distclean EXTRAFLAGS="$(EXTRAFLAGS)"
+	$(Q) $(MAKE) -C nxglib -f Makefile.cursor distclean EXTRAFLAGS="$(EXTRAFLAGS)"
+
 context: gensources
 
 clean:
-	$(Q) $(MAKE) -C nxglib -f Makefile.devblit clean TOPDIR=$(TOPDIR) EXTRADEFINES=$(EXTRADEFINES)
-	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb clean TOPDIR=$(TOPDIR) EXTRADEFINES=$(EXTRADEFINES)
-	$(Q) $(MAKE) -C nxglib -f Makefile.cursor clean TOPDIR=$(TOPDIR) EXTRADEFINES=$(EXTRADEFINES)
 	$(call DELFILE, $(BIN))
 	$(call CLEAN)
 
-distclean: clean
-	$(Q) $(MAKE) -C nxglib -f Makefile.devblit distclean TOPDIR=$(TOPDIR) EXTRADEFINES=$(EXTRADEFINES)
-	$(Q) $(MAKE) -C nxglib -f Makefile.pwfb distclean TOPDIR=$(TOPDIR) EXTRADEFINES=$(EXTRADEFINES)
-	$(Q) $(MAKE) -C nxglib -f Makefile.cursor distclean TOPDIR=$(TOPDIR) EXTRADEFINES=$(EXTRADEFINES)
+distclean: clean clean_context
 	$(call DELFILE, Make.dep)
 	$(call DELFILE, .depend)
 

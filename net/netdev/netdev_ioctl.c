@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/netdev/netdev_ioctl.c
  *
- *   Copyright (C) 2007-2012, 2015-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -82,6 +67,10 @@
 #  include <nuttx/wireless/pktradio.h>
 #endif
 
+#ifdef CONFIG_NETDEV_MODEM_LTE_IOCTL
+#  include <nuttx/wireless/lte/lte_ioctl.h>
+#endif
+
 #include "arp/arp.h"
 #include "socket/socket.h"
 #include "netdev/netdev.h"
@@ -89,6 +78,7 @@
 #include "igmp/igmp.h"
 #include "icmpv6/icmpv6.h"
 #include "route/route.h"
+#include "netlink/netlink.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -286,6 +276,7 @@ static void ioctl_get_ipv4addr(FAR struct sockaddr *outaddr,
   dest->sin_family              = AF_INET;
   dest->sin_port                = 0;
   dest->sin_addr.s_addr         = inaddr;
+  memset(dest->sin_zero, 0, sizeof(dest->sin_zero));
 }
 #endif
 
@@ -303,13 +294,14 @@ static void ioctl_get_ipv4addr(FAR struct sockaddr *outaddr,
  ****************************************************************************/
 
 #ifdef CONFIG_NET_IPv4
-static void inline ioctl_get_ipv4broadcast(FAR struct sockaddr *outaddr,
-                                           in_addr_t inaddr, in_addr_t netmask)
+static void ioctl_get_ipv4broadcast(FAR struct sockaddr *outaddr,
+                                    in_addr_t inaddr, in_addr_t netmask)
 {
   FAR struct sockaddr_in *dest  = (FAR struct sockaddr_in *)outaddr;
   dest->sin_family              = AF_INET;
   dest->sin_port                = 0;
   dest->sin_addr.s_addr         = net_ipv4addr_broadcast(inaddr, netmask);
+  memset(dest->sin_zero, 0, sizeof(dest->sin_zero));
 }
 #endif
 
@@ -321,7 +313,7 @@ static void inline ioctl_get_ipv4broadcast(FAR struct sockaddr *outaddr,
  *
  * Input Parameters:
  *   outaddr - Pointer to the user-provided memory to receive the address.
- *   inaddr - The source IP adress in the device structure.
+ *   inaddr - The source IP address in the device structure.
  *
  ****************************************************************************/
 
@@ -375,7 +367,8 @@ static void ioctl_set_ipv4addr(FAR in_addr_t *outaddr,
 static void ioctl_set_ipv6addr(FAR net_ipv6addr_t outaddr,
                                FAR const struct sockaddr_storage *inaddr)
 {
-  FAR const struct sockaddr_in6 *src = (FAR const struct sockaddr_in6 *)inaddr;
+  FAR const struct sockaddr_in6 *src =
+    (FAR const struct sockaddr_in6 *)inaddr;
   memcpy(outaddr, src->sin6_addr.in6_u.u6_addr8, 16);
 }
 #endif
@@ -508,7 +501,7 @@ static int netdev_iee802154_ioctl(FAR struct socket *psock, int cmd,
  * Name: netdev_pktradio_ioctl
  *
  * Description:
- *   Perform non-IEEE802.15.4 packet radio network device specific operations.
+ *   Perform non-IEEE802.15.4 packet radio network device specific operation.
  *
  * Input Parameters:
  *   psock  - Socket structure
@@ -602,7 +595,7 @@ static int netdev_wifr_ioctl(FAR struct socket *psock, int cmd,
         {
           /* Just forward the IOCTL to the wireless driver */
 
-          ret = dev->d_ioctl(dev, cmd, ((unsigned long)(uintptr_t)req));
+          ret = dev->d_ioctl(dev, cmd, (unsigned long)(uintptr_t)req);
         }
     }
 
@@ -976,7 +969,8 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
           if (dev)
             {
 #ifdef CONFIG_NET_ETHERNET
-              if (dev->d_lltype == NET_LL_ETHERNET)
+              if (dev->d_lltype == NET_LL_ETHERNET ||
+                  dev->d_lltype == NET_LL_IEEE80211)
                 {
                   memcpy(dev->d_mac.ether.ether_addr_octet,
                          req->ifr_hwaddr.sa_data, IFHWADDRLEN);
@@ -1061,8 +1055,9 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
           dev = netdev_ifr_dev(req);
           if (dev && dev->d_ioctl)
             {
-              struct mii_ioctl_notify_s *notify = &req->ifr_ifru.ifru_mii_notify;
-              ret = dev->d_ioctl(dev, cmd, ((unsigned long)(uintptr_t)notify));
+              struct mii_ioctl_notify_s *notify =
+                &req->ifr_ifru.ifru_mii_notify;
+              ret = dev->d_ioctl(dev, cmd, (unsigned long)(uintptr_t)notify);
             }
         }
         break;
@@ -1075,8 +1070,58 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
           dev = netdev_ifr_dev(req);
           if (dev && dev->d_ioctl)
             {
-              struct mii_ioctl_data_s *mii_data = &req->ifr_ifru.ifru_mii_data;
-              ret = dev->d_ioctl(dev, cmd, ((unsigned long)(uintptr_t)mii_data));
+              struct mii_ioctl_data_s *mii_data =
+                &req->ifr_ifru.ifru_mii_data;
+              ret = dev->d_ioctl(dev, cmd,
+                                 (unsigned long)(uintptr_t)mii_data);
+            }
+        }
+        break;
+#endif
+
+#if defined(CONFIG_NETDEV_IOCTL) && defined(CONFIG_NETDEV_CAN_BITRATE_IOCTL)
+      case SIOCGCANBITRATE:  /* Get bitrate from a CAN controller */
+      case SIOCSCANBITRATE:  /* Set bitrate of a CAN controller */
+        {
+          dev = netdev_ifr_dev(req);
+          if (dev && dev->d_ioctl)
+            {
+              struct can_ioctl_data_s *can_bitrate_data =
+                            &req->ifr_ifru.ifru_can_data;
+              ret = dev->d_ioctl(dev, cmd,
+                            (unsigned long)(uintptr_t)can_bitrate_data);
+            }
+        }
+        break;
+#endif
+
+#ifdef CONFIG_NETDEV_IFINDEX
+      case SIOCGIFNAME:  /* Get interface name */
+        {
+          dev = netdev_findbyindex(req->ifr_ifindex);
+          if (dev != NULL)
+            {
+              strncpy(req->ifr_name, dev->d_ifname, IFNAMSIZ);
+              ret = OK;
+            }
+          else
+            {
+              ret = -ENODEV;
+            }
+        }
+        break;
+
+      case SIOCGIFINDEX:  /* Index to name mapping */
+        {
+          dev = netdev_findbyname(req->ifr_name);
+          if (dev != NULL)
+            {
+              req->ifr_ifindex = dev->d_ifindex;
+              ret = OK;
+            }
+          else
+            {
+              ret = -ENODEV;
             }
         }
         break;
@@ -1239,9 +1284,10 @@ static int netdev_arp_ioctl(FAR struct socket *psock, int cmd,
               FAR struct sockaddr_in *addr =
                 (FAR struct sockaddr_in *)&req->arp_pa;
 
-              /* Find the existing ARP table entry for this protocol address. */
+              /* Find the existing ARP entry for this protocol address. */
 
-              FAR struct arp_entry_s *entry = arp_lookup(addr->sin_addr.s_addr);
+              FAR struct arp_entry_s *entry =
+                arp_lookup(addr->sin_addr.s_addr);
               if (entry != NULL)
                 {
                   /* The ARP table is fixed size; an entry is deleted
@@ -1560,6 +1606,13 @@ ssize_t net_ioctl_arglen(int cmd)
             return sizeof(struct btreq_s);
           }
 #  endif
+
+#  ifdef CONFIG_NETDEV_MODEM_LTE_IOCTL
+        if (WL_ISLTECMD(cmd))
+          {
+            return sizeof(struct lte_ioctl_data_s);
+          }
+#  endif
 #endif
 
         return -ENOTTY;
@@ -1568,7 +1621,7 @@ ssize_t net_ioctl_arglen(int cmd)
 #endif
 
 /****************************************************************************
- * Name: psock_ioctl
+ * Name: psock_ioctl and psock_vioctl
  *
  * Description:
  *   Perform network device specific operations.
@@ -1598,18 +1651,19 @@ ssize_t net_ioctl_arglen(int cmd)
  *
  ****************************************************************************/
 
-int psock_ioctl(FAR struct socket *psock, int cmd, unsigned long arg)
+int psock_vioctl(FAR struct socket *psock, int cmd, va_list ap)
 {
+  unsigned long arg;
   int ret;
 
   /* Verify that the psock corresponds to valid, allocated socket */
 
-  if (psock == NULL || psock->s_crefs <= 0)
+  if (psock == NULL || psock->s_conn == NULL)
     {
       return -EBADF;
     }
 
-  /* Execute the command.  First check for a standard network IOCTL command. */
+  arg = va_arg(ap, unsigned long);
 
 #ifdef CONFIG_NET_USRSOCK
   /* Check for a USRSOCK ioctl command */
@@ -1620,7 +1674,7 @@ int psock_ioctl(FAR struct socket *psock, int cmd, unsigned long arg)
     {
       /* Check for a standard network IOCTL command. */
 
-      ret = netdev_ifr_ioctl(psock, cmd, (FAR struct ifreq *)((uintptr_t)arg));
+      ret = netdev_ifr_ioctl(psock, cmd, (FAR struct ifreq *)(uintptr_t)arg);
     }
 
 #if defined(CONFIG_NETDEV_IOCTL) && defined(CONFIG_NETDEV_WIRELESS_IOCTL)
@@ -1668,7 +1722,7 @@ int psock_ioctl(FAR struct socket *psock, int cmd, unsigned long arg)
   if (ret == -ENOTTY)
     {
       ret = netdev_imsf_ioctl(psock, cmd,
-                              (FAR struct ip_msfilter *)((uintptr_t)arg));
+                              (FAR struct ip_msfilter *)(uintptr_t)arg);
     }
 #endif
 
@@ -1678,7 +1732,7 @@ int psock_ioctl(FAR struct socket *psock, int cmd, unsigned long arg)
   if (ret == -ENOTTY)
     {
       ret = netdev_arp_ioctl(psock, cmd,
-                             (FAR struct arpreq *)((uintptr_t)arg));
+                             (FAR struct arpreq *)(uintptr_t)arg);
     }
 #endif
 
@@ -1688,49 +1742,30 @@ int psock_ioctl(FAR struct socket *psock, int cmd, unsigned long arg)
   if (ret == -ENOTTY)
     {
       ret = netdev_rt_ioctl(psock, cmd,
-                            (FAR struct rtentry *)((uintptr_t)arg));
+                            (FAR struct rtentry *)(uintptr_t)arg);
     }
 #endif
 
   return ret;
 }
 
-/****************************************************************************
- * Name: netdev_ioctl
- *
- * Description:
- *   Perform network device specific operations.
- *
- * Input Parameters:
- *   sockfd   Socket descriptor of device
- *   cmd      The ioctl command
- *   arg      The argument of the ioctl cmd
- *
- * Returned Value:
- *   A non-negative value is returned on success; a negated errno value is
- *   returned on any failure to indicate the nature of the failure:
- *
- *   EBADF
- *     'sockfd' is not a valid socket descriptor.
- *   EFAULT
- *     'arg' references an inaccessible memory area.
- *   ENOTTY
- *     'cmd' not valid.
- *   EINVAL
- *     'arg' is not valid.
- *   ENOTTY
- *     'sockfd' is not associated with a network device.
- *   ENOTTY
- *      The specified request does not apply to the kind of object that the
- *      descriptor 'sockfd' references.
- *
- ****************************************************************************/
-
-int netdev_ioctl(int sockfd, int cmd, unsigned long arg)
+int psock_ioctl(FAR struct socket *psock, int cmd, ...)
 {
-  FAR struct socket *psock = sockfd_socket(sockfd);
+  va_list ap;
+  int ret;
 
-  return psock_ioctl(psock, cmd, arg);
+  /* Setup to access the variable argument list */
+
+  va_start(ap, cmd);
+
+  /* Let psock_vfcntl() do the real work.  The errno is not set on
+   * failures.
+   */
+
+  ret = psock_vioctl(psock, cmd, ap);
+
+  va_end(ap);
+  return ret;
 }
 
 /****************************************************************************
@@ -1758,6 +1793,10 @@ void netdev_ifup(FAR struct net_driver_s *dev)
               /* Mark the interface as up */
 
               dev->d_flags |= IFF_UP;
+
+              /* Update the driver status */
+
+              netlink_device_notify(dev);
             }
         }
     }
@@ -1780,6 +1819,10 @@ void netdev_ifdown(FAR struct net_driver_s *dev)
               /* Mark the interface as down */
 
               dev->d_flags &= ~IFF_UP;
+
+              /* Update the driver status */
+
+              netlink_device_notify(dev);
             }
         }
 
@@ -1796,4 +1839,3 @@ void netdev_ifdown(FAR struct net_driver_s *dev)
 #endif
     }
 }
-

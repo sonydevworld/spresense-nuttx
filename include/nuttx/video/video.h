@@ -1,35 +1,20 @@
 /****************************************************************************
- * modules/include/video/video.h
+ * include/nuttx/video/video.h
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 /**
@@ -133,7 +118,7 @@ extern "C"
 
 /**
  * Enqueue an empty buffer
- * 
+ *
  * @param[in] arg
  * Address pointing to struct #v4l2_buffer
  */
@@ -153,7 +138,7 @@ extern "C"
  * Start streaming
  *
  * @param[in] arg
- * Address pointing to enum #v4l2_buf_type 
+ * Address pointing to enum #v4l2_buf_type
  */
 
 #define VIDIOC_STREAMON               _VIDIOC(0x000A)
@@ -171,7 +156,7 @@ extern "C"
  * Do halfpush
  *
  * @param[in] arg
- * Address pointing to bool 
+ * Address pointing to bool
  */
 
 #define VIDIOC_DO_HALFPUSH            _VIDIOC(0x000C)
@@ -324,6 +309,7 @@ extern "C"
 #define VIDEO_VSIZE_3M          (1536)  /**< 3M      vertical   size */
 
 /**  Four-character-code (FOURCC) */
+
 #define v4l2_fourcc(a, b, c, d)\
   ((uint32_t)(a)        | ((uint32_t)(b) << 8) | \
   ((uint32_t)(c) << 16) | ((uint32_t)(d) << 24))
@@ -335,7 +321,7 @@ extern "C"
 
 /** RGB565 */
 
-#define V4L2_PIX_FMT_RGB565 v4l2_fourcc('R', 'G', 'B', 'P') 
+#define V4L2_PIX_FMT_RGB565 v4l2_fourcc('R', 'G', 'B', 'P')
 
 /** JFIF JPEG */
 
@@ -344,6 +330,14 @@ extern "C"
 /** JPEG + sub image */
 
 #define V4L2_PIX_FMT_JPEG_WITH_SUBIMG v4l2_fourcc('J', 'S', 'U', 'B')
+
+/** YUV 4:2:2 for sub image */
+
+#define V4L2_PIX_FMT_SUBIMG_UYVY v4l2_fourcc('S', 'Y', 'U', 'V')
+
+/** RGB565 for sub image */
+
+#define V4L2_PIX_FMT_SUBIMG_RGB565 v4l2_fourcc('S', 'R', 'G', 'B')
 
 /** MAX length of v4l2_fmtdesc description string */
 
@@ -366,44 +360,40 @@ extern "C"
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
 /**
  * @defgroup video_datatypes Data types
  * @{
  */
 
-/** Buffer type. 
+/** Buffer type.
  *  Currently, support only V4L2_BUF_TYPE_VIDEO_CAPTURE and
  *  V4L2_BUF_TYPE_STILL_CAPTURE.
  */
 
-enum v4l2_buf_type {
-  V4L2_BUF_TYPE_VIDEO_CAPTURE        = 1,    /**< single-planar
-                                                  video capture stream */
-  V4L2_BUF_TYPE_VIDEO_OUTPUT         = 2,    /**< single-planar
-                                                  video output stream */
+enum v4l2_buf_type
+{
+  V4L2_BUF_TYPE_VIDEO_CAPTURE        = 1,    /**< single-planar video capture stream */
+  V4L2_BUF_TYPE_VIDEO_OUTPUT         = 2,    /**< single-planar video output stream */
   V4L2_BUF_TYPE_VIDEO_OVERLAY        = 3,    /**< video overlay */
   V4L2_BUF_TYPE_VBI_CAPTURE          = 4,    /**< raw VBI capture stream */
   V4L2_BUF_TYPE_VBI_OUTPUT           = 5,    /**< raw VBI output stream */
   V4L2_BUF_TYPE_SLICED_VBI_CAPTURE   = 6,    /**< sliced VBI capture stream */
   V4L2_BUF_TYPE_SLICED_VBI_OUTPUT    = 7,    /**< sliced VBI output stream */
   V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY = 8,    /**< video output overlay  */
-  V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE = 9,    /**< multi-planar
-                                                  video capture stream */
-  V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,   /**< multi-planar
-                                                  video output stream */
-  V4L2_BUF_TYPE_SDR_CAPTURE          = 11,   /**< Software Defined Radio
-                                                  capture stream */
-  V4L2_BUF_TYPE_SDR_OUTPUT           = 12,   /**< Software Defined Radio
-                                                  output stream */
+  V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE = 9,    /**< multi-planar video capture stream */
+  V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE  = 10,   /**< multi-planar video output stream */
+  V4L2_BUF_TYPE_SDR_CAPTURE          = 11,   /**< Software Defined Radio capture stream */
+  V4L2_BUF_TYPE_SDR_OUTPUT           = 12,   /**< Software Defined Radio output stream */
   V4L2_BUF_TYPE_META_CAPTURE         = 13,   /**< metadata capture */
   V4L2_BUF_TYPE_PRIVATE              = 0x80, /**< Deprecated, do not use */
-  V4L2_BUF_TYPE_STILL_CAPTURE        = 0x81  /**< single-planar
-                                                  still capture stream */
+  V4L2_BUF_TYPE_STILL_CAPTURE        = 0x81  /**< single-planar still capture stream */
 };
 
 /** Memory I/O method. Currently, support only V4L2_MEMORY_USERPTR. */
 
-enum v4l2_memory {
+enum v4l2_memory
+{
   V4L2_MEMORY_MMAP         = 1,  /**< memory mapping I/O */
   V4L2_MEMORY_USERPTR      = 2,  /**< user pointer I/O  */
   V4L2_MEMORY_OVERLAY      = 3,  /**< overlay I/O */
@@ -412,7 +402,8 @@ enum v4l2_memory {
 
 /** Field order. Currently, support only V4L2_FIELD_ANY */
 
-enum v4l2_field {
+enum v4l2_field
+{
   V4L2_FIELD_ANY           = 0, /**< driver can choose from none, */
   V4L2_FIELD_NONE          = 1, /**< this device has no fields ... */
   V4L2_FIELD_TOP           = 2, /**< top field only */
@@ -427,26 +418,30 @@ enum v4l2_field {
 
 /** Buffer mode */
 
-enum v4l2_buf_mode {
+enum v4l2_buf_mode
+{
   V4L2_BUF_MODE_RING = 0,  /**< Ring structure */
   V4L2_BUF_MODE_FIFO = 1,  /**< FIFO structure */
 };
 
 /**
  * @struct v4l2_requestbuffers
- * @brief  parameter of ioctl(VIDIOC_REQBUFS) 
+ * @brief  parameter of ioctl(VIDIOC_REQBUFS)
  */
 
-struct v4l2_requestbuffers {
+struct v4l2_requestbuffers
+{
   uint32_t count;    /**< The number of buffers requested. Supported maximum
                           value is V4L2_REQBUFS_COUNT_MAX(=256) */
   uint32_t type;     /**< enum #v4l2_buf_type */
   uint32_t memory;   /**< enum #v4l2_memory */
   uint32_t mode;     /**< enum #v4l2_buf_mode */
 };
+
 typedef struct v4l2_requestbuffers v4l2_requestbuffers_t;
 
-struct v4l2_timecode {
+struct v4l2_timecode
+{
   uint32_t type;
   uint32_t flags;
   uint8_t  frames;
@@ -455,12 +450,15 @@ struct v4l2_timecode {
   uint8_t  hours;
   uint8_t  userbits[4];
 };
+
 typedef struct v4l2_timecode v4l2_timecode_t;
 
-struct v4l2_plane {
+struct v4l2_plane
+{
   uint32_t        bytesused;
   uint32_t        length;
-  union {
+  union
+  {
     uint32_t      mem_offset;
     unsigned long userptr;
     int           fd;
@@ -468,17 +466,19 @@ struct v4l2_plane {
   uint32_t        data_offset;
   uint32_t        reserved[11];
 };
+
 typedef struct v4l2_plane v4l2_plane_t;
 
 /**
  * @struct v4l2_buffer
  * @brief  Parameter of ioctl(VIDIOC_QBUF) and ioctl(VIDIOC_DQBUF). \n
- *         Currently, support only index, type, bytesused, memory, 
+ *         Currently, support only index, type, bytesused, memory,
  *         m.userptr, and length.
  */
 
-struct v4l2_buffer {
-  uint16_t             index;     /**< buffer id */ 
+struct v4l2_buffer
+{
+  uint16_t             index;     /**< buffer id */
   uint16_t             type;      /**< enum #v4l2_buf_type */
   uint32_t             bytesused; /**< Driver sets the image size */
   uint16_t             flags;     /**< buffer flags.
@@ -488,7 +488,8 @@ struct v4l2_buffer {
   struct v4l2_timecode timecode;  /**< frame timecode */
   uint16_t             sequence;  /**< frame sequence number */
   uint16_t             memory;    /**< enum #v4l2_memory */
-  union {
+  union
+  {
     uint32_t           offset;
     unsigned long      userptr;   /**< address of buffer */
     struct v4l2_plane  *planes;
@@ -500,30 +501,33 @@ typedef struct v4l2_buffer v4l2_buffer_t;
 
 /**
  * @struct v4l2_fmtdesc
- * @brief  parameter of ioctl(VIDIOC_ENUM_FMT) 
+ * @brief  parameter of ioctl(VIDIOC_ENUM_FMT)
  */
 
-struct v4l2_fmtdesc {
+struct v4l2_fmtdesc
+{
   uint16_t index;                           /**< Format number      */
   uint16_t type;                            /**< enum v4l2_buf_type */
   uint32_t flags;
   char     description[V4L2_FMT_DSC_MAX];   /**< Description string */
   uint32_t pixelformat;                     /**< Format fourcc      */
-  uint32_t subimg_pixelformat;              /**< Format fourcc      */
 };
 
-enum v4l2_frmsizetypes {
-  V4L2_FRMSIZE_TYPE_DISCRETE      = 1,   /**< Discrete value */
-  V4L2_FRMSIZE_TYPE_CONTINUOUS    = 2,   /**< Continous value */
-  V4L2_FRMSIZE_TYPE_STEPWISE      = 3,   /**< Step value */
+enum v4l2_frmsizetypes
+{
+  V4L2_FRMSIZE_TYPE_DISCRETE      = 1,   /* Discrete value   */
+  V4L2_FRMSIZE_TYPE_CONTINUOUS    = 2,   /* Continuous value */
+  V4L2_FRMSIZE_TYPE_STEPWISE      = 3,   /* Step value       */
 };
 
-struct v4l2_frmsize_discrete {
+struct v4l2_frmsize_discrete
+{
   uint16_t width;          /**< Frame width [pixel] */
   uint16_t height;         /**< Frame height [pixel] */
 };
 
-struct v4l2_frmsize_stepwise {
+struct v4l2_frmsize_stepwise
+{
   uint16_t min_width;      /**< Minimum frame width [pixel] */
   uint16_t max_width;      /**< Maximum frame width [pixel] */
   uint16_t step_width;     /**< Frame width step size [pixel] */
@@ -537,12 +541,19 @@ struct v4l2_frmsize_stepwise {
  * @brief  parameter of ioctl(VIDIOC_ENUM_FRAMESIZES)
  */
 
-struct v4l2_frmsizeenum {
+struct v4l2_frmsizeenum
+{
   uint32_t  index;              /**< Frame size number */
-  uint32_t  buf_type;            /**< enum #v4l2_buf_type */
+  uint32_t  buf_type;           /**< enum #v4l2_buf_type */
   uint32_t  pixel_format;       /**< Pixel format */
   uint32_t  type;               /**< Frame size type the device supports. */
-  union {                       /**< Frame size */
+
+  /** In type == V4L2_FRMSIZE_TYPE_DISCRETE case, use discrete.
+   * Otherwise, use stepwise.
+   */
+
+  union                       /**< Frame size */
+  {
     struct v4l2_frmsize_discrete discrete; /**< Use in type =
                                                 V4L2_FRMSIZE_TYPE_DISCRETE
                                                 case */
@@ -551,23 +562,12 @@ struct v4l2_frmsizeenum {
                                                 or V4L2_FRMSIZE_TYPE_STEPWISE
                                                 case */
   };
-  uint32_t  subimg_pixel_format; /**< Pixel format of sub image */
-  uint32_t  subimg_type;         /**< Frame size type of subimage. */
-
-  union {                        /** Frame size of subimage */
-    struct v4l2_frmsize_discrete discrete; /**< Use in subimg_type =
-                                                V4L2_FRMSIZE_TYPE_DISCRETE
-                                                case */
-    struct v4l2_frmsize_stepwise stepwise; /**< Use in subimg_type =
-                                                V4L2_FRMSIZE_TYPE_CONTINUOUS
-                                                or V4L2_FRMSIZE_TYPE_STEPWISE
-                                                case */
-    } subimg;
 };
 
 /** type of frame interval enumeration */
 
-enum v4l2_frmivaltypes {
+enum v4l2_frmivaltypes
+{
   V4L2_FRMIVAL_TYPE_DISCRETE      = 1,   /**< Discrete value */
   V4L2_FRMIVAL_TYPE_CONTINUOUS    = 2,   /**< Continuous value */
   V4L2_FRMIVAL_TYPE_STEPWISE      = 3,   /**< Step value */
@@ -575,14 +575,16 @@ enum v4l2_frmivaltypes {
 
 /** Fraction */
 
-struct v4l2_fract {
+struct v4l2_fract
+{
   uint32_t numerator;                     /**< numerator */
   uint32_t denominator;                   /**< denominator */
 };
 
 /** frame interval enumeration with stepwise format */
 
-struct v4l2_frmival_stepwise {
+struct v4l2_frmival_stepwise
+{
   struct v4l2_fract       min;            /**< Minimum frame interval [s] */
   struct v4l2_fract       max;            /**< Maximum frame interval [s] */
   struct v4l2_fract       step;           /**< Frame interval step size [s] */
@@ -593,17 +595,16 @@ struct v4l2_frmival_stepwise {
  * @brief  parameter of ioctl(VIDIOC_ENUM_FRAMEINTERVALS)
  */
 
-struct v4l2_frmivalenum {
+struct v4l2_frmivalenum
+{
   uint32_t index;               /**< Frame format index */
   uint32_t buf_type;            /**< enum #v4l2_buf_type */
   uint32_t pixel_format;        /**< Pixel format */
   uint16_t width;               /**< Frame width */
   uint16_t height;              /**< Frame height */
-  uint32_t subimg_pixel_format; /**< Pixel format for sub image */
-  uint16_t subimg_width;        /**< Frame width  for sub image */
-  uint16_t subimg_height;       /**< Frame height for sub image */
   uint32_t type;                /**< Frame interval type */
-  union {                       /**< Frame interval */
+  union
+  {                             /**< Frame interval */
     struct v4l2_fract               discrete;
     struct v4l2_frmival_stepwise    stepwise;
   };
@@ -611,58 +612,51 @@ struct v4l2_frmivalenum {
 
 /** Single-planar format structure. */
 
-struct v4l2_pix_format {
+struct v4l2_pix_format
+{
   uint16_t  width;              /**< Image width in pixels */
   uint16_t  height;             /**< Image height in pixels */
-  uint32_t  pixelformat;        /**< The pixel format
-                                      or type of compression.
-                                     V4L2_PIX_FMT_UYVY or
-                                     V4L2_PIX_FMT_JPEG or
-                                     V4L2_PIX_FMT_JPEG_WITH_SUBIMG */
-  uint16_t  subimg_width;       /**< sub image width in pixels
-                                      in case of pixelformat = 
-                                      V4L2_PIX_FMT_JPEG_WITH_SUBIMG */
-  uint16_t  subimg_height;      /**< sub image height in pixels
-                                      in case of pixelformat = 
-                                      V4L2_PIX_FMT_JPEG_WITH_SUBIMG */
-  uint32_t  subimg_pixelformat; /**< The pixel format of sub image
-                                     in case of pixelformat = 
-                                     V4L2_PIX_FMT_JPEG_WITH_SUBIMG */
+  uint32_t  pixelformat;        /**< The pixel format  or type of compression. */
   uint32_t  field;              /**< enum #v4l2_field */
   uint32_t  bytesperline;       /**< for padding, zero if unused */
-  uint32_t  sizeimage;          /**< Size in bytes of the buffer
-                                      to hold a complete image */
+  uint32_t  sizeimage;          /**< Size in bytes of the buffer to hold a complete image */
   uint32_t  colorspace;         /**< Image colorspace */
   uint32_t  priv;               /**< private data, depends on pixelformat */
   uint32_t  flags;              /**< format flags (V4L2_PIX_FMT_FLAG_*) */
-  union {
+  union
+  {
     uint32_t ycbcr_enc;         /**< enum v4l2_ycbcr_encoding */
     uint32_t hsv_enc;           /**< enum v4l2_hsv_encoding */
   };
   uint32_t  quantization;       /**< enum v4l2_quantization */
   uint32_t  xfer_func;          /**< enum v4l2_xfer_func */
 };
+
 typedef struct v4l2_pix_format v4l2_pix_format_t;
 
 /**
  * @struct v4l2_format
- * @brief  parameter of ioctl(VIDIOC_S_FMT) 
+ * @brief  parameter of ioctl(VIDIOC_S_FMT)
  */
 
-struct v4l2_format {
+struct v4l2_format
+{
   uint32_t  type;               /**< enum #v4l2_buf_type. */
-  union {
+  union
+  {
     struct v4l2_pix_format pix; /**< image format */
   } fmt;
 };
+
 typedef struct v4l2_format v4l2_format_t;
 
-struct v4l2_captureparm {
-  uint32_t           capability;    /*  Supported modes */
-  uint32_t           capturemode;   /*  Current mode */
-  struct v4l2_fract  timeperframe;  /*  Time per frame in seconds */
-  uint32_t           extendedmode;  /*  Driver-specific extensions */
-  uint32_t           readbuffers;   /*  # of buffers for read */
+struct v4l2_captureparm
+{
+  uint32_t           capability;    /**< Supported modes */
+  uint32_t           capturemode;   /**< Current mode */
+  struct v4l2_fract  timeperframe;  /**< Time per frame in seconds */
+  uint32_t           extendedmode;  /**< Driver-specific extensions */
+  uint32_t           readbuffers;   /**< # of buffers for read */
 };
 
 
@@ -671,17 +665,19 @@ struct v4l2_captureparm {
  * @brief  parameter of ioctl(VIDIOC_S_PARM)
  */
 
-struct v4l2_streamparm {
+struct v4l2_streamparm
+{
   uint32_t    type;                  /* enum v4l2_buf_type */
-  union {
+  union
+  {
     struct v4l2_captureparm capture;
-//    struct v4l2_outputparm  output;
   } parm;
 };
 
 /** Control type. */
 
-enum v4l2_ctrl_type {
+enum v4l2_ctrl_type
+{
   V4L2_CTRL_TYPE_INTEGER          = 1,  /**< Integer(32bit) */
   V4L2_CTRL_TYPE_BOOLEAN          = 2,  /**< Boolean */
   V4L2_CTRL_TYPE_MENU             = 3,  /**< Menu */
@@ -708,7 +704,8 @@ enum v4l2_ctrl_type {
  * @brief  parameter of ioctl(VIDIOC_QUERYCTRL)
  */
 
-struct v4l2_queryctrl {
+struct v4l2_queryctrl
+{
   uint16_t   ctrl_class;               /**< Control class */
   uint16_t   id;                       /**< Control id */
   uint16_t   type;                     /**< enum #v4l2_ctrl_type */
@@ -724,7 +721,8 @@ struct v4l2_queryctrl {
  * @brief  parameter of ioctl(VIDIOC_QUERY_EXT_CTRL)
  */
 
-struct v4l2_query_ext_ctrl {
+struct v4l2_query_ext_ctrl
+{
   uint16_t   ctrl_class;               /**< Control class */
   uint16_t   id;                       /**< Control id */
   uint16_t   type;                     /**< enum #v4l2_ctrl_type */
@@ -745,22 +743,25 @@ struct v4l2_query_ext_ctrl {
  * @brief  parameter of ioctl(VIDIOC_QUERYMENU)
  */
 
-struct v4l2_querymenu {
+struct v4l2_querymenu
+{
   uint16_t   ctrl_class;    /**< camera control class */
   uint16_t   id;            /**< camera control id    */
   uint32_t   index;         /**< index of menu.       */
-  union {
+  union
+  {
     char    name[32];       /**< name of menu  */
     int64_t value;          /**< value of menu */
   };
-} __attribute__ ((packed));
+};
 
 /**
  * @struct v4l2_control
  * @brief  parameter of ioctl(VIDIOC_G_CTRL / VIDIOC_S_CTRL)
  */
 
-struct v4l2_control {
+struct v4l2_control
+{
   uint16_t id;
   int32_t  value;
 };
@@ -770,10 +771,12 @@ struct v4l2_control {
  * ioctl(VIDIOC_G_EXT_CTRLS / VIDIOC_S_EXT_CTRLS)
  */
 
-struct v4l2_ext_control {
+struct v4l2_ext_control
+{
   uint16_t   id;       /**< camera control id */
   uint16_t   size;     /**< size of value(not use) */
-  union {
+  union
+  {
     int32_t  value;    /**< QUERY_EXT_CTRL type = INTEGER, xxx */
     int64_t  value64;  /**< QUERY_EXT_CTRL type = INTEGER64, MENU */
     char     *string;
@@ -782,21 +785,23 @@ struct v4l2_ext_control {
     uint32_t *p_u32;   /**< QUERY_EXT_CTRL type = U32 */
     void     *ptr;
   };
-} __attribute__ ((packed));
+};
 
 /**
  * @struct v4l2_ext_controls
  * @brief  parameter of ioctl(VIDIOC_G_EXT_CTRLS / VIDIOC_S_EXT_CTRLS)
  */
 
-struct v4l2_ext_controls {
-  union {
-    uint16_t              ctrl_class;  /**< camera control class        */
+struct v4l2_ext_controls
+{
+  union
+  {
+    uint16_t              ctrl_class;  /**< camera control class         */
     uint16_t              which;
   };
-  uint16_t                count;       /**< number of requests          */
-  uint16_t                error_idx;   /**< index in that error occured */
-  struct v4l2_ext_control *controls;   /**< each control information    */
+  uint16_t                count;       /**< number of requests           */
+  uint16_t                error_idx;   /**< index in that error occurred */
+  struct v4l2_ext_control *controls;   /**< each control information     */
 };
 
 /**
@@ -831,9 +836,6 @@ struct v4s_querymenu_scene
   enum v4l2_scene_mode       mode;     /**< scene mode to be queried */
   struct v4l2_querymenu      menu;     /**< same as VIDIOC_QUERYMENU */
 };
-
-extern FAR const struct video_sensctrl_ops_s *g_video_sensctrl_ops;
-extern FAR const struct video_imgdata_ops_s  *g_video_imgdata_ops;
 
 /** @} video_datatypes */
 

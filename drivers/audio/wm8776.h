@@ -1,37 +1,20 @@
 /****************************************************************************
  * drivers/audio/wm8776.h
  *
- *   Copyright 2017 Sony Video & Sound Products Inc.
- *   Author: Masayuki Ishikawa <Masayuki.Ishikawa@jp.sony.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Based on drivers/audio/wm8904.h
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -46,8 +29,8 @@
 #include <nuttx/compiler.h>
 
 #include <pthread.h>
-#include <mqueue.h>
 
+#include <nuttx/mqueue.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/fs/ioctl.h>
 
@@ -84,10 +67,11 @@ struct wm8776_dev_s
   /* We are an audio lower half driver (We are also the upper "half" of
    * the WM8776 driver with respect to the board lower half driver).
    *
-   * Terminology: Our "lower" half audio instances will be called dev for the
-   * publicly visible version and "priv" for the version that only this driver
-   * knows.  From the point of view of this driver, it is the board lower
-   * "half" that is referred to as "lower".
+   * Terminology:
+   * Our "lower" half audio instances will be called dev for the publicly
+   * visible version and "priv" for the version that only this driver knows
+   * From the point of view of this driver, it is the board lower "half"
+   * that is referred to as "lower".
    */
 
   struct audio_lowerhalf_s dev;             /* WM8776 audio lower half (this device) */
@@ -97,7 +81,7 @@ struct wm8776_dev_s
   FAR struct i2s_dev_s   *i2s;              /* I2S driver to use */
   struct dq_queue_s       pendq;            /* Queue of pending buffers to be sent */
   struct dq_queue_s       doneq;            /* Queue of sent buffers to be returned */
-  mqd_t                   mq;               /* Message queue for receiving messages */
+  struct file             mq;               /* Message queue for receiving messages */
   char                    mqname[16];       /* Our message queue name */
   pthread_t               threadid;         /* ID of our thread */
   uint32_t                bitrate;          /* Actual programmed bit rate */
@@ -106,9 +90,9 @@ struct wm8776_dev_s
 #ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
 #ifndef CONFIG_AUDIO_EXCLUDE_BALANCE
   uint16_t                balance;          /* Current balance level (b16) */
-#endif  /* CONFIG_AUDIO_EXCLUDE_BALANCE */
+#endif /* CONFIG_AUDIO_EXCLUDE_BALANCE */
   uint8_t                 volume;           /* Current volume level {0..63} */
-#endif  /* CONFIG_AUDIO_EXCLUDE_VOLUME */
+#endif /* CONFIG_AUDIO_EXCLUDE_VOLUME */
   uint8_t                 nchannels;        /* Number of channels (1 or 2) */
   uint8_t                 bpsamp;           /* Bits per sample (8 or 16) */
   volatile uint8_t        inflight;         /* Number of audio buffers in-flight */

@@ -30,7 +30,7 @@
  *
  ****************************************************************************/
 
-/* This file should never be included directed but, rather, only indirectly
+/* This file should never be included directly but, rather, only indirectly
  * through nuttx/irq.h
  */
 
@@ -56,5 +56,38 @@
 #if defined(CONFIG_ARCH_RV64GC)
 #  include <arch/rv64gc/irq.h>
 #endif
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+#ifndef __ASSEMBLY__
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
+
+EXTERN irqstate_t  up_irq_save(void);
+EXTERN void up_irq_restore(irqstate_t);
+EXTERN irqstate_t up_irq_enable(void);
+
+#undef EXTERN
+#if defined(__cplusplus)
+}
+#endif
+#endif /* __ASSEMBLY__ */
 
 #endif /* __ARCH_RISCV_INCLUDE_IRQ_H */

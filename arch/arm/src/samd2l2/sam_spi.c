@@ -1,41 +1,27 @@
 /****************************************************************************
  * arch/arm/src/samd2l2/sam_spi.c
  *
- *   Copyright (C) 2014-2018 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References:
- *   1. "Atmel SAM D20J / SAM D20G / SAM D20E ARM-Based Microcontroller
- *      Datasheet", 42129J–SAM–12/2013
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
+
+/* References:
+ *   1. "Atmel SAM D20J / SAM D20G / SAM D20E ARM-Based Microcontroller
+ *      Datasheet", 42129J–SAM–12/2013
+ */
 
 /****************************************************************************
  * Included Files
@@ -59,8 +45,8 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/spi/spi.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "chip.h"
 #include "sam_pinmap.h"
@@ -135,10 +121,10 @@ struct sam_spidev_s
   /* Debug stuff */
 
 #ifdef CONFIG_SAMD2L2_SPI_REGDEBUG
-   bool     wr;                /* Last was a write */
-   uint32_t regaddr;           /* Last address */
-   uint32_t regval;            /* Last value */
-   int      ntimes;            /* Number of times */
+  bool     wr;                /* Last was a write */
+  uint32_t regaddr;           /* Last address */
+  uint32_t regval;            /* Last value */
+  int      ntimes;            /* Number of times */
 #endif
 };
 
@@ -190,7 +176,7 @@ static int      spi_lock(struct spi_dev_s *dev, bool lock);
 static uint32_t spi_setfrequency(struct spi_dev_s *dev, uint32_t frequency);
 static void     spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode);
 static void     spi_setbits(struct spi_dev_s *dev, int nbits);
-static uint16_t spi_send(struct spi_dev_s *dev, uint16_t ch);
+static uint32_t spi_send(struct spi_dev_s *dev, uint32_t wd);
 static void     spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
                    void *rxbuffer, size_t nwords);
 #ifndef CONFIG_SPI_EXCHANGE
@@ -807,7 +793,7 @@ static int spi_interrupt(int irq, void *context, FAR void *arg)
  *   transfers.  The bus should be locked before the chip is selected. After
  *   locking the SPI bus, the caller should then also call the setfrequency,
  *   setbits, and setmode methods to make sure that the SPI is properly
- *   configured for the device.  If the SPI buss is being shared, then it
+ *   configured for the device.  If the SPI bus is being shared, then it
  *   may have been left in an incompatible state.
  *
  * Input Parameters:
@@ -873,7 +859,9 @@ static uint32_t spi_setfrequency(struct spi_dev_s *dev, uint32_t frequency)
       frequency = maxfreq;
     }
 
-  /* Check if the requested frequency is the same as the frequency selection */
+  /* Check if the requested frequency is the same as the frequency
+   * selection.
+   */
 
   if (priv->frequency == frequency)
     {
@@ -882,7 +870,7 @@ static uint32_t spi_setfrequency(struct spi_dev_s *dev, uint32_t frequency)
       return priv->actual;
     }
 
-  /* For synchronous mode, the BAUAD rate (Fbaud) is generated from the
+  /* For synchronous mode, the BAUD rate (Fbaud) is generated from the
    * source clock frequency (Fref) as follows:
    *
    *   Fbaud = Fref / (2 * (BAUD + 1))
@@ -1031,8 +1019,9 @@ static void spi_setbits(struct spi_dev_s *dev, int nbits)
   struct sam_spidev_s *priv = (struct sam_spidev_s *)dev;
   uint32_t regval;
 
+  DEBUGASSERT(priv != NULL);
   spiinfo("sercom=%d nbits=%d\n", priv->sercom, nbits);
-  DEBUGASSERT(priv && nbits > 7 && nbits < 10);
+  DEBUGASSERT(nbits > 7 && nbits < 10);
 
   /* Has the number of bits changed? */
 
@@ -1050,7 +1039,9 @@ static void spi_setbits(struct spi_dev_s *dev, int nbits)
 
       spi_putreg32(priv, regval, SAM_SPI_CTRLB_OFFSET);
 
-      /* Save the selection so the subsequence re-configurations will be faster */
+      /* Save the selection so that subsequent re-configurations will be
+       * faster.
+       */
 
       priv->nbits = nbits;
     }
@@ -1072,7 +1063,7 @@ static void spi_setbits(struct spi_dev_s *dev, int nbits)
  *
  ****************************************************************************/
 
-static uint16_t spi_send(struct spi_dev_s *dev, uint16_t wd)
+static uint32_t spi_send(struct spi_dev_s *dev, uint32_t wd)
 {
   uint8_t txbyte;
   uint8_t rxbyte;
@@ -1087,7 +1078,7 @@ static uint16_t spi_send(struct spi_dev_s *dev, uint16_t wd)
   spi_exchange(dev, &txbyte, &rxbyte, 1);
 
   spiinfo("Sent %02x received %02x\n", txbyte, rxbyte);
-  return (uint16_t)rxbyte;
+  return (uint32_t)rxbyte;
 }
 
 /****************************************************************************
@@ -1154,7 +1145,7 @@ static void spi_dma_callback(DMA_HANDLE dma, void *arg, int result)
  ****************************************************************************/
 
 static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
-              void *rxbuffer, size_t nwords)
+                         void *rxbuffer, size_t nwords)
 {
   struct sam_spidev_s *priv = (struct sam_spidev_s *)dev;
 
@@ -1322,7 +1313,8 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
  *   nwords - the length of data to send from the buffer in number of words.
  *            The wordsize is determined by the number of bits-per-word
  *            selected for the SPI interface.  If nbits <= 8, the data is
- *            packed into uint8_t's; if nbits >8, the data is packed into uint16_t's
+ *            packed into uint8_t's; if nbits >8, the data is packed into
+ *            uint16_t's
  *
  * Returned Value:
  *   None
@@ -1330,7 +1322,8 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
  ****************************************************************************/
 
 #ifndef CONFIG_SPI_EXCHANGE
-static void spi_sndblock(struct spi_dev_s *dev, const void *buffer, size_t nwords)
+static void spi_sndblock(struct spi_dev_s *dev, const void *buffer,
+                         size_t nwords)
 {
   /* spi_exchange can do this. */
 
@@ -1348,9 +1341,10 @@ static void spi_sndblock(struct spi_dev_s *dev, const void *buffer, size_t nword
  *   dev -    Device-specific state data
  *   buffer - A pointer to the buffer in which to receive data
  *   nwords - the length of data that can be received in the buffer in number
- *            of words.  The wordsize is determined by the number of bits-per-word
- *            selected for the SPI interface.  If nbits <= 8, the data is
- *            packed into uint8_t's; if nbits >8, the data is packed into uint16_t's
+ *            of words.  The wordsize is determined by the number of
+ *            bits-per-word selected for the SPI interface.  If nbits <= 8,
+ *            the data is packed into uint8_t's; if nbits >8, the data is
+ *            packed into uint16_t's
  *
  * Returned Value:
  *   None
@@ -1376,11 +1370,12 @@ static void spi_recvblock(struct spi_dev_s *dev, void *buffer, size_t nwords)
 
 static void spi_wait_synchronization(struct sam_spidev_s *priv)
 {
-
 #if defined(CONFIG_ARCH_FAMILY_SAMD20)
-  while ((spi_getreg16(priv, SAM_SPI_STATUS_OFFSET) & SPI_STATUS_SYNCBUSY) != 0);
+  while ((spi_getreg16(priv, SAM_SPI_STATUS_OFFSET) &
+         SPI_STATUS_SYNCBUSY) != 0);
 #elif defined(CONFIG_ARCH_FAMILY_SAMD21) || defined(CONFIG_ARCH_FAMILY_SAML21)
-  while ((spi_getreg16(priv, SAM_SPI_SYNCBUSY_OFFSET) & SPI_SYNCBUSY_ALL) != 0);
+  while ((spi_getreg16(priv, SAM_SPI_SYNCBUSY_OFFSET) &
+         SPI_SYNCBUSY_ALL) != 0);
 #endif
 }
 
@@ -1441,7 +1436,7 @@ static void spi_dma_setup(struct sam_spidev_s *priv)
   /* Initialize the semaphore used to notify when DMA is complete */
 
   nxsem_init(&priv->dmasem, 0, 0);
-  nxsem_setprotocol(&priv->dmasem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&priv->dmasem, SEM_PRIO_NONE);
 }
 #endif
 

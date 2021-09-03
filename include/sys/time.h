@@ -1,35 +1,20 @@
 /****************************************************************************
  * include/sys/time.h
  *
- *   Copyright (C) 2009, 2015-2016, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -44,6 +29,7 @@
 
 #include <time.h>
 #include <sys/select.h>
+#include <sys/types.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -137,6 +123,8 @@
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/
+
+typedef clock_t hrtime_t;
 
 /* struct timeval represents time as seconds plus microseconds */
 
@@ -338,9 +326,9 @@ int getitimer(int which, FAR struct itimerval *value);
  *   to indicate the error.
  *
  *   EINVAL - The which argument does not correspond to an predefined ID.
- *   EINVAL - A value structure specified a microsecond value less than zero or
- *     greater than or equal to 1000 million, and the it_value member of that
- *     structure did not specify zero seconds and nanoseconds.
+ *   EINVAL - A value structure specified a microsecond value less than zero
+ *     or greater than or equal to 1000 million, and the it_value member of
+ *     that structure did not specify zero seconds and nanoseconds.
  *
  * Assumptions:
  *
@@ -348,6 +336,96 @@ int getitimer(int which, FAR struct itimerval *value);
 
 int setitimer(int which, FAR const struct itimerval *value,
               FAR struct itimerval *ovalue);
+
+/****************************************************************************
+ * Name: utimes
+ *
+ * Description:
+ * The utimes() function shall set the access and modification times of the
+ * file pointed to by the path argument to the value of the times argument.
+ * utimes() function allows time specifications accurate to the microsecond.
+
+ * For utimes(), the times argument is an array of timeval structures. The
+ * first array member represents the date and time of last access, and the
+ * second member represents the date and time of last modification. The times
+ * in the timeval structure are measured in seconds and microseconds since
+ * the Epoch, although rounding toward the nearest second may occur.
+
+ * If the times argument is a null pointer, the access and modification times
+ * of the file shall be set to the current time. The effective user ID of the
+ * process shall match the owner of the file, has write access to the file or
+ * appropriate privileges to use this call in this manner. Upon completion,
+ * utimes() shall mark the time of the last file status change, st_ctime, for
+ * update.
+ *
+ * Input Parameters:
+ *   path  - Specifies the file to be modified
+ *   times - Specifies the time value to set
+ *
+ * Returned Value:
+ *   Upon successful completion, 0 shall be returned. Otherwise, -1 shall be
+ *   returned and errno shall be set to indicate the error, and the file
+ *   times shall not be affected.
+ *
+ ****************************************************************************/
+
+int utimes(FAR const char *path, const struct timeval times[2]);
+
+/****************************************************************************
+ * Name: futimes
+ *
+ * Description:
+ *  futimens() update the timestamps of a file with nanosecond precision.
+ *  This contrasts with the historical utime(2) and utimes(2), which permit
+ *  only second and microsecond precision, respectively, when setting file
+ *  timestamps. With futimens() the file whose timestamps are to be updated
+ *  is specified via an open file descriptor, fd.
+ *
+ * Input Parameters:
+ *   fd  - Specifies the fd to be modified
+ *   times - Specifies the time value to set
+ *
+ * Returned Value:
+ *   On success, futimens() return 0.
+ *   On error, -1 is returned and errno is set to indicate the error.
+ *
+ ****************************************************************************/
+
+int futimes(int fd, const struct timeval tv[2]);
+
+/****************************************************************************
+ * Name: futimes
+ *
+ * Description:
+ *  futimens() update the timestamps of a file with nanosecond precision.
+ *  This contrasts with the historical utime(2) and utimes(2), which permit
+ *  only second and microsecond precision, respectively, when setting file
+ *  timestamps.
+ *
+ * Input Parameters:
+ *   fd  - Specifies the fd to be modified
+ *   times - Specifies the time value to set
+ *
+ * Returned Value:
+ *   On success, futimens() return 0.
+ *   On error, -1 is returned and errno is set to indicate the error.
+ *
+ ****************************************************************************/
+
+int futimens(int fd, const struct timespec times[2]);
+
+/****************************************************************************
+ * Name: gethrtime
+ *
+ * Description:
+ *   Get the current time
+ *
+ * Returned Value:
+ *   The current value of the system time in ns
+ *
+ ****************************************************************************/
+
+hrtime_t gethrtime(void);
 
 #undef EXTERN
 #if defined(__cplusplus)

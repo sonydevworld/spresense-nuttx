@@ -41,6 +41,7 @@
 
 #include <nuttx/config.h>
 
+#include <inttypes.h>
 #include <string.h>
 #include <assert.h>
 #include <debug.h>
@@ -216,7 +217,7 @@ int mrf24j40_setsaddr(FAR struct mrf24j40_radio_s *dev,
  *
  * Description:
  *   Define the device extended address. The following addresses are special:
- *   FFFFFFFFFFFFFFFFh : Unspecified
+ *   ffffffffffffffffh : Unspecified
  *
  ****************************************************************************/
 
@@ -230,6 +231,7 @@ int mrf24j40_seteaddr(FAR struct mrf24j40_radio_s *dev,
       mrf24j40_setreg(dev->spi, MRF24J40_EADR0 + i, eaddr[i]);
       dev->addr.eaddr[i] = eaddr[i];
     }
+
   wlinfo("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n", eaddr[0], eaddr[1],
          eaddr[2], eaddr[3], eaddr[4], eaddr[5], eaddr[6], eaddr[7]);
 
@@ -346,7 +348,7 @@ int mrf24j40_settxpower(FAR struct mrf24j40_radio_s *dev,
 
   if (txpwr <= -3000 && txpwr > -3630)
     {
-      reg = 0xC0;
+      reg = 0xc0;
       txpwr += 3000;
     }
   else if (txpwr <= -2000)
@@ -368,7 +370,7 @@ int mrf24j40_settxpower(FAR struct mrf24j40_radio_s *dev,
       return -EINVAL;
     }
 
-  wlinfo("Remaining attenuation: %d mBm\n", txpwr);
+  wlinfo("Remaining attenuation: %" PRId32 " mBm\n", txpwr);
 
   switch (txpwr / 100)
     {
@@ -480,18 +482,18 @@ int mrf24j40_setpamode(FAR struct mrf24j40_radio_s *dev, int mode)
     {
       mrf24j40_setreg(dev->spi, MRF24J40_TRISGPIO, 0x08);
       mrf24j40_setreg(dev->spi, MRF24J40_GPIO    , 0x08);
-      mrf24j40_setreg(dev->spi, MRF24J40_TESTMODE, 0x0F);
+      mrf24j40_setreg(dev->spi, MRF24J40_TESTMODE, 0x0f);
     }
   else if (mode == MRF24J40_PA_ED)
     {
       mrf24j40_setreg(dev->spi, MRF24J40_TESTMODE, 0x08);
-      mrf24j40_setreg(dev->spi, MRF24J40_TRISGPIO, 0x0F);
-      mrf24j40_setreg(dev->spi, MRF24J40_GPIO    , 0x0C);
+      mrf24j40_setreg(dev->spi, MRF24J40_TRISGPIO, 0x0f);
+      mrf24j40_setreg(dev->spi, MRF24J40_GPIO    , 0x0c);
     }
   else if (mode == MRF24J40_PA_SLEEP)
     {
       mrf24j40_setreg(dev->spi, MRF24J40_TESTMODE, 0x08);
-      mrf24j40_setreg(dev->spi, MRF24J40_TRISGPIO, 0x0F);
+      mrf24j40_setreg(dev->spi, MRF24J40_TRISGPIO, 0x0f);
       mrf24j40_setreg(dev->spi, MRF24J40_GPIO    , 0x00);
     }
   else

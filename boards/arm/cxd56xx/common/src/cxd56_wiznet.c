@@ -136,7 +136,7 @@ static void wiznet_irq_attach(bool attach, xcpt_t handler, FAR void *arg)
 
 static void wiznet_irq_enable(bool enable)
 {
-  irqstate_t flags = spin_lock_irqsave();
+  irqstate_t flags = spin_lock_irqsave(NULL);
 
   if (enable)
     {
@@ -151,7 +151,7 @@ static void wiznet_irq_enable(bool enable)
       cxd56_gpioint_disable(WIZNET_PIN_INT);
     }
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************

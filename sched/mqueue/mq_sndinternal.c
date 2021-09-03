@@ -1,35 +1,20 @@
 /****************************************************************************
- *  sched/mqueue/mq_sndinternal.c
+ * sched/mqueue/mq_sndinternal.c
  *
- *   Copyright (C) 2007, 2009, 2013-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -70,38 +55,39 @@
  *   common to both functions.
  *
  * Input Parameters:
- *   mqdes - Message queue descriptor
- *   msg - Message to send
+ *   msgq   - Message queue descriptor
+ *   oflags - flags from user set
+ *   msg    - Message to send
  *   msglen - The length of the message in bytes
- *   prio - The priority of the message
+ *   prio   - The priority of the message
  *
  * Returned Value:
  *   One success, 0 (OK) is returned. On failure, a negated errno value is
  *   returned.
  *
- *     EINVAL   Either msg or mqdes is NULL or the value of prio is invalid.
+ *     EINVAL   Either msg or msgq is NULL or the value of prio is invalid.
  *     EPERM    Message queue opened not opened for writing.
  *     EMSGSIZE 'msglen' was greater than the maxmsgsize attribute of the
  *               message queue.
  *
  ****************************************************************************/
 
-int nxmq_verify_send(mqd_t mqdes, FAR const char *msg, size_t msglen,
-                     unsigned int prio)
+int nxmq_verify_send(FAR struct mqueue_inode_s *msgq, int oflags,
+                     FAR const char *msg, size_t msglen, unsigned int prio)
 {
   /* Verify the input parameters */
 
-  if (msg == NULL || mqdes == NULL || prio > MQ_PRIO_MAX)
+  if (msg == NULL || msgq == NULL || prio > MQ_PRIO_MAX)
     {
       return -EINVAL;
     }
 
-  if ((mqdes->oflags & O_WROK) == 0)
+  if ((oflags & O_WROK) == 0)
     {
       return -EPERM;
     }
 
-  if (msglen > (size_t)mqdes->msgq->maxmsgsize)
+  if (msglen > (size_t)msgq->maxmsgsize)
     {
       return -EMSGSIZE;
     }
@@ -184,7 +170,9 @@ FAR struct mqueue_msg_s *nxmq_alloc_msg(void)
 
           if (mqmsg != NULL)
             {
-              /* Yes... remember that this message was dynamically allocated */
+              /* Yes... remember that this message was dynamically
+               * allocated.
+               */
 
               mqmsg->type = MQ_ALLOC_DYN;
             }
@@ -203,14 +191,15 @@ FAR struct mqueue_msg_s *nxmq_alloc_msg(void)
  *   full.
  *
  * Input Parameters:
- *   mqdes - Message queue descriptor
+ *   msgq   - Message queue descriptor
+ *   oflags - flags from user set
  *
  * Returned Value:
  *   On success, nxmq_wait_send() returns 0 (OK); a negated errno value is
  *   returned on any failure:
  *
  *   EAGAIN   The queue was full and the O_NONBLOCK flag was set for the
- *            message queue description referred to by mqdes.
+ *            message queue description referred to by msgq.
  *   EINTR    The call was interrupted by a signal handler.
  *   ETIMEOUT A timeout expired before the message queue became non-full
  *            (mq_timedsend only).
@@ -221,10 +210,9 @@ FAR struct mqueue_msg_s *nxmq_alloc_msg(void)
  *
  ****************************************************************************/
 
-int nxmq_wait_send(mqd_t mqdes)
+int nxmq_wait_send(FAR struct mqueue_inode_s *msgq, int oflags)
 {
   FAR struct tcb_s *rtcb;
-  FAR struct mqueue_inode_s *msgq;
   int ret;
 
 #ifdef CONFIG_CANCELLATION_POINTS
@@ -242,10 +230,6 @@ int nxmq_wait_send(mqd_t mqdes)
     }
 #endif
 
-  /* Get a pointer to the message queue */
-
-  msgq = mqdes->msgq;
-
   /* Verify that the queue is indeed full as the caller thinks */
 
   if (msgq->nmsgs >= msgq->maxmsgs)
@@ -254,7 +238,7 @@ int nxmq_wait_send(mqd_t mqdes)
        * message queue?
        */
 
-      if ((mqdes->oflags & O_NONBLOCK) != 0)
+      if ((oflags & O_NONBLOCK) != 0)
         {
           /* No... We will return an error to the caller. */
 
@@ -262,7 +246,7 @@ int nxmq_wait_send(mqd_t mqdes)
         }
 
       /* Yes... We will not return control until the message queue is
-       * available or we receive a signal or at timout occurs.
+       * available or we receive a signal or at timeout occurs.
        */
 
       else
@@ -273,8 +257,6 @@ int nxmq_wait_send(mqd_t mqdes)
 
           while (msgq->nmsgs >= msgq->maxmsgs)
             {
-              int saved_errno;
-
               /* Block until the message queue is no longer full.
                * When we are unblocked, we will try again
                */
@@ -283,12 +265,11 @@ int nxmq_wait_send(mqd_t mqdes)
               rtcb->msgwaitq = msgq;
               msgq->nwaitnotfull++;
 
-              /* "Borrow" the per-task errno to communication wake-up error
+              /* Initialize the errcode used to communication wake-up error
                * conditions.
                */
 
-              saved_errno   = rtcb->pterrno;
-              rtcb->pterrno = OK;
+              rtcb->errcode = OK;
 
               /* Make sure this is not the idle task, descheduling that
                * isn't going to end well.
@@ -303,9 +284,7 @@ int nxmq_wait_send(mqd_t mqdes)
                * per-task errno value (should be EINTR or ETIMEOUT).
                */
 
-              ret           = rtcb->pterrno;
-              rtcb->pterrno = saved_errno;
-
+              ret = rtcb->errcode;
               if (ret != OK)
                 {
                   return -ret;
@@ -323,12 +302,12 @@ int nxmq_wait_send(mqd_t mqdes)
  * Description:
  *   This is internal, common logic shared by both [nx]mq_send and
  *   [nx]mq_timesend.  This function adds the specified message (msg) to the
- *   message queue (mqdes).  Then it notifies any tasks that were waiting
+ *   message queue (msgq).  Then it notifies any tasks that were waiting
  *   for message queue notifications setup by mq_notify.  And, finally, it
  *   awakens any tasks that were waiting for the message not empty event.
  *
  * Input Parameters:
- *   mqdes  - Message queue descriptor
+ *   msgq   - Message queue descriptor
  *   msg    - Message to send
  *   msglen - The length of the message in bytes
  *   prio   - The priority of the message
@@ -338,11 +317,11 @@ int nxmq_wait_send(mqd_t mqdes)
  *
  ****************************************************************************/
 
-int nxmq_do_send(mqd_t mqdes, FAR struct mqueue_msg_s *mqmsg,
+int nxmq_do_send(FAR struct mqueue_inode_s *msgq,
+                 FAR struct mqueue_msg_s *mqmsg,
                  FAR const char *msg, size_t msglen, unsigned int prio)
 {
   FAR struct tcb_s *btcb;
-  FAR struct mqueue_inode_s *msgq;
   FAR struct mqueue_msg_s *next;
   FAR struct mqueue_msg_s *prev;
   irqstate_t flags;
@@ -350,7 +329,6 @@ int nxmq_do_send(mqd_t mqdes, FAR struct mqueue_msg_s *mqmsg,
   /* Get a pointer to the message queue */
 
   sched_lock();
-  msgq = mqdes->msgq;
 
   /* Construct the message header info */
 
@@ -387,14 +365,18 @@ int nxmq_do_send(mqd_t mqdes, FAR struct mqueue_msg_s *mqmsg,
 
   /* Increment the count of messages in the queue */
 
-  msgq->nmsgs++;
+  if (msgq->nmsgs++ == 0)
+    {
+      nxmq_pollnotify(msgq, POLLIN);
+    }
+
   leave_critical_section(flags);
 
   /* Check if we need to notify any tasks that are attached to the
    * message queue
    */
 
-  if (msgq->ntmqdes)
+  if (msgq->ntpid != INVALID_PROCESS_ID)
     {
       struct sigevent event;
       pid_t pid;
@@ -407,8 +389,7 @@ int nxmq_do_send(mqd_t mqdes, FAR struct mqueue_msg_s *mqmsg,
       /* Detach the notification */
 
       memset(&msgq->ntevent, 0, sizeof(struct sigevent));
-      msgq->ntpid   = INVALID_PROCESS_ID;
-      msgq->ntmqdes = NULL;
+      msgq->ntpid = INVALID_PROCESS_ID;
 
       /* Notification the client */
 
@@ -423,13 +404,15 @@ int nxmq_do_send(mqd_t mqdes, FAR struct mqueue_msg_s *mqmsg,
     {
       /* Find the highest priority task that is waiting for
        * this queue to be non-empty in g_waitingformqnotempty
-       * list. sched_lock() should give us sufficent protection since
+       * list. sched_lock() should give us sufficient protection since
        * interrupts should never cause a change in this list
        */
 
       for (btcb = (FAR struct tcb_s *)g_waitingformqnotempty.head;
            btcb && btcb->msgwaitq != msgq;
-           btcb = btcb->flink);
+           btcb = btcb->flink)
+        {
+        }
 
       /* If one was found, unblock it */
 

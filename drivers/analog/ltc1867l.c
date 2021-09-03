@@ -1,39 +1,20 @@
 /****************************************************************************
- * arch/drivers/analog/ltc1867l.c
+ * drivers/analog/ltc1867l.c
  *
- *   Copyright (C) 2017 DS-Automotion GmbH. All rights reserved.
- *   Author: Martin Lederhilger <m.lederhilger@ds-automotion.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * This file is a part of NuttX:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -152,15 +133,16 @@ static void adc_unlock(FAR struct spi_dev_s *spi)
  * Name: adc_bind
  *
  * Description:
- *   Bind the upper-half driver callbacks to the lower-half implementation.  This
- *   must be called early in order to receive ADC event notifications.
+ *   Bind the upper-half driver callbacks to the lower-half implementation.
+ *   This must be called early in order to receive ADC event notifications.
  *
  ****************************************************************************/
 
 static int adc_bind(FAR struct adc_dev_s *dev,
                     FAR const struct adc_callback_s *callback)
 {
-  FAR struct ltc1867l_dev_s *priv = (FAR struct ltc1867l_dev_s *)dev->ad_priv;
+  FAR struct ltc1867l_dev_s *priv =
+    (FAR struct ltc1867l_dev_s *)dev->ad_priv;
   priv->cb = callback;
   return OK;
 }
@@ -184,7 +166,7 @@ static void adc_reset(FAR struct adc_dev_s *dev)
  * Description:
  *   Configure the ADC. This method is called the first time that the ADC
  *   device is opened.  This will occur when the port is first opened.
- *   This setup includes configuring and attaching ADC interrupts.  Interrupts
+ *   This setup includes configuring and attaching ADC interrupts. Interrupts
  *   are all disabled upon return.
  *
  ****************************************************************************/
@@ -229,12 +211,13 @@ static void adc_rxint(FAR struct adc_dev_s *dev, bool enable)
 
 static int adc_ioctl(FAR struct adc_dev_s *dev, int cmd, unsigned long arg)
 {
-  FAR struct ltc1867l_dev_s *priv = (FAR struct ltc1867l_dev_s *)dev->ad_priv;
+  FAR struct ltc1867l_dev_s *priv =
+    (FAR struct ltc1867l_dev_s *)dev->ad_priv;
   FAR struct spi_dev_s *spi = priv->spi;
   int i;
   uint16_t command;
   uint16_t data;
-  int32_t dataToPost;
+  int32_t postdata;
   int ret = OK;
 
   if (cmd == ANIOC_TRIGGER)
@@ -250,7 +233,7 @@ static int adc_ioctl(FAR struct adc_dev_s *dev, int cmd, unsigned long arg)
           if (i < priv->channel_config_count)
             {
               command = priv->channel_config[i].analog_multiplexer_config |
-                        priv->channel_config[i].analog_inputMode;
+                        priv->channel_config[i].analog_inputmode;
               command = command << 8;
             }
           else
@@ -265,18 +248,21 @@ static int adc_ioctl(FAR struct adc_dev_s *dev, int cmd, unsigned long arg)
 
           if (i > 0)
             {
-              if (priv->channel_config[i-1].analog_inputMode == LTC1867L_UNIPOLAR ||
-                  (priv->channel_config[i-1].analog_inputMode == LTC1867L_BIPOLAR &&
+              if (priv->channel_config[i - 1].analog_inputmode ==
+                  LTC1867L_UNIPOLAR ||
+                  (priv->channel_config[i - 1].analog_inputmode ==
+                   LTC1867L_BIPOLAR &&
                    data >= 0 && data <= 0x7fff))
                 {
-                  dataToPost = data;
+                  postdata = data;
                 }
               else
                 {
-                  dataToPost = -(0xffff - data) - 1;
+                  postdata = -(0xffff - data) - 1;
                 }
 
-              priv->cb->au_receive(dev, priv->channel_config[i-1].channel, dataToPost);
+              priv->cb->au_receive(dev, priv->channel_config[i - 1].channel,
+                                   postdata);
             }
         }
 
@@ -318,7 +304,7 @@ static int adc_ioctl(FAR struct adc_dev_s *dev, int cmd, unsigned long arg)
 
 int ltc1867l_register(FAR const char *devpath, FAR struct spi_dev_s *spi,
                       unsigned int devno,
-                      FAR struct ltc1867l_channel_config_s* channel_config,
+                      FAR struct ltc1867l_channel_config_s *channel_config,
                       int channel_config_count)
 {
   FAR struct ltc1867l_dev_s *adcpriv;
@@ -332,7 +318,8 @@ int ltc1867l_register(FAR const char *devpath, FAR struct spi_dev_s *spi,
 
   /* Initialize the LTC1867L device structure */
 
-  adcpriv = (FAR struct ltc1867l_dev_s *)kmm_malloc(sizeof(struct ltc1867l_dev_s));
+  adcpriv =
+    (FAR struct ltc1867l_dev_s *)kmm_malloc(sizeof(struct ltc1867l_dev_s));
   if (adcpriv == NULL)
     {
       aerr("ERROR: Failed to allocate ltc1867l_dev_s instance\n");

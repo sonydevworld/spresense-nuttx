@@ -6,7 +6,8 @@
  *   Copyright (C) 2007, 2009, 2011-2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
- * Derived largely from portions of uIP with has a similar BSD-styple license:
+ * Derived largely from portions of uIP with has a similar BSD-styple
+ * license:
  *
  *   Copyright (c) 2001-2003, Adam Dunkels.
  *   All rights reserved.
@@ -51,10 +52,7 @@
 
 #include <sys/ioctl.h>
 #include <stdint.h>
-
-#ifdef CONFIG_NET_MCASTGROUP
-#  include <queue.h>
-#endif
+#include <queue.h>
 
 #include <net/if.h>
 #include <net/ethernet.h>
@@ -192,7 +190,7 @@ struct netdev_statistics_s
 
   /* Other status */
 
-  uint32_t errors;         /* Total umber of errors */
+  uint32_t errors;         /* Total number of errors */
 };
 #endif
 
@@ -218,8 +216,8 @@ struct netdev_varaddr_s
 #endif
 
 /* This structure collects information that is specific to a specific network
- * interface driver.  If the hardware platform supports only a single instance
- * of this structure.
+ * interface driver.  If the hardware platform supports only a single
+ * instance of this structure.
  */
 
 struct devif_callback_s; /* Forward reference */
@@ -233,7 +231,8 @@ struct net_driver_s
 #ifdef CONFIG_NET
   FAR struct net_driver_s *flink;
 
-  /* This is the name of network device assigned when netdev_register was called.
+  /* This is the name of network device assigned when netdev_register was
+   * called.
    * This name is only used to support socket ioctl lookups by device name
    * Examples: "eth0"
    */
@@ -245,7 +244,9 @@ struct net_driver_s
 
   uint8_t d_flags;
 
-  /* Multi network devices using multiple link layer protocols are supported */
+  /* Multi network devices using multiple link layer protocols are
+   * supported
+   */
 
   uint8_t d_lltype;             /* See enum net_lltype_e */
   uint8_t d_llhdrlen;           /* Link layer header size */
@@ -308,14 +309,14 @@ struct net_driver_s
    * or written to in the packet buffer.
    */
 
-  uint8_t *d_appdata;
+  FAR uint8_t *d_appdata;
 
 #ifdef CONFIG_NET_TCPURGDATA
   /* This pointer points to any urgent TCP data that has been received. Only
-   * present if compiled with support for urgent data (CONFIG_NET_TCPURGDATA).
+   * present if compiled with support for urgent data(CONFIG_NET_TCPURGDATA).
    */
 
-  uint8_t *d_urgdata;
+  FAR uint8_t *d_urgdata;
 
   /* Length of the (received) urgent data */
 
@@ -337,8 +338,8 @@ struct net_driver_s
 
   uint16_t d_len;
 
-  /* When d_buf contains outgoing xmit data, d_sndlen is non-zero and represents
-   * the amount of application data after d_appdata
+  /* When d_buf contains outgoing xmit data, d_sndlen is non-zero and
+   * represents the amount of application data after d_appdata
    */
 
   uint16_t d_sndlen;
@@ -372,7 +373,6 @@ struct net_driver_s
    *      socket-less packet transfers.  There events include:
    *
    *        ICMP data receipt:     ICMP_NEWDATA, ICMPv6_NEWDATA
-   *        ICMP ECHO replies:     ICMP_ECHOREPLY, ICMPv6_ECHOREPLY
    *        Driver Tx poll events: ARP_POLL, ICMP_POLL. ICMPv6_POLL
    *        IP Forwarding:         IPFWD_POLL
    *
@@ -401,7 +401,7 @@ struct net_driver_s
 
   /* Drivers may attached device-specific, private information */
 
-  void *d_private;
+  FAR void *d_private;
 };
 
 typedef CODE int (*devif_poll_callback_t)(FAR struct net_driver_s *dev);
@@ -583,13 +583,13 @@ void neighbor_out(FAR struct net_driver_s *dev);
  *
  * Description:
  *   This function should be called before sending out a packet. The function
- *   checks the destination address of the packet to see whether the target of
- *   packet is ourself and then consume the packet directly by calling input
- *   process functions.
+ *   checks the destination address of the packet to see whether the target
+ *   of packet is ourself and then consume the packet directly by calling
+ *   input process functions.
  *
  * Returned Value:
  *   Zero is returned if the packet don't loop back to ourself, otherwise
- *   a no zero value is returned.
+ *   a non-zero value is returned.
  *
  ****************************************************************************/
 
@@ -598,8 +598,8 @@ int devif_loopback(FAR struct net_driver_s *dev);
 /****************************************************************************
  * Carrier detection
  *
- * Call netdev_carrier_on when the carrier has become available and the device
- * is ready to receive/transmit packets.
+ * Call netdev_carrier_on when the carrier has become available and the
+ * device is ready to receive/transmit packets.
  *
  * Call detdev_carrier_off when the carrier disappeared and the device has
  * moved into non operational state.
@@ -646,7 +646,8 @@ ssize_t net_ioctl_arglen(int cmd);
  *
  *   buf - A pointer to the buffer over which the checksum is to be computed.
  *
- *   len - The length of the buffer over which the checksum is to be computed.
+ *   len - The length of the buffer over which the checksum is to be
+ *         computed.
  *
  * Returned Value:
  *   The Internet checksum of the buffer.
@@ -695,27 +696,6 @@ void net_incr32(FAR uint8_t *op32, uint16_t op16);
 
 #ifdef CONFIG_NET_IPv4
 uint16_t ipv4_chksum(FAR struct net_driver_s *dev);
-#endif
-
-/****************************************************************************
- * Name: ipv6_chksum
- *
- * Description:
- *   Calculate the IPv6 header checksum of the packet header in d_buf.
- *
- *   The IPv6 header checksum is the Internet checksum of the 40 bytes of
- *   the IPv6 header.
- *
- *   If CONFIG_NET_ARCH_CHKSUM is defined, then this function must be
- *   provided by architecture-specific logic.
- *
- * Returned Value:
- *   The IPv6 header checksum of the IPv6 header in the d_buf buffer.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_NET_IPv6
-uint16_t ipv6_chksum(FAR struct net_driver_s *dev);
 #endif
 
 /****************************************************************************

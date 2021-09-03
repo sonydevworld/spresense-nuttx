@@ -1,35 +1,20 @@
 /****************************************************************************
- * arch/arm/src/tiva/common/lmxx_tm4c_sysctrl.c
+ * arch/arm/src/tiva/common/lm4xx_tm3c_sysctrl.c
  *
- *   Copyright (C) 2009-2014, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -46,8 +31,8 @@
 #include <nuttx/init.h>
 #include <arch/board/board.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 #include "chip.h"
 #include "tiva_sysctrl.h"
 
@@ -86,9 +71,9 @@
  * Name: tiva_delay
  *
  * Description:
- *   Wait for the newly selected oscillator(s) to settle.  This is tricky because
- *   the time that we wait can be significant and is determined by the previous
- *   clock setting, not the one that we are configuring.
+ *   Wait for the newly selected oscillator(s) to settle.  This is tricky
+ *   because the time that we wait can be significant and is determined by
+ *   the previous clock setting, not the one that we are configuring.
  *
  ****************************************************************************/
 
@@ -104,9 +89,9 @@ static inline void tiva_delay(uint32_t delay)
  * Name: tiva_oscdelay
  *
  * Description:
- *   Wait for the newly selected oscillator(s) to settle.  This is tricky because
- *   the time that we wait can be significant and is determined by the previous
- *   clock setting, not the one that we are configuring.
+ *   Wait for the newly selected oscillator(s) to settle.  This is tricky
+ *   because the time that we wait can be significant and is determined by
+ *   the previous clock setting, not the one that we are configuring.
  *
  ****************************************************************************/
 
@@ -210,21 +195,21 @@ void tiva_clock_reconfigure(uint32_t newrcc, uint32_t newrcc2)
     {
       uint32_t dummy;
 
-      /* According to TM4C123GH6PM datasheet page 231 item 5.3 we must perform
-       * the following steps to initialize and configure TM4C123G chip to use
-       * a PLL based system clock.
+      /* According to TM4C123GH6PM datasheet page 231 item 5.3 we must
+       * perform the following steps to initialize and configure TM4C123G
+       * chip to use a PLL based system clock.
        *
-       * 1. Bypass the PLL and system clock divider by setting the BYPASS bit
-       *    and clearing the USESYS bit in the RCC register.
+       * 1. Bypass the PLL and system clock divider by setting the BYPASS
+       *    bit and clearing the USESYS bit in the RCC register.
        *
        * 2. Select the crystal value (XTAL) and oscillator source (OSCSRC),
        *    and clear the PWRDN bit in RCC/RCC2. Setting the XTAL field
-       *    automatically pulls valid PLL configuration data for the appropriate
-       *    crystal, and clearing the PWRDN bit powers and enables the PLL and
-       *    its output.
+       *    automatically pulls valid PLL configuration data for the
+       *    appropriate crystal, and clearing the PWRDN bit powers and
+       *    enables the PLL and its output.
        *
-       * 3. Select the desired system divider (SYSDIV) in RCC/RCC2 and set the
-       *    USESYS bit in RCC. The SYSDIV field determines the system
+       * 3. Select the desired system divider (SYSDIV) in RCC/RCC2 and set
+       *    the USESYS bit in RCC. The SYSDIV field determines the system
        *    frequency for the microcontroller.
        *
        * 4. Wait for the PLL to lock by polling the PLLLRIS bit in the Raw
@@ -262,9 +247,9 @@ void tiva_clock_reconfigure(uint32_t newrcc, uint32_t newrcc2)
       /* Write the new RCC/RCC2 values.
        *
        * LM4F120 Data Sheet:  "Write the RCC register prior to writing the
-       * RCC2 register. If a subsequent write to the RCC register is required,
-       * include another register access after writing the RCC register and
-       * before writing the RCC2 register."
+       * RCC2 register. If a subsequent write to the RCC register is
+       * required, include another register access after writing the RCC
+       * register and before writing the RCC2 register."
        */
 
       putreg32(rcc, TIVA_SYSCON_RCC);
@@ -272,7 +257,9 @@ void tiva_clock_reconfigure(uint32_t newrcc, uint32_t newrcc2)
       UNUSED(dummy);
       putreg32(rcc2, TIVA_SYSCON_RCC2);
 
-      /* Wait for the new crystal value and oscillator source to take effect */
+      /* Wait for the new crystal value and oscillator source to take
+       * effect
+       */
 
       tiva_delay(16);
 
@@ -311,8 +298,10 @@ void tiva_clock_reconfigure(uint32_t newrcc, uint32_t newrcc2)
         }
     }
 #else
-  if (((rcc & SYSCON_RCC_MOSCDIS) != 0 && (newrcc & SYSCON_RCC_MOSCDIS) == 0) ||
-      ((rcc & SYSCON_RCC_IOSCDIS) != 0 && (newrcc & SYSCON_RCC_IOSCDIS) == 0))
+  if (((rcc & SYSCON_RCC_MOSCDIS) != 0 &&
+       (newrcc & SYSCON_RCC_MOSCDIS) == 0) ||
+      ((rcc & SYSCON_RCC_IOSCDIS) != 0 &&
+       (newrcc & SYSCON_RCC_IOSCDIS) == 0))
     {
       /* Temporarily bypass the PLL and system clock dividers */
 
@@ -328,9 +317,10 @@ void tiva_clock_reconfigure(uint32_t newrcc, uint32_t newrcc2)
       rcc &= (~RCC_OSCMASK | (newrcc & RCC_OSCMASK));
       putreg32(rcc, TIVA_SYSCON_RCC);
 
-      /* Wait for the newly selected oscillator(s) to settle.  This is tricky because
-       * the time that we wait can be significant and is determined by the previous
-       * clock setting, not the one that we are configuring.
+      /* Wait for the newly selected oscillator(s) to settle.  This is
+       * tricky because the time that we wait can be significant and is
+       * determined by the previous clock setting, not the one that we are
+       * configuring.
        */
 
       tiva_oscdelay(rcc, rcc2);
@@ -356,11 +346,15 @@ void tiva_clock_reconfigure(uint32_t newrcc, uint32_t newrcc2)
       putreg32(rcc, TIVA_SYSCON_RCC);
       putreg32(rcc2, TIVA_SYSCON_RCC2);
 
-      /* Wait for the new crystal value and oscillator source to take effect */
+      /* Wait for the new crystal value and oscillator source to take
+       * effect
+       */
 
       tiva_delay(16);
 
-      /* Set the requested system divider and disable the non-selected osciallators */
+      /* Set the requested system divider and disable the non-selected
+       * osciallators
+       */
 
       rcc  &= ~RCC_DIVMASK;
       rcc  |= (newrcc & RCC_DIVMASK);
@@ -413,8 +407,8 @@ void tiva_clock_configure(void)
   putreg32(SYSCON_LPDOPCTL_2750MV, TIVA_SYSCON_LDOPCTL);
 #endif
 
-  /* Set the clocking to run with the default settings provided in the board.h
-   * header file
+  /* Set the clocking to run with the default settings provided in the
+   * board.h header file
    */
 
   tiva_clock_reconfigure(TIVA_RCC_VALUE, TIVA_RCC2_VALUE);

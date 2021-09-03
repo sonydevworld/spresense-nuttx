@@ -1,33 +1,20 @@
 /****************************************************************************
  * net/bluetooth/bluetooth_conn.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
- *    products derived from this software without specific prior
- *    written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -105,8 +92,16 @@ void bluetooth_conn_initialize(void)
   dq_init(&g_free_bluetooth_connections);
   dq_init(&g_active_bluetooth_connections);
 
+  /* Mark connections as uninitialized */
+
+  memset(g_bluetooth_connections, 0, sizeof(g_bluetooth_connections));
+
   for (i = 0; i < CONFIG_NET_BLUETOOTH_NCONNS; i++)
     {
+      /* Indicate a connection unbound with BTPROTO_NONE */
+
+      g_bluetooth_connections[i].bc_proto = BTPROTO_NONE;
+
       /* Link each pre-allocated connection structure into the free list. */
 
       dq_addlast(&g_bluetooth_connections[i].bc_node,
@@ -192,6 +187,11 @@ void bluetooth_conn_free(FAR struct bluetooth_conn_s *conn)
   /* Free the connection */
 
   dq_addlast(&conn->bc_node, &g_free_bluetooth_connections);
+
+  /* Mark as unbound */
+
+  conn->bc_proto = BTPROTO_NONE;
+
   net_unlock();
 }
 
@@ -214,21 +214,52 @@ FAR struct bluetooth_conn_s *
 
   DEBUGASSERT(meta != NULL);
 
-  for (conn  = (FAR struct bluetooth_conn_s *)g_active_bluetooth_connections.head;
+  for (conn =
+       (FAR struct bluetooth_conn_s *)g_active_bluetooth_connections.head;
        conn != NULL;
        conn = (FAR struct bluetooth_conn_s *)conn->bc_node.flink)
     {
-      /* Does the destination address match the bound address of the socket. */
+      /* match protocol and channel first */
 
-      if ((BLUETOOTH_ADDRCMP(&conn->bc_raddr, &meta->bm_raddr) ||
-           BLUETOOTH_ADDRCMP(&conn->bc_raddr, &g_any_addr)) &&
-          (meta->bm_channel == conn->bc_channel ||
-           BT_CHANNEL_ANY   == conn->bc_channel))
+      if (meta->bm_proto != conn->bc_proto ||
+          meta->bm_channel != conn->bc_channel)
         {
           continue;
         }
+
+      switch (meta->bm_proto)
+        {
+          /* For BTPROTO_HCI, the socket will not be connected but only
+           * bound, thus we match for the device directly
+           */
+
+          case BTPROTO_HCI:
+
+            /* TODO: handle when multiple devices supported, need to add ID
+             * to meta and conn structures
+             */
+
+            goto stop;
+
+            break;
+
+          /* For BTPROTO_L2CAP, the destination address must match the
+           * bound address of the socket
+           */
+
+          case BTPROTO_L2CAP:
+            if ((BLUETOOTH_ADDRCMP(&conn->bc_raddr, &meta->bm_raddr) ||
+                 BLUETOOTH_ADDRCMP(&conn->bc_raddr, &g_any_addr)) &&
+                (meta->bm_channel == conn->bc_channel))
+              {
+                goto stop;
+              }
+
+            break;
+        }
     }
 
+stop:
   return conn;
 }
 

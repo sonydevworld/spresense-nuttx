@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/include/imx6/chip.h
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,8 +28,9 @@
 #include <nuttx/config.h>
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Pre-processor Prototypes
  ****************************************************************************/
+
 /* The i.MX6 6Quad and 6Dual/DualLite are the only support i.MX6 family
  * members.  Individual differences between members of the families are not
  * accounted for.
@@ -61,7 +47,7 @@
 #  undef  IMX_HAVE_DDR32                /* 32-bit DDR3 */
 #  define IMX_HAVE_DDR32x2 1            /* Two channel 32-bit DDR3 */
 #  define IMX_HAVE_SATAII  1            /* Integrated SATA-II */
-#  undef  IMX_HAVE_EPD                  /* No interated EPD controller */
+#  undef  IMX_HAVE_EPD                  /* No integrated EPD controller */
 #elif defined(CONFIG_ARCH_CHIP_IMX6_6DUAL)
 #  define IMX_OCRAM_SIZE   (256*1024)   /* Size of the On-Chip RAM (OCRAM) */
 #  define IMX_L2CACHE_SIZE (1024*1024)  /* 1MB L2 Cache */
@@ -73,7 +59,7 @@
 #  undef  IMX_HAVE_DDR32                /* 32-bit DDR3 */
 #  define IMX_HAVE_DDR32x2 1            /* Two channel 32-bit DDR3 */
 #  define IMX_HAVE_SATAII  1            /* Integrated SATA-II */
-#  undef  IMX_HAVE_EPD                  /* No interated EPD controller */
+#  undef  IMX_HAVE_EPD                  /* No integrated EPD controller */
 #elif defined(CONFIG_ARCH_CHIP_IMX6_6DUALLITE)
 #  define IMX_OCRAM_SIZE   (256*1024)   /* Size of the On-Chip RAM (OCRAM) */
 #  define IMX_L2CACHE_SIZE (512*1024)   /* 512KB L2 Cache */
@@ -85,7 +71,7 @@
 #  undef  IMX_HAVE_DDR32                /* No 32-bit DDR3 */
 #  define IMX_HAVE_DDR32x2 1            /* Two channel 32-bit DDR3 */
 #  undef  IMX_HAVE_SATAII               /* No integrated SATA-II */
-#  define IMX_HAVE_EPD     1            /* Interated EPD controller */
+#  define IMX_HAVE_EPD     1            /* Integrated EPD controller */
 #elif defined(CONFIG_ARCH_CHIP_IMX6_6SOLO)
 #  define IMX_OCRAM_SIZE   (256*1024)   /* Size of the On-Chip RAM (OCRAM) */
 #  define IMX_L2CACHE_SIZE (512*1024)   /* 512KB L2 Cache */
@@ -97,7 +83,7 @@
 #  define IMX_HAVE_DDR32   1            /* 32-bit DDR3 */
 #  undef  IMX_HAVE_DDR32x2              /* No two channel 32-bit DDR3 */
 #  undef  IMX_HAVE_SATAII               /* No integrated SATA-II */
-#  define IMX_HAVE_EPD     1            /* Interated EPD controller */
+#  define IMX_HAVE_EPD     1            /* Integrated EPD controller */
 #elif defined(CONFIG_ARCH_CHIP_IMX6_6SOLOLITE)
 #  define IMX_OCRAM_SIZE   (256*1024)   /* Size of the On-Chip RAM (OCRAM) */
 #  define IMX_L2CACHE_SIZE (256*1024)   /* 256KB L2 Cache */
@@ -109,7 +95,7 @@
 #  define IMX_HAVE_DDR32   1            /* 32-bit DDR3 */
 #  undef  IMX_HAVE_DDR32x2              /* No two channel 32-bit DDR3 */
 #  undef  IMX_HAVE_SATAII               /* No integrated SATA-II */
-#  define IMX_HAVE_EPD     1            /* Interated EPD controller */
+#  define IMX_HAVE_EPD     1            /* Integrated EPD controller */
 #else
 #  error Unspecified i.MX6 chip
 #endif
@@ -123,7 +109,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Functions Prototypes
  ****************************************************************************/
 
 #endif /* __ARCH_ARM_INCLUDE_IMX6_CHIP_H */

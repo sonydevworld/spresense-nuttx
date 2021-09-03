@@ -50,11 +50,13 @@
 #include <nuttx/fs/ioctl.h>
 #include <nuttx/drivers/drivers.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "chip.h"
 #include "hardware/nrf52_utils.h"
 #include "hardware/nrf52_rng.h"
-#include "up_internal.h"
+#include "hardware/nrf52_ficr.h"
+#include "hardware/nrf52_temp.h"
+#include "arm_internal.h"
 
 /****************************************************************************
  * Private Functions
@@ -76,7 +78,7 @@ static bool errata_16(void)
 
 static bool errata_66(void)
 {
-  /* This piece of code is modifed from Nordic SDK , there is no document to
+  /* This piece of code is modified from Nordic SDK , there is no document to
    * describe how to get the errdata information
    */
 
@@ -100,6 +102,20 @@ static void nrf52832_errdata_16(void)
     }
 }
 
+static void nrf52832_errdata_102(void)
+{
+  uint32_t regval = getreg32(NRF52_FICR_INFO_VARIANT);
+
+  /* Also addresses erratas 106, 146. Revision 1 chips are affected */
+
+  if (regval == NRF52_FICR_INFO_VARIANT_AAB0 ||
+      regval == NRF52_FICR_INFO_VARIANT_ABB0)
+    {
+      *(volatile uint32_t *) 0x40001774 =
+          ((*(volatile uint32_t *) 0x40001774) & 0xfffffffe) | 0x01000000;
+    }
+}
+
 static void nrf52832_errdata_66_temp(void)
 {
   /* Workaround for Errata 66 "TEMP: Linearity specification not met with
@@ -109,38 +125,30 @@ static void nrf52832_errdata_66_temp(void)
 
   if (errata_66())
     {
-      uint32_t temp_offset      = 0x520;
-      uint32_t temp_ficr_offset = 0x404;
       int i;
 
       /* slot A : 6 totals */
 
       for (i = 0; i < 6; i++)
         {
-          putreg32(getreg32(NRF52_FICR_BASE + temp_ficr_offset + i * 4),
-                            NRF52_TEMP_BASE + temp_offset + i * 4);
+          putreg32(getreg32(NRF52_FICR_TEMP_A0 + i * 4),
+                   NRF52_TEMP_A0 + i * 4);
         }
 
       /* Slot B : 6 totals */
 
-      temp_offset      = 0x540;
-      temp_ficr_offset = 0x41c;
-
       for (i = 0 ; i < 6; i++)
         {
-          putreg32(getreg32(NRF52_FICR_BASE + temp_ficr_offset + i * 4),
-                   NRF52_TEMP_BASE + temp_offset + i * 4);
+          putreg32(getreg32(NRF52_FICR_TEMP_B0 + i * 4),
+                   NRF52_TEMP_B0 + i * 4);
         }
 
       /* slot C : 5 totals */
 
-      temp_offset      = 0x560;
-      temp_ficr_offset = 0x434;
-
       for (i = 0; i < 5; i++)
         {
-          putreg32(getreg32(NRF52_FICR_BASE + temp_ficr_offset + i * 4),
-                   NRF52_TEMP_BASE + temp_offset + i * 4);
+          putreg32(getreg32(NRF52_FICR_TEMP_T0 + i * 4),
+                   NRF52_TEMP_T0 + i * 4);
         }
     }
 }
@@ -154,4 +162,6 @@ void nrf52832_errdata_init(void)
   nrf52832_errdata_16();
 
   nrf52832_errdata_66_temp();
+
+  nrf52832_errdata_102();
 }

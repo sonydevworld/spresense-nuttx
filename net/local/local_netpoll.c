@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/local/local_netpoll.c
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -44,7 +29,7 @@
 #include <errno.h>
 #include <debug.h>
 
-#include <nuttx/kmalloc.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/fs/fs.h>
 
@@ -73,7 +58,7 @@ static int local_accept_pollsetup(FAR struct local_conn_s *conn,
        * slot for the poll structure reference
        */
 
-      for (i = 0; i < LOCAL_ACCEPT_NPOLLWAITERS; i++)
+      for (i = 0; i < LOCAL_NPOLLWAITERS; i++)
         {
           /* Find an available slot */
 
@@ -87,7 +72,7 @@ static int local_accept_pollsetup(FAR struct local_conn_s *conn,
             }
         }
 
-      if (i >= LOCAL_ACCEPT_NPOLLWAITERS)
+      if (i >= LOCAL_NPOLLWAITERS)
         {
           fds->priv = NULL;
           ret = -EBUSY;
@@ -143,7 +128,7 @@ void local_accept_pollnotify(FAR struct local_conn_s *conn,
 #ifdef CONFIG_NET_LOCAL_STREAM
   int i;
 
-  for (i = 0; i < LOCAL_ACCEPT_NPOLLWAITERS; i++)
+  for (i = 0; i < LOCAL_NPOLLWAITERS; i++)
     {
       struct pollfd *fds = conn->lc_accept_fds[i];
       if (fds)
@@ -215,21 +200,30 @@ int local_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
               goto pollerr;
             }
 
-          /* Allocate shadow pollfds. */
+          /* Find shadow pollfds. */
 
-          shadowfds = kmm_zalloc(2 * sizeof(struct pollfd));
-          if (!shadowfds)
+          net_lock();
+
+          shadowfds = conn->lc_inout_fds;
+          while (shadowfds->fd != 0)
             {
-              return -ENOMEM;
+              shadowfds += 2;
+              if (shadowfds >= &conn->lc_inout_fds[2*LOCAL_NPOLLWAITERS])
+                {
+                  net_unlock();
+                  return -ENOMEM;
+                }
             }
 
-          shadowfds[0].fd     = 0; /* Does not matter */
+          shadowfds[0].fd     = 1; /* Does not matter */
           shadowfds[0].sem    = fds->sem;
           shadowfds[0].events = fds->events & ~POLLOUT;
 
-          shadowfds[1].fd     = 1; /* Does not matter */
+          shadowfds[1].fd     = 0; /* Does not matter */
           shadowfds[1].sem    = fds->sem;
           shadowfds[1].events = fds->events & ~POLLIN;
+
+          net_unlock();
 
           /* Setup poll for both shadow pollfds. */
 
@@ -245,14 +239,13 @@ int local_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
 
           if (ret < 0)
             {
-              kmm_free(shadowfds);
+              shadowfds[0].fd = 0;
               fds->priv = NULL;
               goto pollerr;
             }
           else
             {
               fds->priv = shadowfds;
-              ret = OK;
             }
         }
         break;
@@ -293,10 +286,12 @@ int local_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
 
   return ret;
 
+#ifdef CONFIG_NET_LOCAL_STREAM
 pollerr:
   fds->revents |= POLLERR;
   nxsem_post(fds->sem);
   return OK;
+#endif
 }
 
 /****************************************************************************
@@ -318,14 +313,13 @@ pollerr:
 int local_pollteardown(FAR struct socket *psock, FAR struct pollfd *fds)
 {
   FAR struct local_conn_s *conn;
-  int status = OK;
-  int ret = -ENOSYS;
+  int ret = OK;
 
   conn = (FAR struct local_conn_s *)psock->s_conn;
 
   if (conn->lc_proto == SOCK_DGRAM)
     {
-      return ret;
+      return -ENOSYS;
     }
 
 #ifdef CONFIG_NET_LOCAL_STREAM
@@ -345,6 +339,7 @@ int local_pollteardown(FAR struct socket *psock, FAR struct pollfd *fds)
       case (POLLIN | POLLOUT):
         {
           FAR struct pollfd *shadowfds = fds->priv;
+          int ret2;
 
           if (shadowfds == NULL)
             {
@@ -354,20 +349,15 @@ int local_pollteardown(FAR struct socket *psock, FAR struct pollfd *fds)
           /* Teardown for both shadow pollfds. */
 
           ret = file_poll(&conn->lc_infile, &shadowfds[0], false);
-          if (ret < 0)
+          ret2 = file_poll(&conn->lc_outfile, &shadowfds[1], false);
+          if (ret2 < 0)
             {
-              status = ret;
-            }
-
-          ret = file_poll(&conn->lc_outfile, &shadowfds[1], false);
-          if (ret < 0)
-            {
-              status = ret;
+              ret = ret2;
             }
 
           fds->revents |= shadowfds[0].revents | shadowfds[1].revents;
           fds->priv = NULL;
-          kmm_free(shadowfds);
+          shadowfds[0].fd = 0;
         }
         break;
 
@@ -378,7 +368,7 @@ int local_pollteardown(FAR struct socket *psock, FAR struct pollfd *fds)
               return OK;
             }
 
-          status = file_poll(&conn->lc_infile, fds, false);
+          ret = file_poll(&conn->lc_infile, fds, false);
         }
         break;
 
@@ -389,7 +379,7 @@ int local_pollteardown(FAR struct socket *psock, FAR struct pollfd *fds)
               return OK;
             }
 
-          status = file_poll(&conn->lc_outfile, fds, false);
+          ret = file_poll(&conn->lc_outfile, fds, false);
         }
         break;
 
@@ -398,7 +388,7 @@ int local_pollteardown(FAR struct socket *psock, FAR struct pollfd *fds)
     }
 #endif
 
-  return status;
+  return ret;
 }
 
 #endif /* HAVE_LOCAL_POLL */

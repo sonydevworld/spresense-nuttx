@@ -1,39 +1,24 @@
 /****************************************************************************
  * arch/xtensa/include/esp32/irq.h
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
-/* This file should never be included directed but, rather, only indirectly
+/* This file should never be included directly but, rather, only indirectly
  * through nuttx/irq.h
  */
 
@@ -53,8 +38,9 @@
 /* Interrupt Matrix
  *
  * The Interrupt Matrix embedded in the ESP32 independently allocates
- * peripheral interrupt sources to the two CPUs’ peripheral interrupts. This
- * configuration is highly flexible in order to meet many different needs.
+ * peripheral interrupt sources to the two CPUs’ peripheral interrupts.
+ * This configuration is highly flexible in order to meet many different
+ * needs.
  *
  * Features
  * - Accepts 71 peripheral interrupt sources as input.
@@ -180,8 +166,9 @@
  *   0x03c0     Double exception
  *
  * REVISIT: In more architectures supported by NuttX, exception errors
- * tie into the normal interrupt handling via special IRQ numbers.  I
- * is still to be determined what will be done for the ESP32.
+ * tie into the normal interrupt handling via special IRQ numbers.
+ * It is still to be determined what will be done for the ESP32.
+ *
  */
 
 /* IRQ numbers for internal interrupts that are dispatched like peripheral
@@ -196,7 +183,7 @@
 #define XTENSA_NIRQ_INTERNAL        4  /* Number of dispatch internal interrupts */
 #define XTENSA_IRQ_FIRSTPERIPH      4  /* First peripheral IRQ number */
 
-/* IRQ numbers for peripheral interrupts coming throught the Interrupt
+/* IRQ numbers for peripheral interrupts coming through the Interrupt
  * Matrix.
  */
 
@@ -233,9 +220,9 @@
 #define ESP32_IRQ_CPU_CPU2          (XTENSA_IRQ_FIRSTPERIPH+ESP32_PERIPH_CPU_CPU2)
 #define ESP32_IRQ_CPU_CPU3          (XTENSA_IRQ_FIRSTPERIPH+ESP32_PERIPH_CPU_CPU3)
 #define ESP32_IRQ_SPI0              (XTENSA_IRQ_FIRSTPERIPH+ESP32_PERIPH_SPI0)
-#define ESP32_IRQ_SPI1              (XTENSA_IRQ_FIRSTPERIPH+ESP32_PERIPH_SPI1
+#define ESP32_IRQ_SPI1              (XTENSA_IRQ_FIRSTPERIPH+ESP32_PERIPH_SPI1)
 #define ESP32_IRQ_SPI2              (XTENSA_IRQ_FIRSTPERIPH+ESP32_PERIPH_SPI2)
-#define ESP32_IRQ_SPI3              (XTENSA_IRQ_FIRSTPERIPH+ESP32_PERIPH_SPI3
+#define ESP32_IRQ_SPI3              (XTENSA_IRQ_FIRSTPERIPH+ESP32_PERIPH_SPI3)
 
 #define ESP32_IRQ_SREG0             ESP32_IRQ_MAC
 #define ESP32_NIRQS_SREG0           32
@@ -291,9 +278,9 @@
 
 #define ESP32_NIRQ_PERIPH           ESP32_NPERIPHERALS
 
-/* Second level GPIO interrupts.  GPIO interrupts are decoded and dispatched as
- * a second level of decoding:  The first level dispatches to the GPIO interrupt
- * handler.  The second to the decoded GPIO interrupt handler.
+/* Second level GPIO interrupts.  GPIO interrupts are decoded and dispatched
+ * as a second level of decoding:  The first level dispatches to the GPIO
+ * interrupt handler.  The second to the decoded GPIO interrupt handler.
  */
 
 #ifdef CONFIG_ESP32_GPIO_IRQ
@@ -331,9 +318,9 @@
  * CPU peripheral interrupts can be a assigned to a CPU interrupt using the
  * PRO_*_MAP_REG or APP_*_MAP_REG.  There are a pair of these registers for
  * each peripheral source.  Multiple peripheral interrupt sources can be
- * mapped to the same.
+ * mapped to the same CPU interrupt.
  *
- * The remaining, five, internal CPU interrupts are:
+ * The remaining, six, internal CPU interrupts are:
  *
  *   6   Timer0    - Priority 1
  *   7   Software  - Priority 1
@@ -381,6 +368,7 @@
 #define ESP32_CPUINT_NNMIPERIPHS    1
 #define EPS32_CPUINT_NMISET         0x00004000
 
+#define ESP32_CPUINT_MAC            0
 #define ESP32_CPUINT_TIMER0         6
 #define ESP32_CPUINT_SOFTWARE0      7
 #define ESP32_CPUINT_PROFILING      11

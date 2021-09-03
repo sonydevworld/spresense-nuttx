@@ -1,54 +1,38 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/imxrt/hardware/imxrt_adc.h
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
- *            David Sidrane <david_s5@nscdg.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_IMXRT_HARDWARE_IMXRT_ADC_H
 #define __ARCH_ARM_SRC_IMXRT_HARDWARE_IMXRT_ADC_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 #include "hardware/imxrt_memorymap.h"
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
+ ****************************************************************************/
 
-/* Register Offsets *****************************************************************/
+/* Register Offsets *********************************************************/
 
 #define IMXRT_ADC_HC0_OFFSET                0x0000  /* Control register for hardware triggers */
 #define IMXRT_ADC_HC1_OFFSET                0x0004  /* Control register for hardware triggers */
@@ -74,11 +58,11 @@
 #define IMXRT_ADC_OFS_OFFSET                0x0054  /* Offset correction value register */
 #define IMXRT_ADC_CAL_OFFSET                0x0058  /* Calibration value register */
 
-/* Register addresses ***********************************************************************/
+/* Register addresses *******************************************************/
 
 /* ADC1 Register Addresses */
 
-#define IMXRT_ADC1_HC0                      (IMXRT_ADC1_BASE + IMXRT_ADC_HC_OFFSET)  /* ADC1 Control register for hardware triggers */
+#define IMXRT_ADC1_HC0                      (IMXRT_ADC1_BASE + IMXRT_ADC_HC_OFFSET)   /* ADC1 Control register for hardware triggers */
 #define IMXRT_ADC1_HC1                      (IMXRT_ADC1_BASE + IMXRT_ADC_HC1_OFFSET)  /* ADC1 Control register for hardware triggers */
 #define IMXRT_ADC1_HC2                      (IMXRT_ADC1_BASE + IMXRT_ADC_HC2_OFFSET)  /* ADC1 Control register for hardware triggers */
 #define IMXRT_ADC1_HC3                      (IMXRT_ADC1_BASE + IMXRT_ADC_HC3_OFFSET)  /* ADC1 Control register for hardware triggers */
@@ -104,7 +88,7 @@
 
 /* ADC2 Register Addresses */
 
-#define IMXRT_ADC2_HC0                      (IMXRT_ADC2_BASE + IMXRT_ADC_HC_OFFSET)  /* ADC2 Control register for hardware triggers */
+#define IMXRT_ADC2_HC0                      (IMXRT_ADC2_BASE + IMXRT_ADC_HC_OFFSET)   /* ADC2 Control register for hardware triggers */
 #define IMXRT_ADC2_HC1                      (IMXRT_ADC2_BASE + IMXRT_ADC_HC1_OFFSET)  /* ADC2 Control register for hardware triggers */
 #define IMXRT_ADC2_HC2                      (IMXRT_ADC2_BASE + IMXRT_ADC_HC2_OFFSET)  /* ADC2 Control register for hardware triggers */
 #define IMXRT_ADC2_HC3                      (IMXRT_ADC2_BASE + IMXRT_ADC_HC3_OFFSET)  /* ADC2 Control register for hardware triggers */
@@ -128,23 +112,23 @@
 #define IMXRT_ADC2_OFS                      (IMXRT_ADC2_BASE + IMXRT_ADC_OFS_OFFSET)  /* ADC2 Offset correction value register */
 #define IMXRT_ADC2_CAL                      (IMXRT_ADC2_BASE + IMXRT_ADC_CAL_OFFSET)  /* ADC2 Calibration value register */
 
-/* Register Bit Definitions *********************************************************/
+/* Register Bit Definitions *************************************************/
 
 /* Control register for hardware  & SW triggers for n=0,1..7 */
 
 #define ADC_HC_ADCH_SHIFT                    (0)        /* Bits: 0-4  Input Channel Select */
 #define ADC_HC_ADCH_MASK                     (31 << ADC_HC_ADCH_SHIFT)
 #  define ADC_HC_ADCH(n)                     ((uint32_t)(n) << ADC_HC_ADCH_SHIFT)
-#  define ADC_HC_ADCH_EXT_0                  (0 << ADC_HC_ADCH_SHIFT)  /* External channels 0 */
-#  define ADC_HC_ADCH_EXT_1                  (1 << ADC_HC_ADCH_SHIFT)  /* External channels 1 */
-#  define ADC_HC_ADCH_EXT_2                  (2 << ADC_HC_ADCH_SHIFT)  /* External channels 2 */
-#  define ADC_HC_ADCH_EXT_3                  (3 << ADC_HC_ADCH_SHIFT)  /* External channels 3 */
-#  define ADC_HC_ADCH_EXT_4                  (4 << ADC_HC_ADCH_SHIFT)  /* External channels 4 */
-#  define ADC_HC_ADCH_EXT_5                  (5 << ADC_HC_ADCH_SHIFT)  /* External channels 5 */
-#  define ADC_HC_ADCH_EXT_6                  (6 << ADC_HC_ADCH_SHIFT)  /* External channels 6 */
-#  define ADC_HC_ADCH_EXT_7                  (7 << ADC_HC_ADCH_SHIFT)  /* External channels 7 */
-#  define ADC_HC_ADCH_EXT_8                  (8 << ADC_HC_ADCH_SHIFT)  /* External channels 8 */
-#  define ADC_HC_ADCH_EXT_9                  (9 << ADC_HC_ADCH_SHIFT)  /* External channels 9 */
+#  define ADC_HC_ADCH_EXT_0                  (0 << ADC_HC_ADCH_SHIFT)   /* External channels 0 */
+#  define ADC_HC_ADCH_EXT_1                  (1 << ADC_HC_ADCH_SHIFT)   /* External channels 1 */
+#  define ADC_HC_ADCH_EXT_2                  (2 << ADC_HC_ADCH_SHIFT)   /* External channels 2 */
+#  define ADC_HC_ADCH_EXT_3                  (3 << ADC_HC_ADCH_SHIFT)   /* External channels 3 */
+#  define ADC_HC_ADCH_EXT_4                  (4 << ADC_HC_ADCH_SHIFT)   /* External channels 4 */
+#  define ADC_HC_ADCH_EXT_5                  (5 << ADC_HC_ADCH_SHIFT)   /* External channels 5 */
+#  define ADC_HC_ADCH_EXT_6                  (6 << ADC_HC_ADCH_SHIFT)   /* External channels 6 */
+#  define ADC_HC_ADCH_EXT_7                  (7 << ADC_HC_ADCH_SHIFT)   /* External channels 7 */
+#  define ADC_HC_ADCH_EXT_8                  (8 << ADC_HC_ADCH_SHIFT)   /* External channels 8 */
+#  define ADC_HC_ADCH_EXT_9                  (9 << ADC_HC_ADCH_SHIFT)   /* External channels 9 */
 #  define ADC_HC_ADCH_EXT_10                 (10 << ADC_HC_ADCH_SHIFT)  /* External channels 10 */
 #  define ADC_HC_ADCH_EXT_11                 (11 << ADC_HC_ADCH_SHIFT)  /* External channels 11 */
 #  define ADC_HC_ADCH_EXT_12                 (12 << ADC_HC_ADCH_SHIFT)  /* External channels 12 */
@@ -154,7 +138,11 @@
 #  define ADC_HC_ADCH_EXT_ADC_ETC            (16 << ADC_HC_ADCH_SHIFT)  /* External channel selection from ADC_ETC */
 #  define ADC_HC_ADCH_VREFSH                 (25 << ADC_HC_ADCH_SHIFT)  /* internal channel, for ADC self-test, hard connected to VRH internally */
 #  define ADC_HC_ADCH_DIS                    (31 << ADC_HC_ADCH_SHIFT)  /* */
-                                                         /* Bits: 5-6 Reserved */
+
+/*                                                         Bits: 5-6
+ *                                                         Reserved
+ */
+
 #define ADC_HC_AIEN                          (1 << 7)   /* Bit: 7  Conversion Complete Interrupt Enable/Disable Control */
                                                         /* Bits: 8-31 Reserved */
 
@@ -170,51 +158,51 @@
 
 /* Configuration register */
 
-#define ADC_CFG_ADICLK_SHIFT                 (0)        /* Bits: 0-1  Input Clock Select */
+#define ADC_CFG_ADICLK_SHIFT                 (0)                          /* Bits: 0-1  Input Clock Select */
 #define ADC_CFG_ADICLK_MASK                  (3 << ADC_CFG_ADICLK_SHIFT)
 #  define ADC_CFG_ADICLK(n)                  ((uint32_t)(n) << ADC_CFG_ADICLK_SHIFT)
 #  define ADC_CFG_ADICLK_IPG                 (0 << ADC_CFG_ADICLK_SHIFT)  /* IPG clock */
 #  define ADC_CFG_ADICLK_IPGDIV2             (1 << ADC_CFG_ADICLK_SHIFT)  /* IPG clock divided by 2 */
 #  define ADC_CFG_ADICLK_ADACK               (3 << ADC_CFG_ADICLK_SHIFT)  /* Asynchronous clock (ADACK) */
-#define ADC_CFG_MODE_SHIFT                   (2)        /* Bits: 2-3  Conversion Mode Selection */
+#define ADC_CFG_MODE_SHIFT                   (2)                          /* Bits: 2-3  Conversion Mode Selection */
 #define ADC_CFG_MODE_MASK                    (3 << ADC_CFG_MODE_SHIFT)
 #  define ADC_CFG_MODE(n)                    ((uint32_t)(n) << ADC_CFG_MODE_SHIFT)
-#  define ADC_CFG_MODE_8BIT                  (0 << ADC_CFG_MODE_SHIFT)  /* 8-bit conversion */
-#  define ADC_CFG_MODE_10BIT                 (1 << ADC_CFG_MODE_SHIFT)  /* 10-bit conversion */
-#  define ADC_CFG_MODE_12BIT                 (2 << ADC_CFG_MODE_SHIFT)  /* 12-bit conversion */
-#define ADC_CFG_ADLSMP                       (1 << 4)   /* Bit: 4  Long Sample Time Configuration */
-#define ADC_CFG_ADIV_SHIFT                   (5)        /* Bits: 5-6  Clock Divide Select */
+#  define ADC_CFG_MODE_8BIT                  (0 << ADC_CFG_MODE_SHIFT)    /* 8-bit conversion */
+#  define ADC_CFG_MODE_10BIT                 (1 << ADC_CFG_MODE_SHIFT)    /* 10-bit conversion */
+#  define ADC_CFG_MODE_12BIT                 (2 << ADC_CFG_MODE_SHIFT)    /* 12-bit conversion */
+#define ADC_CFG_ADLSMP                       (1 << 4)                     /* Bit: 4  Long Sample Time Configuration */
+#define ADC_CFG_ADIV_SHIFT                   (5)                          /* Bits: 5-6  Clock Divide Select */
 #define ADC_CFG_ADIV_MASK                    (3 << ADC_CFG_ADIV_SHIFT)
 #  define ADC_CFG_ADIV(n)                    ((uint32_t)(n) << ADC_CFG_ADIV_SHIFT)
-#  define ADC_CFG_ADIV_DIV1                  (0 << ADC_CFG_ADIV_SHIFT)  /* Input clock */
-#  define ADC_CFG_ADIV_DIV2                  (1 << ADC_CFG_ADIV_SHIFT)  /* Input clock / 2 */
-#  define ADC_CFG_ADIV_DIV4                  (2 << ADC_CFG_ADIV_SHIFT)  /* Input clock / 4 */
-#  define ADC_CFG_ADIV_DIV8                  (3 << ADC_CFG_ADIV_SHIFT)  /* Input clock / 8 */
-#define ADC_CFG_ADLPC                        (1 << 7)   /* Bit: 7  Low-Power Configuration */
-#define ADC_CFG_ADSTS_SHIFT                  (8)        /* Bits: 8-9  Defines the sample time duration. */
+#  define ADC_CFG_ADIV_DIV1                  (0 << ADC_CFG_ADIV_SHIFT)    /* Input clock */
+#  define ADC_CFG_ADIV_DIV2                  (1 << ADC_CFG_ADIV_SHIFT)    /* Input clock / 2 */
+#  define ADC_CFG_ADIV_DIV4                  (2 << ADC_CFG_ADIV_SHIFT)    /* Input clock / 4 */
+#  define ADC_CFG_ADIV_DIV8                  (3 << ADC_CFG_ADIV_SHIFT)    /* Input clock / 8 */
+#define ADC_CFG_ADLPC                        (1 << 7)                     /* Bit: 7  Low-Power Configuration */
+#define ADC_CFG_ADSTS_SHIFT                  (8)                          /* Bits: 8-9  Defines the sample time duration. */
 #define ADC_CFG_ADSTS_MASK                   (3 << ADC_CFG_ADSTS_SHIFT)
 #  define ADC_CFG_ADSTS(n)                   ((uint32_t)(n) << ADC_CFG_ADSTS_SHIFT)
-#  define ADC_CFG_ADSTS_2_12                 (0 << ADC_CFG_ADSTS_SHIFT)  /* Sample period (ADC clocks) = 2 if ADLSMP=0b, 12 if ADLSMP=1b  */
-#  define ADC_CFG_ADSTS_4_16                 (1 << ADC_CFG_ADSTS_SHIFT)  /* Sample period (ADC clocks) = 4 if ADLSMP=0b, 16 if ADLSMP=1b  */
-#  define ADC_CFG_ADSTS_6_20                 (2 << ADC_CFG_ADSTS_SHIFT)  /* Sample period (ADC clocks) = 6 if ADLSMP=0b, 20 if ADLSMP=1b  */
-#  define ADC_CFG_ADSTS_8_24                 (3 << ADC_CFG_ADSTS_SHIFT)  /* Sample period (ADC clocks) = 8 if ADLSMP=0b, 24 if ADLSMP=1b  */
-#define ADC_CFG_ADHSC                        (1 << 10)  /* Bit: 10 High Speed Configuration*/
-#define ADC_CFG_REFSEL_SHIFT                 (11)       /* Bits: 11-12  Voltage Reference Selection */
+#  define ADC_CFG_ADSTS_3_13                 (0 << ADC_CFG_ADSTS_SHIFT)   /* Sample period (ADC clocks) = 3 if ADLSMP=0b, 13 if ADLSMP=1b  */
+#  define ADC_CFG_ADSTS_5_17                 (1 << ADC_CFG_ADSTS_SHIFT)   /* Sample period (ADC clocks) = 5 if ADLSMP=0b, 17 if ADLSMP=1b  */
+#  define ADC_CFG_ADSTS_7_21                 (2 << ADC_CFG_ADSTS_SHIFT)   /* Sample period (ADC clocks) = 7 if ADLSMP=0b, 21 if ADLSMP=1b  */
+#  define ADC_CFG_ADSTS_9_25                 (3 << ADC_CFG_ADSTS_SHIFT)   /* Sample period (ADC clocks) = 9 if ADLSMP=0b, 25 if ADLSMP=1b  */
+#define ADC_CFG_ADHSC                        (1 << 10)                    /* Bit: 10 High Speed Configuration*/
+#define ADC_CFG_REFSEL_SHIFT                 (11)                         /* Bits: 11-12  Voltage Reference Selection */
 #define ADC_CFG_REFSEL_MASK                  (3 << ADC_CFG_REFSEL_SHIFT)
 #  define ADC_CFG_REFSEL(n)                  ((uint32_t)(n) << ADC_CFG_REFSEL_SHIFT)
 #  define ADC_CFG_REFSEL_VREF                (0 << ADC_CFG_REFSEL_SHIFT)  /* Selects VREFH/VREFL as reference voltage. */
-#define ADC_CFG_ADTRG                        (1 << 13)  /* Bit: 13 Conversion Trigger Select */
-#  define ADC_CFG_ADTRG_SW                   (0 << 13)  /* SW trigger selected */
-#  define ADC_CFG_ADTRG_HW                   (1 << 13)  /* HW trigger selected */
-#define ADC_CFG_AVGS_SHIFT                   (14)       /* Bits: 14-15  Hardware Average select */
+#define ADC_CFG_ADTRG                        (1 << 13)                    /* Bit: 13 Conversion Trigger Select */
+#  define ADC_CFG_ADTRG_SW                   (0 << 13)                    /* SW trigger selected */
+#  define ADC_CFG_ADTRG_HW                   (1 << 13)                    /* HW trigger selected */
+#define ADC_CFG_AVGS_SHIFT                   (14)                         /* Bits: 14-15  Hardware Average select */
 #define ADC_CFG_AVGS_MASK                    (3 << ADC_CFG_AVGS_SHIFT)
 #  define ADC_CFG_AVGS(n)                    ((uint32_t)(n) << ADC_CFG_AVGS_SHIFT)
-#  define ADC_CFG_AVGS_4SMPL                 (0 << ADC_CFG_AVGS_SHIFT)  /* 4 samples averaged */
-#  define ADC_CFG_AVGS_8SMPL                 (1 << ADC_CFG_AVGS_SHIFT)  /* 8 samples averaged */
-#  define ADC_CFG_AVGS_16SMPL                (2 << ADC_CFG_AVGS_SHIFT)  /* 16 samples averaged */
-#  define ADC_CFG_AVGS_32SMPL                (3 << ADC_CFG_AVGS_SHIFT)  /* 32 samples averaged */
-#define ADC_CFG_OVWREN                       (1 << 16)  /* Bit: 16 Data Overwrite Enable */
-                                                        /* Bits: 17-31  Reserved */
+#  define ADC_CFG_AVGS_4SMPL                 (0 << ADC_CFG_AVGS_SHIFT)    /* 4 samples averaged */
+#  define ADC_CFG_AVGS_8SMPL                 (1 << ADC_CFG_AVGS_SHIFT)    /* 8 samples averaged */
+#  define ADC_CFG_AVGS_16SMPL                (2 << ADC_CFG_AVGS_SHIFT)    /* 16 samples averaged */
+#  define ADC_CFG_AVGS_32SMPL                (3 << ADC_CFG_AVGS_SHIFT)    /* 32 samples averaged */
+#define ADC_CFG_OVWREN                       (1 << 16)                    /* Bit: 16 Data Overwrite Enable */
+                                                                          /* Bits: 17-31  Reserved */
 
 /* General control register */
 

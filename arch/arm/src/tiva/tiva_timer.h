@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/tiva/tiva_timer.h
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,13 +32,14 @@
 
 #include <arch/tiva/chip.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "chip.h"
 #include "hardware/tiva_timer.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Make sure that no timers are enabled that are not supported by the
  * architecture.
  */
@@ -144,6 +130,7 @@
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
 /* This enumeration identifies all supported 32-bit timer modes of operation
  *
  * NOTES:
@@ -174,7 +161,9 @@ enum tiva_timer16mode_e
   TIMER16_MODE_PWM               /* 16-bit PWM output mode w/8-bit prescaler */
 };
 
-/* This type represents the opaque handler returned by tiva_gptm_configure() */
+/* This type represents the opaque handler returned by
+ * tiva_gptm_configure()
+ */
 
 typedef FAR void *TIMER_HANDLE;
 
@@ -277,7 +266,7 @@ struct tiva_gptm16config_s
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
@@ -334,7 +323,8 @@ void tiva_gptm_release(TIMER_HANDLE handle);
  *
  ****************************************************************************/
 
-void tiva_gptm_putreg(TIMER_HANDLE handle, unsigned int offset, uint32_t value);
+void tiva_gptm_putreg(TIMER_HANDLE handle, unsigned int offset,
+                      uint32_t value);
 
 /****************************************************************************
  * Name: tiva_gptm_getreg
@@ -349,8 +339,8 @@ void tiva_gptm_putreg(TIMER_HANDLE handle, unsigned int offset, uint32_t value);
  *   offset - The offset to the timer register to be written
  *
  * Returned Value:
- *   The 32-bit value read at the provided offset into the timer register base
- *   address.
+ *   The 32-bit value read at the provided offset into the timer register
+ *   base address.
  *
  ****************************************************************************/
 
@@ -401,8 +391,8 @@ void tiva_timer32_start(TIMER_HANDLE handle);
  * Name: tiva_timer16_start
  *
  * Description:
- *   After tiva_gptm_configure() has been called to configure 16-bit timer(s),
- *   this function must be called to start one 16-bit timer.
+ *   After tiva_gptm_configure() has been called to configure 16-bit
+ *   timer(s), this function must be called to start one 16-bit timer.
  *
  * Input Parameters:
  *   handle - The handle value returned  by tiva_gptm_configure()
@@ -564,7 +554,8 @@ void tiva_timer32_setinterval(TIMER_HANDLE handle, uint32_t interval);
  ****************************************************************************/
 
 #ifdef CONFIG_TIVA_TIMER_16BIT
-void tiva_timer16_setinterval(TIMER_HANDLE handle, uint16_t interval, int tmndx);
+void tiva_timer16_setinterval(TIMER_HANDLE handle, uint16_t interval,
+                              int tmndx);
 
 #  define tiva_timer16a_setinterval(h,l) tiva_timer16_setinterval(h,l,TIMER16A)
 #  define tiva_timer16b_setinterval(h,l) tiva_timer16_setinterval(h,l,TIMER16B)
@@ -661,12 +652,14 @@ static inline void tiva_timer16_absmatch(TIMER_HANDLE handle,
   tiva_gptm_putreg(handle, regoffset, absmatch);
 }
 
-static inline void tiva_timer16a_absmatch(TIMER_HANDLE handle, uint16_t absmatch)
+static inline void tiva_timer16a_absmatch(TIMER_HANDLE handle,
+                                          uint16_t absmatch)
 {
   tiva_gptm_putreg(handle, TIVA_TIMER_TAMATCHR_OFFSET, absmatch);
 }
 
-static inline void tiva_timer16b_absmatch(TIMER_HANDLE handle, uint16_t absmatch)
+static inline void tiva_timer16b_absmatch(TIMER_HANDLE handle,
+                                          uint16_t absmatch)
 {
   tiva_gptm_putreg(handle, TIVA_TIMER_TBMATCHR_OFFSET, absmatch);
 }
@@ -802,7 +795,8 @@ void tiva_timer32_relmatch(TIMER_HANDLE handle, uint32_t relmatch);
  ****************************************************************************/
 
 #ifdef CONFIG_TIVA_TIMER16_PERIODIC
-void tiva_timer16_relmatch(TIMER_HANDLE handle, uint32_t relmatch, int tmndx);
+void tiva_timer16_relmatch(TIMER_HANDLE handle, uint32_t relmatch,
+                           int tmndx);
 
 #  define tiva_timer16a_relmatch(h,r) tiva_timer16_relmatch(h,r,TIMER16A)
 #  define tiva_timer16b_relmatch(h,r) tiva_timer16_relmatch(h,r,TIMER16B)

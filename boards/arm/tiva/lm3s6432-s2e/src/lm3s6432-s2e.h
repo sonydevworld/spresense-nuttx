@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/tiva/lm3s6432-s2e/src/lm3s6432-s2e.h
  *
- *   Copyright (C) 2010 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -79,10 +64,10 @@
  *  M4 PA2/U1RTS/SPISEL  Virtual COM port RTS
  * J11 PF0/LED1          Ethernet LED1 (green)
  * J12 PF1/LED0          Ethernet LED0 (yellow)
- * C11 PB2               Transciever #INVALID
- * C12 PB3               Transciever #ENABLE
- *  A6 PB4               Transciever ON
- *  B7 PB5               Transciever #OFF
+ * C11 PB2               Transceiver #INVALID
+ * C12 PB3               Transceiver #ENABLE
+ *  A6 PB4               Transceiver ON
+ *  B7 PB5               Transceiver #OFF
  */
 
 /* GPIO for LEDs:
@@ -96,8 +81,8 @@
  */
 #define SSICS_GPIO    (GPIO_FUNC_OUTPUT | GPIO_VALUE_ONE | GPIO_PORTA | 3)
 
-/* GPIOs for the RS-232 transciever enable/disable.
- * Default state for these enables the transciever.
+/* GPIOs for the RS-232 transceiver enable/disable.
+ * Default state for these enables the transceiver.
  */
 #define XCVR_INV_GPIO (GPIO_FUNC_INPUT | GPIO_PORTB | 2)
 #define XCVR_ENA_GPIO (GPIO_FUNC_OUTPUT | GPIO_VALUE_ZERO | GPIO_PORTB | 3)
@@ -105,7 +90,7 @@
 #define XCVR_OFF_GPIO (GPIO_FUNC_OUTPUT | GPIO_VALUE_ONE  | GPIO_PORTB | 5)
 
 /****************************************************************************
- * Public Functions
+ * Public Functions Definitions
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__

@@ -1,35 +1,20 @@
 /****************************************************************************
- * include/nuttx/sensors/dhtxx.c
+ * drivers/sensors/dhtxx.c
  *
- *   Copyright (C) 2018 Abdelatif GUETTOUCHE. All rights reserved.
- *   Author: Abdelatif GUETTOUCHE <abdelatif.guettouche@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -53,7 +38,7 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/sensors/dhtxx.h>
 
-/*****************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
@@ -107,7 +92,7 @@ static bool dht_verify_checksum(FAR struct dhtxx_dev_s *priv);
 static bool dht_check_data(FAR struct dhtxx_sensor_data_s *data,
                            float min_hum, float max_hum,
                            float min_temp, float max_temp);
-static int  dht_parse_data(FAR struct dhtxx_dev_s *priv, 
+static int  dht_parse_data(FAR struct dhtxx_dev_s *priv,
                           FAR struct dhtxx_sensor_data_s *data);
 
 /* Character driver methods */
@@ -118,7 +103,7 @@ static ssize_t dhtxx_read(FAR struct file *filep, FAR char *buffer,
                           size_t buflen);
 static ssize_t dhtxx_write(FAR struct file *filep, FAR const char *buffer,
                           size_t buflen);
-static int     dhtxx_ioctl(FAR struct file *filep, int cmd, 
+static int     dhtxx_ioctl(FAR struct file *filep, int cmd,
                           unsigned long arg);
 
 /****************************************************************************
@@ -154,7 +139,7 @@ static const struct file_operations g_dhtxxfops =
 static void dht_standby_mode(FAR struct dhtxx_dev_s *priv)
 {
   priv->config->config_data_pin(priv->config, false);
-  priv->config->set_data_pin(priv->config, true);  
+  priv->config->set_data_pin(priv->config, true);
 }
 
 /****************************************************************************
@@ -251,10 +236,11 @@ static int dht_read_raw_data(FAR struct dhtxx_dev_s *priv)
   int64_t start_time;
   int64_t end_time;
   int64_t current_time;
-  uint8_t j, i;
+  uint8_t i;
+  uint8_t j;
 
-  j = 0U;
-  for (i = 0U; i < DHTXX_RESPONSE_BITS; i++)
+  j = 0u;
+  for (i = 0u; i < DHTXX_RESPONSE_BITS; i++)
     {
       /* Start of transmission begins with a ~50uS low. */
 
@@ -311,8 +297,8 @@ static bool dht_verify_checksum(FAR struct dhtxx_dev_s *priv)
 {
   uint8_t sum;
 
-  sum = (priv->raw_data[0] + priv->raw_data[1] + 
-         priv->raw_data[2] + priv->raw_data[3]) & 0xFFU;
+  sum = (priv->raw_data[0] + priv->raw_data[1] +
+         priv->raw_data[2] + priv->raw_data[3]) & 0xffu;
 
   return (sum == priv->raw_data[4]);
 }
@@ -350,7 +336,7 @@ static bool dht_check_data(FAR struct dhtxx_sensor_data_s *data,
  *
  ****************************************************************************/
 
-static int dht_parse_data(FAR struct dhtxx_dev_s *priv, 
+static int dht_parse_data(FAR struct dhtxx_dev_s *priv,
                           FAR struct dhtxx_sensor_data_s *data)
 {
   int ret = OK;
@@ -362,7 +348,7 @@ static int dht_parse_data(FAR struct dhtxx_dev_s *priv,
       data->temp = priv->raw_data[2];
 
       /* if data is not within sensor's measurement range,
-       * an error must have accured.
+       * an error must have occurred.
        */
 
       if (!dht_check_data(data, DHT11_MIN_HUM, DHT11_MAX_HUM,
@@ -370,14 +356,14 @@ static int dht_parse_data(FAR struct dhtxx_dev_s *priv,
         {
           ret = -1;
         }
-      
+
     break;
 
     case DHTXX_DHT12:
       data->hum  = priv->raw_data[0] + priv->raw_data[1] * 0.1F;
 
-      data->temp = priv->raw_data[2] + (priv->raw_data[3] & 0x7FU) * 0.1F;
-      if (priv->raw_data[3] & 0x80U)
+      data->temp = priv->raw_data[2] + (priv->raw_data[3] & 0x7fu) * 0.1F;
+      if (priv->raw_data[3] & 0x80u)
         {
           data->temp *= -1;
         }
@@ -394,11 +380,11 @@ static int dht_parse_data(FAR struct dhtxx_dev_s *priv,
     case DHTXX_DHT22:
     case DHTXX_DHT33:
     case DHTXX_DHT44:
-      data->hum  = (priv->raw_data[0] << 8U | priv->raw_data[1]) * 0.1F;
+      data->hum  = (priv->raw_data[0] << 8u | priv->raw_data[1]) * 0.1F;
 
-      data->temp = (((priv->raw_data[2] & 0x7FU) << 8U) | 
+      data->temp = (((priv->raw_data[2] & 0x7fu) << 8u) |
                     priv->raw_data[3]) * 0.1F;
-      if (priv->raw_data[2] & 0x80U)
+      if (priv->raw_data[2] & 0x80u)
         {
           data->temp *= -1;
         }
@@ -427,12 +413,17 @@ static int dhtxx_open(FAR struct file *filep)
 {
   FAR struct inode        *inode = filep->f_inode;
   FAR struct dhtxx_dev_s  *priv  = inode->i_private;
+  int ret;
 
   /* Acquire the semaphore, wait the sampling time before sending anything to
    * pass unstable state.
    */
 
-  nxsem_wait_uninterruptible(&priv->devsem);
+  ret = nxsem_wait_uninterruptible(&priv->devsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   dht_standby_mode(priv);
 
@@ -461,15 +452,15 @@ static int dhtxx_close(FAR struct file *filep)
  * Name: dhtxx_read
  ****************************************************************************/
 
-static ssize_t dhtxx_read(FAR struct file *filep, FAR char *buffer, 
+static ssize_t dhtxx_read(FAR struct file *filep, FAR char *buffer,
                          size_t buflen)
 {
   int ret = OK;
   FAR struct inode                *inode = filep->f_inode;
   FAR struct dhtxx_dev_s          *priv  = inode->i_private;
-  FAR struct dhtxx_sensor_data_s  *data  = 
+  FAR struct dhtxx_sensor_data_s  *data  =
              (FAR struct dhtxx_sensor_data_s *)buffer;
-  
+
   if (!buffer)
     {
       snerr("ERROR: Buffer is null.\n");
@@ -478,13 +469,17 @@ static ssize_t dhtxx_read(FAR struct file *filep, FAR char *buffer,
 
   if (buflen < sizeof(FAR struct dhtxx_sensor_data_s))
     {
-      snerr("ERROR: Not enough memory for reading out a sensor data sample.\n");
+      snerr("ERROR: Not enough memory to read data sample.\n");
       return -ENOSYS;
     }
 
-  memset(priv->raw_data, 0U, sizeof(priv->raw_data));
+  memset(priv->raw_data, 0u, sizeof(priv->raw_data));
 
-  nxsem_wait_uninterruptible(&priv->devsem);
+  ret = nxsem_wait_uninterruptible(&priv->devsem);
+  if (ret < 0)
+    {
+      return (ssize_t)ret;
+    }
 
   dht_send_start_signal(priv);
 
@@ -520,6 +515,7 @@ static ssize_t dhtxx_read(FAR struct file *filep, FAR char *buffer,
     }
 
 out:
+
   /* Done reading, set the sensor back to low mode. */
 
   dht_standby_mode(priv);
@@ -585,7 +581,8 @@ static int dhtxx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  *
  ****************************************************************************/
 
-int dhtxx_register(FAR const char *devpath, FAR struct dhtxx_config_s *config)
+int dhtxx_register(FAR const char *devpath,
+                   FAR struct dhtxx_config_s *config)
 {
   FAR struct dhtxx_dev_s *priv;
   int ret;
@@ -598,6 +595,7 @@ int dhtxx_register(FAR const char *devpath, FAR struct dhtxx_config_s *config)
       snerr("ERROR: Failed to allocate instance\n");
       return -ENOMEM;
     }
+
   priv->config = config;
 
   /* Register the character driver */

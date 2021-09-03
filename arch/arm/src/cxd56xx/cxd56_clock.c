@@ -1,40 +1,23 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_clock.c
  *
- *   Copyright (C) 2008-2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -48,7 +31,7 @@
 
 #include <arch/chip/pm.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "chip.h"
 #include "hardware/cxd56_crg.h"
@@ -61,14 +44,22 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_DEBUG_PM
-#  define pmerr(fmt, ...)  logerr(fmt, ## __VA_ARGS__)
-#  define pminfo(fmt, ...) loginfo(fmt, ## __VA_ARGS__)
-#  define pmdbg(fmt, ...)  logdebug(fmt, ## __VA_ARGS__)
+/* Debug */
+
+#ifdef CONFIG_CXD56_PM_DEBUG_ERROR
+#  define pmerr(format, ...)   _err(format, ##__VA_ARGS__)
 #else
-#  define pmerr(fmt, ...)
-#  define pminfo(fmt, ...)
-#  define pmdbg(fmt, ...)
+#  define pmerr(x, ...)
+#endif
+#ifdef CONFIG_CXD56_PM_DEBUG_WARN
+#  define pmwarn(format, ...)  _warn(format, ##__VA_ARGS__)
+#else
+#  define pmwarn(x, ...)
+#endif
+#ifdef CONFIG_CXD56_PM_DEBUG_INFO
+#  define pminfo(format, ...)  _info(format, ##__VA_ARGS__)
+#else
+#  define pminfo(x, ...)
 #endif
 
 /* For enable_pwd, disable_pwd (digital domain) */
@@ -111,7 +102,8 @@
  * Private Types
  ****************************************************************************/
 
-enum clock_source {
+enum clock_source
+{
   RCOSC = 1,
   RTC,
   RCRTC,
@@ -138,14 +130,13 @@ struct power_domain
 
 static void cxd56_img_clock_enable(void);
 static void cxd56_img_clock_disable(void);
-static void cxd56_scu_clock_ctrl(
-   uint32_t block, uint32_t intr, int on);
-static void cxd56_scu_peri_clock_enable(
-   FAR const struct scu_peripheral *p) __unused;
-static void cxd56_scu_peri_clock_disable(
-   FAR const struct scu_peripheral *p) __unused;
-static void cxd56_scu_peri_clock_gating(
-   FAR const struct scu_peripheral *p, int enable) __unused;
+static void cxd56_scu_clock_ctrl(uint32_t block, uint32_t intr, int on);
+static void cxd56_scu_peri_clock_enable(FAR const struct scu_peripheral *p)
+  __unused;
+static void cxd56_scu_peri_clock_disable(FAR const struct scu_peripheral *p)
+  __unused;
+static void cxd56_scu_peri_clock_gating(FAR const struct scu_peripheral *p,
+                                        int enable) __unused;
 
 /****************************************************************************
  * Public Data
@@ -177,7 +168,8 @@ static sem_t g_clockexc = SEM_INITIALIZER(1);
  *  swreset    : SWRESET_SCU
  *  crgintmask : CRG_INT_CLR0, CRG_INT_STAT_RAW0
  *
- * Each member values are indicated the number of bit in appropriate registers.
+ * Each member values are indicated the number of bit
+ * in appropriate registers.
  */
 
 #if defined(CONFIG_CXD56_SPI3)
@@ -305,6 +297,7 @@ static void enable_pwd(int pdid)
       do_power_control();
       release_pwd_reset(domain);
     }
+
   g_digital.refs[pdid]++;
 }
 
@@ -336,6 +329,7 @@ static void enable_apwd(int apdid)
       putreg32(domain | (domain << 16), CXD56_TOPREG_ANA_PW_CTL);
       do_power_control();
     }
+
   g_analog.refs[apdid]++;
 }
 
@@ -359,6 +353,7 @@ static void disable_apwd(int apdid)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
 /****************************************************************************
  * Name: cxd56_rcosc_enable
  *
@@ -403,8 +398,8 @@ void cxd56_xosc_enable(void)
  *   Disable XOSC.
  *
  * CAUTION:
- *   This function is tentative. We need to consider that clock source control
- *   with other devices which XOSC is used.
+ *   This function is tentative. We need to consider that
+ *   clock source control  with other devices which XOSC is used.
  *
  ****************************************************************************/
 
@@ -846,7 +841,8 @@ static void cxd56_spim_clock_enable(void)
 
   busy_wait(10);
 
-  putreg32(val | CK_COM_BRG | CK_AHB_BRG_COMIF, CXD56_TOPREG_SYSIOP_SUB_CKEN);
+  putreg32(val | CK_COM_BRG | CK_AHB_BRG_COMIF,
+           CXD56_TOPREG_SYSIOP_SUB_CKEN);
   rst = getreg32(CXD56_TOPREG_SWRESET_BUS);
   putreg32(rst | XRST_SPIM, CXD56_TOPREG_SWRESET_BUS);
   putreg32(val | CK_SPIM | CK_COM_BRG |
@@ -966,24 +962,28 @@ void cxd56_spi_clock_enable(int port)
     {
       cxd56_img_spi_clock_enable();
     }
+
 #endif
 #if defined(CONFIG_CXD56_SPI5)
   if (port == 5)
     {
       cxd56_img_wspi_clock_enable();
     }
+
 #endif
 #if defined(CONFIG_CXD56_SPI0)
   if (port == 0)
     {
       cxd56_spim_clock_enable();
     }
+
 #endif
 #if defined(CONFIG_CXD56_SPI3)
   if (port == 3)
     {
       cxd56_scu_peri_clock_enable(&g_scuspi);
     }
+
 #endif
 }
 
@@ -994,24 +994,28 @@ void cxd56_spi_clock_disable(int port)
     {
       cxd56_img_spi_clock_disable();
     }
+
 #endif
 #if defined(CONFIG_CXD56_SPI5)
   if (port == 5)
     {
       cxd56_img_wspi_clock_disable();
     }
+
 #endif
 #if defined(CONFIG_CXD56_SPI0)
   if (port == 0)
     {
       cxd56_spim_clock_disable();
     }
+
 #endif
 #if defined(CONFIG_CXD56_SPI3)
   if (port == 3)
     {
       cxd56_scu_peri_clock_disable(&g_scuspi);
     }
+
 #endif
 }
 
@@ -1098,13 +1102,16 @@ void cxd56_spi_clock_gear_adjust(int port, uint32_t maxfreq)
         {
           divisor += 1;
         }
+
       if (divisor > maxdivisor)
         {
           divisor = maxdivisor;
         }
+
       gear = 0x00010000 | divisor;
       putreg32(gear, addr);
     }
+
   clock_semgive(&g_clockexc);
 }
 
@@ -1132,7 +1139,8 @@ static void cxd56_i2cm_clock_enable(void)
 
   busy_wait(10);
 
-  putreg32(val | CK_COM_BRG | CK_AHB_BRG_COMIF, CXD56_TOPREG_SYSIOP_SUB_CKEN);
+  putreg32(val | CK_COM_BRG | CK_AHB_BRG_COMIF,
+           CXD56_TOPREG_SYSIOP_SUB_CKEN);
   rst = getreg32(CXD56_TOPREG_SWRESET_BUS);
   putreg32(rst | XRST_I2CM, CXD56_TOPREG_SWRESET_BUS);
   putreg32(val | CK_I2CM | CK_COM_BRG |
@@ -1184,18 +1192,21 @@ void cxd56_i2c_clock_enable(int port)
     {
       cxd56_scu_peri_clock_enable(&g_scui2c0);
     }
+
 #endif
 #if defined(CONFIG_CXD56_I2C1)
   if (port == 1)
     {
       cxd56_scu_peri_clock_enable(&g_scui2c1);
     }
+
 #endif
 #if defined(CONFIG_CXD56_I2C2)
   if (port == 2)
     {
       cxd56_i2cm_clock_enable();
     }
+
 #endif
 }
 
@@ -1213,18 +1224,21 @@ void cxd56_i2c_clock_disable(int port)
     {
       cxd56_scu_peri_clock_disable(&g_scui2c0);
     }
+
 #endif
 #if defined(CONFIG_CXD56_I2C1)
   if (port == 1)
     {
       cxd56_scu_peri_clock_disable(&g_scui2c1);
     }
+
 #endif
 #if defined(CONFIG_CXD56_I2C2)
   if (port == 2)
     {
       cxd56_i2cm_clock_disable();
     }
+
 #endif
 }
 
@@ -1242,12 +1256,14 @@ void cxd56_i2c_clock_gate_enable(int port)
     {
       cxd56_scu_peri_clock_gating(&g_scui2c0, 1);
     }
+
 #endif
 #if defined(CONFIG_CXD56_I2C1)
   if (port == 1)
     {
       cxd56_scu_peri_clock_gating(&g_scui2c1, 1);
     }
+
 #endif
 }
 
@@ -1265,32 +1281,34 @@ void cxd56_i2c_clock_gate_disable(int port)
     {
       cxd56_scu_peri_clock_gating(&g_scui2c0, 0);
     }
+
 #endif
 #if defined(CONFIG_CXD56_I2C1)
   if (port == 1)
     {
       cxd56_scu_peri_clock_gating(&g_scui2c1, 0);
     }
+
 #endif
 }
 
 uint32_t cxd56_get_img_uart_baseclock(void)
 {
-    uint32_t val;
-    int n;
-    int m;
+  uint32_t val;
+  int n;
+  int m;
 
-    val = getreg32(CXD56_CRG_GEAR_IMG_UART);
-    n = (val >> 16) & 1;
-    m = val & 0x7f;
+  val = getreg32(CXD56_CRG_GEAR_IMG_UART);
+  n = (val >> 16) & 1;
+  m = val & 0x7f;
 
-    if (n && m)
+  if (n && m)
     {
-        return cxd56_get_appsmp_baseclock() * n / m;
+      return cxd56_get_appsmp_baseclock() * n / m;
     }
     else
     {
-        return 0;
+      return 0;
     }
 }
 
@@ -1649,24 +1667,28 @@ uint32_t cxd56_get_spi_baseclock(int port)
     {
       return cxd56_get_img_spi_baseclock();
     }
+
 #endif
 #if defined(CONFIG_CXD56_SPI5)
   if (port == 5)
     {
       return cxd56_get_img_wspi_baseclock();
     }
+
 #endif
 #if defined(CONFIG_CXD56_SPI0)
   if (port == 0)
     {
       return cxd56_get_com_baseclock();
     }
+
 #endif
 #if defined(CONFIG_CXD56_SPI3)
   if (port == 3)
     {
       return cxd56_get_scu_baseclock();
     }
+
 #endif
   return 0;
 }
@@ -1678,18 +1700,21 @@ uint32_t cxd56_get_i2c_baseclock(int port)
     {
       return cxd56_get_scu_baseclock();
     }
+
 #endif
 #if defined(CONFIG_CXD56_I2C1)
   if (port == 1)
     {
       return cxd56_get_scu_baseclock();
     }
+
 #endif
 #if defined(CONFIG_CXD56_I2C2)
   if (port == 2)
     {
       return cxd56_get_com_baseclock();
     }
+
 #endif
   return 0;
 }
@@ -1753,6 +1778,7 @@ static void cxd56_scu_clock_ctrl(uint32_t block, uint32_t intr, int on)
 
           return;
         }
+
       putreg32(val | block, CXD56_TOPREG_SCU_CKEN);
     }
   else
@@ -1763,6 +1789,7 @@ static void cxd56_scu_clock_ctrl(uint32_t block, uint32_t intr, int on)
 
           return;
         }
+
       putreg32(val & ~block, CXD56_TOPREG_SCU_CKEN);
     }
 
@@ -1771,6 +1798,7 @@ static void cxd56_scu_clock_ctrl(uint32_t block, uint32_t intr, int on)
       stat = getreg32(CXD56_TOPREG_CRG_INT_STAT_RAW0);
       busy_wait(1000);
     }
+
   while (retry-- && !(stat & intr));
 
   putreg32(0xffffffff, CXD56_TOPREG_CRG_INT_CLR0);
@@ -1814,7 +1842,8 @@ static void cxd56_scu_clock_enable(void)
   /* Enable each blocks in SCU */
 
   val = getreg32(CXD56_TOPREG_SCU_CKEN);
-  putreg32(val | SCU_SCU | SCU_SC | SCU_32K | SCU_SEQ, CXD56_TOPREG_SCU_CKEN);
+  putreg32(val | SCU_SCU | SCU_SC | SCU_32K | SCU_SEQ,
+           CXD56_TOPREG_SCU_CKEN);
 
   do
     {
@@ -2467,8 +2496,8 @@ int up_pmramctrl(int cmd, uintptr_t addr, size_t size)
   endidx = TILEALIGNIDX(TILEALIGN(addr + size));
 
   DEBUGASSERT(startidx < 12 && endidx <= 12);
-  pmdbg("%x (size: %x) [%d:%d] -> %d\n", addr, size,
-        startidx, endidx, cmd);
+  pminfo("%x (size: %x) [%d:%d] -> %d\n", addr, size,
+         startidx, endidx, cmd);
 
   /* Make controls bits for RAM power control */
 
@@ -2526,13 +2555,14 @@ int up_pmramctrl(int cmd, uintptr_t addr, size_t size)
               val |= 1 << i;
             }
         }
+
       putreg32(val, CXD56_CRG_APP_TILE_CLK_GATING_ENB);
     }
 
   return OK;
 }
 
-#ifdef CONFIG_DEBUG_PM
+#ifdef CONFIG_CXD56_PM_DEBUG_INFO
 /****************************************************************************
  * Name: up_pmstatdump
  *
@@ -2551,34 +2581,34 @@ void up_pmstatdump(void)
   stat0 = getreg32(CXD56_TOPREG_APPDSP_RAMMODE_STAT0);
   stat1 = getreg32(CXD56_TOPREG_APPDSP_RAMMODE_STAT1);
 
-  pmdbg("              0 1 2 3 4 5 6 7 8 9 A B\n");
-  pmdbg("DSP RAM stat: %c %c %c %c %c %c %c %c %c %c %c %c\n",
-        statch[(stat0 >>  0) & 3],
-        statch[(stat0 >>  2) & 3],
-        statch[(stat0 >>  4) & 3],
-        statch[(stat0 >>  6) & 3],
-        statch[(stat0 >>  8) & 3],
-        statch[(stat0 >> 10) & 3],
-        statch[(stat1 >>  0) & 3],
-        statch[(stat1 >>  2) & 3],
-        statch[(stat1 >>  4) & 3],
-        statch[(stat1 >>  6) & 3],
-        statch[(stat1 >>  8) & 3],
-        statch[(stat1 >> 10) & 3]);
+  pminfo("              0 1 2 3 4 5 6 7 8 9 A B\n");
+  pminfo("DSP RAM stat: %c %c %c %c %c %c %c %c %c %c %c %c\n",
+         statch[(stat0 >>  0) & 3],
+         statch[(stat0 >>  2) & 3],
+         statch[(stat0 >>  4) & 3],
+         statch[(stat0 >>  6) & 3],
+         statch[(stat0 >>  8) & 3],
+         statch[(stat0 >> 10) & 3],
+         statch[(stat1 >>  0) & 3],
+         statch[(stat1 >>  2) & 3],
+         statch[(stat1 >>  4) & 3],
+         statch[(stat1 >>  6) & 3],
+         statch[(stat1 >>  8) & 3],
+         statch[(stat1 >> 10) & 3]);
 
   stat0 = getreg32(CXD56_CRG_APP_TILE_CLK_GATING_ENB);
-  pmdbg("Clock gating: %c %c %c %c %c %c %c %c %c %c %c %c\n",
-        gatech[(stat0 >>  0) & 1],
-        gatech[(stat0 >>  1) & 1],
-        gatech[(stat0 >>  2) & 1],
-        gatech[(stat0 >>  3) & 1],
-        gatech[(stat0 >>  4) & 1],
-        gatech[(stat0 >>  5) & 1],
-        gatech[(stat0 >>  6) & 1],
-        gatech[(stat0 >>  7) & 1],
-        gatech[(stat0 >>  8) & 1],
-        gatech[(stat0 >>  9) & 1],
-        gatech[(stat0 >> 10) & 1],
-        gatech[(stat0 >> 11) & 1]);
+  pminfo("Clock gating: %c %c %c %c %c %c %c %c %c %c %c %c\n",
+         gatech[(stat0 >>  0) & 1],
+         gatech[(stat0 >>  1) & 1],
+         gatech[(stat0 >>  2) & 1],
+         gatech[(stat0 >>  3) & 1],
+         gatech[(stat0 >>  4) & 1],
+         gatech[(stat0 >>  5) & 1],
+         gatech[(stat0 >>  6) & 1],
+         gatech[(stat0 >>  7) & 1],
+         gatech[(stat0 >>  8) & 1],
+         gatech[(stat0 >>  9) & 1],
+         gatech[(stat0 >> 10) & 1],
+         gatech[(stat0 >> 11) & 1]);
 }
 #endif

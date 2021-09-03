@@ -5,4 +5,140 @@
 
 if ARCH_BOARD_NUCLEO_L432KC
 
+menu "U[S]ART Pin Layouts"
+	depends on STM32L4_USART1 || STM32L4_USART2 || STM32L4_LPUART1
+
+comment "USART1 is disabled. (Enable it under: System Type -> STM32L4 Peripheral Support)"
+	depends on !STM32L4_USART1
+
+choice
+	depends on STM32L4_USART1
+	prompt "USART1 RX pin"
+	default ARCH_BOARD_USART1_RX_PA10
+	---help---
+		This pin can be one of the following:
+		PA10: CN9 pin 3, CN10 pin 33
+		PB7 : CN7 pin 21
+
+config ARCH_BOARD_USART1_RX_PA10
+	bool "PA10: CN9 pin 3, CN10 pin 33"
+
+config ARCH_BOARD_USART1_RX_PB7
+	bool "PB7: CN7 pin 21"
+
+endchoice
+
+choice
+	depends on STM32L4_USART1
+	prompt "USART1 TX pin"
+	default ARCH_BOARD_USART1_TX_PA9
+	---help---
+		This pin can be one of the following:
+		PA9: CN5 pin 1, CN10 pin 21
+		PB6: CN5 pin 3, CN10 pin 17
+
+config ARCH_BOARD_USART1_TX_PA9
+	bool "PA9: CN5 pin 1, CN10 pin 21"
+
+config ARCH_BOARD_USART1_TX_PB6
+	bool "PB6: CN5 pin 3, CN10 pin 17"
+
+endchoice
+
+comment "USART2 is disabled. (Enable it under: System Type -> STM32L4 Peripheral Support)"
+	depends on !STM32L4_USART2
+
+choice
+	depends on STM32L4_USART2
+	prompt "USART2 RX pin"
+	default ARCH_BOARD_USART2_RX_PA15
+	---help---
+		This pin can be one of the following:
+		PA3
+		PA15 (connected to ST-Link)
+
+config ARCH_BOARD_USART2_RX_PA3
+	bool "PA3"
+
+config ARCH_BOARD_USART2_RX_PA15
+	bool "PA15"
+
+endchoice
+
+choice
+	depends on STM32L4_USART2
+	prompt "USART2 TX pin"
+	default ARCH_BOARD_USART2_TX_PA2
+	---help---
+		This pin can only be:
+		PA2 (connected to ST-Link)
+
+config ARCH_BOARD_USART2_TX_PA2
+	bool "PA2"
+
+endchoice
+
+comment "LPUART1 is disabled. (Enable it under: System Type -> STM32L4 Peripheral Support)"
+	depends on !STM32L4_LPUART1
+
+choice
+	depends on STM32L4_LPUART1
+	prompt "LPUART1 RX pin"
+	default ARCH_BOARD_LPUART1_RX_PA3
+	---help---
+		This pin can only be PA3.
+
+config ARCH_BOARD_LPUART1_RX_PA3
+	bool "PA3"
+
+endchoice
+
+choice
+	depends on STM32L4_LPUART1
+	prompt "LPUART1 TX pin"
+	default ARCH_BOARD_LPUART1_TX_PA2
+	---help---
+		This pin can only be PA2.
+
+config ARCH_BOARD_LPUART1_TX_PA2
+	bool "PA2"
+
+endchoice
+
+endmenu
+
+menuconfig NUCLEOL432KC_SPWM
+	bool "Sinusoidal PWM generator example"
+	default n
+
+if NUCLEOL432KC_SPWM
+
+choice
+	prompt "Sinusoidal PWM source"
+	default NUCLEOL432KC_SPWM_USE_TIM1
+
+config NUCLEOL432KC_SPWM_USE_TIM1
+	bool "Use TIM1 as PWM source"
+
+endchoice
+
+config NUCLEOL432KC_SPWM_PWM_FREQ
+	int "PWM frequency in Hz"
+	default 100000
+
+config NUCLEOL432KC_SPWM_SAMPLES
+	int "Sine samples"
+	default 100
+
+config NUCLEOL432KC_SPWM_FREQ
+	int "Waveform frequency in Hz"
+	default 60
+
+config NUCLEOL432KC_SPWM_PHASE_NUM
+	int "Number of phases"
+	default 1
+	range 1 4 if NUCLEOL432KC_SPWM_USE_TIM1
+
+endif
+
 endif # ARCH_BOARD_NUCLEO_L432KC

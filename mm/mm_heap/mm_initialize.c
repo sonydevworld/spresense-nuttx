@@ -1,35 +1,20 @@
 /****************************************************************************
  * mm/mm_heap/mm_initialize.c
  *
- *   Copyright (C) 2007, 2009, 2011, 2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -44,6 +29,8 @@
 #include <debug.h>
 
 #include <nuttx/mm/mm.h>
+
+#include "mm_heap/mm.h"
 
 /****************************************************************************
  * Public Functions
@@ -70,13 +57,30 @@
 void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
                   size_t heapsize)
 {
+  FAR struct mm_heap_impl_s *heap_impl;
   FAR struct mm_freenode_s *node;
   uintptr_t heapbase;
   uintptr_t heapend;
 #if CONFIG_MM_REGIONS > 1
-  int IDX = heap->mm_nregions;
+  int IDX;
+
+  DEBUGASSERT(MM_IS_VALID(heap));
+  heap_impl = heap->mm_impl;
+  IDX = heap_impl->mm_nregions;
+
+  /* Writing past CONFIG_MM_REGIONS would have catastrophic consequences */
+
+  DEBUGASSERT(IDX < CONFIG_MM_REGIONS);
+  if (IDX >= CONFIG_MM_REGIONS)
+    {
+      return;
+    }
+
 #else
 # define IDX 0
+
+  DEBUGASSERT(MM_IS_VALID(heap));
+  heap_impl = heap->mm_impl;
 #endif
 
 #if defined(CONFIG_MM_SMALL) && !defined(CONFIG_SMALL_MEMORY)
@@ -85,8 +89,10 @@ void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
    * crazy.
    */
 
-  DEBUGASSERT(heapsize <= MMSIZE_MAX+1);
+  DEBUGASSERT(heapsize <= MMSIZE_MAX + 1);
 #endif
+
+  mm_takesemaphore(heap);
 
   /* Adjust the provide heap start and size so that they are both aligned
    * with the MM_MIN_CHUNK size.
@@ -96,11 +102,11 @@ void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
   heapend  = MM_ALIGN_DOWN((uintptr_t)heapstart + (uintptr_t)heapsize);
   heapsize = heapend - heapbase;
 
-  minfo("Region %d: base=%p size=%u\n", IDX+1, heapstart, heapsize);
+  minfo("Region %d: base=%p size=%zu\n", IDX + 1, heapstart, heapsize);
 
   /* Add the size of this region to the total size of the heap */
 
-  heap->mm_heapsize += heapsize;
+  heap_impl->mm_heapsize += heapsize;
 
   /* Create two "allocated" guard nodes at the beginning and end of
    * the heap.  These only serve to keep us from allocating outside
@@ -110,27 +116,30 @@ void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
    * all available memory.
    */
 
-  heap->mm_heapstart[IDX]            = (FAR struct mm_allocnode_s *)heapbase;
-  heap->mm_heapstart[IDX]->size      = SIZEOF_MM_ALLOCNODE;
-  heap->mm_heapstart[IDX]->preceding = MM_ALLOC_BIT;
-
-  node                        = (FAR struct mm_freenode_s *)(heapbase + SIZEOF_MM_ALLOCNODE);
-  node->size                  = heapsize - 2*SIZEOF_MM_ALLOCNODE;
-  node->preceding             = SIZEOF_MM_ALLOCNODE;
-
-  heap->mm_heapend[IDX]              = (FAR struct mm_allocnode_s *)(heapend - SIZEOF_MM_ALLOCNODE);
-  heap->mm_heapend[IDX]->size        = SIZEOF_MM_ALLOCNODE;
-  heap->mm_heapend[IDX]->preceding   = node->size | MM_ALLOC_BIT;
+  heap_impl->mm_heapstart[IDX]            = (FAR struct mm_allocnode_s *)
+                                            heapbase;
+  heap_impl->mm_heapstart[IDX]->size      = SIZEOF_MM_ALLOCNODE;
+  heap_impl->mm_heapstart[IDX]->preceding = MM_ALLOC_BIT;
+  node                                    = (FAR struct mm_freenode_s *)
+                                            (heapbase + SIZEOF_MM_ALLOCNODE);
+  node->size                              = heapsize - 2*SIZEOF_MM_ALLOCNODE;
+  node->preceding                         = SIZEOF_MM_ALLOCNODE;
+  heap_impl->mm_heapend[IDX]              = (FAR struct mm_allocnode_s *)
+                                            (heapend - SIZEOF_MM_ALLOCNODE);
+  heap_impl->mm_heapend[IDX]->size        = SIZEOF_MM_ALLOCNODE;
+  heap_impl->mm_heapend[IDX]->preceding   = node->size | MM_ALLOC_BIT;
 
 #undef IDX
 
 #if CONFIG_MM_REGIONS > 1
-  heap->mm_nregions++;
+  heap_impl->mm_nregions++;
 #endif
 
   /* Add the single, large free node to the nodelist */
 
   mm_addfreechunk(heap, node);
+
+  mm_givesemaphore(heap);
 }
 
 /****************************************************************************
@@ -155,9 +164,18 @@ void mm_addregion(FAR struct mm_heap_s *heap, FAR void *heapstart,
 void mm_initialize(FAR struct mm_heap_s *heap, FAR void *heapstart,
                    size_t heapsize)
 {
+  FAR struct mm_heap_impl_s *heap_impl;
   int i;
 
-  minfo("Heap: start=%p size=%u\n", heapstart, heapsize);
+  minfo("Heap: start=%p size=%zu\n", heapstart, heapsize);
+
+  /* Reserve a block space for mm_heap_impl_s context */
+
+  DEBUGASSERT(heapsize > sizeof(struct mm_heap_impl_s));
+  heap->mm_impl = (FAR struct mm_heap_impl_s *)heapstart;
+  heap_impl = heap->mm_impl;
+  heapsize -= sizeof(struct mm_heap_impl_s);
+  heapstart = (FAR char *)heapstart + sizeof(struct mm_heap_impl_s);
 
   /* The following two lines have cause problems for some older ZiLog
    * compilers in the past (but not the more recent).  Life is easier if we
@@ -168,22 +186,29 @@ void mm_initialize(FAR struct mm_heap_s *heap, FAR void *heapstart,
   CHECK_ALLOCNODE_SIZE;
   CHECK_FREENODE_SIZE;
 #endif
+  DEBUGASSERT(MM_MIN_CHUNK >= SIZEOF_MM_FREENODE);
+  DEBUGASSERT(MM_MIN_CHUNK >= SIZEOF_MM_ALLOCNODE);
 
   /* Set up global variables */
 
-  heap->mm_heapsize = 0;
+  heap_impl->mm_heapsize = 0;
 
 #if CONFIG_MM_REGIONS > 1
-  heap->mm_nregions = 0;
+  heap_impl->mm_nregions = 0;
 #endif
+
+  /* Initialize mm_delaylist */
+
+  heap_impl->mm_delaylist = NULL;
 
   /* Initialize the node array */
 
-  memset(heap->mm_nodelist, 0, sizeof(struct mm_freenode_s) * MM_NNODES);
+  memset(heap_impl->mm_nodelist, 0,
+         sizeof(struct mm_freenode_s) * MM_NNODES);
   for (i = 1; i < MM_NNODES; i++)
     {
-      heap->mm_nodelist[i-1].flink = &heap->mm_nodelist[i];
-      heap->mm_nodelist[i].blink   = &heap->mm_nodelist[i-1];
+      heap_impl->mm_nodelist[i - 1].flink = &heap_impl->mm_nodelist[i];
+      heap_impl->mm_nodelist[i].blink     = &heap_impl->mm_nodelist[i - 1];
     }
 
   /* Initialize the malloc semaphore to one (to support one-at-

@@ -130,41 +130,9 @@ GNU Toolchain Options
   a different toolchain, you simply need to add change to one of the following
   configuration options to your .config (or defconfig) file:
 
-    CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y  : CodeSourcery under Windows
-    CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYL=y  : CodeSourcery under Linux
-    CONFIG_ARMV7A_TOOLCHAIN_ATOLLIC=y        : Atollic toolchain for Windos
-    CONFIG_ARMV7A_TOOLCHAIN_DEVKITARM=y      : devkitARM under Windows
-    CONFIG_ARMV7A_TOOLCHAIN_BUILDROOT=y      : NuttX buildroot under Linux or Cygwin (default)
-    CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIL=y      : Generic GCC ARM EABI toolchain for Linux
-    CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y      : Generic GCC ARM EABI toolchain for Windows
-
-  The CodeSourcery GCC toolchain is selected with
-  CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y and setting the PATH variable
-  appropriately.
-
-  NOTE about Windows native toolchains
-  ------------------------------------
-
-  There are several limitations to using a Windows based toolchain in a
-  Cygwin environment.  The three biggest are:
-
-  1. The Windows toolchain cannot follow Cygwin paths.  Path conversions are
-     performed automatically in the Cygwin makefiles using the 'cygpath'
-     utility but you might easily find some new path problems.  If so, check
-     out 'cygpath -w'
-
-  2. Windows toolchains cannot follow Cygwin symbolic links.  Many symbolic
-     links are used in Nuttx (e.g., include/arch).  The make system works
-     around these problems for the Windows tools by copying directories
-     instead of linking them.  But this can also cause some confusion for
-     you:  For example, you may edit a file in a "linked" directory and find
-     that your changes had no effect.  That is because you are building the
-     copy of the file in the "fake" symbolic directory.  If you use a\
-     Windows toolchain, you should get in the habit of making like this:
-
-       make clean_context all
-
-     An alias in your .bashrc file might make that less painful.
+    CONFIG_ARMV7A_TOOLCHAIN_BUILDROOT=y  : NuttX buildroot under Linux or Cygwin (default)
+    CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIL=y  : Generic GCC ARM EABI toolchain for Linux
+    CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y  : Generic GCC ARM EABI toolchain for Windows
 
 IDEs
 ====
@@ -188,7 +156,7 @@ IDEs
   2) Start the NuttX build at least one time from the Cygwin command line
      before trying to create your project.  This is necessary to create
      certain auto-generated files and directories that will be needed.
-  3) Set up include pathes:  You will need include/, arch/arm/src/sam34,
+  3) Set up include paths:  You will need include/, arch/arm/src/sam34,
      arch/arm/src/common, arch/arm/src/armv7-m, and sched/.
   4) All assembly files need to have the definition option -D __ASSEMBLY__
      on the command line.
@@ -209,7 +177,7 @@ NuttX EABI "buildroot" Toolchain
   Bitbucket download site (https://bitbucket.org/nuttx/buildroot/downloads/).
   This GNU toolchain builds and executes in the Linux or Cygwin environment.
 
-  1. You must have already configured Nuttx in <some-dir>/nuttx.
+  1. You must have already configured NuttX in <some-dir>/nuttx.
 
      tools/configure.sh sama5d3x-ek:<sub-dir>
 
@@ -259,7 +227,7 @@ NXFLAT Toolchain
 
   This GNU toolchain builds and executes in the Linux or Cygwin environment.
 
-  1. You must have already configured Nuttx in <some-dir>/nuttx.
+  1. You must have already configured NuttX in <some-dir>/nuttx.
 
      tools/configure.sh sama5d3x-ek:<sub-dir>
 
@@ -420,7 +388,7 @@ Creating and Using NORBOOT
 
       The norboot program can also be configured to jump directly into
       NOR FLASH without requiring the final halt and go by setting
-      CONFIG_SAMA5D3xEK_NOR_START=y in the NuttX configuration.  However,
+      CONFIG_SAMA5D3XEK_NOR_START=y in the NuttX configuration.  However,
       since I have been debugging the early boot sequence, the above
       sequence has been most convenient for me since it allows me to
       step into the program in NOR.
@@ -543,7 +511,7 @@ DRAMBOOT
 
   The boards/arm/sama5/sama5d4-ek/README.txt also describes variants AT25BOOT and
   SRAMBOOT.  This have not been ported to the SAMA5D3x-EK, but are available
-  if they are usefult too you.
+  if they are useful too you.
 
 NAND FLASH Memory Map
 ---------------------
@@ -553,7 +521,7 @@ NAND FLASH Memory Map
   0x0000:0000 - 0x0003:ffff: AT91BootStrap
   0x0004:0000 - 0x000b:ffff: U-Boot
   0x000c:0000 - 0x000f:ffff: U-Boot environment
-  0x0010:0000 - 0x0017:ffff: U-Boot environement redundant
+  0x0010:0000 - 0x0017:ffff: U-Boot environment redundant
   0x0018:0000 - 0x001f:ffff: Device tree (DTB)
   0x0020:0000 - 0x007f:ffff: NuttX
   0x0080:0000 - end:         Available for use as a NAND file system
@@ -646,7 +614,7 @@ Programming U-Boot
      - Press the "Send File" button
      - Close SAM-BA, remove the USB Device cable.
 
-  You should now be able to interrupt with U-Boot vie the DBGU interface.
+  You should now be able to interrupt with U-Boot via the DBGU interface.
 
 Load NuttX with U-Boot on AT91 boards
 -------------------------------------
@@ -849,7 +817,7 @@ Buttons and LEDs
     LED_PANIC            The system has crashed     OFF      Blinking
     LED_IDLE             MCU is is sleep mode       -- Not used  --
 
-  If CONFIG_SAMA5D3xEK_NOREDLED=y, then the red LED is not used by the
+  If CONFIG_SAMA5D3XEK_NOREDLED=y, then the red LED is not used by the
   system and the controls are as follows:
 
     SYMBOL                Meaning                     LED state
@@ -983,7 +951,6 @@ Networking
     CONFIG_NET_ETH_PKTSIZE=562           : Maximum packet size 1518 is more standard
     CONFIG_NET_TCP=y                     : Enable TCP/IP networking
     CONFIG_NET_TCPBACKLOG=y              : Support TCP/IP backlog
-    CONFIG_NET_TCP_READAHEAD_BUFSIZE=562 : Read-ahead buffer size
     CONFIG_NET_UDP=y                     : Enable UDP networking
     CONFIG_NET_ICMP=y                    : Enable ICMP networking
     CONFIG_NET_ICMP_SOCKET=y             : Needed for NSH ping command
@@ -1077,7 +1044,7 @@ Networking
       cp          free        kill        mkrd        put         usleep
       cmp         get         losetup     mh          rm          wget
       dd          help        ls          mount       rmdir       xd
-      df          hexdump     mb          mv          sh
+      df          hexdump     mb          mv          source
 
     Builtin Apps:
     nsh>
@@ -1149,7 +1116,7 @@ Networking
 
     - One other thing: UDP support is required (CONFIG_NET_UDP).
 
-  Given those prerequisites, the newtork monitor can be selected with these additional settings.
+  Given those prerequisites, the network monitor can be selected with these additional settings.
 
     Networking Support -> Networking Device Support
       CONFIG_NETDEV_PHY_IOCTL=y             : Enable PHY ioctl support
@@ -1215,8 +1182,8 @@ AT25 Serial FLASH
       CONFIG_NSH_ARCHINIT=y                 : NSH board-initialization
 
     Board Selection
-      CONFIG_SAMA5D3xEK_AT25_BLOCKMOUNT=y   : Mounts AT25 for NSH
-      CONFIG_SAMA5D3xEK_AT25_FTL=y          : Create block driver for FAT
+      CONFIG_SAMA5D3XEK_AT25_BLOCKMOUNT=y   : Mounts AT25 for NSH
+      CONFIG_SAMA5D3XEK_AT25_FTL=y          : Create block driver for FAT
 
   NOTE that you must close JP1 on the Embest/Ronetix board in order to
   enable the AT25 FLASH chip select.
@@ -1629,7 +1596,7 @@ USB High-Speed Host
 
     Drivers -> USB Host Driver Support
       CONFIG_USBHOST_HUB=y                 : Enable the hub class
-      CONFIG_USBHOST_ASYNCH=y              : Asynchonous I/O supported needed for hubs
+      CONFIG_USBHOST_ASYNCH=y              : Asynchronous I/O supported needed for hubs
 
     System Type -> USB High Speed Host driver options
       CONFIG_SAMA5_OHCI_NEDS=12            : You will probably want more pipes
@@ -1788,7 +1755,7 @@ SDRAM Support
       CONFIG_SAMA5_DDRCS_LPDDR2=y           : Its DDR2
 
     Board Selection
-      CONFIG_SAMA5D3xEK_MT47H128M16RT=y     : This is the type of DDR2
+      CONFIG_SAMA5D3XEK_MT47H128M16RT=y     : This is the type of DDR2
 
     System Type->Heap Configuration
       CONFIG_SAMA5_DDRCS_HEAP=y             : Add the SDRAM to the heap
@@ -1858,7 +1825,7 @@ SDRAM Support
       CONFIG_SAMA5_DDRCS_LPDDR2=y           : Its DDR2
 
     Board Selection
-      CONFIG_SAMA5D3xEK_MT47H128M16RT=y     : This is the type of DDR2
+      CONFIG_SAMA5D3XEK_MT47H128M16RT=y     : This is the type of DDR2
 
     System Type->Heap Configuration
       CONFIG_SAMA5_ISRAM_HEAP=n             : These do not apply in this case
@@ -2001,7 +1968,7 @@ NAND Support
 
     Board Selection
       CONFIG_SAMA5D3XEK_NAND_BLOCKMOUNT=y : Enable FS support on NAND
-      CONFIG_SAMA5D3xEK_NAND_NXFFS=y      : Use the NXFFS file system
+      CONFIG_SAMA5D3XEK_NAND_NXFFS=y      : Use the NXFFS file system
 
       Other file systems are not recommended because only NXFFS can handle
       bad blocks and only NXFFS performs wear-levelling.
@@ -2025,7 +1992,7 @@ NAND Support
 
     Board Selection
       CONFIG_SAMA5D3XEK_NAND_BLOCKMOUNT=y : Enable FS support on NAND
-      CONFIG_SAMA5D3xEK_NAND_FTL=y        : Use an flash translation layer
+      CONFIG_SAMA5D3XEK_NAND_FTL=y        : Use an flash translation layer
 
       NOTE:  FTL will require some significant buffering because of
       the large size of the NAND flash blocks.  You will also need
@@ -2043,7 +2010,7 @@ NAND Support
     ---------------------
 
     With the options CONFIG_SAMA5D3XEK_NAND_BLOCKMOUNT=y and
-    CONFIG_SAMA5D3xEK_NAND_NXFFS=y, the NAND FLASH will be mounted in the NSH
+    CONFIG_SAMA5D3XEK_NAND_NXFFS=y, the NAND FLASH will be mounted in the NSH
     start-up logic before the NSH prompt appears.  There is no feedback as
     to whether or not the mount was successful.  You can, however, see the
     mounted file systems using the nsh 'mount' command:
@@ -2268,8 +2235,8 @@ AT24 Serial EEPROM
                                             : Other defaults are probably OK
 
     Board Selection
-      CONFIG_SAMA5D3xEK_AT24_BLOCKMOUNT=y   : Mounts AT24 for NSH
-      CONFIG_SAMA5D3xEK_AT24_NXFFS=y        : Mount the AT24 using NXFFS
+      CONFIG_SAMA5D3XEK_AT24_BLOCKMOUNT=y   : Mounts AT24 for NSH
+      CONFIG_SAMA5D3XEK_AT24_NXFFS=y        : Mount the AT24 using NXFFS
 
   You can then format the AT24 EEPROM for a FAT file system and mount the
   file system at /mnt/at24 using these NSH commands:
@@ -2319,12 +2286,12 @@ I2C Tool
     Where <cmd> is one of:
 
       Show help     : ?
-      List busses   : bus
+      List buses    : bus
       List devices  : dev [OPTIONS] <first> <last>
-      Read register : get [OPTIONS] [<repititions>]
+      Read register : get [OPTIONS] [<repetitions>]
       Show help     : help
-      Write register: set [OPTIONS] <value> [<repititions>]
-      Verify access : verf [OPTIONS] [<value>] [<repititions>]
+      Write register: set [OPTIONS] <value> [<repetitions>]
+      Verify access : verf [OPTIONS] [<value>] [<repetitions>]
 
     Where common "sticky" OPTIONS include:
       [-a addr] is the I2C device address (hex).  Default: 03 Current: 03
@@ -2332,7 +2299,7 @@ I2C Tool
       [-r regaddr] is the I2C device register address (hex).  Default: 00 Current: 00
       [-w width] is the data width (8 or 16 decimal).  Default: 8 Current: 8
       [-s|n], send/don't send start between command and data.  Default: -n Current: -n
-      [-i|j], Auto increment|don't increment regaddr on repititions.  Default: NO Current: NO
+      [-i|j], Auto increment|don't increment regaddr on repetitions.  Default: NO Current: NO
       [-f freq] I2C frequency.  Default: 100000 Current: 100000
 
     NOTES:
@@ -2343,7 +2310,7 @@ I2C Tool
     o The I2C dev command may have bad side effects on your I2C devices.
       Use only at your own risk.
 
-    As an example, the I2C dev comman can be used to list all devices
+    As an example, the I2C dev command can be used to list all devices
     responding on TWI0 (the default) like this:
 
       nsh> i2c dev 0x03 0x77
@@ -2758,7 +2725,7 @@ Touchscreen Testing
       CONFIG_INPUT=y                      : (automatically selected)
 
     Board Selection:
-       CONFIG_SAMA5D3xEK_TSD_DEVMINOR=0   : Register as /dev/input0
+       CONFIG_SAMA5D3XEK_TSD_DEVMINOR=0   : Register as /dev/input0
 
     Library Support:
       CONFIG_SCHED_WORKQUEUE=y            : Work queue support required
@@ -2999,8 +2966,8 @@ I2S Audio Support
       CONFIG_AUDIO_WM8904=y                 : Build WM8904 driver character driver
 
     Board Selection
-      CONFIG_SAMA5D3xEK_WM8904_I2CFREQUENCY=400000
-      CONFIG_SAMA5D3xEK_WM8904_SRCMAIN=y    : WM8904 MCLK is the SAMA5D Main Clock
+      CONFIG_SAMA5D3XEK_WM8904_I2CFREQUENCY=400000
+      CONFIG_SAMA5D3XEK_WM8904_SRCMAIN=y    : WM8904 MCLK is the SAMA5D Main Clock
 
     Library Routines
       CONFIG_SCHED_WORKQUEUE=y              : MW8904 driver needs work queue support
@@ -3096,8 +3063,8 @@ I2S Audio Support
       CONFIG_EXAMPLES_I2SCHAR_DEVINIT=y
 
     Board Selection
-      CONFIG_SAMA5D3xEK_I2SCHAR_MINOR=0
-      CONFIG_SAMA5D3xEK_SSC_PORT=0      : 0 or SSC0, 1 for SSC1
+      CONFIG_SAMA5D3XEK_I2SCHAR_MINOR=0
+      CONFIG_SAMA5D3XEK_SSC_PORT=0      : 0 or SSC0, 1 for SSC1
 
     Library Routines
       CONFIG_SCHED_WORKQUEUE=y          : Driver needs work queue support
@@ -3157,7 +3124,7 @@ SAMA5D3x-EK Configuration Options
 
     CONFIG_RAM_START=0x20000000
 
-  CONFIG_RAM_VSTART - The virutal start address of installed DRAM
+  CONFIG_RAM_VSTART - The virtual start address of installed DRAM
 
     CONFIG_RAM_VSTART=0x20000000
 
@@ -3329,23 +3296,6 @@ Configurations
      System Type -> Toolchain:
        CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y : GNU EABI toolchain for windows
 
-     That same configuration will work with Atmel GCC toolchain.  The only
-     change required to use the Atmel GCC toolchain is to change the PATH
-     variable so that those tools are selected instead of the CodeSourcery
-     tools.  Try 'which arm-none-eabi-gcc' to make sure that you are
-     selecting the right tool.
-
-     See also the "NOTE about Windows native toolchains" in the section call
-     "GNU Toolchain Options" above.
-
-     !!!WARNING!!! The first time that you type 'make', the system will
-     configure itself based on the settings in the .config file.  One of
-     these settings can cause a lot of confusion if you configure the build
-     in the wrong state:  If you are running on Linux, make *certain* that
-     you have CONFIG_HOST_LINUX=y *before* the first make or you will
-     create a very corrupt configuration that may not be easy to recover
-     from.
-
   4. The SAMA5Dx is running at 396MHz by default in these configurations.
      This is because the original timing for the PLLs, NOR FLASH, and SDRAM
      came from the Atmel NoOS sample code which runs at that rate.
@@ -3354,8 +3304,8 @@ Configurations
      re-configured:
 
        Board Selection -> CPU Frequency
-         CONFIG_SAMA5D3xEK_396MHZ=n     # Disable 396MHz operation
-         CONFIG_SAMA5D3xEK_528MHZ=y     # Enable 528MHz operation
+         CONFIG_SAMA5D3XEK_396MHZ=n     # Disable 396MHz operation
+         CONFIG_SAMA5D3XEK_528MHZ=y     # Enable 528MHz operation
 
      If you switch to 528MHz, you should also check the loop calibration
      value in your .config file.  Of course, it would be best to re-calibrate
@@ -3435,13 +3385,12 @@ Configurations
 
     2. By default, this configuration is set up to build on Windows
        under either a Cygwin or MSYS environment using a recent, Windows-
-       native, generic ARM EABI GCC toolchain (such as the CodeSourcery
-       toolchain).  Both the build environment and the toolchain
-       selection can easily be changed by reconfiguring:
+       native, generic ARM EABI GCC toolchain.  Both the build environment
+       and the toolchain selection can easily be changed by reconfiguring:
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
-       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under Windows
+       CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
        If you are running on Linux, make *certain* that you have
        CONFIG_HOST_LINUX=y *before* the first make or you will create a
@@ -3518,8 +3467,8 @@ Configurations
        selection can easily be changed by reconfiguring:
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
-       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under Windows
+       CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
        If you are running on Linux, make *certain* that you have
        CONFIG_HOST_LINUX=y *before* the first make or you will create a
@@ -3555,7 +3504,7 @@ Configurations
     2. The default norboot program initializes the NOR memory,
        displays a message and halts.  The norboot program can also be
        configured to jump directly into NOR FLASH without requiring the
-       final halt and go by setting CONFIG_SAMA5D3xEK_NOR_START=y in the
+       final halt and go by setting CONFIG_SAMA5D3XEK_NOR_START=y in the
        NuttX configuration.
 
     3. Be aware that the default norboot also disables the watchdog.
@@ -3591,8 +3540,8 @@ Configurations
        selection can easily be changed by reconfiguring:
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
-       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under Windows
+       CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
        If you are running on Linux, make *certain* that you have
        CONFIG_HOST_LINUX=y *before* the first make or you will create a
@@ -3652,7 +3601,7 @@ Configurations
         configuration settings.
 
     15. You can enable the touchscreen and a touchscreen by following the
-        configuration instrcutions in the section entitled "Touchscreen
+        configuration instructions in the section entitled "Touchscreen
         Testing" above.
 
     16. The Real Time Clock/Calendar (RTC) may be enabled by reconfiguring NuttX.
@@ -3679,7 +3628,7 @@ Configurations
         my external AT24 board (the TWI0 bus hangs when the AT24 is plugged
         in).  I will skip the AT24 integration since it is not on the critical
         path at the moment.
-      2013-9-12:  The I2C tool, however, seems to work well.  It succesfully
+      2013-9-12:  The I2C tool, however, seems to work well.  It successfully
         enumerates the devices on the bus and successfully exchanges a few
         commands.  The real test of the come later when a real I2C device is
         integrated.

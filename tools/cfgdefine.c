@@ -1,35 +1,20 @@
 /****************************************************************************
  * tools/cfgdefine.c
  *
- *   Copyright (C) 2007-2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -49,49 +34,47 @@
  * Public Data
  ****************************************************************************/
 
-char line[LINESIZE+1];
+char line[LINESIZE + 1];
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-/* These are configuration variable name that are quoted by configuration tool
- * but which must be unquoted when used in C code.
+/* These are configuration variable name that are quoted by configuration
+ * tool but which must be unquoted when used in C code.
  */
 
 static const char *dequote_list[] =
 {
   /* NuttX */
 
-  "CONFIG_USER_ENTRYPOINT",               /* Name of entry point function */
-  "CONFIG_EXECFUNCS_SYMTAB_ARRAY",        /* Symbol table array used by exec[l|v] */
+  "CONFIG_DEBUG_OPTLEVEL",                /* Custom debug level */
   "CONFIG_EXECFUNCS_NSYMBOLS_VAR",        /* Variable holding number of symbols in the table */
+  "CONFIG_EXECFUNCS_SYMTAB_ARRAY",        /* Symbol table array used by exec[l|v] */
+  "CONFIG_INIT_ARGS",                     /* Argument list of entry point */
+  "CONFIG_INIT_SYMTAB",                   /* Global symbol table */
+  "CONFIG_INIT_NEXPORTS",                 /* Global symbol table size */
   "CONFIG_MODLIB_SYMTAB_ARRAY",           /* Symbol table array used by modlib functions */
   "CONFIG_MODLIB_NSYMBOLS_VAR",           /* Variable holding number of symbols in the table */
   "CONFIG_PASS1_BUILDIR",                 /* Pass1 build directory */
   "CONFIG_PASS1_TARGET",                  /* Pass1 build target */
   "CONFIG_PASS1_OBJECT",                  /* Pass1 build object */
-  "CONFIG_DEBUG_OPTLEVEL",                /* Custom debug level */
-  "CONFIG_INIT_SYMTAB",                   /* Global symbol table */
-  "CONFIG_INIT_NEXPORTS",                 /* Global symbol table size */
+  "CONFIG_USER_ENTRYPOINT",               /* Name of entry point function */
 
   /* NxWidgets/NxWM */
 
   "CONFIG_NXWM_BACKGROUND_IMAGE",         /* Name of bitmap image class */
-  "CONFIG_NXWM_STOP_BITMAP",              /* Name of bitmap image class */
-  "CONFIG_NXWM_MINIMIZE_BITMAP",          /* Name of bitmap image class */
-  "CONFIG_NXWM_STARTWINDOW_ICON",         /* Name of bitmap image class */
-  "CONFIG_NXWM_NXTERM_ICON",              /* Name of bitmap image class */
   "CONFIG_NXWM_CALIBRATION_ICON",         /* Name of bitmap image class */
   "CONFIG_NXWM_HEXCALCULATOR_ICON",       /* Name of bitmap image class */
+  "CONFIG_NXWM_MINIMIZE_BITMAP",          /* Name of bitmap image class */
+  "CONFIG_NXWM_NXTERM_ICON",              /* Name of bitmap image class */
+  "CONFIG_NXWM_STARTWINDOW_ICON",         /* Name of bitmap image class */
+  "CONFIG_NXWM_STOP_BITMAP",              /* Name of bitmap image class */
 
   /* apps/ definitions */
 
-  "CONFIG_EXAMPLES_HELLO_PROGNAME",       /* Name of installed hello example program */
-  "CONFIG_SYSTEM_NSH_PROGNAME",           /* Name of installed NSH example program */
   "CONFIG_SYSTEM_NSH_SYMTAB_ARRAYNAME",   /* Symbol table array name */
   "CONFIG_SYSTEM_NSH_SYMTAB_COUNTNAME",   /* Name of the variable holding the number of symbols */
-  "CONFIG_THTTPD_INDEX_NAMES",            /* List of index file names */
   NULL                                    /* Marks the end of the list */
 };
 
@@ -123,14 +106,15 @@ static char *find_value_end(char *ptr)
     {
       if (*ptr == '"')
         {
-           do ptr++; while (*ptr && *ptr != '"');
-           if (*ptr) ptr++;
+          do ptr++; while (*ptr && *ptr != '"');
+          if (*ptr) ptr++;
         }
       else
         {
-           do ptr++; while (*ptr && !isspace((int)*ptr) && *ptr != '"');
+          do ptr++; while (*ptr && !isspace((int)*ptr) && *ptr != '"');
         }
     }
+
   return ptr;
 }
 
@@ -140,7 +124,7 @@ static char *read_line(FILE *stream)
 {
   char *ptr;
 
-  for (;;)
+  for (; ; )
     {
       line[LINESIZE] = '\0';
       if (!fgets(line, LINESIZE, stream))
@@ -232,7 +216,7 @@ static char *dequote_value(const char *varname, char *varval)
 
   if (dqval)
     {
-      /* Check if the variable name is in the list of strings to be dequoted */
+      /* Check if the variable name is in the dequoted list of strings */
 
       for (dqnam = dequote_list; *dqnam; dqnam++)
         {
@@ -251,52 +235,52 @@ static char *dequote_value(const char *varname, char *varval)
           /* Yes... Check if there is a trailing quote */
 
           len = strlen(dqval);
-          if (dqval[len-1] == '"')
+          if (dqval[len - 1] == '"')
             {
               /* Yes... replace it with a terminator */
 
-              dqval[len-1] = '\0';
+              dqval[len - 1] = '\0';
               len--;
             }
 
           /* Is there a leading quote? */
 
-           if (dqval[0] == '"')
-             {
-               /* Yes.. skip over the leading quote */
+          if (dqval[0] == '"')
+            {
+              /* Yes.. skip over the leading quote */
 
-               dqval++;
-               len--;
-             }
+              dqval++;
+              len--;
+            }
 
-           /* A special case is a quoted list of quoted strings.  In that case
-            * we will need to remove the backspaces from the internally quoted
-            * strings.  NOTE: this will not handle nested quoted quotes.
-            */
+          /* A special case is a quoted list of quoted strings.  In that case
+           * we will need to remove the backspaces from the internally quoted
+           * strings.  NOTE: this will not handle nested quoted quotes.
+           */
 
-           for (ptr = dqval; *ptr; ptr++)
-             {
-               /* Check for a quoted quote */
+          for (ptr = dqval; *ptr; ptr++)
+            {
+              /* Check for a quoted quote */
 
-               if (ptr[0] == '\\' && ptr[1] == '"')
-                 {
-                   /* Delete the backslash by moving the rest of the string */
+              if (ptr[0] == '\\' && ptr[1] == '"')
+                {
+                  /* Delete the backslash by moving the rest of the string */
 
-                   for (i = 0; ptr[i]; i++)
-                     {
-                       ptr[i] = ptr[i+1];
-                     }
+                  for (i = 0; ptr[i]; i++)
+                    {
+                      ptr[i] = ptr[i + 1];
+                    }
 
-                   len--;
-                 }
-             }
+                  len--;
+                }
+            }
 
-           /* Handle the case where nothing is left after dequoting */
+          /* Handle the case where nothing is left after dequoting */
 
-           if (len <= 0)
-             {
-               dqval = NULL;
-             }
+          if (len <= 0)
+            {
+              dqval = NULL;
+            }
         }
     }
 
@@ -334,8 +318,8 @@ void generate_definitions(FILE *stream)
 
               varval = dequote_value(varname, varval);
 
-              /* If no value was provided or if the special value 'n' was provided,
-               * then undefine the configuration variable.
+              /* If no value was provided or if the special value 'n' was
+               * provided, then undefine the configuration variable.
                */
 
               if (!varval || strcmp(varval, "n") == 0)
@@ -343,8 +327,8 @@ void generate_definitions(FILE *stream)
                   printf("#undef %s\n", varname);
                 }
 
-              /* Simply define the configuration variable to '1' if it has the
-               * special value "y"
+              /* Simply define the configuration variable to '1' if it has
+               * the special value "y"
                */
 
               else if (strcmp(varval, "y") == 0)

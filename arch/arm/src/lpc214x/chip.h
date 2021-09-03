@@ -1,50 +1,35 @@
-/****************************************************************************************************
+/****************************************************************************
  * arch/arm/src/lpc214x/chip.h
  *
- *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ****************************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_LPC214X_CHIP_H
 #define __ARCH_ARM_SRC_LPC214X_CHIP_H
 
-/****************************************************************************************************
+/****************************************************************************
  * Included Files
- ****************************************************************************************************/
+ ****************************************************************************/
 
-/****************************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ****************************************************************************************************/
+ ****************************************************************************/
 
-/* Memory Map ***************************************************************************************/
+/* Memory Map ***************************************************************/
 
 #define LPC214X_FLASH_BASE              0x00000000
 #define LPC214X_FIO_BASE                0x3fffc000
@@ -55,7 +40,7 @@
 #define LPC214X_APB_BASE                0xe0000000
 #define LPC214X_AHB_BASE                0xf0000000
 
-/* Peripheral Registers ****************************************************************************/
+/* Peripheral Registers *****************************************************/
 
 /* FIO Register block base addresses */
 
@@ -183,14 +168,14 @@
 #define LPC214X_AD_ADGDR_OFFSET         0x04   /* A/D Global Data Register (only one common register!) */
 #define LPC214X_AD_ADGSR_OFFSET         0x08   /* A/D Global Start Register */
 #define LPC214X_AD_ADINTEN_OFFSET       0x0c   /* A/D Interrupt Enable Register */
-#define LPC214X_AD_ADDR0_OFFSET         0x10   /* A/D Chanel 0 Data Register */
-#define LPC214X_AD_ADDR1_OFFSET         0x14   /* A/D Chanel 0 Data Register */
-#define LPC214X_AD_ADDR2_OFFSET         0x18   /* A/D Chanel 0 Data Register */
-#define LPC214X_AD_ADDR3_OFFSET         0x1c   /* A/D Chanel 0 Data Register */
-#define LPC214X_AD_ADDR4_OFFSET         0x20   /* A/D Chanel 0 Data Register */
-#define LPC214X_AD_ADDR5_OFFSET         0x24   /* A/D Chanel 0 Data Register */
-#define LPC214X_AD_ADDR6_OFFSET         0x28   /* A/D Chanel 0 Data Register */
-#define LPC214X_AD_ADDR7_OFFSET         0x2c   /* A/D Chanel 0 Data Register */
+#define LPC214X_AD_ADDR0_OFFSET         0x10   /* A/D Channel 0 Data Register */
+#define LPC214X_AD_ADDR1_OFFSET         0x14   /* A/D Channel 0 Data Register */
+#define LPC214X_AD_ADDR2_OFFSET         0x18   /* A/D Channel 0 Data Register */
+#define LPC214X_AD_ADDR3_OFFSET         0x1c   /* A/D Channel 0 Data Register */
+#define LPC214X_AD_ADDR4_OFFSET         0x20   /* A/D Channel 0 Data Register */
+#define LPC214X_AD_ADDR5_OFFSET         0x24   /* A/D Channel 0 Data Register */
+#define LPC214X_AD_ADDR6_OFFSET         0x28   /* A/D Channel 0 Data Register */
+#define LPC214X_AD_ADDR7_OFFSET         0x2c   /* A/D Channel 0 Data Register */
 #define LPC214X_AD_ADSTAT_OFFSET        0x30   /* A/D Status Register */
 
 /* SPI0 register offsets */
@@ -258,7 +243,7 @@
 #define LPC214X_FIO_SET_OFFSET          0x18   /* Fast GPIO Port Output Set Register */
 #define LPC214X_FIO_CLR_OFFSET          0x1c   /* Fast GPIO Port Output Clear Register */
 
-/* Memory Accelerator Module (MAM) Regiser Offsets */
+/* Memory Accelerator Module (MAM) Register Offsets */
 
 #define LPC214X_MAM_CR_OFFSET           0x00   /* MAM Control Offset*/
 #define LPC214x_MAM_TIM_OFFSET          0x04   /* MAM Timing Offset */
@@ -338,12 +323,12 @@
 #define LPC214X_VIC_VECTCNTL14_OFFSET   0x238  /* RW: Vector Control 14 Register */
 #define LPC214X_VIC_VECTCNTL15_OFFSET   0x23c  /* RW: Vector Control 15 Register */
 
-/****************************************************************************************************
+/****************************************************************************
  * Inline Functions
- ****************************************************************************************************/
+ ****************************************************************************/
 
-/****************************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ****************************************************************************************************/
+ ****************************************************************************/
 
-#endif  /* __ARCH_ARM_SRC_LPC214X_CHIP_H */
+#endif /* __ARCH_ARM_SRC_LPC214X_CHIP_H */

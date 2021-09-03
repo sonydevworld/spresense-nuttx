@@ -1,41 +1,22 @@
 ############################################################################
 # drivers/power/Make.defs
 #
-#   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
-#   Author: Gregory Nutt <gnutt@nuttx.org>
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.  The
+# ASF licenses this file to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance with the
+# License.  You may obtain a copy of the License at
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
-# 3. Neither the name NuttX nor the names of its contributors may be
-#    used to endorse or promote products derived from this software
-#    without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
-# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
 ############################################################################
-
-POWER_DEPPATH =
-POWER_VPATH =
-POWER_CFLAGS =
 
 # Include power management sources
 
@@ -62,7 +43,7 @@ endif
 
 POWER_DEPPATH := --dep-path power
 POWER_VPATH := :power
-POWER_CFLAGS := ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
+POWER_CFLAGS := ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
 
 endif
 
@@ -74,7 +55,7 @@ CSRCS += smps.c
 
 POWER_DEPPATH := --dep-path power
 POWER_VPATH := :power
-POWER_CFLAGS := ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
+POWER_CFLAGS := ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
 
 endif
 
@@ -86,7 +67,7 @@ CSRCS += powerled.c
 
 POWER_DEPPATH := --dep-path power
 POWER_VPATH := :power
-POWER_CFLAGS := ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
+POWER_CFLAGS := ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
 
 endif
 
@@ -98,7 +79,7 @@ CSRCS += motor.c
 
 POWER_DEPPATH := --dep-path power
 POWER_VPATH := :power
-POWER_CFLAGS := ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
+POWER_CFLAGS := ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
 
 endif
 
@@ -136,7 +117,7 @@ endif
 
 POWER_DEPPATH := --dep-path power
 POWER_VPATH := :power
-POWER_CFLAGS := ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
+POWER_CFLAGS := ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
 
 endif
 
@@ -150,19 +131,51 @@ CSRCS += battery_gauge.c
 
 ifeq ($(CONFIG_I2C),y)
 
-# Add the MAX1704x I2C-based battery guage driver
+# Add the MAX1704x I2C-based battery gauge driver
 
 ifeq ($(CONFIG_I2C_MAX1704X),y)
 CSRCS += max1704x.c
 endif
 
+# Add the bq27426 I2C-based battery gauge driver
+
+ifeq ($(CONFIG_BQ27426),y)
+CSRCS += bq27426.c
 endif
 
-# Include battery suport in the build
+endif
+
+# Include battery support in the build
 
 POWER_DEPPATH := --dep-path power
 POWER_VPATH := :power
-POWER_CFLAGS := ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
+POWER_CFLAGS := ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
+
+endif
+
+# Add battery monitor drivers
+
+ifeq ($(CONFIG_BATTERY_MONITOR),y)
+
+CSRCS += battery_monitor.c
+
+# Add I2C-based battery monitor drivers
+
+ifeq ($(CONFIG_I2C),y)
+
+# Add the BQ769x0 I2C-based battery monitor driver
+
+ifeq ($(CONFIG_I2C_BQ769X0),y)
+CSRCS += bq769x0.c
+endif
+
+endif
+
+# Include battery support in the build
+
+POWER_DEPPATH := --dep-path power
+POWER_VPATH := :power
+POWER_CFLAGS := ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
 
 endif
 

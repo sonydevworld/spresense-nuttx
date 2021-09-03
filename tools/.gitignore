@@ -16,7 +16,6 @@
 /mkversion
 /nxstyle
 /rmcr
-/*.exe
-/*.dSYM
+/incdir
 /.k2h-body.dat
 /.k2h-apndx.dat

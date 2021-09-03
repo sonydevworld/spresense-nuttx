@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/risc-v/src/nr5m100/nr5_timerisr.c
+ * arch/misoc/src/common/misoc_timerisr.c
  *
  *   Copyright (C) 2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -108,7 +108,7 @@ int misoc_timer_isr(int irq, void *context, void *arg)
 }
 
 /****************************************************************************
- * Function:  misoc_timer_initialize
+ * Function:  up_timer_initialize
  *
  * Description:
  *   This function is called during start-up to initialize
@@ -116,13 +116,13 @@ int misoc_timer_isr(int irq, void *context, void *arg)
  *
  ****************************************************************************/
 
-void misoc_timer_initialize(void)
+void up_timer_initialize(void)
 {
   /* Clear event pending */
 
   timer0_ev_pending_write(timer0_ev_pending_read());
 
-  /* Disable timer*/
+  /* Disable timer */
 
   timer0_en_write(0);
 

@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/sim/src/sim/up_initialize.c
  *
- *   Copyright (C) 2007-2009, 2011-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -42,8 +27,7 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
-#include <nuttx/sched_note.h>
-#include <nuttx/mm/iob.h>
+#include <nuttx/audio/audio.h>
 #include <nuttx/drivers/drivers.h>
 #include <nuttx/fs/loop.h>
 #include <nuttx/fs/ioctl.h>
@@ -51,7 +35,7 @@
 #include <nuttx/net/tun.h>
 #include <nuttx/net/telnet.h>
 #include <nuttx/mtd/mtd.h>
-#include <nuttx/syslog/syslog.h>
+#include <nuttx/note/note_driver.h>
 #include <nuttx/syslog/syslog_console.h>
 #include <nuttx/serial/pty.h>
 #include <nuttx/crypto/crypto.h>
@@ -93,7 +77,9 @@ static void up_init_smartfs(void)
     {
       mtd = m25p_initialize(spi);
 
-      /* Now initialize a SMART Flash block device and bind it to the MTD device */
+      /* Now initialize a SMART Flash block device and bind it to the MTD
+       * device
+       */
 
       if (mtd != NULL)
         {
@@ -110,7 +96,9 @@ static void up_init_smartfs(void)
     {
       mtd = sst26_initialize_spi(spi);
 
-      /* Now initialize a SMART Flash block device and bind it to the MTD device */
+      /* Now initialize a SMART Flash block device and bind it to the MTD
+       * device
+       */
 
       if (mtd != NULL)
         {
@@ -127,7 +115,9 @@ static void up_init_smartfs(void)
     {
       mtd = w25_initialize(spi);
 
-      /* Now initialize a SMART Flash block device and bind it to the MTD device */
+      /* Now initialize a SMART Flash block device and bind it to the MTD
+       * device
+       */
 
       if (mtd != NULL)
         {
@@ -145,7 +135,9 @@ static void up_init_smartfs(void)
     {
       mtd = n25qxxx_initialize(qspi, 0);
 
-      /* Now initialize a SMART Flash block device and bind it to the MTD device */
+      /* Now initialize a SMART Flash block device and bind it to the MTD
+       * device
+       */
 
       if (mtd != NULL)
         {
@@ -182,15 +174,6 @@ static void up_init_smartfs(void)
 
 void up_initialize(void)
 {
-#ifdef CONFIG_NET
-  /* The real purpose of the following is to make sure that syslog
-   * is drawn into the link.  It is needed by up_tapdev which is linked
-   * separately.
-   */
-
-  syslog(LOG_INFO, "SIM: Initializing\n");
-#endif
-
 #ifdef CONFIG_PM
   /* Initialize the power management subsystem.  This MCU-specific function
    * must be called *very* early in the initialization sequence *before* any
@@ -198,13 +181,7 @@ void up_initialize(void)
    * with the power management subsystem).
    */
 
-  up_pminitialize();
-#endif
-
-#ifdef CONFIG_MM_IOB
-  /* Initialize IO buffering */
-
-  iob_initialize();
+  pm_initialize();
 #endif
 
   /* Register devices */
@@ -229,8 +206,7 @@ void up_initialize(void)
   loop_register();          /* Standard /dev/loop */
 #endif
 
-#if defined(CONFIG_SCHED_INSTRUMENTATION_BUFFER) && \
-    defined(CONFIG_DRIVER_NOTE)
+#if defined(CONFIG_DRIVER_NOTE)
   note_register();          /* Non-standard /dev/note */
 #endif
 
@@ -238,18 +214,12 @@ void up_initialize(void)
   rpmsg_serialinit();
 #endif
 
-#if defined(USE_DEVCONSOLE)
-  /* Start the simulated UART device */
+  /* Register some tty-port to access tty-port on sim platform */
 
-  simuart_start();
+  up_uartinit();
 
-  /* Register a console (or not) */
-
-  up_devconsole();          /* Our private /dev/console */
-#elif defined(CONFIG_CONSOLE_SYSLOG)
+#if defined(CONFIG_CONSOLE_SYSLOG)
   syslog_console_init();
-#elif defined(CONFIG_RAMLOG_CONSOLE)
-  ramlog_consoleinit();
 #endif
 
 #ifdef CONFIG_PSEUDOTERM_SUSV1
@@ -257,13 +227,6 @@ void up_initialize(void)
 
   ptmx_register();
 #endif
-
-  /* Early initialization of the system logging device.  Some SYSLOG channel
-   * can be initialized early in the initialization sequence because they
-   * depend on only minimal OS initialization.
-   */
-
-  syslog_initialize(SYSLOG_INIT_EARLY);
 
 #if defined(CONFIG_CRYPTO)
   /* Initialize the HW crypto and /dev/crypto */
@@ -279,11 +242,11 @@ void up_initialize(void)
   up_registerblockdevice(); /* Our FAT ramdisk at /dev/ram0 */
 #endif
 
-#if defined(CONFIG_NET_ETHERNET) && defined(CONFIG_SIM_NETDEV)
+#ifdef CONFIG_SIM_NETDEV
   netdriver_init();         /* Our "real" network driver */
 #endif
 
-#ifdef CONFIG_NETDEV_LOOPBACK
+#ifdef CONFIG_NET_LOOPBACK
   /* Initialize the local loopback device */
 
   localhost_initialize();
@@ -303,5 +266,10 @@ void up_initialize(void)
 
 #if defined(CONFIG_FS_SMARTFS) && (defined(CONFIG_SIM_SPIFLASH) || defined(CONFIG_SIM_QSPIFLASH))
   up_init_smartfs();
+#endif
+
+#ifdef CONFIG_SIM_SOUND
+  audio_register("pcm0p", sim_audio_initialize(true));
+  audio_register("pcm0c", sim_audio_initialize(false));
 #endif
 }

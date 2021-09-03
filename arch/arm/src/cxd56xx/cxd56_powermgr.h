@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_powermgr.h
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -77,82 +62,82 @@
 
 /* Power DOMAIN */
 
-#define PM_DOMAIN_SELF_CPU			(0x00000000ul)
-#define PM_DOMAIN_SYSIOP			(0x20000000ul)
-#define PM_DOMAIN_HOSTIF			(0x40000000ul)
-#define PM_DOMAIN_PMU				(0x60000000ul)
-#define	PM_DOMAIN_SCU				(0x80000000ul)
-#define PM_DOMAIN_APP				(0xA0000000ul)
-#define PM_DOMAIN_GPS				(0xC0000000ul)
-#define PM_DOMAIN_MASK				(0xE0000000ul)
-#define PM_DOMAIN_PLUS				(0x20000000ul)
+#define PM_DOMAIN_SELF_CPU              (0x00000000ul)
+#define PM_DOMAIN_SYSIOP                (0x20000000ul)
+#define PM_DOMAIN_HOSTIF                (0x40000000ul)
+#define PM_DOMAIN_PMU                   (0x60000000ul)
+#define	PM_DOMAIN_SCU                   (0x80000000ul)
+#define PM_DOMAIN_APP                   (0xA0000000ul)
+#define PM_DOMAIN_GPS                   (0xC0000000ul)
+#define PM_DOMAIN_MASK                  (0xE0000000ul)
+#define PM_DOMAIN_PLUS                  (0x20000000ul)
 
 /* Clock Tree Bit Data */
 
 /* SYSIOP */
 
-#define PM_CLOCK_SYS_CTRL_SEL_B		(0x00010000ul) /**< 16*/
-#define PM_CLOCK_SYSPLL_DIV_B		(0x00008000ul) /**< 15:CKSEL_ROOT.SWCTL_CLK_SEL_RFPLL1 */
-#define PM_CLOCK_SYS_CPU_SEL_B		(0x00002000ul) /**< 13:CKSEL_ROOT.SWCTL_CLK_SEL */
-#define PM_CLOCK_SYS_CPU_DIV_B		(0x00001000ul) /**< 12:CKDIV_CPU_DSP_BUS.CK_M0 */
-#define PM_CLOCK_SYS_AHB_DIV_B		(0x00000800ul) /**< 11:CKDIV_CPU_DSP_BUS.CK_AHB */
-#define PM_CLOCK_SYS_APB_DIV_B		(0x00000400ul) /**< 10:CKDIV_CPU_DSP_BUS.CK_APB */
-#define PM_CLOCK_SYS_COMIF_DIV_B	(0x00000200ul) /**< 9;CKDIV_COM.CK_COM */
-#define PM_CLOCK_SYS_UART1_SEL_B	(0x00000100ul) /**< 8:CKSEL_SYSIOP_SUB.SEL_UART1 */
-#define PM_CLOCK_SYS_SFC_DIV_B		(0x00000080ul) /**< 7:CKDIV_CPU_DSP_BUS.SFC_HCLK_LOW */
-#define PM_CLOCK_PMU_RTC_PCLK_SEL_B	(0x00000040ul) /**< 6:CKSEL_PMU.SEL_RTC_PCLK */
+#define PM_CLOCK_SYS_CTRL_SEL_B         (0x00010000ul) /* 16: */
+#define PM_CLOCK_SYSPLL_DIV_B           (0x00008000ul) /* 15: CKSEL_ROOT.SWCTL_CLK_SEL_RFPLL1 */
+#define PM_CLOCK_SYS_CPU_SEL_B          (0x00002000ul) /* 13:CKSEL_ROOT.SWCTL_CLK_SEL */
+#define PM_CLOCK_SYS_CPU_DIV_B          (0x00001000ul) /* 12:CKDIV_CPU_DSP_BUS.CK_M0 */
+#define PM_CLOCK_SYS_AHB_DIV_B          (0x00000800ul) /* 11:CKDIV_CPU_DSP_BUS.CK_AHB */
+#define PM_CLOCK_SYS_APB_DIV_B          (0x00000400ul) /* 10:CKDIV_CPU_DSP_BUS.CK_APB */
+#define PM_CLOCK_SYS_COMIF_DIV_B        (0x00000200ul) /* 9;CKDIV_COM.CK_COM */
+#define PM_CLOCK_SYS_UART1_SEL_B        (0x00000100ul) /* 8:CKSEL_SYSIOP_SUB.SEL_UART1 */
+#define PM_CLOCK_SYS_SFC_DIV_B          (0x00000080ul) /* 7:CKDIV_CPU_DSP_BUS.SFC_HCLK_LOW */
+#define PM_CLOCK_PMU_RTC_PCLK_SEL_B     (0x00000040ul) /* 6:CKSEL_PMU.SEL_RTC_PCLK */
 
 /* HOSTIF */
 
-#define PM_CLOCK_HIF_SEL_B		(0x00000040ul) /**< CKSEL_SYSIOP.SEL_HOST */
-#define PM_CLOCK_HIF_DIV_B		(0x00000020ul) /**< CKDIV_HOSTIFC.CK_HOSTIFC */
-#define PM_CLOCK_HIF_SEL2_B		(0x00000004ul) /**< CKSEL_SYSIOP.SEL_HOST2 */
-#define PM_CLOCK_HIF_UART0_SEL_B	(0x00000002ul) /**< CKSEL_SYSIOP.SEL_UART0 */
-#define PM_CLOCK_HIF_I2C_SEL_B		(0x00000001ul) /**< CKSEL_SYSIOP.SEL_I2CS */
+#define PM_CLOCK_HIF_SEL_B              (0x00000040ul) /* CKSEL_SYSIOP.SEL_HOST */
+#define PM_CLOCK_HIF_DIV_B              (0x00000020ul) /* CKDIV_HOSTIFC.CK_HOSTIFC */
+#define PM_CLOCK_HIF_SEL2_B             (0x00000004ul) /* CKSEL_SYSIOP.SEL_HOST2 */
+#define PM_CLOCK_HIF_UART0_SEL_B        (0x00000002ul) /* CKSEL_SYSIOP.SEL_UART0 */
+#define PM_CLOCK_HIF_I2C_SEL_B          (0x00000001ul) /* CKSEL_SYSIOP.SEL_I2CS */
 
 /* SCU */
 
-#define PM_CLOCK_SCU_XOSC_DIV_B		(0x00000010ul) /**< CKSEL_SCU.SEL_SCU_XTAL */
-#define PM_CLOCK_SCU_SEL_B		(0x00000004ul) /**< CKSEL_SCU.SEL_SCU */
-#define PM_CLOCK_SCU_32K_SEL_B		(0x00000008ul) /**< CKSEL_SCU.SEL_SCU_32K */
-#define PM_CLOCK_SCU_HPADC_SEL_B	(0x00000002ul) /**< CKDIV_SCU.SCU_U32KH */
-#define PM_CLOCK_SCU_LPADC_DIV_B	(0x00000001ul) /**< CKDIV_SCU.SCU_U32KL */
+#define PM_CLOCK_SCU_XOSC_DIV_B         (0x00000010ul) /* CKSEL_SCU.SEL_SCU_XTAL */
+#define PM_CLOCK_SCU_SEL_B              (0x00000004ul) /* CKSEL_SCU.SEL_SCU */
+#define PM_CLOCK_SCU_32K_SEL_B          (0x00000008ul) /* CKSEL_SCU.SEL_SCU_32K */
+#define PM_CLOCK_SCU_HPADC_SEL_B        (0x00000002ul) /* CKDIV_SCU.SCU_U32KH */
+#define PM_CLOCK_SCU_LPADC_DIV_B        (0x00000001ul) /* CKDIV_SCU.SCU_U32KL */
 
 /* APP */
 
-#define PM_CLOCK_APP_SYSPLL_DIV_B	(0x00004000ul) /**< APP_CKSEL.SWCTL_CLK_SEL_SP */
-#define PM_CLOCK_APP_CPU_SEL_B		(0x00000400ul) /**< APP_CKSEL.SWCTL_CLK_SEL */
-#define PM_CLOCK_APP_AUD_MCLK_DIV_B	(0x00000200ul) /**< APP_DIV.AU_MCLK */
-#define PM_CLOCK_APP_AUD_MCLK_SEL_B	(0x00000100ul) /**< APP_CKSEL.AU_MCLK */
-#define PM_CLOCK_APP_AHB_GEAR_B		(0x00000080ul) /**< GEAR_AHB */
-#define PM_CLOCK_APP_UART_GEAR_B	(0x00000040ul) /**< GEAR_IMG_UART */
-#define PM_CLOCK_APP_SPI_GEAR_B		(0x00000020ul) /**< GEAR_IMG_SPI */
-#define PM_CLOCK_APP_WSPI_GEAR_B	(0x00000008ul) /**< GEAR_IMG_WSPI */
-#define PM_CLOCK_APP_SDIO_GEAR_B	(0x00000004ul) /**< GEAR_PER_SDIO */
-#define PM_CLOCK_APP_USB_GEAR_B		(0x00000002ul) /**< GEAR_PER_USB */
-#define PM_CLOCK_APP_VSYNC_GEAR_B	(0x00000001ul) /**< GEAR_M_IMG_VENB/GEAR_N_IMG_VENB */
-#define PM_CLOCK_APP_VSYNC_GEAR_N	(0x00020000ul) /**< GEAR_N_IMG_VENB */
+#define PM_CLOCK_APP_SYSPLL_DIV_B       (0x00004000ul) /* APP_CKSEL.SWCTL_CLK_SEL_SP */
+#define PM_CLOCK_APP_CPU_SEL_B          (0x00000400ul) /* APP_CKSEL.SWCTL_CLK_SEL */
+#define PM_CLOCK_APP_AUD_MCLK_DIV_B     (0x00000200ul) /* APP_DIV.AU_MCLK */
+#define PM_CLOCK_APP_AUD_MCLK_SEL_B     (0x00000100ul) /* APP_CKSEL.AU_MCLK */
+#define PM_CLOCK_APP_AHB_GEAR_B         (0x00000080ul) /* GEAR_AHB */
+#define PM_CLOCK_APP_UART_GEAR_B        (0x00000040ul) /* GEAR_IMG_UART */
+#define PM_CLOCK_APP_SPI_GEAR_B         (0x00000020ul) /* GEAR_IMG_SPI */
+#define PM_CLOCK_APP_WSPI_GEAR_B        (0x00000008ul) /* GEAR_IMG_WSPI */
+#define PM_CLOCK_APP_SDIO_GEAR_B        (0x00000004ul) /* GEAR_PER_SDIO */
+#define PM_CLOCK_APP_USB_GEAR_B         (0x00000002ul) /* GEAR_PER_USB */
+#define PM_CLOCK_APP_VSYNC_GEAR_B       (0x00000001ul) /* GEAR_M_IMG_VENB/GEAR_N_IMG_VENB */
+#define PM_CLOCK_APP_VSYNC_GEAR_N       (0x00020000ul) /* GEAR_N_IMG_VENB */
 
 /* GPS */
 
-#define PM_CLOCK_GPS_PLL_SEL_B		(0x00004000ul) /**< CKSEL_ROOT.SEL_RF_PLL_0 */
-#define PM_CLOCK_GPS_ACQ_SEL_B		(0x00000200ul) /**< CKSEL_GNSS_BB.SEL_ACQ */
-#define PM_CLOCK_GPS_ITP_TRK_SEL_B	(0x00000080ul) /**< CKDIV_ITP.ITP_TRK */
-#define PM_CLOCK_GPS_BB_MODE_SEL_B	(0x00000400ul) /**< CKSEL_GNSS_BB.GNSS_MODE */
-#define PM_CLOCK_GPS_LOGGER_SEL_B	(0x00000040ul) /**< CKSEL_GNSS_BB.SEL_LOG */
-#define PM_CLOCK_GPS_ITB_FFT_SEL_B	(0x00000020ul) /**< CKSEL_GNSS_BB.SEL_ITB_FFT */
-#define PM_CLOCK_GPS_BB_SEL_B		(0x00000100ul) /**< CKSEL_GNSS_BB.SEL_GNSS_BB */
-#define PM_CLOCK_GPS_PPS_SEL_B		(0x00000004ul) /**< CKSEL_GNSS_BB.SEL_PPS */
-#define PM_CLOCK_GPS_CPU_DIV_B		(0x00000002ul) /**< GNSS_DIV.CPU */
-#define PM_CLOCK_GPS_AHB_DIV_B		(0x00000001ul) /**< GNSS_DIV.AHB */
+#define PM_CLOCK_GPS_PLL_SEL_B          (0x00004000ul) /* CKSEL_ROOT.SEL_RF_PLL_0 */
+#define PM_CLOCK_GPS_ACQ_SEL_B          (0x00000200ul) /* CKSEL_GNSS_BB.SEL_ACQ */
+#define PM_CLOCK_GPS_ITP_TRK_SEL_B      (0x00000080ul) /* CKDIV_ITP.ITP_TRK */
+#define PM_CLOCK_GPS_BB_MODE_SEL_B      (0x00000400ul) /* CKSEL_GNSS_BB.GNSS_MODE */
+#define PM_CLOCK_GPS_LOGGER_SEL_B       (0x00000040ul) /* CKSEL_GNSS_BB.SEL_LOG */
+#define PM_CLOCK_GPS_ITB_FFT_SEL_B      (0x00000020ul) /* CKSEL_GNSS_BB.SEL_ITB_FFT */
+#define PM_CLOCK_GPS_BB_SEL_B           (0x00000100ul) /* CKSEL_GNSS_BB.SEL_GNSS_BB */
+#define PM_CLOCK_GPS_PPS_SEL_B          (0x00000004ul) /* CKSEL_GNSS_BB.SEL_PPS */
+#define PM_CLOCK_GPS_CPU_DIV_B          (0x00000002ul) /* GNSS_DIV.CPU */
+#define PM_CLOCK_GPS_AHB_DIV_B          (0x00000001ul) /* GNSS_DIV.AHB */
 
 /* PMU */
 
-#define PM_CLOCK_PMU_SEL_B		(0x00000004ul) /**< CKSEL_ROOT.PMU_SWCTL_CLK_SEL */
-#define PM_CLOCK_PMU_PWCTL_SEL_B	(0x00000002ul) /**< CKSEL_ROOT.SWCTL_CLK_SEL_RO_RTC */
-#define PM_CLOCK_PMU_PWCTL_DIV_B	(0x00000001ul) /**< CKDIV_PMU.PMUA */
+#define PM_CLOCK_PMU_SEL_B              (0x00000004ul) /* CKSEL_ROOT.PMU_SWCTL_CLK_SEL */
+#define PM_CLOCK_PMU_PWCTL_SEL_B        (0x00000002ul) /* CKSEL_ROOT.SWCTL_CLK_SEL_RO_RTC */
+#define PM_CLOCK_PMU_PWCTL_DIV_B        (0x00000001ul) /* CKDIV_PMU.PMUA */
 
-#define PM_CLOCK_DOMAIN_MASK		( PM_CLOCK_SYS_CTRL_SEL_B | PM_CLOCK_SYSPLL_DIV_B |\
+#define PM_CLOCK_DOMAIN_MASK            ( PM_CLOCK_SYS_CTRL_SEL_B | PM_CLOCK_SYSPLL_DIV_B |\
                                           PM_CLOCK_SYS_CPU_SEL_B | PM_CLOCK_SYS_CPU_DIV_B |\
                                           PM_CLOCK_SYS_AHB_DIV_B)
 
@@ -160,13 +145,15 @@
 
 /* Target_id bit field */
 
-/* |31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10|09|08|07|06|05|04|03|02|01|00| */
+/* |31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14
+ *                                |13|12|11|10|09|08|07|06|05|04|03|02|01|00|
+ */
 
-/* | Domain |                               Domain another bit field                               | */
+/* | Domain |              Domain another bit field                       | */
 
 /****************************************************************************
  * Base Define
- *****************************************************************************/
+ ****************************************************************************/
 
 /* SYSIOP */
 
@@ -233,7 +220,7 @@
 
 /****************************************************************************
  * cxd56_pm_getclock & cxd56_pm_register_callback Interface Define
- *****************************************************************************/
+ ****************************************************************************/
 
 #define PM_CLOCK_SYS_CTRL		PM_CLOCK_SYS_CTRL_SEL
 #define PM_CLOCK_SYSPLL			PM_CLOCK_SYSPLL_DIV
@@ -329,10 +316,11 @@ extern "C"
 typedef int (*cxd56_pm_callback)(uint8_t id);
 
 /****************************************************************************
- * Public Functions
+ * Public Functions Prototypes
  ****************************************************************************/
 
-void *cxd56_pm_register_callback(uint32_t target, cxd56_pm_callback callback);
+void *cxd56_pm_register_callback(uint32_t target,
+                                 cxd56_pm_callback callback);
 void cxd56_pm_unregister_callback(void *handle);
 int cxd56_pm_fifo_handlear(int cpuid, uint32_t data[2]);
 int cxd56_pm_main_task(int argc, FAR char *argv[]);

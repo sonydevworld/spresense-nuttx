@@ -1,43 +1,22 @@
-/************************************************************************************
- * arch/arm/src/stm32/stm32f40xx_i2c.c
- * STM32 I2C Hardware Layer - Device Driver
+/****************************************************************************
+ * arch/arm/src/stm32/stm32f40xxx_i2c.c
  *
- *   Copyright (C) 2011 Uros Platise. All rights reserved.
- *   Author: Uros Platise <uros.platise@isotel.eu>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * With extensions, modifications by:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Copyright (C) 2011-2014, 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 /* Supports:
  *  - Master operation, 100 kHz (standard) and 400 kHz (full speed)
@@ -46,18 +25,19 @@
  *
  * Structure naming:
  *  - Device: structure as defined by the nuttx/i2c/i2c.h
- *  - Instance: represents each individual access to the I2C driver, obtained by
- *      the i2c_init(); it extends the Device structure from the nuttx/i2c/i2c.h;
- *      Instance points to OPS, to common I2C Hardware private data and contains
- *      its own private data, as frequency, address, mode of operation (in the
- *      future)
+ *  - Instance: represents each individual access to the I2C driver, obtained
+ *      by the i2c_init(); it extends the Device structure from the
+ *      nuttx/i2c/i2c.h;
+ *      Instance points to OPS, to common I2C Hardware private data and
+ *      contains its own private data, as frequency, address, mode of
+ *      operation (in the future)
  *  - Private: Private data of an I2C Hardware
  *
  * TODO
- *  - Check for all possible deadlocks (as BUSY='1' I2C needs to be reset in HW
- *    using the I2C_CR1_SWRST)
- *  - SMBus support (hardware layer timings are already supported) and add SMBA
- *    gpio pin
+ *  - Check for all possible deadlocks (as BUSY='1' I2C needs to be reset in
+ *    HW using the I2C_CR1_SWRST)
+ *  - SMBus support (hardware layer timings are already supported) and add
+ *    SMBA gpio pin
  *  - Slave support with multiple addresses (on multiple instances):
  *      - 2 x 7-bit address or
  *      - 1 x 10 bit addresses + 1 x 7 bit address (?)
@@ -66,13 +46,14 @@
  *  - Be ready for IPMI
  */
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -88,7 +69,7 @@
 
 #include <arch/board/board.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "stm32_rcc.h"
 #include "stm32_i2c.h"
@@ -100,18 +81,21 @@
 #if defined(CONFIG_STM32_I2C1) || defined(CONFIG_STM32_I2C2) || \
     defined(CONFIG_STM32_I2C3)
 
-/* This implementation is for the STM32 F1, F2, and F4 only */
-/* Experimentally enabled for STM32L15XX */
+/* This implementation is for the STM32 F1, F2, and F4 only.
+ * Experimentally enabled for STM32L15XX.
+ */
 
 #if defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F10XX) || \
     defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F4XXX)
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
-/* Configuration ********************************************************************/
-/* CONFIG_I2C_POLLED may be set so that I2C interrupts will not be used.  Instead,
- * CPU-intensive polling will be used.
+ ****************************************************************************/
+
+/* Configuration ************************************************************/
+
+/* CONFIG_I2C_POLLED may be set so that I2C interrupts will not be used.
+ * Instead, CPU-intensive polling will be used.
  */
 
 /* Interrupt wait timeout in seconds and milliseconds */
@@ -136,9 +120,9 @@
 #  define CONFIG_STM32_I2C_DYNTIMEO_STARTSTOP TICK2USEC(CONFIG_STM32_I2CTIMEOTICKS)
 #endif
 
-/* On the STM32F103ZE, there is an internal conflict between I2C1 and FSMC.  In that
- * case, it is necessary to disable FSMC before each I2C1 access and re-enable FSMC
- * when the I2C access completes.
+/* On the STM32F103ZE, there is an internal conflict between I2C1 and FSMC.
+ * In that case, it is necessary to disable FSMC before each I2C1 access and
+ * re-enable FSMC when the I2C access completes.
  */
 
 #undef I2C1_FSMC_CONFLICT
@@ -176,11 +160,11 @@
 
 #endif
 
-/* Debug ****************************************************************************/
+/* Debug ********************************************************************/
 
-/* I2C event trace logic.  NOTE:  trace uses the internal, non-standard, low-level
- * debug interface syslog() but does not require that any other debug
- * is enabled.
+/* I2C event trace logic.  NOTE:  trace uses the internal, non-standard,
+ * low-level debug interface syslog() but does not require that any other
+ * debug is enabled.
  */
 
 #ifndef CONFIG_I2C_TRACE
@@ -194,9 +178,10 @@
 #  define CONFIG_I2C_NTRACE 32
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Private Types
- ************************************************************************************/
+ ****************************************************************************/
+
 /* Interrupt state */
 
 enum stm32_intstate_e
@@ -210,17 +195,32 @@ enum stm32_intstate_e
 
 enum stm32_trace_e
 {
-  I2CEVENT_NONE = 0,      /* No events have occurred with this status */
-  I2CEVENT_SENDADDR,      /* Start/Master bit set and address sent, param = msgc */
-  I2CEVENT_SENDBYTE,      /* Send byte, param = dcnt */
-  I2CEVENT_ITBUFEN,       /* Enable buffer interrupts, param = 0 */
-  I2CEVENT_RCVBYTE,       /* Read more dta, param = dcnt */
-  I2CEVENT_REITBUFEN,     /* Re-enable buffer interrupts, param = 0 */
-  I2CEVENT_DISITBUFEN,    /* Disable buffer interrupts, param = 0 */
-  I2CEVENT_BTFNOSTART,    /* BTF on last byte with no restart, param = msgc */
-  I2CEVENT_BTFRESTART,    /* Last byte sent, re-starting, param = msgc */
-  I2CEVENT_BTFSTOP,       /* Last byte sten, send stop, param = 0 */
-  I2CEVENT_ERROR          /* Error occurred, param = 0 */
+  I2CEVENT_NONE = 0,
+  I2CEVENT_STATE_ERROR,
+  I2CEVENT_ISR_SHUTDOWN,
+  I2CEVENT_ISR_CALL,
+  I2CEVENT_ISR_EMPTY_CALL,
+  I2CEVENT_MSG_HANDLING,
+  I2CEVENT_POLL_NOT_READY,
+  I2CEVENT_EMPTY_MSG,
+  I2CEVENT_START,
+  I2CEVENT_SENDADDR,
+  I2CEVENT_ADDRESS_ACKED,
+  I2CEVENT_ADDRESS_NACKED,
+  I2CEVENT_NACK,
+  I2CEVENT_READ,
+  I2CEVENT_READ_ERROR,
+  I2CEVENT_ADDRESS_ACKED_READ_1,
+  I2CEVENT_ADDRESS_ACKED_READ_2,
+  I2CEVENT_WRITE_TO_DR,
+  I2CEVENT_WRITE_STOP,
+  I2CEVENT_WRITE_RESTART,
+  I2CEVENT_WRITE_NO_RESTART,
+  I2CEVENT_WRITE_ERROR,
+  I2CEVENT_WRITE_FLAG_ERROR,
+  I2CEVENT_TC_RESTART,
+  I2CEVENT_TC_NO_RESTART,
+  I2CEVENT_ERROR
 };
 
 /* Trace data */
@@ -253,9 +253,15 @@ struct stm32_i2c_config_s
 
 struct stm32_i2c_priv_s
 {
-  const struct i2c_ops_s *ops; /* Standard I2C operations */
-  const struct stm32_i2c_config_s *config; /* Port configuration */
-  int refs;                    /* Referernce count */
+  /* Standard I2C operations */
+
+  const struct i2c_ops_s *ops;
+
+  /* Port configuration */
+
+  const struct stm32_i2c_config_s *config;
+
+  int refs;                    /* Reference count */
   sem_t sem_excl;              /* Mutual exclusion semaphore */
 #ifndef CONFIG_I2C_POLLED
   sem_t sem_isr;               /* Interrupt wait semaphore */
@@ -268,7 +274,7 @@ struct stm32_i2c_priv_s
   uint32_t frequency;          /* Current I2C frequency */
   volatile int dcnt;           /* Current message length */
   uint16_t flags;              /* Current message flags */
-  bool check_addr_ACK;         /* Flag to signal if on next interrupt address has ACKed */
+  bool check_addr_ack;         /* Flag to signal if on next interrupt address has ACKed */
 
   /* I2C trace support */
 
@@ -293,18 +299,17 @@ struct stm32_i2c_priv_s
 #endif
 };
 
-/************************************************************************************
+/****************************************************************************
  * Private Function Prototypes
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline uint16_t stm32_i2c_getreg(FAR struct stm32_i2c_priv_s *priv,
                                         uint8_t offset);
-static inline void stm32_i2c_putreg(FAR struct stm32_i2c_priv_s *priv, uint8_t offset,
-                                    uint16_t value);
+static inline void stm32_i2c_putreg(FAR struct stm32_i2c_priv_s *priv,
+                                    uint8_t offset, uint16_t value);
 static inline void stm32_i2c_modifyreg(FAR struct stm32_i2c_priv_s *priv,
                                        uint8_t offset, uint16_t clearbits,
                                        uint16_t setbits);
-static inline void stm32_i2c_sem_wait(FAR struct stm32_i2c_priv_s *priv);
 
 #ifdef CONFIG_STM32_I2C_DYNTIMEO
 static useconds_t stm32_i2c_tousecs(int msgc, FAR struct i2c_msg_s *msgs);
@@ -318,7 +323,8 @@ static inline void stm32_i2c_sem_destroy(FAR struct stm32_i2c_priv_s *priv);
 
 #ifdef CONFIG_I2C_TRACE
 static void stm32_i2c_tracereset(FAR struct stm32_i2c_priv_s *priv);
-static void stm32_i2c_tracenew(FAR struct stm32_i2c_priv_s *priv, uint32_t status);
+static void stm32_i2c_tracenew(FAR struct stm32_i2c_priv_s *priv,
+                               uint32_t status);
 static void stm32_i2c_traceevent(FAR struct stm32_i2c_priv_s *priv,
                                  enum stm32_trace_e event, uint32_t parm);
 static void stm32_i2c_tracedump(FAR struct stm32_i2c_priv_s *priv);
@@ -329,10 +335,12 @@ static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv,
 static inline void stm32_i2c_sendstart(FAR struct stm32_i2c_priv_s *priv);
 static inline void stm32_i2c_clrstart(FAR struct stm32_i2c_priv_s *priv);
 static inline void stm32_i2c_sendstop(FAR struct stm32_i2c_priv_s *priv);
-static inline uint32_t stm32_i2c_getstatus(FAR struct stm32_i2c_priv_s *priv);
+static inline
+uint32_t stm32_i2c_getstatus(FAR struct stm32_i2c_priv_s *priv);
 
 #ifdef I2C1_FSMC_CONFLICT
-static inline uint32_t stm32_i2c_disablefsmc(FAR struct stm32_i2c_priv_s *priv);
+static inline
+uint32_t stm32_i2c_disablefsmc(FAR struct stm32_i2c_priv_s *priv);
 static inline void stm32_i2c_enablefsmc(uint32_t ahbenr);
 #endif /* I2C1_FSMC_CONFLICT */
 
@@ -344,8 +352,8 @@ static int stm32_i2c_isr(int irq, void *context, FAR void *arg);
 
 static int stm32_i2c_init(FAR struct stm32_i2c_priv_s *priv);
 static int stm32_i2c_deinit(FAR struct stm32_i2c_priv_s *priv);
-static int stm32_i2c_transfer(FAR struct i2c_master_s *dev, FAR struct i2c_msg_s *msgs,
-                              int count);
+static int stm32_i2c_transfer(FAR struct i2c_master_s *dev,
+                              FAR struct i2c_msg_s *msgs, int count);
 #ifdef CONFIG_I2C_RESET
 static int stm32_i2c_reset(FAR struct i2c_master_s *dev);
 #endif
@@ -353,32 +361,15 @@ static int stm32_i2c_reset(FAR struct i2c_master_s *dev);
 /* DMA support */
 
 #ifdef CONFIG_STM32_I2C_DMA
-static void stm32_i2c_dmarxcallback(DMA_HANDLE handle, uint8_t status, void *arg);
-static void stm32_i2c_dmatxcallback(DMA_HANDLE handle, uint8_t status, void *arg);
+static void stm32_i2c_dmarxcallback(DMA_HANDLE handle,
+                                    uint8_t status, void *arg);
+static void stm32_i2c_dmatxcallback(DMA_HANDLE handle,
+                                    uint8_t status, void *arg);
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Private Data
- ************************************************************************************/
-
-/* Trace events strings */
-
-#ifdef CONFIG_I2C_TRACE
-static const char *g_trace_names[] =
-{
-  "NONE      ",
-  "SENDADDR  ",
-  "SENDBYTE  ",
-  "ITBUFEN   ",
-  "RCVBYTE   ",
-  "REITBUFEN ",
-  "DISITBUFEN",
-  "BTFNOSTART",
-  "BTFRESTART",
-  "BTFSTOP   ",
-  "ERROR     "
-};
-#endif
+ ****************************************************************************/
 
 /* I2C interface */
 
@@ -502,17 +493,17 @@ static struct stm32_i2c_priv_s stm32_i2c3_priv =
 };
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Private Functions
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_getreg
  *
  * Description:
  *   Get a 16-bit register value by offset
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline uint16_t stm32_i2c_getreg(FAR struct stm32_i2c_priv_s *priv,
                                         uint8_t offset)
@@ -520,27 +511,27 @@ static inline uint16_t stm32_i2c_getreg(FAR struct stm32_i2c_priv_s *priv,
   return getreg16(priv->config->base + offset);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_putreg
  *
  * Description:
  *  Put a 16-bit register value by offset
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-static inline void stm32_i2c_putreg(FAR struct stm32_i2c_priv_s *priv, uint8_t offset,
-                                    uint16_t value)
+static inline void stm32_i2c_putreg(FAR struct stm32_i2c_priv_s *priv,
+                                    uint8_t offset, uint16_t value)
 {
   putreg16(value, priv->config->base + offset);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_modifyreg
  *
  * Description:
  *   Modify a 16-bit register value by offset
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_i2c_modifyreg(FAR struct stm32_i2c_priv_s *priv,
                                        uint8_t offset, uint16_t clearbits,
@@ -549,26 +540,14 @@ static inline void stm32_i2c_modifyreg(FAR struct stm32_i2c_priv_s *priv,
   modifyreg16(priv->config->base + offset, clearbits, setbits);
 }
 
-/************************************************************************************
- * Name: stm32_i2c_sem_wait
- *
- * Description:
- *   Take the exclusive access, waiting as necessary
- *
- ************************************************************************************/
-
-static inline void stm32_i2c_sem_wait(FAR struct stm32_i2c_priv_s *priv)
-{
-  nxsem_wait_uninterruptible(&priv->sem_excl);
-}
-
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_tousecs
  *
  * Description:
- *   Return a micro-second delay based on the number of bytes left to be processed.
+ *   Return a micro-second delay based on the number of bytes left to be
+ *   processed.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_STM32_I2C_DYNTIMEO
 static useconds_t stm32_i2c_tousecs(int msgc, FAR struct i2c_msg_s *msgs)
@@ -591,13 +570,13 @@ static useconds_t stm32_i2c_tousecs(int msgc, FAR struct i2c_msg_s *msgs)
 }
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_sem_waitdone
  *
  * Description:
  *   Wait for a transfer to complete
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_I2C_POLLED
 static inline int stm32_i2c_sem_waitdone(FAR struct stm32_i2c_priv_s *priv)
@@ -704,13 +683,13 @@ static inline int stm32_i2c_sem_waitdone(FAR struct stm32_i2c_priv_s *priv)
    */
 
   priv->intstate = INTSTATE_WAITING;
-  start = clock_systimer();
+  start = clock_systime_ticks();
 
   do
     {
       /* Calculate the elapsed time */
 
-      elapsed = clock_systimer() - start;
+      elapsed = clock_systime_ticks() - start;
 
       /* Poll by simply calling the timer interrupt handler until it
        * reports that it is done.
@@ -723,7 +702,7 @@ static inline int stm32_i2c_sem_waitdone(FAR struct stm32_i2c_priv_s *priv)
 
   while (priv->intstate != INTSTATE_DONE && elapsed < timeout);
 
-  i2cinfo("intstate: %d elapsed: %ld threshold: %ld status: %08x\n",
+  i2cinfo("intstate: %d elapsed: %ld threshold: %ld status: %08" PRIx32 "\n",
           priv->intstate, (long)elapsed, (long)timeout, priv->status);
 
   /* Set the interrupt state back to IDLE */
@@ -734,13 +713,13 @@ static inline int stm32_i2c_sem_waitdone(FAR struct stm32_i2c_priv_s *priv)
 }
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_sem_waitstop
  *
  * Description:
  *   Wait for a STOP to complete
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_i2c_sem_waitstop(FAR struct stm32_i2c_priv_s *priv)
 {
@@ -764,12 +743,12 @@ static inline void stm32_i2c_sem_waitstop(FAR struct stm32_i2c_priv_s *priv)
    * detected, set by hardware when a timeout error is detected."
    */
 
-  start = clock_systimer();
+  start = clock_systime_ticks();
   do
     {
       /* Calculate the elapsed time */
 
-      elapsed = clock_systimer() - start;
+      elapsed = clock_systime_ticks() - start;
 
       /* Check for STOP condition */
 
@@ -786,7 +765,6 @@ static inline void stm32_i2c_sem_waitstop(FAR struct stm32_i2c_priv_s *priv)
         {
           return;
         }
-
     }
 
   /* Loop until the stop is complete or a timeout occurs. */
@@ -797,29 +775,29 @@ static inline void stm32_i2c_sem_waitstop(FAR struct stm32_i2c_priv_s *priv)
    * still pending.
    */
 
-  i2cinfo("Timeout with CR1: %04x SR1: %04x\n", cr1, sr1);
+  i2cinfo("Timeout with CR1: %04" PRIx32 " SR1: %04" PRIx32 "\n", cr1, sr1);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_sem_post
  *
  * Description:
  *   Release the mutual exclusion semaphore
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_i2c_sem_post(struct stm32_i2c_priv_s *priv)
 {
   nxsem_post(&priv->sem_excl);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_sem_init
  *
  * Description:
  *   Initialize semaphores
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_i2c_sem_init(FAR struct stm32_i2c_priv_s *priv)
 {
@@ -831,17 +809,17 @@ static inline void stm32_i2c_sem_init(FAR struct stm32_i2c_priv_s *priv)
    */
 
   nxsem_init(&priv->sem_isr, 0, 0);
-  nxsem_setprotocol(&priv->sem_isr, SEM_PRIO_NONE);
+  nxsem_set_protocol(&priv->sem_isr, SEM_PRIO_NONE);
 #endif
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_sem_destroy
  *
  * Description:
  *   Destroy semaphores.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_i2c_sem_destroy(FAR struct stm32_i2c_priv_s *priv)
 {
@@ -851,13 +829,13 @@ static inline void stm32_i2c_sem_destroy(FAR struct stm32_i2c_priv_s *priv)
 #endif
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_trace*
  *
  * Description:
  *   I2C trace instrumentation
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_I2C_TRACE
 static void stm32_i2c_traceclear(FAR struct stm32_i2c_priv_s *priv)
@@ -876,11 +854,12 @@ static void stm32_i2c_tracereset(FAR struct stm32_i2c_priv_s *priv)
   /* Reset the trace info for a new data collection */
 
   priv->tndx       = 0;
-  priv->start_time = clock_systimer();
+  priv->start_time = clock_systime_ticks();
   stm32_i2c_traceclear(priv);
 }
 
-static void stm32_i2c_tracenew(FAR struct stm32_i2c_priv_s *priv, uint32_t status)
+static void stm32_i2c_tracenew(FAR struct stm32_i2c_priv_s *priv,
+                               uint32_t status)
 {
   struct stm32_trace_s *trace = &priv->trace[priv->tndx];
 
@@ -892,9 +871,11 @@ static void stm32_i2c_tracenew(FAR struct stm32_i2c_priv_s *priv, uint32_t statu
 
       if (trace->count != 0)
         {
-          /* Yes.. bump up the trace index (unless we are out of trace entries) */
+          /* Yes.. bump up the trace index
+           * (unless we are out of trace entries)
+           */
 
-          if (priv->tndx >= (CONFIG_I2C_NTRACE-1))
+          if (priv->tndx >= (CONFIG_I2C_NTRACE - 1))
             {
               i2cerr("ERROR: Trace table overflow\n");
               return;
@@ -909,7 +890,7 @@ static void stm32_i2c_tracenew(FAR struct stm32_i2c_priv_s *priv, uint32_t statu
       stm32_i2c_traceclear(priv);
       trace->status = status;
       trace->count  = 1;
-      trace->time   = clock_systimer();
+      trace->time   = clock_systime_ticks();
     }
   else
     {
@@ -935,7 +916,7 @@ static void stm32_i2c_traceevent(FAR struct stm32_i2c_priv_s *priv,
 
       /* Bump up the trace index (unless we are out of trace entries) */
 
-      if (priv->tndx >= (CONFIG_I2C_NTRACE-1))
+      if (priv->tndx >= (CONFIG_I2C_NTRACE - 1))
         {
           i2cerr("ERROR: Trace table overflow\n");
           return;
@@ -952,28 +933,29 @@ static void stm32_i2c_tracedump(FAR struct stm32_i2c_priv_s *priv)
   int i;
 
   syslog(LOG_DEBUG, "Elapsed time: %ld\n",
-         (long)(clock_systimer() - priv->start_time));
+         (long)(clock_systime_ticks() - priv->start_time));
 
   for (i = 0; i < priv->tndx; i++)
     {
       trace = &priv->trace[i];
       syslog(LOG_DEBUG,
-             "%2d. STATUS: %08x COUNT: %3d EVENT: %s(%2d) PARM: %08x TIME: %d\n",
-             i+1, trace->status, trace->count, g_trace_names[trace->event],
-             trace->event, trace->parm, trace->time - priv->start_time);
+             "%2d. STATUS: %08x COUNT: %3d EVENT: %2d PARM: %08x TIME: %d\n",
+             i + 1, trace->status, trace->count, trace->event, trace->parm,
+             (int)(trace->time - priv->start_time));
     }
 }
 #endif /* CONFIG_I2C_TRACE */
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_setclock
  *
  * Description:
  *   Set the I2C clock
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequency)
+static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv,
+                               uint32_t frequency)
 {
   uint16_t cr1;
   uint16_t ccr;
@@ -1076,28 +1058,29 @@ static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequ
     }
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_sendstart
  *
  * Description:
  *   Send the START conditions/force Master mode
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_i2c_sendstart(FAR struct stm32_i2c_priv_s *priv)
 {
   /* Disable ACK on receive by default and generate START */
 
-  stm32_i2c_modifyreg(priv, STM32_I2C_CR1_OFFSET, I2C_CR1_ACK, I2C_CR1_START);
+  stm32_i2c_modifyreg(priv,
+                      STM32_I2C_CR1_OFFSET, I2C_CR1_ACK, I2C_CR1_START);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_clrstart
  *
  * Description:
  *   Clear the STOP, START or PEC condition on certain error recovery steps.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_i2c_clrstart(FAR struct stm32_i2c_priv_s *priv)
 {
@@ -1111,8 +1094,8 @@ static inline void stm32_i2c_clrstart(FAR struct stm32_i2c_priv_s *priv)
    *  error is detected.
    *
    * "This [START] bit is set and cleared by software and cleared by hardware
-   *  when start is sent or PE=0."  The bit must be cleared by software if the
-   *  START is never sent.
+   *  when start is sent or PE=0."  The bit must be cleared by software if
+   *  the START is never sent.
    *
    * "This [PEC] bit is set and cleared by software, and cleared by hardware
    *  when PEC is transferred or by a START or Stop condition or when PE=0."
@@ -1122,26 +1105,26 @@ static inline void stm32_i2c_clrstart(FAR struct stm32_i2c_priv_s *priv)
                       I2C_CR1_START | I2C_CR1_STOP | I2C_CR1_PEC, 0);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_sendstop
  *
  * Description:
  *   Send the STOP conditions
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_i2c_sendstop(FAR struct stm32_i2c_priv_s *priv)
 {
   stm32_i2c_modifyreg(priv, STM32_I2C_CR1_OFFSET, I2C_CR1_ACK, I2C_CR1_STOP);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_getstatus
  *
  * Description:
  *   Get 32-bit status (SR1 and SR2 combined)
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline uint32_t stm32_i2c_getstatus(FAR struct stm32_i2c_priv_s *priv)
 {
@@ -1150,20 +1133,22 @@ static inline uint32_t stm32_i2c_getstatus(FAR struct stm32_i2c_priv_s *priv)
   return status;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_disablefsmc
  *
  * Description:
- *   FSMC must be disable while accessing I2C1 because it uses a common resource
- *   (LBAR)
+ *   FSMC must be disable while accessing I2C1 because it uses a common
+ *   resource (LBAR)
  *
- *  NOTE: This is an issue with the STM32F103ZE, but may not be an issue with other
+ *  NOTE:
+ *  This is an issue with the STM32F103ZE, but may not be an issue with other
  *  STM32s.  You may need to experiment
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef I2C1_FSMC_CONFLICT
-static inline uint32_t stm32_i2c_disablefsmc(FAR struct stm32_i2c_priv_s *priv)
+static inline
+uint32_t stm32_i2c_disablefsmc(FAR struct stm32_i2c_priv_s *priv)
 {
   uint32_t ret = 0;
   uint32_t regval;
@@ -1184,13 +1169,13 @@ static inline uint32_t stm32_i2c_disablefsmc(FAR struct stm32_i2c_priv_s *priv)
   return ret;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_enablefsmc
  *
  * Description:
  *   Re-enable the FSMC
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline void stm32_i2c_enablefsmc(uint32_t ahbenr)
 {
@@ -1210,13 +1195,13 @@ static inline void stm32_i2c_enablefsmc(uint32_t ahbenr)
 #  define stm32_i2c_enablefsmc(ahbenr)
 #endif /* I2C1_FSMC_CONFLICT */
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_isr_process
  *
  * Description:
  *  Common Interrupt Service Routine
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 {
@@ -1232,9 +1217,9 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 
   /* Get state of the I2C controller (register SR1 only)
    *
-   * Get control register SR1 only as reading both SR1 and SR2 clears the ADDR
-   * flag(possibly others) causing the hardware to advance to the next state
-   * without the proper action being taken.
+   * Get control register SR1 only as reading both SR1 and SR2 clears the
+   * ADDR flag(possibly others) causing the hardware to advance to the next
+   * state without the proper action being taken.
    */
 
   status = stm32_i2c_getreg(priv, STM32_I2C_SR1_OFFSET);
@@ -1255,15 +1240,16 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
    * Message handling should only operate when a message has been completely
    * sent and after the ISR had the chance to run to set bits after the last
    * written/read byte, i.e. priv->dcnt == -1. This is also the case in when
-   * the ISR is called for the first time. This can seen in stm32_i2c_process()
-   * before entering the stm32_i2c_sem_waitdone() waiting process.
+   * the ISR is called for the first time. This can seen in
+   * stm32_i2c_process() before entering the stm32_i2c_sem_waitdone() waiting
+   * process.
    *
    * Message handling should only operate when:
    *     - A message has been completely sent and there are still messages
    *       to send(i.e. msgc > 0).
-   *     - After the ISR had the chance to run to set start bit or termination
-   *       flags after the last written/read byte(after last byte dcnt=0, msg
-   *       handling dcnt = -1).
+   *     - After the ISR had the chance to run to set start bit or
+   *       termination flags after the last written/read byte(after last byte
+   *       dcnt=0, msg handling dcnt = -1).
    *
    * When the ISR is called for the first time the same conditions hold.
    * This can seen in stm32_i2c_process() before entering the
@@ -1281,7 +1267,8 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 #ifdef CONFIG_DEBUG_I2C_INFO
       size_t left = stm32_dmaresidual(priv->rxdma);
 
-      i2cinfo("DMA in progress: %ld [bytes] remainining. Returning.\n", left);
+      i2cinfo("DMA in progress: %ld [bytes] remainining. Returning.\n",
+              left);
 #endif
       return OK;
     }
@@ -1289,18 +1276,21 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 
   if (priv->dcnt == -1 && priv->msgc > 0)
     {
-     /* Any new message should begin with "Start" condition
-      * However there were 2 situations where that was not true
-      * Situation 1: Next message continue transmission sequence of previous message
-      *
-      * Situation 2: If an error is injected that looks like a STOP the
-      * interrupt will be reentered with some status that will be incorrect. This
-      * will ensure that the error handler will clear the interrupt enables and
-      * return the error to the waiting task.
-      */
+      /* Any new message should begin with "Start" condition
+       * However there were 2 situations where that was not true
+       * Situation 1:
+       *    Next message continue transmission sequence of previous message
+       *
+       * Situation 2: If an error is injected that looks like a STOP the
+       * interrupt will be reentered with some status that will be incorrect.
+       * This will ensure that the error handler will clear the interrupt
+       * enables and return the error to the waiting task.
+       */
 
-      if (((priv->msgv[0].flags & I2C_M_NOSTART) != 0 && (status & I2C_SR1_TXE) == 0) ||
-          ((priv->msgv[0].flags & I2C_M_NOSTART) == 0 && (status & I2C_SR1_SB) == 0))
+      if (((priv->msgv[0].flags & I2C_M_NOSTART) != 0 &&
+           (status & I2C_SR1_TXE) == 0) ||
+          ((priv->msgv[0].flags & I2C_M_NOSTART) == 0 &&
+           (status & I2C_SR1_SB) == 0))
         {
 #if defined(CONFIG_STM32_I2C_DMA) || defined(CONFIG_I2C_POLLED)
           return OK;
@@ -1320,17 +1310,21 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 
       i2cinfo("Current flags %i\n", priv->flags);
 
-      /* Decrease counter to indicate the number of messages left to process */
+      /* Decrease counter to indicate the number of messages left to
+       * process
+       */
 
       priv->msgc--;
 
-      /* Decrease message pointer. If last message set next message vector to null */
+      /* Decrease message pointer.
+       * If last message set next message vector to null
+       */
 
       if (priv->msgc == 0)
         {
-          /* No more messages, don't need to increment msgv. This pointer will be set
-           * to zero when reaching the termination of the ISR calls, i.e.  Messages
-           * handling(2/2).
+          /* No more messages, don't need to increment msgv. This pointer
+           * will be set to zero when reaching the termination of the ISR
+           * calls, i.e.  Messages handling(2/2).
            */
         }
       else
@@ -1371,7 +1365,7 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
     {
       /* Start bit is set */
 
-      i2cinfo("Entering address handling, status = %i\n", status);
+      i2cinfo("Entering address handling, status = %" PRIi32 "\n", status);
 
       /* Check for empty message (for robustness) */
 
@@ -1385,21 +1379,23 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 
           stm32_i2c_modifyreg(priv, STM32_I2C_CR1_OFFSET, 0, I2C_CR1_ACK);
 
-          /* Send address byte with correct 8th bit set(for writing or reading)
+          /* Send address byte with correct 8th bit set
+           * (for writing or reading)
            * Transmission happens after having written to the data register
            * STM32_I2C_DR
            */
 
           stm32_i2c_putreg(priv, STM32_I2C_DR_OFFSET,
                            (priv->flags & I2C_M_TEN) ?
-                           0 :((priv->msgv->addr << 1) | (priv->flags & I2C_M_READ)));
+                           0 : ((priv->msgv->addr << 1) |
+                           (priv->flags & I2C_M_READ)));
 
           i2cinfo("Address sent. Addr=%#02x Write/Read bit=%i\n",
                   priv->msgv->addr, (priv->flags & I2C_M_READ));
 
           /* Flag that address has just been sent */
 
-          priv->check_addr_ACK = true;
+          priv->check_addr_ack = true;
 
           stm32_i2c_traceevent(priv, I2CEVENT_SENDADDR, priv->msgv->addr);
         }
@@ -1407,7 +1403,8 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
         {
           /* TODO: untested!! */
 
-          i2cwarn(" An empty message has been detected, ignoring and passing to next message.\n");
+          i2cwarn(" An empty message has been detected, "
+                  "ignoring and passing to next message.\n");
 
           /* Trace event */
 
@@ -1420,7 +1417,8 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 #ifndef CONFIG_I2C_POLLED
           /* Restart ISR by setting an interrupt buffer bit */
 
-          stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, 0, I2C_CR2_ITBUFEN);
+          stm32_i2c_modifyreg(priv,
+                              STM32_I2C_CR2_OFFSET, 0, I2C_CR2_ITBUFEN);
 #endif
         }
     }
@@ -1432,7 +1430,7 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
    * received the address is valid and transmission can continue.
    */
 
-  /* Check for NACK after an address*/
+  /* Check for NACK after an address */
 
 #ifndef CONFIG_I2C_POLLED
   /* When polling the i2c ISR it's not possible to determine when
@@ -1453,12 +1451,14 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
    * Note: this commentary is found in both places.
    */
 
-  else if ((status & I2C_SR1_ADDR) == 0 && priv->check_addr_ACK)
+  else if ((status & I2C_SR1_ADDR) == 0 && priv->check_addr_ack)
     {
       i2cinfo("Invalid Address. Setting stop bit and clearing message\n");
-      i2cinfo("status %i\n", status);
+      i2cinfo("status %" PRIi32 "\n", status);
 
-      /* Set condition to terminate msg chain transmission as address is invalid. */
+      /* Set condition to terminate msg chain transmission as address is
+       * invalid.
+       */
 
       priv->dcnt = -1;
       priv->msgc = 0;
@@ -1467,7 +1467,7 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 
       /* Reset flag to check for valid address */
 
-      priv->check_addr_ACK = false;
+      priv->check_addr_ack = false;
 
       /* Send stop bit to clear bus */
 
@@ -1479,14 +1479,14 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
     }
 #endif
 
-    /* ACK in read mode, ACK in write mode is handled separately */
+  /* ACK in read mode, ACK in write mode is handled separately */
 
   else if ((priv->flags & I2C_M_READ) != 0 && (status & I2C_SR1_ADDR) != 0 &&
-           priv->check_addr_ACK)
+           priv->check_addr_ack)
     {
       /* Reset check addr flag as we are handling this event */
 
-      priv->check_addr_ACK = false;
+      priv->check_addr_ack = false;
 
       /* Note:
        *
@@ -1513,9 +1513,12 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
           stm32_i2c_modifyreg(priv, STM32_I2C_CR1_OFFSET, I2C_CR1_ACK, 0);
 
 #ifndef CONFIG_I2C_POLLED
-          /* Enable RxNE and TxE buffers in order to receive one or multiple bytes */
+          /* Enable RxNE and TxE buffers in order to receive one or multiple
+           * bytes
+           */
 
-          stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, 0, I2C_CR2_ITBUFEN);
+          stm32_i2c_modifyreg(priv,
+                              STM32_I2C_CR2_OFFSET, 0, I2C_CR2_ITBUFEN);
 #endif
 
           /* Clear ADDR flag by reading SR2 and adding it to status */
@@ -1580,23 +1583,27 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 
           i2cinfo("Starting dma transfer and disabling interrupts\n");
 
-          /* The DMA must be initialized and enabled before the I2C data transfer.
-           * The DMAEN bit must be set in the I2C_CR2 register before the ADDR event.
+          /* The DMA must be initialized and enabled before the I2C data
+           * transfer.
+           * The DMAEN bit must be set in the I2C_CR2 register before the
+           * ADDR event.
            */
 
-          stm32_dmasetup(priv->rxdma, priv->config->base+STM32_I2C_DR_OFFSET,
-            (uint32_t) priv->ptr, priv->dcnt,
-            DMA_SCR_DIR_P2M |
-            DMA_SCR_MSIZE_8BITS |
-            DMA_SCR_PSIZE_8BITS |
-            DMA_SCR_MINC |
-            I2C_DMA_PRIO);
+          stm32_dmasetup(priv->rxdma,
+                         priv->config->base + STM32_I2C_DR_OFFSET,
+                         (uint32_t)priv->ptr, priv->dcnt,
+                         DMA_SCR_DIR_P2M |
+                         DMA_SCR_MSIZE_8BITS |
+                         DMA_SCR_PSIZE_8BITS |
+                         DMA_SCR_MINC |
+                         I2C_DMA_PRIO);
 
           /* Do not enable the ITBUFEN bit in the I2C_CR2 register if DMA is
            * used.
            */
 
-          stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, I2C_CR2_ITBUFEN, 0);
+          stm32_i2c_modifyreg(priv,
+                              STM32_I2C_CR2_OFFSET, I2C_CR2_ITBUFEN, 0);
 
 #ifndef CONFIG_I2C_POLLED
           /* Now let DMA do all the work, disable i2c interrupts */
@@ -1606,9 +1613,9 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
           stm32_i2c_putreg(priv, STM32_I2C_CR2_OFFSET, regval);
 #endif
 
-          /* The user can generate a Stop condition in the DMA Transfer Complete
-           * interrupt routine if enabled. This will be done in the dma rx callback
-           * Start DMA.
+          /* The user can generate a Stop condition in the DMA Transfer
+           * Complete interrupt routine if enabled. This will be done in
+           * the dma rx callback Start DMA.
            */
 
           stm32_dmastart(priv->rxdma, stm32_i2c_dmarxcallback, priv, false);
@@ -1617,9 +1624,12 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 #ifndef CONFIG_I2C_POLLED
           if (priv->dcnt > 3)
             {
-              /* Don't enable I2C_CR2_ITBUFEN for messages longer than 3 bytes */
+              /* Don't enable I2C_CR2_ITBUFEN for messages longer than 3
+               * bytes
+               */
 
-              stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, 0, I2C_CR2_ITBUFEN);
+              stm32_i2c_modifyreg(priv,
+                                  STM32_I2C_CR2_OFFSET, 0, I2C_CR2_ITBUFEN);
             }
 #endif
 #endif
@@ -1659,7 +1669,8 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
        */
 
       else if (priv->msgc > 0 &&
-               (priv->msgv->flags == 0 || (priv->msgv[0].flags & I2C_M_READ) != 0))
+               (priv->msgv->flags == 0 ||
+               (priv->msgv[0].flags & I2C_M_READ) != 0))
         {
           /* Send start */
 
@@ -1679,7 +1690,8 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
       else
         {
           i2cinfo("Write mode: next message has an unrecognized flag.\n");
-          stm32_i2c_traceevent(priv, I2CEVENT_WRITE_FLAG_ERROR, priv->msgv->flags);
+          stm32_i2c_traceevent(priv,
+                               I2CEVENT_WRITE_FLAG_ERROR, priv->msgv->flags);
         }
 
       status |= (stm32_i2c_getreg(priv, STM32_I2C_SR2_OFFSET) << 16);
@@ -1702,7 +1714,7 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 
       /* Address has cleared so don't check on next call */
 
-      priv->check_addr_ACK = false;
+      priv->check_addr_ack = false;
 
       /* Check if we have transmitted the whole message or we are after
        * the last byte where the stop condition or else(according to the
@@ -1723,19 +1735,21 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
            * before the ADDR event.
            */
 
-          stm32_dmasetup(priv->txdma, priv->config->base+STM32_I2C_DR_OFFSET,
+          stm32_dmasetup(priv->txdma,
+                         priv->config->base + STM32_I2C_DR_OFFSET,
                          (uint32_t) priv->ptr, priv->dcnt,
                          DMA_SCR_DIR_M2P |
                          DMA_SCR_MSIZE_8BITS |
                          DMA_SCR_PSIZE_8BITS |
                          DMA_SCR_MINC |
-                         I2C_DMA_PRIO );
+                         I2C_DMA_PRIO);
 
           /* Do not enable the ITBUFEN bit in the I2C_CR2 register if DMA is
            * used.
            */
 
-          stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, I2C_CR2_ITBUFEN, 0);
+          stm32_i2c_modifyreg(priv,
+                              STM32_I2C_CR2_OFFSET, I2C_CR2_ITBUFEN, 0);
 
 #ifndef CONFIG_I2C_POLLED
           /* Now let DMA do all the work, disable i2c interrupts */
@@ -1764,11 +1778,14 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
           if (priv->dcnt == 1 &&
               (priv->msgc == 0 || (priv->msgv->flags & I2C_M_NOSTART) == 0))
             {
-              stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, I2C_CR2_ITBUFEN, 0);
+              stm32_i2c_modifyreg(priv,
+                                  STM32_I2C_CR2_OFFSET, I2C_CR2_ITBUFEN, 0);
             }
 #endif
 
-          /* Transmitting message. Send byte == write data into write register */
+          /* Transmitting message.
+           * Send byte == write data into write register
+           */
 
           stm32_i2c_putreg(priv, STM32_I2C_DR_OFFSET, *priv->ptr++);
 
@@ -1779,7 +1796,9 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 
           if ((status & I2C_SR1_ADDR) != 0 && priv->dcnt > 0)
             {
-              /* Transmitting message. ADDR -> BTF & TXE - Send one more byte */
+              /* Transmitting message.
+               * ADDR -> BTF & TXE - Send one more byte
+               */
 
               stm32_i2c_putreg(priv, STM32_I2C_DR_OFFSET, *priv->ptr++);
 
@@ -1793,16 +1812,19 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
           if (((status & I2C_SR1_ADDR) != 0 && priv->dcnt > 0) ||
               (priv->msgc > 0 && (priv->msgv->flags & I2C_M_NOSTART) != 0))
             {
-              stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, 0, I2C_CR2_ITBUFEN);
+              stm32_i2c_modifyreg(priv,
+                                  STM32_I2C_CR2_OFFSET, 0, I2C_CR2_ITBUFEN);
             }
 #endif
+
           if (priv->dcnt == 0 &&
               priv->msgc > 0 && (priv->msgv->flags & I2C_M_NOSTART) != 0)
             {
               /* Set condition to get to next message */
 
-              priv->dcnt =- 1;
-              stm32_i2c_traceevent(priv, I2CEVENT_WRITE_NO_RESTART, priv->dcnt);
+              priv->dcnt = -1;
+              stm32_i2c_traceevent(priv,
+                                   I2CEVENT_WRITE_NO_RESTART, priv->dcnt);
             }
         }
     }
@@ -1839,32 +1861,36 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
            (status & (I2C_SR1_RXNE | I2C_SR1_BTF)) != 0)
     {
       /* When read flag is set and the receive buffer is not empty
-       *(RXNE is set) then the driver can read from the data register.
+       * (RXNE is set) then the driver can read from the data register.
        */
 
       status |= (stm32_i2c_getreg(priv, STM32_I2C_SR2_OFFSET) << 16);
 
-      i2cinfo("Entering read mode dcnt = %i msgc = %i, status 0x%04x\n",
+      i2cinfo("Entering read mode dcnt = %i msgc = %i, "
+              "status 0x%04" PRIx32 "\n",
               priv->dcnt, priv->msgc, status);
 
       /* Byte #N-3W, we don't want to manage RxNE interrupt anymore, bytes
        * N, N-1, N-2 will be read with BTF:
        */
 
-#ifndef  CONFIG_I2C_POLLED
+#ifndef CONFIG_I2C_POLLED
       if (priv->dcnt < 5)
         {
-          stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, I2C_CR2_ITBUFEN, 0);
+          stm32_i2c_modifyreg(priv,
+                              STM32_I2C_CR2_OFFSET, I2C_CR2_ITBUFEN, 0);
         }
 #else
-      if (priv->dcnt == 1 || priv->dcnt > 3 || (status & I2C_SR1_BTF) != 0)
+      if (priv->dcnt == 1 ||
+          priv->dcnt > 3 || (status & I2C_SR1_BTF) != 0)
 #endif
         {
           /*  BTF: N-2/N-1, set NACK, read N-2 */
 
           if (priv->dcnt == 3)
             {
-              stm32_i2c_modifyreg(priv, STM32_I2C_CR1_OFFSET, I2C_CR1_ACK, 0);
+              stm32_i2c_modifyreg(priv,
+                                  STM32_I2C_CR1_OFFSET, I2C_CR1_ACK, 0);
             }
 
           /*  BTF: N-1/N, STOP/START, read N-1, N */
@@ -1924,7 +1950,7 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
    * device wasn't ready yet.
    */
 
-   else
+  else
     {
 #ifdef CONFIG_I2C_POLLED
       stm32_i2c_traceevent(priv, I2CEVENT_POLL_DEV_NOT_RDY, 0);
@@ -1943,7 +1969,7 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
         }
 
       i2cinfo(" No correct state detected(start bit, read or write) \n");
-      i2cinfo(" state %i\n", status);
+      i2cinfo(" state %" PRIi32 "\n", status);
 
       /* Set condition to terminate ISR and wake waiting thread */
 
@@ -1984,8 +2010,8 @@ state_error:
       stm32_i2c_traceevent(priv, I2CEVENT_ISR_SHUTDOWN, 0);
 
       /* Clear internal pointer to the message content.
-       * Good practice + done by last implementation when messages are finished
-       * (compatibility concerns)
+       * Good practice + done by last implementation when messages are
+       * finished (compatibility concerns)
        */
 
       priv->msgv = NULL;
@@ -2016,13 +2042,13 @@ state_error:
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_isr
  *
  * Description:
  *   Common I2C interrupt service routine
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_I2C_POLLED
 static int stm32_i2c_isr(int irq, void *context, FAR void *arg)
@@ -2034,16 +2060,17 @@ static int stm32_i2c_isr(int irq, void *context, FAR void *arg)
 }
 #endif
 
-/*****************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_dmarxcallback
  *
  * Description:
  *   Called when the RX DMA completes
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_STM32_I2C_DMA
-static void stm32_i2c_dmarxcallback(DMA_HANDLE handle, uint8_t status, void *arg)
+static void stm32_i2c_dmarxcallback(DMA_HANDLE handle,
+                                    uint8_t status, void *arg)
 {
 #ifndef CONFIG_I2C_POLLED
   uint32_t regval;
@@ -2068,8 +2095,8 @@ static void stm32_i2c_dmarxcallback(DMA_HANDLE handle, uint8_t status, void *arg
       stm32_i2c_sendstop(priv);
     }
 
-  /* Let the I2C periph know to stop DMA transfers, also is used by ISR to check
-   * if DMA is done.
+  /* Let the I2C periph know to stop DMA transfers, also is used by ISR
+   * to check if DMA is done.
    */
 
   stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, I2C_CR2_DMAEN, 0);
@@ -2082,22 +2109,25 @@ static void stm32_i2c_dmarxcallback(DMA_HANDLE handle, uint8_t status, void *arg
   stm32_i2c_putreg(priv, STM32_I2C_CR2_OFFSET, regval);
 #endif
 
-  /* let the ISR routine take care of shutting down or switching to next msg */
+  /* let the ISR routine take care of shutting down or switching to
+   * next msg
+   */
 
   stm32_i2c_isr_process(priv);
 }
 #endif /* ifdef CONFIG_STM32_I2C_DMA */
 
-/*****************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_dmarxcallback
  *
  * Description:
  *   Called when the RX DMA completes
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_STM32_I2C_DMA
-static void stm32_i2c_dmatxcallback(DMA_HANDLE handle, uint8_t status, void *arg)
+static void stm32_i2c_dmatxcallback(DMA_HANDLE handle,
+                                    uint8_t status, void *arg)
 {
 #ifndef CONFIG_I2C_POLLED
   uint32_t regval;
@@ -2109,7 +2139,9 @@ static void stm32_i2c_dmatxcallback(DMA_HANDLE handle, uint8_t status, void *arg
 
   priv->dcnt = 0;
 
-  /* In the interrupt routine after the EOT interrupt, disable DMA requests */
+  /* In the interrupt routine after the EOT interrupt,
+   * disable DMA requests
+   */
 
   stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, I2C_CR2_DMAEN, 0);
 
@@ -2123,13 +2155,13 @@ static void stm32_i2c_dmatxcallback(DMA_HANDLE handle, uint8_t status, void *arg
 }
 #endif /* ifdef CONFIG_STM32_I2C_DMA */
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_init
  *
  * Description:
  *   Setup the I2C hardware, ready for operation with defaults
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32_i2c_init(FAR struct stm32_i2c_priv_s *priv)
 {
@@ -2167,7 +2199,8 @@ static int stm32_i2c_init(FAR struct stm32_i2c_priv_s *priv)
    * or 4 MHz for 400 kHz.  This also disables all I2C interrupts.
    */
 
-  stm32_i2c_putreg(priv, STM32_I2C_CR2_OFFSET, (STM32_PCLK1_FREQUENCY / 1000000));
+  stm32_i2c_putreg(priv,
+                   STM32_I2C_CR2_OFFSET, (STM32_PCLK1_FREQUENCY / 1000000));
 
   /* Force a frequency update */
 
@@ -2181,7 +2214,8 @@ static int stm32_i2c_init(FAR struct stm32_i2c_priv_s *priv)
    * Clear DMA en just in case.
    */
 
-  stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, I2C_CR2_DMAEN, I2C_CR2_LAST);
+  stm32_i2c_modifyreg(priv,
+                      STM32_I2C_CR2_OFFSET, I2C_CR2_DMAEN, I2C_CR2_LAST);
 #endif
 
   /* Enable I2C */
@@ -2190,13 +2224,13 @@ static int stm32_i2c_init(FAR struct stm32_i2c_priv_s *priv)
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_deinit
  *
  * Description:
  *   Shutdown the I2C hardware
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static int stm32_i2c_deinit(FAR struct stm32_i2c_priv_s *priv)
 {
@@ -2232,33 +2266,40 @@ static int stm32_i2c_deinit(FAR struct stm32_i2c_priv_s *priv)
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Device Driver Operations
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_transfer
  *
  * Description:
  *   Generic I2C transfer function
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-static int stm32_i2c_transfer(FAR struct i2c_master_s *dev, FAR struct i2c_msg_s *msgs,
-                              int count)
+static int stm32_i2c_transfer(FAR struct i2c_master_s *dev,
+                              FAR struct i2c_msg_s *msgs, int count)
 {
   FAR struct stm32_i2c_priv_s *priv = (struct stm32_i2c_priv_s *)dev;
   uint32_t status = 0;
 #ifdef I2C1_FSMC_CONFLICT
   uint32_t ahbenr;
 #endif
-  int ret = 0;
+  int ret;
 
   DEBUGASSERT(count);
-  stm32_i2c_sem_wait(priv);   /* Ensure that address or flags don't change meanwhile */
+
+  /* Ensure that address or flags don't change meanwhile */
+
+  ret = nxsem_wait(&priv->sem_excl);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
 #ifdef CONFIG_STM32_I2C_DMA
-  /* stop DMA just in case */
+  /* Stop DMA just in case */
 
   stm32_i2c_modifyreg(priv, STM32_I2C_CR2_OFFSET, I2C_CR2_DMAEN, 0);
   stm32_dmastop(priv->rxdma);
@@ -2333,7 +2374,7 @@ static int stm32_i2c_transfer(FAR struct i2c_master_s *dev, FAR struct i2c_msg_s
       status = stm32_i2c_getstatus(priv);
       ret = -ETIMEDOUT;
 
-      i2cerr("ERROR: Timed out: CR1: 0x%04x status: 0x%08x\n",
+      i2cerr("ERROR: Timed out: CR1: 0x%04x status: 0x%08" PRIx32 "\n",
              stm32_i2c_getreg(priv, STM32_I2C_CR1_OFFSET), status);
 
       /* "Note: When the STOP, START or PEC bit is set, the software must
@@ -2398,12 +2439,14 @@ static int stm32_i2c_transfer(FAR struct i2c_master_s *dev, FAR struct i2c_msg_s
           ret = -ETIME;
         }
 
-      /* This is not an error and should never happen since SMBus is not enabled */
+      /* This is not an error and should never happen since SMBus is not
+       * enabled
+       */
 
       else /* if (status & I2C_SR1_SMBALERT) */
         {
-          /* SMBus alert is an optional signal with an interrupt line for devices
-           * that want to trade their ability to master for a pin.
+          /* SMBus alert is an optional signal with an interrupt line for
+           * devices that want to trade their ability to master for a pin.
            */
 
           ret = -EINTR;
@@ -2411,7 +2454,8 @@ static int stm32_i2c_transfer(FAR struct i2c_master_s *dev, FAR struct i2c_msg_s
     }
 
   /* This is not an error, but should not happen.  The BUSY signal can hang,
-   * however, if there are unhealthy devices on the bus that need to be reset.
+   * however, if there are unhealthy devices on the bus that need to be
+   * reset.
    * NOTE:  We will only see this busy indication if stm32_i2c_sem_waitdone()
    * fails above;  Otherwise it is cleared.
    */
@@ -2440,7 +2484,9 @@ static int stm32_i2c_transfer(FAR struct i2c_master_s *dev, FAR struct i2c_msg_s
   stm32_i2c_enablefsmc(ahbenr);
 #endif
 
-  /* Ensure that any ISR happening after we finish can't overwrite any user data */
+  /* Ensure that any ISR happening after we finish can't overwrite any user
+   * data
+   */
 
   priv->dcnt = 0;
   priv->ptr = NULL;
@@ -2449,7 +2495,7 @@ static int stm32_i2c_transfer(FAR struct i2c_master_s *dev, FAR struct i2c_msg_s
   return ret;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2c_reset
  *
  * Description:
@@ -2461,7 +2507,7 @@ static int stm32_i2c_transfer(FAR struct i2c_master_s *dev, FAR struct i2c_msg_s
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_I2C_RESET
 static int stm32_i2c_reset(FAR struct i2c_master_s *dev)
@@ -2472,7 +2518,7 @@ static int stm32_i2c_reset(FAR struct i2c_master_s *dev)
   uint32_t scl_gpio;
   uint32_t sda_gpio;
   uint32_t frequency;
-  int ret = ERROR;
+  int ret;
 
   DEBUGASSERT(dev);
 
@@ -2482,7 +2528,13 @@ static int stm32_i2c_reset(FAR struct i2c_master_s *dev)
 
   /* Lock out other clients */
 
-  stm32_i2c_sem_wait(priv);
+  ret = nxsem_wait_uninterruptible(&priv->sem_excl);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  ret = -EIO;
 
   /* Save the current frequency */
 
@@ -2581,17 +2633,17 @@ out:
 }
 #endif /* CONFIG_I2C_RESET */
 
-/************************************************************************************
+/****************************************************************************
  * Public Functions
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2cbus_initialize
  *
  * Description:
  *   Initialize one I2C bus
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 FAR struct i2c_master_s *stm32_i2cbus_initialize(int port)
 {
@@ -2642,30 +2694,33 @@ FAR struct i2c_master_s *stm32_i2cbus_initialize(int port)
       stm32_i2c_init(priv);
 
 #ifdef CONFIG_STM32_I2C_DMA
-  /* Get DMA channels.  NOTE: stm32_dmachannel() will always assign the DMA channel.
-   * if the channel is not available, then stm32_dmachannel() will block and wait
-   * until the channel becomes available.  WARNING: If you have another device sharing
-   * a DMA channel with SPI and the code never releases that channel, then the call
-   * to stm32_dmachannel()  will hang forever in this function!  Don't let your
-   * design do that!
-   */
+      /* Get DMA channels.  NOTE: stm32_dmachannel() will always assign the
+       * DMA channel.  If the channel is not available, then
+       * stm32_dmachannel() will block and wait until the channel becomes
+       * available.
+       * WARNING: If you have another device sharing a DMA channel with SPI
+       * and the code never releases that channel, then the call to
+       * stm32_dmachannel()  will hang forever in this function!
+       *  Don't let your design do that!
+       */
+
       priv->rxdma = stm32_dmachannel(priv->rxch);
       priv->txdma = stm32_dmachannel(priv->txch);
       DEBUGASSERT(priv->rxdma && priv->txdma);
-#endif /* #ifdef CONFIG_STM32_I2C_DMA */
+#endif /* CONFIG_STM32_I2C_DMA */
     }
 
   leave_critical_section(flags);
   return (struct i2c_master_s *)priv;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: stm32_i2cbus_uninitialize
  *
  * Description:
  *   Uninitialize an I2C bus
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 int stm32_i2cbus_uninitialize(FAR struct i2c_master_s *dev)
 {

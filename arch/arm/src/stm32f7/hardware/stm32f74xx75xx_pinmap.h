@@ -1,45 +1,29 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/stm32f7/hardware/stm32f74xx75xx_pinmap.h
  *
- *   Copyright (C) 2014-2015 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
- *            David Sidrane <david_s5@nscdg.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_STM32F7_HARDWARE_STM32F74XX75XX_PINMAP_H
 #define __ARCH_ARM_SRC_STM32F7_HARDWARE_STM32F74XX75XX_PINMAP_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -47,28 +31,30 @@
 
 #if defined(CONFIG_STM32F7_STM32F74XX) || defined(CONFIG_STM32F7_STM32F75XX)
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
+ ****************************************************************************/
 
-/* Alternate Pin Functions.  All members of the STM32F74|5xxx family share the same
- * pin multiplexing (although they may differ in the pins physically available).
+/* Alternate Pin Functions.
+ * All members of the STM32F74|5xxx family share the same pin multiplexing
+ * (although they may differ in the pins physically available).
  *
- * Alternative pin selections are provided with a numeric suffix like _1, _2, etc.
- * Drivers, however, will use the pin selection without the numeric suffix.
- * Additional definitions are required in the board.h file.  For example, if
- * CAN1_RX connects via PA11 on some board, then the following definitions should
- * appear inthe board.h header file for that board:
+ * Alternative pin selections are provided with a numeric suffix like _1, _2,
+ * etc. Drivers, however, will use the pin selection without the numeric
+ * suffix. Additional definitions are required in the board.h file.
+ * For example, if CAN1_RX connects via PA11 on some board, then the
+ * following definitions should appear in the board.h header file for that
+ * board:
  *
  * #define GPIO_CAN1_RX GPIO_CAN1_RX_1
  *
  * The driver will then automatically configure PA11 as the CAN1 RX pin.
  */
 
-/* WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!
- * Additional effort is required to select specific GPIO options such as frequency,
- * open-drain/push-pull, and pull-up/down!  Just the basics are defined for most
- * pins in this file.
+/* WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!
+ * Additional effort is required to select specific GPIO options such as
+ * frequency, open-drain/push-pull, and pull-up/down!
+ *  Just the basics are defined for most pins in this file.
  */
 
 /* ADC */
@@ -749,30 +735,30 @@
 
 /* QuadSPI */
 
-#define GPIO_QUADSPI_BK1_IO0_1  (GPIO_ALT|GPIO_AF10|GPIO_PORTF|GPIO_PIN8)
-#define GPIO_QUADSPI_BK1_IO0_2  (GPIO_ALT|GPIO_AF9|GPIO_PORTC|GPIO_PIN9)
-#define GPIO_QUADSPI_BK1_IO0_3  (GPIO_ALT|GPIO_AF9|GPIO_PORTD|GPIO_PIN11)
-#define GPIO_QUADSPI_BK1_IO1_1  (GPIO_ALT|GPIO_AF10|GPIO_PORTF|GPIO_PIN9)
-#define GPIO_QUADSPI_BK1_IO1_2  (GPIO_ALT|GPIO_AF9|GPIO_PORTC|GPIO_PIN10)
-#define GPIO_QUADSPI_BK1_IO1_3  (GPIO_ALT|GPIO_AF9|GPIO_PORTD|GPIO_PIN12)
-#define GPIO_QUADSPI_BK1_IO2_1  (GPIO_ALT|GPIO_AF9|GPIO_PORTE|GPIO_PIN2)
-#define GPIO_QUADSPI_BK1_IO2_2  (GPIO_ALT|GPIO_AF9|GPIO_PORTF|GPIO_PIN7)
-#define GPIO_QUADSPI_BK1_IO3_1  (GPIO_ALT|GPIO_AF9|GPIO_PORTA|GPIO_PIN1)
-#define GPIO_QUADSPI_BK1_IO3_2  (GPIO_ALT|GPIO_AF9|GPIO_PORTD|GPIO_PIN13)
-#define GPIO_QUADSPI_BK1_IO3_3  (GPIO_ALT|GPIO_AF9|GPIO_PORTF|GPIO_PIN6)
-#define GPIO_QUADSPI_BK1_NCS    (GPIO_ALT|GPIO_AF10|GPIO_PORTB|GPIO_PIN6)
+#define GPIO_QUADSPI_BK1_IO0_1  (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTF|GPIO_PIN8)
+#define GPIO_QUADSPI_BK1_IO0_2  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTC|GPIO_PIN9)
+#define GPIO_QUADSPI_BK1_IO0_3  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTD|GPIO_PIN11)
+#define GPIO_QUADSPI_BK1_IO1_1  (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTF|GPIO_PIN9)
+#define GPIO_QUADSPI_BK1_IO1_2  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTC|GPIO_PIN10)
+#define GPIO_QUADSPI_BK1_IO1_3  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTD|GPIO_PIN12)
+#define GPIO_QUADSPI_BK1_IO2_1  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN2)
+#define GPIO_QUADSPI_BK1_IO2_2  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTF|GPIO_PIN7)
+#define GPIO_QUADSPI_BK1_IO3_1  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTA|GPIO_PIN1)
+#define GPIO_QUADSPI_BK1_IO3_2  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTD|GPIO_PIN13)
+#define GPIO_QUADSPI_BK1_IO3_3  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTF|GPIO_PIN6)
+#define GPIO_QUADSPI_BK1_NCS    (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTB|GPIO_PIN6)
 
-#define GPIO_QUADSPI_BK2_IO0_1  (GPIO_ALT|GPIO_AF10|GPIO_PORTE|GPIO_PIN7)
-#define GPIO_QUADSPI_BK2_IO0_2  (GPIO_ALT|GPIO_AF9|GPIO_PORTH|GPIO_PIN2)
-#define GPIO_QUADSPI_BK2_IO1_1  (GPIO_ALT|GPIO_AF10|GPIO_PORTE|GPIO_PIN8)
-#define GPIO_QUADSPI_BK2_IO1_2  (GPIO_ALT|GPIO_AF9|GPIO_PORTH|GPIO_PIN3)
-#define GPIO_QUADSPI_BK2_IO2_1  (GPIO_ALT|GPIO_AF10|GPIO_PORTE|GPIO_PIN9)
-#define GPIO_QUADSPI_BK2_IO2_2  (GPIO_ALT|GPIO_AF9|GPIO_PORTG|GPIO_PIN9)
-#define GPIO_QUADSPI_BK2_IO3_1  (GPIO_ALT|GPIO_AF10|GPIO_PORTE|GPIO_PIN10)
-#define GPIO_QUADSPI_BK2_IO3_2  (GPIO_ALT|GPIO_AF9|GPIO_PORTG|GPIO_PIN14)
-#define GPIO_QUADSPI_BK2_NCS    (GPIO_ALT|GPIO_AF9|GPIO_PORTC|GPIO_PIN11)
+#define GPIO_QUADSPI_BK2_IO0_1  (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN7)
+#define GPIO_QUADSPI_BK2_IO0_2  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTH|GPIO_PIN2)
+#define GPIO_QUADSPI_BK2_IO1_1  (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN8)
+#define GPIO_QUADSPI_BK2_IO1_2  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTH|GPIO_PIN3)
+#define GPIO_QUADSPI_BK2_IO2_1  (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN9)
+#define GPIO_QUADSPI_BK2_IO2_2  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTG|GPIO_PIN9)
+#define GPIO_QUADSPI_BK2_IO3_1  (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN10)
+#define GPIO_QUADSPI_BK2_IO3_2  (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTG|GPIO_PIN14)
+#define GPIO_QUADSPI_BK2_NCS    (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTC|GPIO_PIN11)
 
-#define GPIO_QUADSPI_CLK        (GPIO_ALT|GPIO_AF9|GPIO_PORTB|GPIO_PIN2)
+#define GPIO_QUADSPI_CLK        (GPIO_ALT|GPIO_AF9|GPIO_SPEED_100MHz|GPIO_PORTB|GPIO_PIN2)
 
 /* RTC */
 
@@ -780,47 +766,47 @@
 
 /* Serial Audio Interface */
 
-#define GPIO_SAI1_FS_A        (GPIO_ALT|GPIO_AF6|GPIO_PORTE|GPIO_PIN4)
-#define GPIO_SAI1_FS_B        (GPIO_ALT|GPIO_AF6|GPIO_PORTF|GPIO_PIN9)
-#define GPIO_SAI1_MCLK_A      (GPIO_ALT|GPIO_AF6|GPIO_PORTE|GPIO_PIN2)
-#define GPIO_SAI1_MCLK_B      (GPIO_ALT|GPIO_AF6|GPIO_PORTF|GPIO_PIN7)
-#define GPIO_SAI1_SCK_A       (GPIO_ALT|GPIO_AF6|GPIO_PORTE|GPIO_PIN5)
-#define GPIO_SAI1_SCK_B       (GPIO_ALT|GPIO_AF6|GPIO_PORTF|GPIO_PIN8)
-#define GPIO_SAI1_SD_A_1      (GPIO_ALT|GPIO_AF6|GPIO_PORTB|GPIO_PIN2)
-#define GPIO_SAI1_SD_A_2      (GPIO_ALT|GPIO_AF6|GPIO_PORTC|GPIO_PIN1)
-#define GPIO_SAI1_SD_A_3      (GPIO_ALT|GPIO_AF6|GPIO_PORTD|GPIO_PIN6)
-#define GPIO_SAI1_SD_A_4      (GPIO_ALT|GPIO_AF6|GPIO_PORTE|GPIO_PIN6)
-#define GPIO_SAI1_SD_B_1      (GPIO_ALT|GPIO_AF6|GPIO_PORTE|GPIO_PIN3)
-#define GPIO_SAI1_SD_B_2      (GPIO_ALT|GPIO_AF6|GPIO_PORTF|GPIO_PIN6)
-#define GPIO_SAI2_FS_A_1      (GPIO_ALT|GPIO_AF10|GPIO_PORTD|GPIO_PIN12)
-#define GPIO_SAI2_FS_A_2      (GPIO_ALT|GPIO_AF10|GPIO_PORTI|GPIO_PIN7)
-#define GPIO_SAI2_FS_B_1      (GPIO_ALT|GPIO_AF10|GPIO_PORTE|GPIO_PIN13)
-#define GPIO_SAI2_FS_B_2      (GPIO_ALT|GPIO_AF10|GPIO_PORTG|GPIO_PIN9)
-#define GPIO_SAI2_FS_B_3      (GPIO_ALT|GPIO_AF8|GPIO_PORTA|GPIO_PIN12)
-#define GPIO_SAI2_FS_B_4      (GPIO_ALT|GPIO_AF8|GPIO_PORTC|GPIO_PIN0)
-#define GPIO_SAI2_MCLK_A_1    (GPIO_ALT|GPIO_AF10|GPIO_PORTE|GPIO_PIN0)
-#define GPIO_SAI2_MCLK_A_2    (GPIO_ALT|GPIO_AF10|GPIO_PORTI|GPIO_PIN4)
-#define GPIO_SAI2_MCLK_B_1    (GPIO_ALT|GPIO_AF10|GPIO_PORTA|GPIO_PIN1)
-#define GPIO_SAI2_MCLK_B_2    (GPIO_ALT|GPIO_AF10|GPIO_PORTE|GPIO_PIN14)
-#define GPIO_SAI2_MCLK_B_3    (GPIO_ALT|GPIO_AF10|GPIO_PORTE|GPIO_PIN6)
-#define GPIO_SAI2_MCLK_B_4    (GPIO_ALT|GPIO_AF10|GPIO_PORTH|GPIO_PIN3)
-#define GPIO_SAI2_SCK_A_1     (GPIO_ALT|GPIO_AF10|GPIO_PORTD|GPIO_PIN13)
-#define GPIO_SAI2_SCK_A_2     (GPIO_ALT|GPIO_AF10|GPIO_PORTI|GPIO_PIN5)
-#define GPIO_SAI2_SCK_B_1     (GPIO_ALT|GPIO_AF10|GPIO_PORTE|GPIO_PIN12)
-#define GPIO_SAI2_SCK_B_2     (GPIO_ALT|GPIO_AF10|GPIO_PORTH|GPIO_PIN2)
-#define GPIO_SAI2_SCK_B_3     (GPIO_ALT|GPIO_AF8|GPIO_PORTA|GPIO_PIN2)
-#define GPIO_SAI2_SD_A_1      (GPIO_ALT|GPIO_AF10|GPIO_PORTD|GPIO_PIN11)
-#define GPIO_SAI2_SD_A_2      (GPIO_ALT|GPIO_AF10|GPIO_PORTI|GPIO_PIN6)
-#define GPIO_SAI2_SD_B_1      (GPIO_ALT|GPIO_AF10|GPIO_PORTA|GPIO_PIN0)
-#define GPIO_SAI2_SD_B_2      (GPIO_ALT|GPIO_AF10|GPIO_PORTE|GPIO_PIN11)
-#define GPIO_SAI2_SD_B_3      (GPIO_ALT|GPIO_AF10|GPIO_PORTF|GPIO_PIN11)
-#define GPIO_SAI2_SD_B_4      (GPIO_ALT|GPIO_AF10|GPIO_PORTG|GPIO_PIN10)
+#define GPIO_SAI1_FS_A        (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN4)
+#define GPIO_SAI1_FS_B        (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTF|GPIO_PIN9)
+#define GPIO_SAI1_MCLK_A      (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN2)
+#define GPIO_SAI1_MCLK_B      (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTF|GPIO_PIN7)
+#define GPIO_SAI1_SCK_A       (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN5)
+#define GPIO_SAI1_SCK_B       (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTF|GPIO_PIN8)
+#define GPIO_SAI1_SD_A_1      (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTB|GPIO_PIN2)
+#define GPIO_SAI1_SD_A_2      (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTC|GPIO_PIN1)
+#define GPIO_SAI1_SD_A_3      (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTD|GPIO_PIN6)
+#define GPIO_SAI1_SD_A_4      (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN6)
+#define GPIO_SAI1_SD_B_1      (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN3)
+#define GPIO_SAI1_SD_B_2      (GPIO_ALT|GPIO_AF6|GPIO_SPEED_100MHz|GPIO_PORTF|GPIO_PIN6)
+#define GPIO_SAI2_FS_A_1      (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTD|GPIO_PIN12)
+#define GPIO_SAI2_FS_A_2      (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTI|GPIO_PIN7)
+#define GPIO_SAI2_FS_B_1      (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN13)
+#define GPIO_SAI2_FS_B_2      (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTG|GPIO_PIN9)
+#define GPIO_SAI2_FS_B_3      (GPIO_ALT|GPIO_AF8|GPIO_SPEED_100MHz|GPIO_PORTA|GPIO_PIN12)
+#define GPIO_SAI2_FS_B_4      (GPIO_ALT|GPIO_AF8|GPIO_SPEED_100MHz|GPIO_PORTC|GPIO_PIN0)
+#define GPIO_SAI2_MCLK_A_1    (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN0)
+#define GPIO_SAI2_MCLK_A_2    (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTI|GPIO_PIN4)
+#define GPIO_SAI2_MCLK_B_1    (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTA|GPIO_PIN1)
+#define GPIO_SAI2_MCLK_B_2    (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN14)
+#define GPIO_SAI2_MCLK_B_3    (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN6)
+#define GPIO_SAI2_MCLK_B_4    (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTH|GPIO_PIN3)
+#define GPIO_SAI2_SCK_A_1     (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTD|GPIO_PIN13)
+#define GPIO_SAI2_SCK_A_2     (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTI|GPIO_PIN5)
+#define GPIO_SAI2_SCK_B_1     (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN12)
+#define GPIO_SAI2_SCK_B_2     (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTH|GPIO_PIN2)
+#define GPIO_SAI2_SCK_B_3     (GPIO_ALT|GPIO_AF8|GPIO_SPEED_100MHz|GPIO_PORTA|GPIO_PIN2)
+#define GPIO_SAI2_SD_A_1      (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTD|GPIO_PIN11)
+#define GPIO_SAI2_SD_A_2      (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTI|GPIO_PIN6)
+#define GPIO_SAI2_SD_B_1      (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTA|GPIO_PIN0)
+#define GPIO_SAI2_SD_B_2      (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN11)
+#define GPIO_SAI2_SD_B_3      (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTF|GPIO_PIN11)
+#define GPIO_SAI2_SD_B_4      (GPIO_ALT|GPIO_AF10|GPIO_SPEED_100MHz|GPIO_PORTG|GPIO_PIN10)
 
 /* SD/MMC
  *
  * Note that the below configures GPIO_SPEED_50MHz I/O, that means for using
- * the SDIO that you must enable I/O Compensation via the configuration option
- * CONFIG_STM32F7_SYSCFG_IOCOMPENSATION=y.
+ * the SDIO that you must enable I/O Compensation via the configuration
+ * option CONFIG_STM32F7_SYSCFG_IOCOMPENSATION=y.
  */
 
 #define GPIO_SDMMC1_CK        (GPIO_ALT|GPIO_AF12|GPIO_SPEED_50MHz|GPIO_PORTC|GPIO_PIN12)

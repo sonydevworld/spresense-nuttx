@@ -34,10 +34,10 @@
  ****************************************************************************/
 
 #ifndef __ARCH_MISOC_SRC_MINERVA_CHIP_H
-#define __ARCH_MISOC_SRC_MINERVA_CHIP_H 1
+#define __ARCH_MISOC_SRC_MINERVA_CHIP_H
 
 /****************************************************************************
- * Inline Functions
+ * Included Files
  ****************************************************************************/
 
 #include "minerva.h"
@@ -135,4 +135,4 @@ static inline unsigned int irq_pending(void)
  * Public Function Prototypes
  ****************************************************************************/
 
-#endif  /* __ARCH_MISOC_SRC_MINERVA_CHIP_H */
+#endif /* __ARCH_MISOC_SRC_MINERVA_CHIP_H */

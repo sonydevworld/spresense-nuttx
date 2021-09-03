@@ -1,56 +1,40 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/c5471/c5471_vectors.S
  *
- *   Copyright (C) 2007-2009, 2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 #include <nuttx/irq.h>
 
 #include "arm.h"
 #include "chip.h"
-#include "up_arch.h"
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Public Data
- ************************************************************************************/
+ ****************************************************************************/
 
 	.data
 g_irqtmp:
@@ -63,48 +47,48 @@ g_aborttmp:
 	.word	0		/* Saved lr */
 	.word	0		/* Saved spsr */
 
-/************************************************************************************
+/****************************************************************************
  * Assembly Macros
- ************************************************************************************/
+ ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Private Functions
- ************************************************************************************/
+ ****************************************************************************/
 
 	.text
 
-/************************************************************************************
+/****************************************************************************
  * Public Functions
- ************************************************************************************/
+ ****************************************************************************/
 
 	.text
 
-/************************************************************************************
- * Name: up_vectorirq
+/****************************************************************************
+ * Name: arm_vectorirq
  *
  * Description:
  *   Interrupt exception. Entered in IRQ mode with spsr = SVC
  *   CPSR, lr = SVC PC
- ************************************************************************************/
+ ****************************************************************************/
 
-	.globl	up_vectorirq
-	.type	up_vectorirq, %function
-up_vectorirq:
+	.globl	arm_vectorirq
+	.type	arm_vectorirq, %function
+arm_vectorirq:
 	/* On entry, we are in IRQ mode.  We are free to use
 	 * the IRQ mode r13 and r14.
-         *
+	 *
 	 */
 
 	ldr	r13, .Lirqtmp
 	sub	lr, lr, #4
-	str	lr, [r13]			@ save lr_IRQ
+	str	lr, [r13]		/* Save lr_IRQ */
 	mrs	lr, spsr
-	str	lr, [r13, #4]			@ save spsr_IRQ
+	str	lr, [r13, #4]		/* Save spsr_IRQ */
 
 	/* Then switch back to SVC mode */
 
-	bic	lr, lr, #MODE_MASK	/* Keep F and T bits */
-	orr	lr, lr, #(SVC_MODE | PSR_I_BIT)
+	bic	lr, lr, #PSR_MODE_MASK	/* Keep F and T bits */
+	orr	lr, lr, #(PSR_MODE_SVC | PSR_I_BIT)
 	msr	cpsr_c, lr		/* Switch to SVC mode */
 
 	/* Create a context structure.  First set aside a stack frame
@@ -141,15 +125,15 @@ up_vectorirq:
 	 */
 #else
 	ldr	r6, =SRC_IRQ_REG
-	ldr     r6, [r6]		/* Get source IRQ reg */
-	mov     r0, #0			/* Assume IRQ0_IRQ set */
+	ldr	r6, [r6]		/* Get source IRQ reg */
+	mov	r0, #0			/* Assume IRQ0_IRQ set */
 .Lmorebits:
-	tst     r6, #1			/* Is IRQ set? */
-	bne     .Lhaveirq		/* Yes... we have the IRQ */
-	add     r0, r0, #1		/* Setup next IRQ */
-	mov     r6, r6, lsr #1		/* Shift right one */
-	cmp     r0, #16			/* Only 16 valid bits */
-	bcc     .Lmorebits		/* Keep until we have looked
+	tst	r6, #1			/* Is IRQ set? */
+	bne	.Lhaveirq		/* Yes... we have the IRQ */
+	add	r0, r0, #1		/* Setup next IRQ */
+	mov	r6, r6, lsr #1		/* Shift right one */
+	cmp	r0, #16			/* Only 16 valid bits */
+	bcc	.Lmorebits		/* Keep until we have looked
 					 * at all bits */
 	b	.Lnoirqset		/* If we get here, there is
 					 * no pending interrupt */
@@ -162,11 +146,11 @@ up_vectorirq:
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
 	ldr	sp, .Lirqstackbase	/* SP = interrupt stack base */
-	str	r1, [sp]		/* Save the user stack pointer */
-	bl	up_doirq		/* Call the handler */
+	str	r1, [sp, #-4]!		/* Save the xcp address at SP-4 then update SP */
+	bl	arm_doirq		/* Call the handler */
 	ldr	sp, [sp]		/* Restore the user stack pointer */
 #else
-	bl	up_doirq		/* Call the handler */
+	bl	arm_doirq		/* Call the handler */
 #endif
 
 	/* Restore the CPSR, SVC modr registers and return */
@@ -183,16 +167,16 @@ up_vectorirq:
 #endif
 	.align	5
 
-/************************************************************************************
- * Function: up_vectorswi
+/****************************************************************************
+ * Function: arm_vectorsvc
  *
  * Description:
  *   SWI interrupt. We enter the SWI in SVC mode
- ************************************************************************************/
+ ****************************************************************************/
 
-	.globl	up_vectorswi
-	.type	up_vectorswi, %function
-up_vectorswi:
+	.globl	arm_vectorsvc
+	.type	arm_vectorsvc, %function
+arm_vectorsvc:
 
 	/* The c547x rrload bootloader intemediates all
 	 * interrupts.  For the* case of the SWI, it mucked
@@ -221,12 +205,12 @@ up_vectorswi:
 	stmia	r0, {r1-r4}
 
 	/* Then call the SWI handler with interrupt disabled.
-	 * void up_syscall(struct xcptcontext *xcp)
+	 * void arm_syscall(struct xcptcontext *xcp)
 	 */
 
 	mov	fp, #0			/* Init frame pointer */
 	mov	r0, sp			/* Get r0=xcp */
-	bl	up_syscall		/* Call the handler */
+	bl	arm_syscall		/* Call the handler */
 
 	/* Restore the CPSR, SVC modr registers and return */
 
@@ -236,19 +220,19 @@ up_vectorswi:
 
 	.align	5
 
-/************************************************************************************
- * Name: up_vectordata
+/****************************************************************************
+ * Name: arm_vectordata
  *
  * Description:
  *   Data abort Exception dispatcher. Give control to data
  *   abort handler.  This function is entered in ABORT mode
  *   with spsr = SVC CPSR, lr = SVC PC
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-	.globl	up_vectordata
-	.type	up_vectordata, %function
-up_vectordata:
+	.globl	arm_vectordata
+	.type	arm_vectordata, %function
+arm_vectordata:
 	/* On entry we are free to use the ABORT mode registers
 	 * r13 and r14
 	 */
@@ -261,8 +245,8 @@ up_vectordata:
 
 	/* Then switch back to SVC mode */
 
-	bic	lr, lr, #MODE_MASK	/* Keep F and T bits */
-	orr	lr, lr, #(SVC_MODE | PSR_I_BIT)
+	bic	lr, lr, #PSR_MODE_MASK	/* Keep F and T bits */
+	orr	lr, lr, #(PSR_MODE_SVC | PSR_I_BIT)
 	msr	cpsr_c, lr		/* Switch to SVC mode */
 
 	/* Create a context structure.  First set aside a stack frame
@@ -286,17 +270,17 @@ up_vectordata:
 	stmia	r0, {r1-r4}
 
 	/* Then call the data abort handler with interrupt disabled.
-	 * void up_dataabort(struct xcptcontext *xcp)
+	 * void arm_dataabort(struct xcptcontext *xcp)
 	 */
 
 	mov	fp, #0			/* Init frame pointer */
 	mov	r0, sp			/* Get r0=xcp */
-	bl	up_dataabort		/* Call the handler */
+	bl	arm_dataabort		/* Call the handler */
 
 	/* Restore the CPSR, SVC modr registers and return */
 
 	ldr	r0, [sp, #(4*REG_CPSR)]	/* Setup the SVC mode SPSR */
-	msr	spsr_cxsf, r0
+	msr	spsr, r0
 	ldmia	sp, {r0-r15}^		/* Return */
 
 .Ldaborttmp:
@@ -304,17 +288,17 @@ up_vectordata:
 
 	.align	5
 
-/************************************************************************************
- * Name: up_vectorprefetch
+/****************************************************************************
+ * Name: arm_vectorprefetch
  *
  * Description:
  *    Prefetch abort exception.  Entered in ABT mode with
  *    spsr = SVC CPSR, lr = SVC PC
- ************************************************************************************/
+ ****************************************************************************/
 
-	.globl	up_vectorprefetch
-	.type	up_vectorprefetch, %function
-up_vectorprefetch:
+	.globl	arm_vectorprefetch
+	.type	arm_vectorprefetch, %function
+arm_vectorprefetch:
 	/* On entry we are free to use the ABORT mode registers
 	 * r13 and r14
 	 */
@@ -327,8 +311,8 @@ up_vectorprefetch:
 
 	/* Then switch back to SVC mode */
 
-	bic	lr, lr, #MODE_MASK	/* Keep F and T bits */
-	orr	lr, lr, #(SVC_MODE | PSR_I_BIT)
+	bic	lr, lr, #PSR_MODE_MASK	/* Keep F and T bits */
+	orr	lr, lr, #(PSR_MODE_SVC | PSR_I_BIT)
 	msr	cpsr_c, lr		/* Switch to SVC mode */
 
 	/* Create a context structure.  First set aside a stack frame
@@ -352,17 +336,17 @@ up_vectorprefetch:
 	stmia	r0, {r1-r4}
 
 	/* Then call the prefetch abort handler with interrupt disabled.
-	 * void up_prefetchabort(struct xcptcontext *xcp)
+	 * void arm_prefetchabort(struct xcptcontext *xcp)
 	 */
 
 	mov	fp, #0			/* Init frame pointer */
 	mov	r0, sp			/* Get r0=xcp */
-	bl	up_prefetchabort	/* Call the handler */
+	bl	arm_prefetchabort	/* Call the handler */
 
 	/* Restore the CPSR, SVC modr registers and return */
 
 	ldr	r0, [sp, #(4*REG_CPSR)]	/* Setup the SVC mode SPSR */
-	msr	spsr_cxsf, r0
+	msr	spsr, r0
 	ldmia	sp, {r0-r15}^		/* Return */
 
 .Lpaborttmp:
@@ -370,18 +354,18 @@ up_vectorprefetch:
 
 	.align	5
 
-/************************************************************************************
- * Name: up_vectorundefinsn
+/****************************************************************************
+ * Name: arm_vectorundefinsn
  *
  * Description:
  *   Undefined instruction entry exception.  Entered in
  *   UND mode, spsr = SVC  CPSR, lr = SVC PC
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-	.globl	up_vectorundefinsn
-	.type	up_vectorundefinsn, %function
-up_vectorundefinsn:
+	.globl	arm_vectorundefinsn
+	.type	arm_vectorundefinsn, %function
+arm_vectorundefinsn:
 	/* On entry we are free to use the UND mode registers
 	 * r13 and r14
 	 */
@@ -393,8 +377,8 @@ up_vectorundefinsn:
 
 	/* Then switch back to SVC mode */
 
-	bic	lr, lr, #MODE_MASK	/* Keep F and T bits */
-	orr	lr, lr, #(SVC_MODE | PSR_I_BIT)
+	bic	lr, lr, #PSR_MODE_MASK	/* Keep F and T bits */
+	orr	lr, lr, #(PSR_MODE_SVC | PSR_I_BIT)
 	msr	cpsr_c, lr		/* Switch to SVC mode */
 
 	/* Create a context structure.  First set aside a stack frame
@@ -418,17 +402,17 @@ up_vectorundefinsn:
 	stmia	r0, {r1-r4}
 
 	/* Then call the undef insn handler with interrupt disabled.
-	 * void up_undefinedinsn(struct xcptcontext *xcp)
+	 * void arm_undefinedinsn(struct xcptcontext *xcp)
 	 */
 
 	mov	fp, #0			/* Init frame pointer */
 	mov	r0, sp			/* Get r0=xcp */
-	bl	up_undefinedinsn	/* Call the handler */
+	bl	arm_undefinedinsn	/* Call the handler */
 
 	/* Restore the CPSR, SVC modr registers and return */
 
 	ldr	r0, [sp, #(4*REG_CPSR)]	/* Setup the SVC mode SPSR */
-	msr	spsr_cxsf, r0
+	msr	spsr, r0
 	ldmia	sp, {r0-r15}^		/* Return */
 
 .Lundeftmp:
@@ -436,48 +420,48 @@ up_vectorundefinsn:
 
 	.align	5
 
-/************************************************************************************
- * Name: up_vectorfiq
+/****************************************************************************
+ * Name: arm_vectorfiq
  *
  * Description:
  *   Shouldn't happen
- ************************************************************************************/
+ ****************************************************************************/
 
-	.globl	up_vectorfiq
-	.type	up_vectorfiq, %function
-up_vectorfiq:
+	.globl	arm_vectorfiq
+	.type	arm_vectorfiq, %function
+arm_vectorfiq:
 	subs	pc, lr, #4
 
-/************************************************************************************
+/****************************************************************************
  *  Name: up_vectoraddrexcption
  *
  * Description:
  *   Shouldn't happen
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-	.globl	up_vectoraddrexcptn
-	.type	up_vectoraddrexcptn, %function
-up_vectoraddrexcptn:
-	b	up_vectoraddrexcptn
+	.globl	arm_vectoraddrexcptn
+	.type	arm_vectoraddrexcptn, %function
+arm_vectoraddrexcptn:
+	b	arm_vectoraddrexcptn
 
-/************************************************************************************
+/****************************************************************************
  *  Name: g_intstackalloc/g_intstackbase
  *
  * Description:
  *   Shouldn't happen
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
 	.bss
-	.align	4
+	.balign	4
 	.global	g_intstackalloc
 	.global	g_intstackbase
 	.type	g_intstackalloc, object
 	.type	g_intstackbase, object
 g_intstackalloc:
-	.skip	((CONFIG_ARCH_INTERRUPTSTACK & ~3) - 4)
+	.skip	(CONFIG_ARCH_INTERRUPTSTACK & ~3)
 g_intstackbase:
 	.skip	4
 	.size	g_intstackbase, 4

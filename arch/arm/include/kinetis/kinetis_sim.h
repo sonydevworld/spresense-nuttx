@@ -1,65 +1,51 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/include/kinetis/kinetis_sim.h
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
- *            David Sidrane <david_s5@nscdg.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_INCLUDE_KINETIS_KINETIS_SIM_H
 #define __ARCH_ARM_INCLUDE_KINETIS_KINETIS_SIM_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
-/************************************************************************************
- * Pre-processor Definitions
- ************************************************************************************/
+/****************************************************************************
+ * Pre-processor Prototypes
+ ****************************************************************************/
 
-/* Note: It is envisioned that in the long term as a chip is added. The author of
- * the new chip definitions will either find the exact configuration in an existing
- * chip define and add the new chip to it Or add the SIM feature configuration
- * #defines to the chip ifdef list below. In either case the author should mark
- * it as "Verified to Document Number:" taken from the reference manual.
+/* Note:
+ * It is envisioned that in the long term as a chip is added. The author of
+ * the new chip definitions will either find the exact configuration in an
+ * existing chip define and add the new chip to it Or add the SIM feature
+ * configuration #defines to the chip ifdef list below. In either case the
+ * author should mark it as "Verified to Document Number:" taken from the
+ * reference manual.
  *
  * To maintain backward compatibility to the version of NuttX prior to
- * 2/16/2017, the catch all KINETIS_SIM_VERSION_UKN configuration is assigned
- * to all the chips that did not have any conditional compilation based on
- * KINETIS_K64 or KINETIS_K66. This is  a "No worse" than the original code solution.
- * N.B. Each original chip "if"definitions have been left intact so that the
- * complete legacy definitions prior to 2/16/2017 may be filled in completely when
- * vetted.
+ * 2/16/2017, the catch all KINETIS_SIM_VERSION_UKN configuration is
+ * assigned to all the chips that did not have any conditional compilation
+ * based on KINETIS_K64 or KINETIS_K66. This is  a "No worse" than the
+ * original code solution. N.B. Each original chip "if"definitions have been
+ * left intact so that the complete legacy definitions prior to 2/16/2017 may
+ * be filled in completely when vetted.
  */
 
 /* SIM Register Configuration
@@ -111,7 +97,8 @@
  * KINETIS_SIM_HAS_SOPT4_FTM0FLT3          -  SoC has SOPT4[FTM0FLT3]
  * KINETIS_SIM_HAS_SOPT4_FTM0TRG0SRC       -  SoC has SOPT4[FTM0TRG0SRC]
  * KINETIS_SIM_HAS_SOPT4_FTM0TRG1SRC       -  SoC has SOPT4[FTM0TRG1SRC]
- * KINETIS_SIM_HAS_SOPT4_FTM1CH0SRC        -  SoC has SOPT4[FTM1CH0SRC] 1, 3 if SOF
+ * KINETIS_SIM_HAS_SOPT4_FTM1CH0SRC        -  SoC has SOPT4[FTM1CH0SRC]
+ *                                                 1, 3 if SOF
  * KINETIS_SIM_HAS_SOPT4_FTM1FLT0          -  SoC has SOPT4[FTM1FLT0]
  * KINETIS_SIM_HAS_SOPT4_FTM1FLT1          -  SoC has SOPT4[FTM1FLT1]
  * KINETIS_SIM_HAS_SOPT4_FTM1FLT2          -  SoC has SOPT4[FTM1FLT2]
@@ -159,10 +146,14 @@
  * KINETIS_SIM_HAS_SOPT7_ADC1TRGSEL        -  SoC has n SOPT7[ADC1TRGSEL]
  * KINETIS_SIM_HAS_SOPT7_ADC2TRGSEL        -  SoC has n SOPT7[ADC2TRGSEL]
  * KINETIS_SIM_HAS_SOPT7_ADC3TRGSEL        -  SoC has n SOPT7[ADC3TRGSEL]
- * KINETIS_SIM_SOPT7_ADC0ALTTRGEN          -  SoC has ADC0 alternate trigger enable
- * KINETIS_SIM_SOPT7_ADC1ALTTRGEN          -  SoC has ADC1 alternate trigger enable
- * KINETIS_SIM_SOPT7_ADC2ALTTRGEN          -  SoC has ADC2 alternate trigger enable
- * KINETIS_SIM_SOPT7_ADC3ALTTRGEN          -  SoC has ADC3 alternate trigger enable
+ * KINETIS_SIM_SOPT7_ADC0ALTTRGEN          -  SoC has ADC0
+ *                                            alternate trigger enable
+ * KINETIS_SIM_SOPT7_ADC1ALTTRGEN          -  SoC has ADC1
+ *                                            alternate trigger enable
+ * KINETIS_SIM_SOPT7_ADC2ALTTRGEN          -  SoC has ADC2
+ *                                            alternate trigger enable
+ * KINETIS_SIM_SOPT7_ADC3ALTTRGEN          -  SoC has ADC3
+ *                                            alternate trigger enable
  * KINETIS_SIM_HAS_SOPT8                   -  SoC has SOPT8 Register
  * KINETIS_SIM_HAS_SOPT8_FTM0SYNCBIT       -  SoC has SOPT8[FTM0SYNCBIT]
  * KINETIS_SIM_HAS_SOPT8_FTM1SYNCBIT       -  SoC has SOPT8[FTM1SYNCBIT]
@@ -276,8 +267,10 @@
  * KINETIS_SIM_HAS_FCFG1_FTFDIS            -  SoC has FCFG1[FTFDIS]
  * KINETIS_SIM_HAS_FCFG1_NVMSIZE           -  SoC has FCFG1[NVMSIZE]
  * KINETIS_SIM_HAS_FCFG2                   -  SoC has FCFG2 Register
- * KINETIS_SIM_HAS_FCFG2_MAXADDR0          -  SoC has n bit of FCFG2[MAXADDR0]
- * KINETIS_SIM_HAS_FCFG2_MAXADDR1          -  SoC has n bit of FCFG2[MAXADDR1]
+ * KINETIS_SIM_HAS_FCFG2_MAXADDR0          -  SoC has n bit of
+ *                                            FCFG2[MAXADDR0]
+ * KINETIS_SIM_HAS_FCFG2_MAXADDR1          -  SoC has n bit of
+ *                                            FCFG2[MAXADDR1]
  * KINETIS_SIM_HAS_FCFG2_PFLSH             -  SoC has FCFG2[PFLSH]
  * KINETIS_SIM_HAS_FCFG2_SWAPPFLSH         -  SoC has FCFG2[SWAPPFLSH]
  * KINETIS_SIM_HAS_UIDH                    -  SoC has UIDH Register
@@ -530,8 +523,8 @@
 
 #  define KINETIS_SIM_HAS_SCGC3                       1   /* SoC has SCGC3 Register */
 #  define KINETIS_SIM_HAS_SCGC3_RNGA                  1   /* SoC has SCGC3[TRNG/RNGA] */
-#  undef  KINETIS_SIM_HAS_SCGC3_USBHS                     /* SoC does not have SCGC3[USBHS] */
-#  undef  KINETIS_SIM_HAS_SCGC3_USBHSPHY                  /* SoC does not have SCGC3[USBHSPHY] */
+#  define KINETIS_SIM_HAS_SCGC3_USBHS                 1   /* SoC has SCGC3[USBHS] */
+#  define KINETIS_SIM_HAS_SCGC3_USBHSPHY              1   /* SoC has SCGC3[USBHSPHY] */
 #  undef  KINETIS_SIM_HAS_SCGC3_USBHSDCD                  /* SoC does not have SCGC3[USBHSDCD] */
 #  undef  KINETIS_SIM_HAS_SCGC3_FLEXCAN1                  /* SoC does not have SCGC3[FLEXCAN1] */
 #  undef  KINETIS_SIM_HAS_SCGC3_NFC                       /* SoC does not have SCGC3[NFC] */
@@ -845,7 +838,7 @@
 #  define KINETIS_SIM_HAS_SCGC1_UART4                 1   /* SoC has SCGC1[UART4] */
 #  undef  KINETIS_SIM_HAS_SCGC1_I2C3                      /* SoC has SCGC1[I2C3] */
 #  undef  KINETIS_SIM_HAS_SCGC1_I2C2                      /* SoC has SCGC1[I2C2] */
-#  define KINETIS_SIM_HAS_SCGC1_OSC1                  1    /* SoC has SCGC1[OSC1] */
+#  define KINETIS_SIM_HAS_SCGC1_OSC1                  1   /* SoC has SCGC1[OSC1] */
 #  define KINETIS_SIM_HAS_SCGC2                       1   /* SoC has SCGC2 Register */
 #  define KINETIS_SIM_HAS_SCGC2_ENET                  1   /* SoC has SCGC2[ENET] */
 #  undef  KINETIS_SIM_HAS_SCGC2_LPUART0                   /* SoC has SCGC2[LPUART0] */
@@ -1193,10 +1186,12 @@
  *  MK66FX1M0VLQ18  180 MHz 144 LQFP    1.25 MB  1 MB   4 KB  256 KB 100
  */
 
-#elif defined(CONFIG_ARCH_CHIP_MK66FN2M0VMD18) || defined(CONFIG_ARCH_CHIP_MK66FX1M0VMD18) || \
-      defined(CONFIG_ARCH_CHIP_MK66FN2M0VLQ18) || defined(CONFIG_ARCH_CHIP_MK66FX1M0VLQ18)
+#elif defined(CONFIG_ARCH_CHIP_MK66FN2M0VMD18) || \
+      defined(CONFIG_ARCH_CHIP_MK66FX1M0VMD18) || \
+      defined(CONFIG_ARCH_CHIP_MK66FN2M0VLQ18) || \
+      defined(CONFIG_ARCH_CHIP_MK66FX1M0VLQ18)
 
-/* Verified to Document Number: Document Number: K66P144M180SF5RMV2 Rev. 2, May 2015 */
+/* Verified to Document Number: K66P144M180SF5RMV2 Rev. 2, May 2015 */
 
 #  define KINETIS_SIM_VERSION KINETIS_SIM_VERSION_06
 
@@ -1461,7 +1456,9 @@
 #  error "Unsupported Kinetis chip"
 #endif
 
-/* Use the catch all configuration for the SIM based on the implementations in nuttx prior 2/16/2017 */
+/* Use the catch all configuration for the SIM based on the
+ * implementations in nuttx prior 2/16/2017
+ */
 
 #if KINETIS_SIM_VERSION == KINETIS_SIM_VERSION_UKN
 

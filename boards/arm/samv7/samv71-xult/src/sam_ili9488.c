@@ -140,7 +140,7 @@
 #include <nuttx/irq.h>
 #include <arch/board/board.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "sam_gpio.h"
 #include "sam_periphclks.h"
 #include "sam_xdmac.h"
@@ -204,7 +204,7 @@
 #  define CONFIG_SAMV71XULT_LCD_BGCOLOR 0
 #endif
 
-/* Display/Color Properties **************************************************/
+/* Display/Color Properties *************************************************/
 
 /* Display Resolution */
 
@@ -228,7 +228,7 @@
 #define RGB_BLUE(rgb)         RGB16BLUE(rgb)
 #define RGB_COLOR(r,g,b)      RGBTO16(r,g,b)
 
-/* SAMV7-XULT LCD Hardware Definitions ***************************************/
+/* SAMV7-XULT LCD Hardware Definitions **************************************/
 
 /* LCD /CS is NCS3 */
 
@@ -286,7 +286,7 @@
 #  define LCD_RUNBUFFER_PIXELS SAM_XRES
 #endif
 
-/* Debug *********************************************************************/
+/* Debug ********************************************************************/
 
 #ifdef CONFIG_DEBUG_DMA
 #  define SAMPLENDX_BEFORE_SETUP  0
@@ -329,7 +329,7 @@ struct sam_dev_s
   /* Allocated DMA channel */
 
   DMA_HANDLE dmach;
-  WDOG_ID dmadog;         /* For DMA timeout detection */
+  struct wdog_s dmadog;   /* For DMA timeout detection */
   volatile int result;    /* Result of the DMA transfer */
   sem_t waitsem;          /* Used to way for DMA completion */
   volatile bool dmabusy;  /* True: DMA is in progress */
@@ -382,7 +382,7 @@ static void sam_lcd_dump(struct sam_dev_s *priv);
 #endif
 
 static void sam_lcd_endwait(struct sam_dev_s *priv, int result);
-static void sam_lcd_dmatimeout(int argc, uint32_t arg);
+static void sam_lcd_dmatimeout(wdparm_t arg);
 static int  sam_lcd_dmawait(FAR struct sam_dev_s *priv, uint32_t timeout);
 static void sam_lcd_dmacallback(DMA_HANDLE handle, void *arg, int result);
 static int  sam_lcd_txtransfer(FAR struct sam_dev_s *priv,
@@ -422,7 +422,8 @@ static int  sam_getplaneinfo(FAR struct lcd_dev_s *dev, unsigned int planeno,
 static int  sam_getpower(FAR struct lcd_dev_s *dev);
 static int  sam_setpower(FAR struct lcd_dev_s *dev, int power);
 static int  sam_getcontrast(FAR struct lcd_dev_s *dev);
-static int  sam_setcontrast(FAR struct lcd_dev_s *dev, unsigned int contrast);
+static int  sam_setcontrast(FAR struct lcd_dev_s *dev,
+              unsigned int contrast);
 
 /* Initialization */
 
@@ -458,26 +459,27 @@ static const uint32_t g_lcdpin[] =
  * if there are multiple LCD devices, they must each have unique run buffers.
  */
 
-static uint16_t g_runbuffer[LCD_RUNBUFFER_BYTES] __attribute__((aligned(LCD_ALIGN)));
+static uint16_t g_runbuffer[LCD_RUNBUFFER_BYTES]
+  __attribute__((aligned(LCD_ALIGN)));
 
 /* This structure describes the overall LCD video controller */
 
 static const struct fb_videoinfo_s g_videoinfo =
 {
-  .fmt     = SAM_COLORFMT,         /* Color format: RGB16-565: RRRR RGGG GGGB BBBB */
-  .xres    = SAM_XRES,             /* Horizontal resolution in pixel columns */
-  .yres    = SAM_YRES,             /* Vertical resolution in pixel rows */
-  .nplanes = 1,                    /* Number of color planes supported */
+  .fmt     = SAM_COLORFMT,              /* Color format: RGB16-565: RRRR RGGG GGGB BBBB */
+  .xres    = SAM_XRES,                  /* Horizontal resolution in pixel columns */
+  .yres    = SAM_YRES,                  /* Vertical resolution in pixel rows */
+  .nplanes = 1,                         /* Number of color planes supported */
 };
 
 /* This is the standard, NuttX Plane information object */
 
 static const struct lcd_planeinfo_s g_planeinfo =
 {
-  .putrun = sam_putrun,            /* Put a run into LCD memory */
-  .getrun = sam_getrun,            /* Get a run from LCD memory */
-  .buffer = (uint8_t*)g_runbuffer, /* Run scratch buffer */
-  .bpp    = SAM_BPP,               /* Bits-per-pixel */
+  .putrun = sam_putrun,                 /* Put a run into LCD memory */
+  .getrun = sam_getrun,                 /* Get a run from LCD memory */
+  .buffer = (FAR uint8_t *)g_runbuffer, /* Run scratch buffer */
+  .bpp    = SAM_BPP,                    /* Bits-per-pixel */
 };
 
 /* This is the ILI9488 LCD driver object */
@@ -601,7 +603,9 @@ static int sam_lcd_get(FAR struct sam_dev_s *priv, uint8_t cmd,
 
   ret = sam_sendcmd(priv, cmd);
 
-  /* If the command was sent successfully, then receive any accompanying data */
+  /* If the command was sent successfully, then receive any accompanying
+   * data
+   */
 
   if (ret == OK && buflen > 0)
     {
@@ -659,7 +663,11 @@ static int sam_setwindow(FAR struct sam_dev_s *priv, sam_color_t row,
   uint16_t buffer[4];
   int ret;
 
-  lcdinfo("row=%d col=%d width=%d height=%d\n", row, col, width, height);
+  lcdinfo("row=%jd col=%jd width=%jd height=%jd\n",
+          (intmax_t)row,
+          (intmax_t)col,
+          (intmax_t)width,
+          (intmax_t)height);
 
   /* Set Column Address Position */
 
@@ -751,7 +759,8 @@ static void sam_disable_backlight(void)
  * Name:  sam_set_backlight
  *
  * Description:
- *   The the backlight to the level associated with the specified power value.
+ *   The the backlight to the level associated with the specified power
+ *   value.
  *
  ****************************************************************************/
 
@@ -909,7 +918,7 @@ static void sam_lcd_endwait(struct sam_dev_s *priv, int result)
 {
   /* Save the result and cancel the watchdog timeout */
 
-  wd_cancel(priv->dmadog);
+  wd_cancel(&priv->dmadog);
   priv->result = result;
 
   /* Wake up the waiting thread */
@@ -921,12 +930,11 @@ static void sam_lcd_endwait(struct sam_dev_s *priv, int result)
  * Name: sam_lcd_dmatimeout
  *
  * Description:
- *   The watchdog timeout setup when the DMA was startd.  Indicates a DMA
+ *   The watchdog timeout setup when the DMA was started.  Indicates a DMA
  *   timeout failure.
  *
  * Input Parameters:
- *   argc   - The number of arguments (should be 1)
- *   arg    - The argument (state structure reference cast to uint32_t)
+ *   arg    - The argument
  *
  * Returned Value:
  *   None
@@ -936,12 +944,12 @@ static void sam_lcd_endwait(struct sam_dev_s *priv, int result)
  *
  ****************************************************************************/
 
-static void sam_lcd_dmatimeout(int argc, uint32_t arg)
+static void sam_lcd_dmatimeout(wdparm_t arg)
 {
   struct sam_dev_s *priv = (struct sam_dev_s *)arg;
 
-  DEBUGASSERT(argc == 1 && priv != NULL);
-  sam_lcd_sample((struct sam_dev_s *)arg, SAMPLENDX_TIMEOUT);
+  DEBUGASSERT(priv != NULL);
+  sam_lcd_sample(priv, SAMPLENDX_TIMEOUT);
 
   /* Make sure that any hung DMA is stopped.  dmabusy == false is the cue
    * so the DMA callback is ignored.
@@ -978,11 +986,11 @@ static int sam_lcd_dmawait(FAR struct sam_dev_s *priv, uint32_t timeout)
 
   /* Started ... setup the timeout */
 
-  ret = wd_start(priv->dmadog, timeout, (wdentry_t)sam_lcd_dmatimeout,
-                 1, (uint32_t)priv);
+  ret = wd_start(&priv->dmadog, timeout,
+                 sam_lcd_dmatimeout, (wdparm_t)priv);
   if (ret < 0)
     {
-      lcderr("ERROR: wd_start failed: %d\n", errno);
+      lcderr("ERROR: wd_start failed: %d\n", ret);
     }
 
   /* Loop until the event (or the timeout occurs). */
@@ -994,7 +1002,11 @@ static int sam_lcd_dmawait(FAR struct sam_dev_s *priv, uint32_t timeout)
        * incremented and there will be no wait.
        */
 
-      nxsem_wait_uninterruptible(&priv->waitsem);
+      ret = nxsem_wait_uninterruptible(&priv->waitsem);
+      if (ret < 0)
+        {
+          return ret;
+        }
     }
 
   /* Dump the collect DMA sample data */
@@ -1041,7 +1053,8 @@ static void sam_lcd_dmacallback(DMA_HANDLE handle, void *arg, int result)
  ****************************************************************************/
 
 static int sam_lcd_txtransfer(FAR struct sam_dev_s *priv,
-                              FAR const uint16_t *buffer, unsigned int buflen)
+                              FAR const uint16_t *buffer,
+                              unsigned int buflen)
 {
   irqstate_t flags;
   int ret;
@@ -1083,7 +1096,8 @@ static int sam_lcd_txtransfer(FAR struct sam_dev_s *priv,
  ****************************************************************************/
 
 static int sam_lcd_rxtransfer(FAR struct sam_dev_s *priv,
-                              FAR const uint16_t *buffer, unsigned int buflen)
+                              FAR const uint16_t *buffer,
+                              unsigned int buflen)
 {
   irqstate_t flags;
   int ret;
@@ -1415,7 +1429,11 @@ static inline void sam_smc_initialize(void)
 static inline int sam_lcd_initialize(void)
 {
   FAR struct sam_dev_s *priv = &g_lcddev;
-  uint8_t buffer[4] = {0, 0, 0, 0};
+  uint8_t buffer[4] =
+  {
+    0, 0, 0, 0
+  };
+
   uint16_t id;
   uint16_t param;
   int ret;
@@ -1567,16 +1585,6 @@ int board_lcd_initialize(void)
       goto errout_with_waitsem;
     }
 
-  /* Allocate a watchdog timer to catch DMA timeouts */
-
-  priv->dmadog = wd_create();
-  if (!priv->dmadog)
-    {
-      lcderr("ERROR: Failed to allocate a timer\n");
-      ret = -EAGAIN;
-      goto errout_with_dmach;
-    }
-
   /* Identify and configure the LCD */
 
   up_mdelay(50);
@@ -1584,7 +1592,7 @@ int board_lcd_initialize(void)
   if (ret < 0)
     {
       lcderr("ERROR: sam_lcd_initialize failed: %d\n", ret);
-      goto errout_with_dmadog;
+      goto errout_with_dmach;
     }
 
   /* Clear the display (setting it to the color 0=black) */
@@ -1597,14 +1605,10 @@ int board_lcd_initialize(void)
   if (ret < 0)
     {
       lcderr("ERROR: sam_poweroff failed: %d\n", ret);
-      goto errout_with_dmadog;
+      goto errout_with_dmach;
     }
 
   return OK;
-
-errout_with_dmadog:
-  wd_delete(priv->dmadog);
-  priv->dmadog = NULL;
 
 errout_with_dmach:
   sam_dmafree(priv->dmach);
@@ -1652,9 +1656,7 @@ void board_lcd_uninitialize(void)
 
   /* Free other resources */
 
-  wd_delete(priv->dmadog);
-  priv->dmadog = NULL;
-
+  wd_cancel(&priv->dmadog);
   nxsem_destroy(&priv->waitsem);
 
   /* Put the LCD in the lowest possible power state */

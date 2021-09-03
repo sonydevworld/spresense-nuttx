@@ -1,35 +1,20 @@
 /****************************************************************************
  * include/nuttx/nx/nxglib.h
  *
- *   Copyright (C) 2008-2011, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -65,6 +50,7 @@
 #endif
 
 /* Driver Selection *********************************************************/
+
 /* NX_DRIVERTYPE selects either the framebuffer or LCD driver;
  * NX_PLANINFO_TYPE hides the difference in the framebuffer and LCD driver
  * plane types. defines are used instead of a typedefs to avoid type
@@ -80,6 +66,7 @@
 #endif
 
 /* NXGL Macros **************************************************************/
+
 /* Mnemonics for indices */
 
 #define NX_TOP_NDX           (0)
@@ -145,6 +132,28 @@ void nxgl_yuv2rgb(uint8_t y, uint8_t u, uint8_t v,
                   uint8_t *r, uint8_t *g, uint8_t *b);
 
 /****************************************************************************
+ * Name: nxgl_area2rect
+ *
+ * Description:
+ *   Convert nxgl_rect_s to fb_area_s.
+ *
+ ****************************************************************************/
+
+void nxgl_area2rect(FAR struct nxgl_rect_s *dest,
+                    FAR const struct fb_area_s *src);
+
+/****************************************************************************
+ * Name: nxgl_rect2area
+ *
+ * Description:
+ *   Convert nxgl_rect_s to fb_area_s.
+ *
+ ****************************************************************************/
+
+void nxgl_rect2area(FAR struct fb_area_s *dest,
+                    FAR const struct nxgl_rect_s *src);
+
+/****************************************************************************
  * Name: nxgl_rectcopy
  *
  * Description:
@@ -184,7 +193,8 @@ void nxgl_vectoradd(FAR struct nxgl_point_s *dest,
  * Name: nxgl_vectsubtract
  *
  * Description:
- *   Add subtract vector v2 from vector v1 and return the result in vector dest
+ *   Add subtract vector v2 from vector v1 and return the result in vector
+ *   dest
  *
  ****************************************************************************/
 
@@ -196,7 +206,7 @@ void nxgl_vectsubtract(FAR struct nxgl_point_s *dest,
  * Name: nxgl_rectintersect
  *
  * Description:
- *   Return the rectangle representing the intersection of the two rectangles.
+ *   Return the rectangle representing the intersection of the two rectangles
  *
  ****************************************************************************/
 
@@ -219,7 +229,7 @@ bool nxgl_intersecting(FAR const struct nxgl_rect_s *rect1,
  * Name: nxgl_rectadd
  *
  * Description:
- *   Return the rectangle that contains exactly two other rectanges.
+ *   Return the rectangle that contains exactly two other rectangles.
  *
  ****************************************************************************/
 
@@ -385,7 +395,7 @@ bool nxgl_colorcmp(const nxgl_mxpixel_t color1[CONFIG_NX_NPLANES],
  * Description:
  *   In the general case, a line with width can be represented as a
  *   parallelogram with a triangle at the top and bottom.  Triangles and
- *   parallelograms are both degenerate versions of a trapeziod.  This
+ *   parallelograms are both degenerate versions of a trapezoid.  This
  *   function breaks a wide line into triangles and trapezoids.  This
  *   function also detects other degenerate cases:
  *
@@ -483,7 +493,7 @@ void nxgl_circletraps(FAR const struct nxgl_point_s *center,
  *   implementation of anti-aliasing without transparency.
  *
  * Input Parameters:
- *   color1 - The semi-transparent, forground color
+ *   color1 - The semi-transparent, foreground color
  *   color2 - The opaque, background color
  *   frac1  - The fractional amount of color1 to blend into color2
  *

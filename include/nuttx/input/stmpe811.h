@@ -1,48 +1,34 @@
-/********************************************************************************************
+/****************************************************************************
  * include/nuttx/input/stmpe811.h
  *
- *   Copyright (C) 2012, 2015, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References:
- *   "STMPE811 S-Touch® advanced resistive touchscreen controller with 8-bit
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/* References:
+ *   "STMPE811 S-Touch advanced resistive touchscreen controller with 8-bit
  *    GPIO expander," Doc ID 14489 Rev 6, CD00186725, STMicroelectronics"
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ********************************************************************************************/
+ */
 
 #ifndef __INCLUDE_NUTTX_INPUT_STMPE811_H
 #define __INCLUDE_NUTTX_INPUT_STMPE811_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -53,10 +39,12 @@
 
 #if defined(CONFIG_INPUT) && defined(CONFIG_INPUT_STMPE811)
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
-/* Configuration ****************************************************************************/
+ ****************************************************************************/
+
+/* Configuration ************************************************************/
+
 /* Prerequisites:  CONFIG_INPUT=y
  *
  * CONFIG_INPUT_STMPE811
@@ -76,25 +64,27 @@
  * CONFIG_STMPE811_GPIO_DISABLE
  *   Disable driver GPIO functionality.
  * CONFIG_STMPE811_GPIOINT_DISABLE
- *   Disable driver GPIO interrupt functionality (ignored if GPIO functionality is
- *   disabled).
+ *   Disable driver GPIO interrupt functionality
+ *   (ignored if GPIO functionality is disabled).
  * CONFIG_STMPE811_SWAPXY
  *   Reverse the meaning of X and Y to handle different LCD orientations.
  * CONFIG_STMPE811_TEMP_DISABLE
  *   Disable driver temperature sensor functionality.
  * CONFIG_STMPE811_REGDEBUG
- *   Enable very low register-level debug output.  Requires CONFIG_DEBUG_FEATURES.
+ *   Enable very low register-level debug output.
+ *   Requires CONFIG_DEBUG_FEATURES.
  * CONFIG_STMPE811_THRESHX and CONFIG_STMPE811_THRESHY
- *   STMPE811 touchscreen data comes in a a very high rate.  New touch positions
- *   will only be reported when the X or Y data changes by these thresholds.
- *   This trades reduces data rate for some loss in dragging accuracy.  The
- *   STMPE811 is configure for 12-bit values so the raw ranges are 0-4095. So
- *   for example, if your display is 320x240, then THRESHX=13 and THRESHY=17
- *   would correspond to one pixel.  Default: 12
+ *   STMPE811 touchscreen data comes in a a very high rate.
+ *   New touch positions will only be reported when the X or Y data changes
+ *   by these thresholds. This trades reduces data rate for some loss in
+ *   dragging accuracy. The STMPE811 is configure for 12-bit values so the
+ *   raw ranges are 0-4095. So for example, if your display is 320x240, then
+ *   THRESHX=13 and THRESHY=17 would correspond to one pixel.  Default: 12
  */
 
-/* The STMPE811 interfaces with the target CPU via a I2C or SPI interface. The pin IN_1
- * allows the selection of interface protocol at reset state.
+/* The STMPE811 interfaces with the target CPU via a I2C or SPI interface.
+ * The pin IN_1  allows the selection of interface  protocol at reset
+ * state.
  */
 
 #if !defined(CONFIG_STMPE811_SPI) && !defined(CONFIG_STMPE811_I2C)
@@ -141,9 +131,11 @@
 #  undef CONFIG_STMPE811_REGDEBUG
 #endif
 
-/* I2C **************************************************************************************/
-/* STMPE811 Address:  The STMPE811 may have 7-bit address 0x41 or 0x44, depending upon the
- * state of the ADDR0 pin.
+/* I2C **********************************************************************/
+
+/* STMPE811 Address:
+ * The STMPE811 may have 7-bit address 0x41 or 0x44, depending upon the state
+ * of the ADDR0 pin.
  */
 
 #define STMPE811_I2C_ADDRESS_MASK    (0x78)       /* Bits 3-7: Invariant part of STMPE811 address */
@@ -157,7 +149,8 @@
 
 #define STMPE811_I2C_MAXFREQUENCY    400000       /* 400KHz */
 
-/* SPI **************************************************************************************/
+/* SPI **********************************************************************/
+
 /* The device always operates in mode 0 */
 
 #define STMPE811_SPI_MODE            SPIDEV_MODE0 /* Mode 0 */
@@ -166,7 +159,8 @@
 
 #define STMPE811_SPI_MAXFREQUENCY    1000000      /* 1MHz */
 
-/* STMPE811 Registers ************************************************************************/
+/* STMPE811 Registers *******************************************************/
+
 /* Register Addresses */
 
 #define STMPE811_CHIP_ID             0x00  /* Device identification (16-bit) */
@@ -192,7 +186,8 @@
 #define STMPE811_ADC_CTRL1           0x20  /* ADC control */
 #define STMPE811_ADC_CTRL2           0x21  /* ADC control */
 #define STMPE811_ADC_CAPT            0x22  /* To initiate ADC data acquisition */
-#define STMPE811_ADC_DATACH(n)       (0x30 + ((n) << 1))  /* ADC channel n (16-bit) */
+#define STMPE811_ADC_DATACH(n)       (0x30 + ((n) << 1))
+                                           /* ADC channel n (16-bit) */
 #define STMPE811_ADC_DATACH0         0x30  /* ADC channel 0 (16-bit) */
 #define STMPE811_ADC_DATACH1         0x32  /* ADC channel 1 (16_bit) */
 #define STMPE811_ADC_DATACH2         0x34  /* ADC channel 2 (16-bit) */
@@ -279,7 +274,7 @@
 
 /* GPIO set/clear/sta/dir/edge/rising/falling/af registers */
 
-#define GPIO_PIN(n)                  (1 << (n))
+#define STMPE811_GPIO_PIN(n)         (1 << (n))
 #define TSC_PIN_SET                  (0xf0)   /* Pins 4-7:  Used by touchscreen */
 
 /* ADC control */
@@ -310,15 +305,15 @@
 
 /* 4-wire touchscreen controller setup */
 
-#define TSC_CTRL_EN                  (1 << 0)  /* Bit 0: Enable TSC */
-#define TSC_CTRL_OP_MOD_SHIFT        (1)       /* Bits 1-3: TSC operating mode */
+#define TSC_CTRL_EN                  (1 << 0)                     /* Bit 0: Enable TSC */
+#define TSC_CTRL_OP_MOD_SHIFT        (1)                          /* Bits 1-3: TSC operating mode */
 #define TSC_CTRL_OP_MOD_MASK         (7 << TSC_CTRL_OP_MOD_SHIFT)
 #  define TSC_CTRL_OP_MOD_XYZ        (0 << TSC_CTRL_OP_MOD_SHIFT) /* 000: X, Y, Z acquisition */
 #  define TSC_CTRL_OP_MOD_XY         (1 << TSC_CTRL_OP_MOD_SHIFT) /* 001: X, Y only */
 #  define TSC_CTRL_OP_MOD_X          (2 << TSC_CTRL_OP_MOD_SHIFT) /* 010: X only */
 #  define TSC_CTRL_OP_MOD_Y          (3 << TSC_CTRL_OP_MOD_SHIFT) /* 011: Y only */
 #  define TSC_CTRL_OP_MOD_Z          (4 << TSC_CTRL_OP_MOD_SHIFT) /* 100: Z only */
-#define TSC_CTRL_TRACK_SHIFT         (4)       /* Bits 4-6: Tracking index */
+#define TSC_CTRL_TRACK_SHIFT         (4)                          /* Bits 4-6: Tracking index */
 #define TSC_CTRL_TRACK_MASK          (7 << TSC_CTRL_TRACK_SHIFT)
 #define TSC_CTRL_TRACK_NONE          (0 << TSC_CTRL_TRACK_SHIFT)
 #define TSC_CTRL_TRACK_4             (1 << TSC_CTRL_TRACK_SHIFT)
@@ -328,7 +323,7 @@
 #define TSC_CTRL_TRACK_64            (5 << TSC_CTRL_TRACK_SHIFT)
 #define TSC_CTRL_TRACK_92            (6 << TSC_CTRL_TRACK_SHIFT)
 #define TSC_CTRL_TRACK_127           (7 << TSC_CTRL_TRACK_SHIFT)
-#define TSC_CTRL_TSC_STA             (1 << 7)  /* Bit 7: TSC status. 1=touch detected */
+#define TSC_CTRL_TSC_STA             (1 << 7)                     /* Bit 7: TSC status. 1=touch detected */
 
 /* Touchscreen controller configuration */
 
@@ -392,8 +387,10 @@
 #define TEMP_CTRL_THRES_EN           (1 << 3)  /* Bit 3: Threshold enable */
 #define TEMP_CTRL_THRES_RANGE        (1 << 4)  /* Bit 4: temperature threshold enable, 0='>=' 1='<' */
 
-/* GPIO Configuration ***********************************************************************/
-/* The STMPE811 GPIO interfaces take an 8-bit bit-encoded parameter to describe the GPIO pin.
+/* GPIO Configuration *******************************************************/
+
+/* The STMPE811 GPIO interfaces take an 8-bit bit-encoded parameter to
+ * describe the GPIO pin.
  * The following definitions describe the bit-encoding of that parameter.
  *
  *  7654 3210
@@ -439,23 +436,27 @@
 #  define STMPE811_GPIO_PIN6    (6 << STMPE811_GPIO_PIN_SHIFT)
 #  define STMPE811_GPIO_PIN7    (7 << STMPE811_GPIO_PIN_SHIFT)
 
-/********************************************************************************************
+/****************************************************************************
  * Public Types
- ********************************************************************************************/
+ ****************************************************************************/
 
-/* Form of the GPIO "interrupt handler" callback. Callbacks do not occur from an interrupt
- * handler but rather from the context of the worker thread with interrupts enabled.
+/* Form of the GPIO "interrupt handler" callback. Callbacks do not occur from
+ * an interrupt
+ * handler but rather from the context of the worker thread with interrupts
+ * enabled.
  */
 
 typedef CODE void (*stmpe811_handler_t)(int pin);
 
-/* A reference to a structure of this type must be passed to the STMPE811 driver when the
- * driver is instantiated. This structure provides information about the configuration of the
+/* A reference to a structure of this type must be passed to the STMPE811
+ * driver when the driver is instantiated.
+ * This structure provides information about the configuration of the
  * STMPE811 and provides some board-specific hooks.
  *
- * Memory for this structure is provided by the caller.  It is not copied by the driver
- * and is presumed to persist while the driver is active. The memory must be writeable
- * because, under certain circumstances, the driver may modify the frequency.
+ * Memory for this structure is provided by the caller.
+ * It is not copied by the driver and is presumed to persist while the
+ * driver is active. The memory must be writeablebecause, under
+ * certain circumstances, the driver may modify the frequency.
  */
 
 struct stmpe811_config_s
@@ -494,22 +495,26 @@ struct stmpe811_config_s
    * clear   - Acknowledge/clear any pending GPIO interrupt
    */
 
-  int  (*attach)(FAR struct stmpe811_config_s *state, xcpt_t isr, FAR void *arg);
-  void (*enable)(FAR struct stmpe811_config_s *state, bool enable);
+  int  (*attach)(FAR struct stmpe811_config_s *state,
+                 xcpt_t isr,
+                 FAR void *arg);
+  void (*enable)(FAR struct stmpe811_config_s *state,
+                 bool enable);
   void (*clear)(FAR struct stmpe811_config_s *state);
 };
 
-/* Since the STMPE811 is a multi-function device, no functionality is assumed when the
- * device is first created.  Rather, a multi-step initialization is required.  When
- * stmpe811_instantiate is called, it returns a handle of the following type.  That handle
- * may then be used to enable a configure the STMPE811 functionality.
+/* Since the STMPE811 is a multi-function device, no functionality is assumed
+ * when the device is first created.  Rather, a multi-step initialization is
+ * required.  When stmpe811_instantiate is called, it returns a handle of the
+ * following type.  That handle may then be used to enable a configure the
+ * STMPE811 functionality.
  */
 
 typedef FAR void *STMPE811_HANDLE;
 
-/********************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifdef __cplusplus
 #define EXTERN extern "C"
@@ -519,22 +524,23 @@ extern "C"
 #define EXTERN extern
 #endif
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_instantiate
  *
  * Description:
- *   Instantiate and configure the STMPE811 device driver to use the provided I2C or SPI
- *   device instance.
+ *   Instantiate and configure the STMPE811 device driver to use the provided
+ *   I2C or SPI device instance.
  *
  * Input Parameters:
  *   dev     - An I2C or SPI driver instance
  *   config  - Persistent board configuration data
  *
  * Returned Value:
- *   A non-zero handle is returned on success.  This handle may then be used to configure
- *   the STMPE811 driver as necessary.  A NULL handle value is returned on failure.
+ *   A non-zero handle is returned on success.  This handle may then be used
+ *   to configure the STMPE811 driver as necessary.
+ *   A NULL handle value is returned on failure.
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_STMPE811_SPI
 STMPE811_HANDLE stmpe811_instantiate(FAR struct spi_dev_s *dev,
@@ -544,11 +550,12 @@ STMPE811_HANDLE stmpe811_instantiate(FAR struct i2c_master_s *dev,
                                      FAR struct stmpe811_config_s *config);
 #endif
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_register
  *
  * Description:
- *  Enable TSC functionality.  GPIO4-7 must be available.  This function will register the
+ *  Enable TSC functionality.
+ *  GPIO4-7 must be available.  This function will register the
  *  touchscreen driver as /dev/inputN where N is the minor device number
  *
  * Input Parameters:
@@ -556,16 +563,16 @@ STMPE811_HANDLE stmpe811_instantiate(FAR struct i2c_master_s *dev,
  *   minor     - The input device minor number
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is returned to indicate
- *   the nature of the failure.
+ *   Zero is returned on success. Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_STMPE811_TSC_DISABLE
 int stmpe811_register(STMPE811_HANDLE handle, int minor);
 #endif
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_gpioconfig
  *
  * Description:
@@ -576,16 +583,16 @@ int stmpe811_register(STMPE811_HANDLE handle, int minor);
  *   pinconfig - Bit-encoded pin configuration
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is returned to indicate
- *   the nature of the failure.
+ *   Zero is returned on success. Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_STMPE811_GPIO_DISABLE
 int stmpe811_gpioconfig(STMPE811_HANDLE handle, uint8_t pinconfig);
 #endif
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_gpiowrite
  *
  * Description:
@@ -599,13 +606,15 @@ int stmpe811_gpioconfig(STMPE811_HANDLE handle, uint8_t pinconfig);
  * Returned Value:
  *   None
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_STMPE811_GPIO_DISABLE
-void stmpe811_gpiowrite(STMPE811_HANDLE handle, uint8_t pinconfig, bool value);
+void stmpe811_gpiowrite(STMPE811_HANDLE handle,
+                        uint8_t pinconfig,
+                        bool value);
 #endif
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_gpioread
  *
  * Description:
@@ -617,24 +626,27 @@ void stmpe811_gpiowrite(STMPE811_HANDLE handle, uint8_t pinconfig, bool value);
  *   value     - The location to return the state of the GPIO pin
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is returned to indicate
- *   the nature of the failure.
+ *   Zero is returned on success. Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_STMPE811_GPIO_DISABLE
-int stmpe811_gpioread(STMPE811_HANDLE handle, uint8_t pinconfig, bool *value);
+int stmpe811_gpioread(STMPE811_HANDLE handle,
+                      uint8_t pinconfig,
+                      bool *value);
 #endif
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_gpioattach
  *
  * Description:
- *  Attach to a GPIO interrupt input pin and enable interrupts on the pin.  Using the value
- *  NULL for the handler address will disable interrupts from the pin and detach the handler.
+ *  Attach to a GPIO interrupt input pin and enable interrupts on the pin.
+ *  Using the value  NULL for the handler address will disable interrupts
+ *  from the pin and detach the handler.
  *
- *  NOTE:  Callbacks do not occur from an interrupt handler but rather from the context
- *  of the worker thread with interrupts enabled.
+ *  NOTE:  Callbacks do not occur from an interrupt handler but rather from
+ *  the context of the worker thread with interrupts enabled.
  *
  * Input Parameters:
  *   handle    - The handle previously returned by stmpe811_instantiate
@@ -642,35 +654,37 @@ int stmpe811_gpioread(STMPE811_HANDLE handle, uint8_t pinconfig, bool *value);
  *   handler   - The handler that will be called when the interrupt occurs.
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is returned to indicate
- *   the nature of the failure.
+ *   Zero is returned on success. Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #if !defined(CONFIG_STMPE811_GPIO_DISABLE) && !defined(CONFIG_STMPE811_GPIOINT_DISABLE)
-int stmpe811_gpioattach(STMPE811_HANDLE handle, uint8_t pinconfig, stmpe811_handler_t handler);
+int stmpe811_gpioattach(STMPE811_HANDLE handle, uint8_t pinconfig,
+                        stmpe811_handler_t handler);
 #endif
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_adcinitialize
  *
  * Description:
- *  Configure for ADC mode operation.  Set overall ADC ADC timing that applies to all pins.
+ *  Configure for ADC mode operation. Set overall ADC ADC timing that applies
+ *  to all pins.
  *
  * Input Parameters:
  *   handle    - The handle previously returned by stmpe811_instantiate
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is returned to indicate
- *   the nature of the failure.
+ *   Zero is returned on success. Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_STMPE811_ADC_DISABLE
 int stmpe811_adcinitialize(STMPE811_HANDLE handle);
 #endif
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_adcconfig
  *
  * Description:
@@ -681,16 +695,16 @@ int stmpe811_adcinitialize(STMPE811_HANDLE handle);
  *   pin       - The ADC pin number
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is returned to indicate
- *   the nature of the failure.
+ *   Zero is returned on success. Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_STMPE811_ADC_DISABLE
 int stmpe811_adcconfig(STMPE811_HANDLE handle, int pin);
 #endif
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_adcread
  *
  * Description:
@@ -703,13 +717,13 @@ int stmpe811_adcconfig(STMPE811_HANDLE handle, int pin);
  * Returned Value:
  *   The converted value (there is no error reporting mechanism).
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_STMPE811_ADC_DISABLE
 uint16_t stmpe811_adcread(STMPE811_HANDLE handle, int pin);
 #endif
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_tempinitialize
  *
  * Description:
@@ -719,14 +733,14 @@ uint16_t stmpe811_adcread(STMPE811_HANDLE handle, int pin);
  *   handle    - The handle previously returned by stmpe811_instantiate
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is returned to indicate
- *   the nature of the failure.
+ *   Zero is returned on success. Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 int stmpe811_tempinitialize(STMPE811_HANDLE handle);
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_tempread
  *
  * Description:
@@ -736,14 +750,14 @@ int stmpe811_tempinitialize(STMPE811_HANDLE handle);
  *   handle    - The handle previously returned by stmpe811_instantiate
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is returned to indicate
- *   the nature of the failure.
+ *   Zero is returned on success. Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
- ********************************************************************************************/
+ ****************************************************************************/
 
 uint16_t stmpe811_tempread(STMPE811_HANDLE handle);
 
-/********************************************************************************************
+/****************************************************************************
  * Name: stmpe811_tempinterrupt
  *
  * Description:
@@ -761,10 +775,11 @@ uint16_t stmpe811_tempread(STMPE811_HANDLE handle);
  *               the temperature crosses the threshold.
  *
  * Returned Value:
- *   Zero is returned on success.  Otherwise, a negated errno value is returned to indicate
- *   the nature of the failure.
+ *   Zero is returned on success. Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
  *
- ********************************************************************************************/
+ ****************************************************************************/
+
 /* Not implemented */
 
 #undef EXTERN

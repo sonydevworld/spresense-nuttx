@@ -124,41 +124,9 @@ GNU Toolchain Options
   a different toolchain, you simply need to add change to one of the following
   configuration options to your .config (or defconfig) file:
 
-    CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y  : CodeSourcery under Windows
-    CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYL=y  : CodeSourcery under Linux
-    CONFIG_ARMV7A_TOOLCHAIN_ATOLLIC=y        : Atollic toolchain for Windos
-    CONFIG_ARMV7A_TOOLCHAIN_DEVKITARM=y      : devkitARM under Windows
-    CONFIG_ARMV7A_TOOLCHAIN_BUILDROOT=y      : NuttX buildroot under Linux or Cygwin (default)
-    CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIL=y      : Generic GCC ARM EABI toolchain for Linux
-    CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y      : Generic GCC ARM EABI toolchain for Windows
-
-  The CodeSourcery GCC toolchain is selected with
-  CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y and setting the PATH variable
-  appropriately.
-
-  NOTE about Windows native toolchains
-  ------------------------------------
-
-  There are several limitations to using a Windows based toolchain in a
-  Cygwin environment.  The three biggest are:
-
-  1. The Windows toolchain cannot follow Cygwin paths.  Path conversions are
-     performed automatically in the Cygwin makefiles using the 'cygpath'
-     utility but you might easily find some new path problems.  If so, check
-     out 'cygpath -w'
-
-  2. Windows toolchains cannot follow Cygwin symbolic links.  Many symbolic
-     links are used in Nuttx (e.g., include/arch).  The make system works
-     around these problems for the Windows tools by copying directories
-     instead of linking them.  But this can also cause some confusion for
-     you:  For example, you may edit a file in a "linked" directory and find
-     that your changes had no effect.  That is because you are building the
-     copy of the file in the "fake" symbolic directory.  If you use a\
-     Windows toolchain, you should get in the habit of making like this:
-
-       make clean_context all
-
-     An alias in your .bashrc file might make that less painful.
+    CONFIG_ARMV7A_TOOLCHAIN_BUILDROOT=y  : NuttX buildroot under Linux or Cygwin (default)
+    CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIL=y  : Generic GCC ARM EABI toolchain for Linux
+    CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y  : Generic GCC ARM EABI toolchain for Windows
 
 IDEs
 ====
@@ -182,7 +150,7 @@ IDEs
   2) Start the NuttX build at least one time from the Cygwin command line
      before trying to create your project.  This is necessary to create
      certain auto-generated files and directories that will be needed.
-  3) Set up include pathes:  You will need include/, arch/arm/src/sam34,
+  3) Set up include paths:  You will need include/, arch/arm/src/sam34,
      arch/arm/src/common, arch/arm/src/armv7-m, and sched/.
   4) All assembly files need to have the definition option -D __ASSEMBLY__
      on the command line.
@@ -203,7 +171,7 @@ NuttX EABI "buildroot" Toolchain
   Bitbucket download site (https://bitbucket.org/nuttx/buildroot/downloads/).
   This GNU toolchain builds and executes in the Linux or Cygwin environment.
 
-  1.  You must have already configured Nuttx in <some-dir>/nuttx.
+  1.  You must have already configured NuttX in <some-dir>/nuttx.
 
       tools/configure.sh sama5d4-ek:<sub-dir>
 
@@ -253,7 +221,7 @@ NXFLAT Toolchain
 
   This GNU toolchain builds and executes in the Linux or Cygwin environment.
 
-  1. You must have already configured Nuttx in <some-dir>/nuttx.
+  1. You must have already configured NuttX in <some-dir>/nuttx.
 
      tools/configure.sh sama5d4-ek:<sub-dir>
 
@@ -600,7 +568,7 @@ Running NuttX from SDRAM
   0x0000:0000 - 0x0003:ffff: AT91BootStrap
   0x0004:0000 - 0x000b:ffff: U-Boot
   0x000c:0000 - 0x000f:ffff: U-Boot environment
-  0x0010:0000 - 0x0017:ffff: U-Boot environement redundant
+  0x0010:0000 - 0x0017:ffff: U-Boot environment redundant
   0x0018:0000 - 0x001f:ffff: Device tree (DTB)
   0x0020:0000 - 0x007f:ffff: NuttX
   0x0080:0000 - end:         Available for use as a NAND file system
@@ -659,7 +627,7 @@ Running NuttX from SDRAM
 
      http://www.at91.com/linux4sam/bin/view/Linux4SAM/U-Boot#Build_U_Boot_from_sources
 
-     A pre-Built binay image is available here:
+     A pre-Built binary image is available here:
 
      ftp://www.at91.com/pub/uboot/u-boot-v2013.07/u-boot-sama5d3_xplained-v2013.07-at91-r1.bin
 
@@ -693,7 +661,7 @@ Running NuttX from SDRAM
      - Press the "Send File" button
      - Close SAM-BA, remove the USB Device cable.
 
-  You should now be able to interrupt with U-Boot vie the DBGU interface.
+  You should now be able to interrupt with U-Boot via the DBGU interface.
 
   Load NuttX with U-Boot on AT91 boards
   -------------------------------------
@@ -1344,7 +1312,6 @@ Networking
     CONFIG_NET_ARP_IPIN=y                : IP address harvesting (optional)
     CONFIG_NET_TCP=y                     : Enable TCP/IP networking
     CONFIG_NET_TCPBACKLOG=y              : Support TCP/IP backlog
-    CONFIG_NET_TCP_READAHEAD=y           : Enable TCP read-ahead buffering
     CONFIG_NET_TCP_WRITE_BUFFERS=y       : Enable TCP write buffering
     CONFIG_NET_UDP=y                     : Enable UDP networking
     CONFIG_NET_BROADCAST=y               : Support UDP broadcast packets
@@ -1439,7 +1406,7 @@ Networking
       cp          free        kill        mkrd        put         usleep
       cmp         get         losetup     mh          rm          wget
       dd          help        ls          mount       rmdir       xd
-      df          hexdump     mb          mv          sh
+      df          hexdump     mb          mv          source
 
     Builtin Apps:
     nsh>
@@ -2002,7 +1969,7 @@ USB High-Speed Host
 
     Drivers -> USB Host Driver Support
       CONFIG_USBHOST_HUB=y                 : Enable the hub class
-      CONFIG_USBHOST_ASYNCH=y              : Asynchonous I/O supported needed for hubs
+      CONFIG_USBHOST_ASYNCH=y              : Asynchronous I/O supported needed for hubs
 
     System Type -> USB High Speed Host driver options
       CONFIG_SAMA5_OHCI_NEDS=12            : You will probably want more OHCI pipes
@@ -2163,7 +2130,7 @@ SDRAM Support
       CONFIG_SYSTEM_RAMTEST=y
 
   In this configuration, the SDRAM is not added to heap and so is not
-  accessable to the applications.  So the RAM test can be freely executed
+  accessible to the applications.  So the RAM test can be freely executed
   against the SRAM memory beginning at address 0x2000:0000 (DDR CS):
 
     nsh> ramtest -h
@@ -2582,12 +2549,12 @@ I2C Tool
     Where <cmd> is one of:
 
       Show help     : ?
-      List busses   : bus
+      List buses    : bus
       List devices  : dev [OPTIONS] <first> <last>
-      Read register : get [OPTIONS] [<repititions>]
+      Read register : get [OPTIONS] [<repetitions>]
       Show help     : help
-      Write register: set [OPTIONS] <value> [<repititions>]
-      Verify access : verf [OPTIONS] [<value>] [<repititions>]
+      Write register: set [OPTIONS] <value> [<repetitions>]
+      Verify access : verf [OPTIONS] [<value>] [<repetitions>]
 
     Where common "sticky" OPTIONS include:
       [-a addr] is the I2C device address (hex).  Default: 03 Current: 03
@@ -2595,7 +2562,7 @@ I2C Tool
       [-r regaddr] is the I2C device register address (hex).  Default: 00 Current: 00
       [-w width] is the data width (8 or 16 decimal).  Default: 8 Current: 8
       [-s|n], send/don't send start between command and data.  Default: -n Current: -n
-      [-i|j], Auto increment|don't increment regaddr on repititions.  Default: NO Current: NO
+      [-i|j], Auto increment|don't increment regaddr on repetitions.  Default: NO Current: NO
       [-f freq] I2C frequency.  Default: 100000 Current: 100000
 
     NOTES:
@@ -3065,9 +3032,9 @@ TM7000 LCD/Touchscreen
 
     - 7 inch LCD at 800x480 18-bit RGB resolution and white backlight
     - Projected Capacitive Multi-Touch Controller based on the Atmel
-      MXT768E maXTouch™ IC
-    - 4 Capacitive “Navigation” Keys available via an Atmel AT42QT1070
-      QTouch™ Button Sensor IC
+      MXT768E maXTouch IC
+    - 4 Capacitive Navigation Keys available via an Atmel AT42QT1070
+      QTouch Button Sensor IC
     - 200 bytes of non-volatile serial EEPROM
 
   NOTE: It appears that my TM7000 differs slightly from the version
@@ -3608,23 +3575,6 @@ Configurations
      System Type -> Toolchain:
        CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y : GNU EABI toolchain for windows
 
-     That same configuration will work with Atmel GCC toolchain.  The only
-     change required to use the Atmel GCC toolchain is to change the PATH
-     variable so that those tools are selected instead of the CodeSourcery
-     tools.  Try 'which arm-none-eabi-gcc' to make sure that you are
-     selecting the right tool.
-
-     See also the "NOTE about Windows native toolchains" in the section call
-     "GNU Toolchain Options" above.
-
-     !!!WARNING!!! The first time that you type 'make', the system will
-     configure itself based on the settings in the .config file.  One of
-     these settings can cause a lot of confusion if you configure the build
-     in the wrong state:  If you are running on Linux, make *certain* that
-     you have CONFIG_HOST_LINUX=y *before* the first make or you will
-     create a very corrupt configuration that may not be easy to recover
-     from.
-
   4. The SAMA5Dx is running at 528MHz by default in these configurations.
 
        Board Selection -> CPU Frequency
@@ -3715,8 +3665,8 @@ Configurations
        selection can easily be changed by reconfiguring:
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
-       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under Windows
+       CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
        If you are running on Linux, make *certain* that you have
        CONFIG_HOST_LINUX=y *before* the first make or you will create a
@@ -3784,8 +3734,8 @@ Configurations
        selection can easily be changed by reconfiguring:
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
-       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under Windows
+       CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
        If you are running on Linux, make *certain* that you have
        CONFIG_HOST_LINUX=y *before* the first make or you will create a
@@ -3864,7 +3814,7 @@ Configurations
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
        CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIL=y     : GNU EABI toolchain for Windows
 
        If you are running on Linux, make *certain* that you have
        CONFIG_HOST_LINUX=y *before* the first make or you will create a
@@ -3923,7 +3873,7 @@ Configurations
                  task_create() as it is used in the ELF test, but the code
                  seems to survive it. See:
 
-                 http://www.nuttx.org/doku.php?id=wiki:nxinternal:memconfigs#task_create
+                 https://cwiki.apache.org/confluence/display/NUTTX/Memory+Configurations
 
       2014-8-29: System call interface verified.
       2014-9-16: Reverified after fixing changes for the knsh configuration
@@ -4017,7 +3967,7 @@ Configurations
        - CONFIG_NSH_IPv6NETMASK_8=0xff80
 
   knsh:
-    An NSH configuration used to test the SAMA5D kenel build configuration.
+    An NSH configuration used to test the SAMA5D kernel build configuration.
 
     NOTES:
 
@@ -4029,13 +3979,12 @@ Configurations
 
     2. By default, this configuration is set up to build on Windows
        under either a Cygwin or MSYS environment using a recent, Windows-
-       native, generic ARM EABI GCC toolchain (such as the CodeSourcery
-       toolchain).  Both the build environment and the toolchain
-       selection can easily be changed by reconfiguring:
+       native, generic ARM EABI GCC toolchain.  Both the build environment
+       and the toolchain selection can easily be changed by reconfiguring:
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
-       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under Windows
+       CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
        If you are running on Linux, make *certain* that you have
        CONFIG_HOST_LINUX=y *before* the first make or you will create a
@@ -4109,8 +4058,7 @@ Configurations
        Then you will need to follow some special build instructions below
        in order to build and install the ROMFS file system image.
 
-    5. Board initialization is performed performed before the application
-       is started:
+    5. Board initialization is performed before the application is started:
 
        RTOS Features -> RTOS Hooks
          CONFIG_BOARD_INITITIALIZE=y
@@ -4280,13 +4228,12 @@ Configurations
 
     3. By default, this configuration is set up to build on Windows
        under either a Cygwin or MSYS environment using a recent, Windows-
-       native, generic ARM EABI GCC toolchain (such as the CodeSourcery
-       toolchain).  Both the build environment and the toolchain
-       selection can easily be changed by reconfiguring:
+       native, generic ARM EABI GCC toolchain.  Both the build environment
+       and the toolchain selection can easily be changed by reconfiguring:
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
        CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
        If you are running on Linux, make *certain* that you have
        CONFIG_HOST_LINUX=y *before* the first make or you will create a
@@ -4296,12 +4243,11 @@ Configurations
 
     4. This configuration supports logging of debug output to a circular
        buffer in RAM.  This feature is discussed fully in this Wiki page:
-       http://nuttx.org/doku.php?id=wiki:howtos:syslog . Relevant
+       https://cwiki.apache.org/confluence/display/NUTTX/SYSLOG . Relevant
        configuration settings are summarized below:
 
        Device Drivers:
        CONFIG_RAMLOG=y             : Enable the RAM-based logging feature.
-       CONFIG_RAMLOG_CONSOLE=n     : (We don't use the RAMLOG console)
        CONFIG_RAMLOG_SYSLOG=y      : This enables the RAM-based logger as the
                                      system logger.
        CONFIG_RAMLOG_NONBLOCKING=y : Needs to be non-blocking for dmesg
@@ -4416,7 +4362,7 @@ Configurations
 
        The FAT file system includes long file name support.  Please be aware
        that Microsoft claims patents against the long file name support (see
-       more discussion in the top-level COPYING file).
+       more discussion in the top-level NOTICE file).
 
          CONFIG_FS_FAT=y        : Enables the FAT file system
          CONFIG_FAT_LCNAMES=y   : Enable lower case 8.3 file names
@@ -4934,13 +4880,12 @@ Configurations
 
     2. By default, this configuration is set up to build on Windows
        under either a Cygwin or MSYS environment using a recent, Windows-
-       native, generic ARM EABI GCC toolchain (such as the CodeSourcery
-       toolchain).  Both the build environment and the toolchain
-       selection can easily be changed by reconfiguring:
+       native, generic ARM EABI GCC toolchain.  Both the build environment
+       and the toolchain selection can easily be changed by reconfiguring:
 
        CONFIG_HOST_WINDOWS=y                   : Windows operating system
-       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under windows
-       CONFIG_ARMV7A_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+       CONFIG_WINDOWS_CYGWIN=y                 : POSIX environment under Windows
+       CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
        If you are running on Linux, make *certain* that you have
        CONFIG_HOST_LINUX=y *before* the first make or you will create a

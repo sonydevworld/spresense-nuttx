@@ -2,7 +2,7 @@ README.txt
 ==========
 
 This is the README file for the port of NuttX to the Freescale Freedom-K66F
-develoment board.
+development board.
 
 Contents
 ========
@@ -74,7 +74,7 @@ Serial Console
   ---------------------
   An alternative serial port might use a standard serial shield mounted
   on the Freedom Board.  In this case, Arduino pin D1 provides UART TX and
-  pin D0 privides UART RX.
+  pin D0 provides UART RX.
 
   The I/O headers on the FRDM-K66F board are arranged to enable
   compatibility with Arduino shield. The outer rows of pins (even numbered
@@ -203,11 +203,9 @@ Networking Support
     CONFIG_NET_ARP_IPIN=y               : Enable ARP address harvesting
     CONFIG_NET_ARP_SEND=y               : Send ARP request before sending data
     CONFIG_NET_TCP=y                    : Enable TCP/IP networking
-    CONFIG_NET_TCP_READAHEAD=y          : Support TCP read-ahead
     CONFIG_NET_TCP_WRITE_BUFFERS=y      : Support TCP write-buffering
     CONFIG_NET_TCPBACKLOG=y             : Support TCP/IP backlog
     CONFIG_NET_MAX_LISTENPORTS=20       :
-    CONFIG_NET_TCP_READAHEAD_BUFSIZE=536  Read-ahead buffer size
     CONFIG_NET_UDP=y                    : Enable UDP networking
     CONFIG_NET_BROADCAST=y              : Needed for DNS name resolution
     CONFIG_NET_ICMP=y                   : Enable ICMP networking
@@ -311,7 +309,7 @@ Networking Support
       cp          free        kill        mkrd        put         usleep
       cmp         get         losetup     mh          rm          wget
       dd          help        ls          mount       rmdir       xd
-      df          hexdump     mb          mv          sh
+      df          hexdump     mb          mv          source
 
     Builtin Apps:
     nsh>
@@ -377,7 +375,7 @@ Networking Support
       need to provide some custom logic in the Freedcom K66F
       configuration to set up that PHY interrupt.
 
-    - In addtion to the PHY interrupt, the Network Monitor also requires the
+    - In addition to the PHY interrupt, the Network Monitor also requires the
       following setting:
 
         CONFIG_NETDEV_PHY_IOCTL. Enable PHY IOCTL commands in the Ethernet
@@ -569,7 +567,7 @@ USB Device Controller Support
 
     Device Drivers -> USB Device Driver Support
       CONFIG_CDCACM=y                           : USB Modem (CDC ACM) support
-      CONFIG_CDCACM_EP0MAXPACKET=64             : Enpoint 0 packet size
+      CONFIG_CDCACM_EP0MAXPACKET=64             : Endpoint 0 packet size
       CONFIG_CDCACM_EPINTIN=1                   : Interrupt IN endpoint number
       CONFIG_CDCACM_EPINTIN_FSSIZE=64           : Full speed packet size
       CONFIG_CDCACM_EPINTIN_HSSIZE=64           : High speed packet size
@@ -627,34 +625,10 @@ GNU Toolchain Options
 
     CONFIG_ARMV7M_TOOLCHAIN_BUILDROOT=y
 
-  You may also have to modify the PATH environment variable if your make cannot
-  find the tools.
-
-  NOTE:  Using native Windows toolchains under Cygwin has some limitations.
-  This incuudes the CodeSourcery (for Windows) and devkitARM toolchains are
-  Windows native toolchains.  The biggest limitations are:
-
-  1. The Windows toolchain cannot follow Cygwin paths.  Path conversions are
-     performed automatically in the Cygwin makefiles using the 'cygpath' utility
-     but you might easily find some new path problems.  If so, check out 'cygpath -w'
-
-  2. Windows toolchains cannot follow Cygwin symbolic links.  Many symbolic links
-     are used in Nuttx (e.g., include/arch).  The make system works around these
-     problems for the Windows tools by copying directories instead of linking them.
-     But this can also cause some confusion for you:  For example, you may edit
-     a file in a "linked" directory and find that your changes had no effect.
-     That is because you are building the copy of the file in the "fake" symbolic
-     directory.  If you use a Windows toolchain, you should get in the habit of
-     making like this:
-
-       make clean_context all
-
-     An alias in your .bashrc file might make that less painful.
-
 Freedom K66F Configuration Options
 ==================================
 
-    CONFIG_ARCH - Identifies the arch/ subdirectory.  This sould
+    CONFIG_ARCH - Identifies the arch/ subdirectory.  This should
        be set to:
 
        CONFIG_ARCH=arm
@@ -960,6 +934,5 @@ Status
 
   2017-02-14:  nsh: SDHC DMA is not working yet. Buttons and SDIO with
     automounter is working.
-    netnsh:Is building but Ehternet is not working yet. TX is called but
+    netnsh:Is building but Ethernet is not working yet. TX is called but
     not IRQ is issued.
-

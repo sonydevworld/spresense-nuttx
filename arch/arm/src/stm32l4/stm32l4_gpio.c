@@ -1,37 +1,20 @@
 /****************************************************************************
  * arch/arm/src/stm32l4/stm32l4_gpio.c
  *
- *   Copyright (C) 2009, 2011-2012 Gregory Nutt. All rights reserved.
- *   Copyright (C) 2011 Uros Platise. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *           Uros Platise <uros.platise@isotel.eu>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -50,7 +33,7 @@
 #include <arch/irq.h>
 #include <arch/stm32l4/chip.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "chip.h"
 #include "stm32l4_gpio.h"
@@ -60,6 +43,7 @@
 /****************************************************************************
  * Public Data
  ****************************************************************************/
+
 /* Base addresses for each GPIO block */
 
 const uint32_t g_gpiobase[STM32L4_NPORTS] =
@@ -112,7 +96,7 @@ const uint32_t g_gpiobase[STM32L4_NPORTS] =
  *
  * Assumptions:
  *   This function is called early in the initialization sequence so that
- *   no mutual exlusion is necessary.
+ *   no mutual exclusion is necessary.
  *
  ****************************************************************************/
 
@@ -131,7 +115,7 @@ void stm32l4_gpioinit(void)
  *
  * Returned Value:
  *   OK on success
- *   A negated errono valu on invalid port, or when pin is locked as ALT
+ *   A negated errno value on invalid port, or when pin is locked as ALT
  *   function.
  *
  * To-Do: Auto Power Enable
@@ -172,20 +156,32 @@ int stm32l4_configgpio(uint32_t cfgset)
   switch (cfgset & GPIO_MODE_MASK)
     {
       default:
-      case GPIO_INPUT:      /* Input mode */
+
+      /* Input mode */
+
+      case GPIO_INPUT:
         pinmode = GPIO_MODER_INPUT;
         break;
 
-      case GPIO_OUTPUT:     /* General purpose output mode */
-        stm32l4_gpiowrite(cfgset, (cfgset & GPIO_OUTPUT_SET) != 0); /* Set the initial output value */
+      /* General purpose output mode */
+
+      case GPIO_OUTPUT:
+
+        /* Set the initial output value */
+
+        stm32l4_gpiowrite(cfgset, (cfgset & GPIO_OUTPUT_SET) != 0);
         pinmode = GPIO_MODER_OUTPUT;
         break;
 
-      case GPIO_ALT:        /* Alternate function mode */
+      /* Alternate function mode */
+
+      case GPIO_ALT:
         pinmode = GPIO_MODER_ALT;
         break;
 
-      case GPIO_ANALOG:     /* Analog mode */
+      /* Analog mode */
+
+      case GPIO_ANALOG:
         pinmode = GPIO_MODER_ANALOG;
         break;
     }
@@ -307,17 +303,19 @@ int stm32l4_configgpio(uint32_t cfgset)
 
   putreg32(regval, base + STM32L4_GPIO_OTYPER_OFFSET);
 
-  /* Otherwise, it is an input pin.  Should it configured as an EXTI interrupt? */
+  /* Otherwise, it is an input pin.  Should it configured as an
+   * EXTI interrupt?
+   */
 
   if (pinmode != GPIO_MODER_OUTPUT && (cfgset & GPIO_EXTI) != 0)
     {
       /* The selection of the EXTI line source is performed through the EXTIx
        * bits in the SYSCFG_EXTICRx registers.
        *
-       * The range of EXTI bit values in STM32L4x6 goes to 0b1000 to support the
-       * ports up to PI in STM32L496xx devices. For STM32L4x3 the EXTI bit values
-       * end at 0b111 (for PH0, PH1 and PH3 only) and values for non-existent
-       * ports F and G are reserved.
+       * The range of EXTI bit values in STM32L4x6 goes to 0b1000 to support
+       * the ports up to PI in STM32L496xx devices. For STM32L4x3 the EXTI
+       * bit values end at 0b111 (for PH0, PH1 and PH3 only) and values for
+       * non-existent ports F and G are reserved.
        */
 
       uint32_t regaddr;
@@ -334,6 +332,25 @@ int stm32l4_configgpio(uint32_t cfgset)
       putreg32(regval, regaddr);
     }
 
+  /* On STM32L47x/STM32L48x parts, the ACSR register also needs to be set
+   * (RM0351 Rev 7, p521)
+   */
+
+#if defined(CONFIG_STM32L4_STM32L471XX) || \
+    defined(CONFIG_STM32L4_STM32L475XX) || \
+    defined(CONFIG_STM32L4_STM32L476XX) || \
+    defined(CONFIG_STM32L4_STM32L486XX)
+
+  if (pinmode == GPIO_MODER_ANALOG)
+    {
+      modifyreg32(base + STM32L4_GPIO_ASCR_OFFSET, 0, GPIO_ASCR(pin));
+    }
+  else
+    {
+      modifyreg32(base + STM32L4_GPIO_ASCR_OFFSET, GPIO_ASCR(pin), 0);
+    }
+#endif
+
   leave_critical_section(flags);
   return OK;
 }
@@ -342,14 +359,15 @@ int stm32l4_configgpio(uint32_t cfgset)
  * Name: stm32l4_unconfiggpio
  *
  * Description:
- *   Unconfigure a GPIO pin based on bit-encoded description of the pin, set it
- *   into default HiZ state (and possibly mark it's unused) and unlock it whether
- *   it was previsouly selected as alternative function (GPIO_ALT|GPIO_CNF_AFPP|...).
+ *   Unconfigure a GPIO pin based on bit-encoded description of the pin, set
+ *   it into default HiZ state (and possibly mark it's unused) and unlock it
+ *   whether it was previsouly selected as alternative function
+ *   (GPIO_ALT|GPIO_CNF_AFPP|...).
  *
- *   This is a safety function and prevents hardware from schocks, as unexpected
- *   write to the Timer Channel Output GPIO to fixed '1' or '0' while it should
- *   operate in PWM mode could produce excessive on-board currents and trigger
- *   over-current/alarm function.
+ *   This is a safety function and prevents hardware from schocks, as
+ *   unexpected write to the Timer Channel Output GPIO to fixed '1' or '0'
+ *   while it should operate in PWM mode could produce excessive on-board
+ *   currents and trigger over-current/alarm function.
  *
  * Returned Value:
  *  OK on success
@@ -408,7 +426,6 @@ void stm32l4_gpiowrite(uint32_t pinset, bool value)
         }
 
       putreg32(bit, base + STM32L4_GPIO_BSRR_OFFSET);
-
     }
 }
 
@@ -438,5 +455,6 @@ bool stm32l4_gpioread(uint32_t pinset)
       pin = (pinset & GPIO_PIN_MASK) >> GPIO_PIN_SHIFT;
       return ((getreg32(base + STM32L4_GPIO_IDR_OFFSET) & (1 << pin)) != 0);
     }
+
   return 0;
 }

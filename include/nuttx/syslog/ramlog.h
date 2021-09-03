@@ -2,35 +2,20 @@
  * include/nuttx/syslog/ramlog.h
  * The RAM logging driver
  *
- *   Copyright (C) 2012, 2014-2015, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -43,7 +28,7 @@
  * debugging output in a FIFO in RAM.  It differs from a pipe in numerous
  * details as needed to support logging.
  *
- * This driver is built when CONFIG_RAMLOG is defined in the Nuttx
+ * This driver is built when CONFIG_RAMLOG is defined in the NuttX
  * configuration.
  */
 
@@ -66,12 +51,6 @@
 /* Configuration ************************************************************/
 
 /* CONFIG_RAMLOG - Enables the RAM logging feature
- * CONFIG_RAMLOG_CONSOLE - Use the RAM logging device as a system console.
- *   If this feature is enabled (along with CONFIG_DEV_CONSOLE), then all
- *   console output will be re-directed to a circular buffer in RAM.  This
- *   is useful, for example, if the only console is a Telnet console.  Then
- *   in that case, console output from non-Telnet threads will go to the
- *   circular buffer and can be viewed using the NSH 'dmesg' command.
  * CONFIG_RAMLOG_SYSLOG - Use the RAM logging device for the syslogging
  *   interface.  If this feature is enabled then all debug output (only)
  *   will be re-directed to the circular buffer in RAM.  This RAM log can
@@ -81,15 +60,11 @@
  * CONFIG_RAMLOG_NPOLLWAITERS - The number of threads than can be waiting
  *   for this driver on poll().  Default: 4
  *
- * If CONFIG_RAMLOG_CONSOLE or CONFIG_RAMLOG_SYSLOG is selected, then the
- * following may also be provided:
+ * If CONFIG_RAMLOG_SYSLOG is selected, then the following may also be
+ * provided:
  *
  * CONFIG_RAMLOG_BUFSIZE - Size of the console RAM log.  Default: 1024
  */
-
-#ifndef CONFIG_DEV_CONSOLE
-#  undef CONFIG_RAMLOG_CONSOLE
-#endif
 
 #if defined(CONFIG_RAMLOG_SYSLOG) && !defined(CONFIG_SYSLOG_DEVPATH)
 #  define CONFIG_SYSLOG_DEVPATH "/dev/ramlog"
@@ -130,47 +105,27 @@ extern "C"
  *
  *   This interface is not normally used but can be made available is
  *   someone just wants to tinker with the RAM log as a generic character
- *   device.  Normally both CONFIG_RAMLOG_CONSOLE and CONFIG_RAMLOG_SYSLOG
+ *   device.  Normally both CONFIG_CONSOLE_SYSLOG and CONFIG_RAMLOG_SYSLOG
  *   would be set (to capture all output in the log) -OR- just
  *   CONFIG_RAMLOG_SYSLOG would be set to capture debug output only
  *   in the log.
  *
  ****************************************************************************/
 
-#if !defined(CONFIG_RAMLOG_CONSOLE) && !defined(CONFIG_RAMLOG_SYSLOG)
-int ramlog_register(FAR const char *devpath, FAR char *buffer, size_t buflen);
-#endif
+int ramlog_register(FAR const char *devpath,
+                    FAR char *buffer, size_t buflen);
 
 /****************************************************************************
- * Name: ramlog_consoleinit
- *
- * Description:
- *   Create the RAM logging device and register it at the specified path.
- *   Mostly likely this path will be /dev/console.
- *
- *   If CONFIG_RAMLOG_SYSLOG is also defined, then the same RAM logging
- *   device is also registered at CONFIG_SYSLOG_DEVPATH
- *
- ****************************************************************************/
-
-#ifdef CONFIG_RAMLOG_CONSOLE
-int ramlog_consoleinit(void);
-#endif
-
-/****************************************************************************
- * Name: ramlog_syslog_channel
+ * Name: ramlog_syslog_register
  *
  * Description:
  *   Create the RAM logging device and register it at the specified path.
  *   Mostly likely this path will be CONFIG_SYSLOG_DEVPATH
  *
- *   If CONFIG_RAMLOG_CONSOLE is also defined, then this functionality is
- *   performed when ramlog_consoleinit() is called.
- *
  ****************************************************************************/
 
 #ifdef CONFIG_RAMLOG_SYSLOG
-int ramlog_syslog_channel(void);
+void ramlog_syslog_register(void);
 #endif
 
 /****************************************************************************
@@ -181,8 +136,8 @@ int ramlog_syslog_channel(void);
  *
  ****************************************************************************/
 
-#if defined(CONFIG_RAMLOG_CONSOLE) || defined(CONFIG_RAMLOG_SYSLOG)
-int ramlog_putc(int ch);
+#ifdef CONFIG_RAMLOG_SYSLOG
+int ramlog_putc(FAR struct syslog_channel_s *channel, int ch);
 #endif
 
 #undef EXTERN

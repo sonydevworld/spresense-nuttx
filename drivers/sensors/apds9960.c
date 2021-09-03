@@ -1,42 +1,29 @@
 /****************************************************************************
  * drivers/sensors/apds9960.c
- * Character driver for the APDS9960 Gesture Sensor
  *
- *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
- *   Author: Alan Carvalho de Assis <acassis@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/* Character driver for the APDS9960 Gesture Sensor
  *
  * This driver is based on APDS-9960 Arduino library developed by
  * Shawn Hymel from SparkFun Electronics and released under public
  * domain.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ****************************************************************************/
+ */
 
 /****************************************************************************
  * Included Files
@@ -481,7 +468,8 @@ static int apds9960_probe(FAR struct apds9960_dev_s *priv)
  ****************************************************************************/
 
 static int apds9960_i2c_read(FAR struct apds9960_dev_s *priv,
-                           uint8_t const regaddr, FAR uint8_t *regval, int len)
+                             uint8_t const regaddr,
+                             FAR uint8_t *regval, int len)
 {
   struct i2c_config_s config;
   int ret = -1;
@@ -650,9 +638,9 @@ static bool apds9960_processgesture(FAR struct apds9960_dev_s *priv)
 
   if (priv->gesture_data.total_gestures <= 4)
     {
-        snerr("ERROR: We don't have enough gesture: %d\n",
-              priv->gesture_data.total_gestures);
-        return false;
+      snerr("ERROR: We don't have enough gesture: %d\n",
+            priv->gesture_data.total_gestures);
+      return false;
     }
 
   /* Check to make sure our data isn't out of bounds */
@@ -711,144 +699,144 @@ static bool apds9960_processgesture(FAR struct apds9960_dev_s *priv)
         }
     }
 
-    /* Calculate the first vs. last ratio of up/down and left/right */
+  /* Calculate the first vs. last ratio of up/down and left/right */
 
-    ud_ratio_first = ((u_first - d_first) * 100) / (u_first + d_first);
-    lr_ratio_first = ((l_first - r_first) * 100) / (l_first + r_first);
-    ud_ratio_last  = ((u_last  - d_last)  * 100) / (u_last  + d_last);
-    lr_ratio_last  = ((l_last  - r_last)  * 100) / (l_last  + r_last);
+  ud_ratio_first = ((u_first - d_first) * 100) / (u_first + d_first);
+  lr_ratio_first = ((l_first - r_first) * 100) / (l_first + r_first);
+  ud_ratio_last  = ((u_last  - d_last)  * 100) / (u_last  + d_last);
+  lr_ratio_last  = ((l_last  - r_last)  * 100) / (l_last  + r_last);
 
-    sninfo("Last Values: \n");
-    sninfo("U: %03d\n", u_last);
-    sninfo("D: %03d\n", d_last);
-    sninfo("L: %03d\n", l_last);
-    sninfo("R: %03d\n", r_last);
+  sninfo("Last Values: \n");
+  sninfo("U: %03d\n", u_last);
+  sninfo("D: %03d\n", d_last);
+  sninfo("L: %03d\n", l_last);
+  sninfo("R: %03d\n", r_last);
 
-    sninfo("Ratios: \n");
-    sninfo("UD Fi: %03d\n", ud_ratio_first);
-    sninfo("UD La: %03d\n", ud_ratio_last);
-    sninfo("LR Fi: %03d\n", lr_ratio_first);
-    sninfo("LR La: %03d\n", lr_ratio_last);
+  sninfo("Ratios: \n");
+  sninfo("UD Fi: %03d\n", ud_ratio_first);
+  sninfo("UD La: %03d\n", ud_ratio_last);
+  sninfo("LR Fi: %03d\n", lr_ratio_first);
+  sninfo("LR La: %03d\n", lr_ratio_last);
 
-    /* Determine the difference between the first and last ratios */
+  /* Determine the difference between the first and last ratios */
 
-    ud_delta = ud_ratio_last - ud_ratio_first;
-    lr_delta = lr_ratio_last - lr_ratio_first;
+  ud_delta = ud_ratio_last - ud_ratio_first;
+  lr_delta = lr_ratio_last - lr_ratio_first;
 
-    sninfo("Deltas: \n");
-    sninfo("UD: %03d\n", ud_delta);
-    sninfo("LR: %03d\n", lr_delta);
+  sninfo("Deltas: \n");
+  sninfo("UD: %03d\n", ud_delta);
+  sninfo("LR: %03d\n", lr_delta);
 
-    /* Accumulate the UD and LR delta values */
+  /* Accumulate the UD and LR delta values */
 
-    priv->gesture_ud_delta += ud_delta;
-    priv->gesture_lr_delta += lr_delta;
+  priv->gesture_ud_delta += ud_delta;
+  priv->gesture_lr_delta += lr_delta;
 
-    sninfo("Accumulations: \n");
-    sninfo("UD: %03d\n", priv->gesture_ud_delta);
-    sninfo("LR: %03d\n", priv->gesture_lr_delta);
+  sninfo("Accumulations: \n");
+  sninfo("UD: %03d\n", priv->gesture_ud_delta);
+  sninfo("LR: %03d\n", priv->gesture_lr_delta);
 
-    /* Determine U/D gesture */
+  /* Determine U/D gesture */
 
-    if (priv->gesture_ud_delta >= GESTURE_SENSITIVITY_1)
-      {
-        priv->gesture_ud_count = 1;
-      }
-    else
-      {
-        if (priv->gesture_ud_delta <= -GESTURE_SENSITIVITY_1)
-          {
-            priv->gesture_ud_count = -1;
-          }
-        else
-          {
-            priv->gesture_ud_count = 0;
-          }
-      }
+  if (priv->gesture_ud_delta >= GESTURE_SENSITIVITY_1)
+    {
+      priv->gesture_ud_count = 1;
+    }
+  else
+    {
+      if (priv->gesture_ud_delta <= -GESTURE_SENSITIVITY_1)
+        {
+          priv->gesture_ud_count = -1;
+        }
+      else
+        {
+          priv->gesture_ud_count = 0;
+        }
+    }
 
-    /* Determine L/R gesture */
+  /* Determine L/R gesture */
 
-    if (priv->gesture_lr_delta >= GESTURE_SENSITIVITY_1)
-      {
-        priv->gesture_lr_count = 1;
-      }
-    else
-      {
-        if (priv->gesture_lr_delta <= -GESTURE_SENSITIVITY_1)
-          {
-            priv->gesture_lr_count = -1;
-          }
-        else
-          {
-            priv->gesture_lr_count = 0;
-          }
-      }
+  if (priv->gesture_lr_delta >= GESTURE_SENSITIVITY_1)
+    {
+      priv->gesture_lr_count = 1;
+    }
+  else
+    {
+      if (priv->gesture_lr_delta <= -GESTURE_SENSITIVITY_1)
+        {
+          priv->gesture_lr_count = -1;
+        }
+      else
+        {
+          priv->gesture_lr_count = 0;
+        }
+    }
 
-    /* Determine Near/Far gesture */
+  /* Determine Near/Far gesture */
 
-    if ((priv->gesture_ud_count == 0) && (priv->gesture_lr_count == 0))
-      {
-        if ((abs(ud_delta) < GESTURE_SENSITIVITY_2) && \
-            (abs(lr_delta) < GESTURE_SENSITIVITY_2))
-          {
-            if ((ud_delta == 0) && (lr_delta == 0))
-              {
-                priv->gesture_near_count++;
-              }
-            else
-              {
-                if ((ud_delta != 0) || (lr_delta != 0))
-                  {
-                    priv->gesture_far_count++;
-                  }
-              }
+  if ((priv->gesture_ud_count == 0) && (priv->gesture_lr_count == 0))
+    {
+      if ((abs(ud_delta) < GESTURE_SENSITIVITY_2) && \
+          (abs(lr_delta) < GESTURE_SENSITIVITY_2))
+        {
+          if ((ud_delta == 0) && (lr_delta == 0))
+            {
+              priv->gesture_near_count++;
+            }
+          else
+            {
+              if ((ud_delta != 0) || (lr_delta != 0))
+                {
+                  priv->gesture_far_count++;
+                }
+            }
 
-            if ((priv->gesture_near_count >= 10) && \
-                (priv->gesture_far_count >= 2))
-              {
-                if ((ud_delta == 0) && (lr_delta == 0))
-                  {
-                    priv->gesture_state = NEAR_STATE;
-                  }
-                else
-                  {
-                    if ((ud_delta != 0) && (lr_delta != 0))
-                      {
-                        priv->gesture_state = FAR_STATE;
-                      }
-                  }
+          if ((priv->gesture_near_count >= 10) && \
+              (priv->gesture_far_count >= 2))
+            {
+              if ((ud_delta == 0) && (lr_delta == 0))
+                {
+                  priv->gesture_state = NEAR_STATE;
+                }
+              else
+                {
+                  if ((ud_delta != 0) && (lr_delta != 0))
+                    {
+                      priv->gesture_state = FAR_STATE;
+                    }
+                }
 
-                return true;
-              }
-          }
-      }
-    else
-      {
-        if ((abs(ud_delta) < GESTURE_SENSITIVITY_2) && \
-            (abs(lr_delta) < GESTURE_SENSITIVITY_2))
-          {
-            if ((ud_delta == 0) && (lr_delta == 0))
-              {
-                priv->gesture_near_count++;
-              }
+              return true;
+            }
+        }
+    }
+  else
+    {
+      if ((abs(ud_delta) < GESTURE_SENSITIVITY_2) && \
+          (abs(lr_delta) < GESTURE_SENSITIVITY_2))
+        {
+          if ((ud_delta == 0) && (lr_delta == 0))
+            {
+              priv->gesture_near_count++;
+            }
 
-            if (priv->gesture_near_count >= 10)
-              {
-                priv->gesture_ud_count = 0;
-                priv->gesture_lr_count = 0;
-                priv->gesture_ud_delta = 0;
-                priv->gesture_lr_delta = 0;
-              }
-          }
-      }
+          if (priv->gesture_near_count >= 10)
+            {
+              priv->gesture_ud_count = 0;
+              priv->gesture_lr_count = 0;
+              priv->gesture_ud_delta = 0;
+              priv->gesture_lr_delta = 0;
+            }
+        }
+    }
 
-    sninfo(" UD_CT: %03d\n", priv->gesture_ud_count);
-    sninfo(" LR_CT: %03d\n", priv->gesture_lr_count);
-    sninfo(" NEAR_CT: %03d\n", priv->gesture_near_count);
-    sninfo(" FAR_CT:  %03d\n", priv->gesture_far_count);
-    sninfo("----------------------\n");
+  sninfo(" UD_CT: %03d\n", priv->gesture_ud_count);
+  sninfo(" LR_CT: %03d\n", priv->gesture_lr_count);
+  sninfo(" NEAR_CT: %03d\n", priv->gesture_near_count);
+  sninfo(" FAR_CT:  %03d\n", priv->gesture_far_count);
+  sninfo("----------------------\n");
 
-    return false;
+  return false;
 }
 
 /****************************************************************************
@@ -1051,8 +1039,8 @@ static int apds9960_readgesture(FAR struct apds9960_dev_s *priv)
               for (i = 0; i < fifo_level; i++)
                 {
                    sninfo("U: %03d | D: %03d | L: %03d | R: %03d\n",
-                                               fifo_data[i], fifo_data[i+1],
-                                               fifo_data[i+2], fifo_data[i+3]);
+                          fifo_data[i], fifo_data[i + 1],
+                          fifo_data[i + 2], fifo_data[i + 3]);
                 }
 
               sninfo("\n");
@@ -1063,10 +1051,14 @@ static int apds9960_readgesture(FAR struct apds9960_dev_s *priv)
                 {
                   for (i = 0; i < bytes_read; i += 4)
                     {
-                      priv->gesture_data.u_data[priv->gesture_data.index] = fifo_data[i + 0];
-                      priv->gesture_data.d_data[priv->gesture_data.index] = fifo_data[i + 1];
-                      priv->gesture_data.l_data[priv->gesture_data.index] = fifo_data[i + 2];
-                      priv->gesture_data.r_data[priv->gesture_data.index] = fifo_data[i + 3];
+                      priv->gesture_data.u_data[priv->gesture_data.index] =
+                        fifo_data[i + 0];
+                      priv->gesture_data.d_data[priv->gesture_data.index] =
+                        fifo_data[i + 1];
+                      priv->gesture_data.l_data[priv->gesture_data.index] =
+                        fifo_data[i + 2];
+                      priv->gesture_data.r_data[priv->gesture_data.index] =
+                        fifo_data[i + 3];
                       priv->gesture_data.index++;
                       priv->gesture_data.total_gestures++;
                     }
@@ -1085,7 +1077,7 @@ static int apds9960_readgesture(FAR struct apds9960_dev_s *priv)
                     {
                       if (apds9960_decodegesture(priv))
                         {
-                            /* TODO: U-Turn Gestures */
+                          /* TODO: U-Turn Gestures */
                         }
                     }
 
@@ -1171,6 +1163,7 @@ static ssize_t apds9960_read(FAR struct file *filep, FAR char *buffer,
 {
   FAR struct inode         *inode;
   FAR struct apds9960_dev_s *priv;
+  int ret;
 
   DEBUGASSERT(filep);
   inode = filep->f_inode;
@@ -1188,7 +1181,11 @@ static ssize_t apds9960_read(FAR struct file *filep, FAR char *buffer,
 
   /* Wait for data available */
 
-  nxsem_wait_uninterruptible(&priv->sample_sem);
+  ret = nxsem_wait_uninterruptible(&priv->sample_sem);
+  if (ret < 0)
+    {
+      return (ssize_t)ret;
+    }
 
   buffer[0] = (char) priv->gesture_motion;
   buflen    = 1;
@@ -1218,7 +1215,7 @@ static ssize_t apds9960_write(FAR struct file *filep,
  *
  * Input Parameters:
  *   devpath - The full path to the driver to register. E.g., "/dev/gest0"
- *   i2c - An instance of the I2C interface to use to communicate with APDS9960
+ *   i2c - An instance of the I2C interface to communicate with APDS9960
  *   addr - The I2C address of the APDS9960.
  *
  * Returned Value:
@@ -1230,10 +1227,6 @@ int apds9960_register(FAR const char *devpath,
                       FAR struct apds9960_config_s *config)
 {
   int ret;
-
-  /* Sanity check */
-
-  DEBUGASSERT(i2c != NULL);
 
   /* Initialize the APDS9960 device structure */
 

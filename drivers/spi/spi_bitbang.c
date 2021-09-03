@@ -1,37 +1,23 @@
 /****************************************************************************
  * drivers/spi/spi_bitbang.c
  *
- *   Copyright (C) 2013, 2016-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -43,16 +29,20 @@
 #include <errno.h>
 #include <debug.h>
 
+#include <nuttx/kmalloc.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/spi/spi_bitbang.h>
+
+#include <nuttx/semaphore.h>
 
 #ifdef CONFIG_SPI_BITBANG
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-/* This file holds the static, device-independ portion of the generica SPI-
- * bit-bang driver.  The full driver consists of 5 files:
+
+/* This file holds the static, device-independent portion of the generic
+ * SPI-bit-bang driver.  The full driver consists of 5 files:
  *
  * 1. drivers/spi/spi_bitbang.c:  This file.  This file holds the basic
  *    SPI driver framework and not perform any direct bit-bang operations.
@@ -64,20 +54,19 @@
  * 3. boards/<arch>/<chip>/<board>/src/<file>:  The implementation of the
  *    low-level bit-bang logic resides in some file in the board source
  *    directory.  This board-specific logic includes the bit-bang skeleton
- *    logic provided in include/nuttx/spi/spi_bitband.c.
- * 4. include/nuttx/spi/spi_bitband.c.  Despite the .c extension, this
+ *    logic provided in include/nuttx/spi/spi_bitbang.c.
+ * 4. include/nuttx/spi/spi_bitbang.c.  Despite the .c extension, this is
  *    really an included file.  It is used in this way:  1) The board-
  *    specific logic in boards/<arch>/<chip>/<board>/src/<file> provides
- *    some definitions then 2) includes include/nuttx/spi/spi_bitband.c.
+ *    some definitions then 2) includes include/nuttx/spi/spi_bitbang.c.
  *    That file will then use those definitions to implement the low-level
- *    bit-bang logic.  the board-specific logic then calls
+ *    bit-bang logic.  The board-specific logic then calls
  *    spi_create_bitbang() in this file to instantiate the complete SPI
  *    driver.
  *
- *    See include/nuttx/spi/spi_bitband.c for more detailed usage
+ *    See include/nuttx/spi/spi_bitbang.c for more detailed usage
  *    information.
  */
-
 
 /****************************************************************************
  * Private Function Prototypes
@@ -93,7 +82,7 @@ static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev,
 static void     spi_setmode(FAR struct spi_dev_s *dev,
                   enum spi_mode_e mode);
 static void     spi_setbits(FAR struct spi_dev_s *dev, int nbits);
-static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t ch);
+static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd);
 static void     spi_exchange(FAR struct spi_dev_s *dev,
                    FAR const void *txbuffer, FAR void *rxbuffer,
                    size_t nwords);
@@ -136,7 +125,7 @@ static const struct spi_ops_s g_spiops =
   spi_sndblock,       /* sndblock */
   spi_recvblock,      /* recvblock */
 #endif
-   0                  /* registercallback */
+  0                   /* registercallback */
 };
 
 /****************************************************************************
@@ -147,12 +136,12 @@ static const struct spi_ops_s g_spiops =
  * Name: spi_lock
  *
  * Description:
- *   On SPI busses where there are multiple devices, it will be necessary to
- *   lock SPI to have exclusive access to the busses for a sequence of
+ *   On SPI buses where there are multiple devices, it will be necessary to
+ *   lock SPI to have exclusive access to the buses for a sequence of
  *   transfers.  The bus should be locked before the chip is selected. After
  *   locking the SPI bus, the caller should then also call the setfrequency,
  *   setbits, and setmode methods to make sure that the SPI is properly
- *   configured for the device.  If the SPI buss is being shared, then it
+ *   configured for the device.  If the SPI bus is being shared, then it
  *   may have been left in an incompatible state.
  *
  * Input Parameters:
@@ -223,7 +212,8 @@ static void spi_select(FAR struct spi_dev_s *dev, uint32_t devid,
  *
  ****************************************************************************/
 
-static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev, uint32_t frequency)
+static uint32_t spi_setfrequency(FAR struct spi_dev_s *dev,
+                                 uint32_t frequency)
 {
   FAR struct spi_bitbang_s *priv = (FAR struct spi_bitbang_s *)dev;
   uint32_t actual;
@@ -304,12 +294,12 @@ static void spi_setbits(FAR struct spi_dev_s *dev, int nbits)
  *
  ****************************************************************************/
 
-static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
+static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
 {
   FAR struct spi_bitbang_s *priv = (FAR struct spi_bitbang_s *)dev;
   DEBUGASSERT(priv && priv->low && priv->low->exchange);
 
-  return priv->low->exchange(priv, wd);
+  return priv->low->exchange(priv, (uint16_t)wd);
 }
 
 /****************************************************************************
@@ -365,14 +355,14 @@ static void spi_exchange(FAR struct spi_dev_s *dev,
 
 #ifdef CONFIG_SPI_BITBANG_VARWIDTH
           if (priv->nbits > 8)
-           {
+            {
 #ifdef CONFIG_ENDIAN_BIG
-             dataout <<= 8;
-             dataout |= *src++;
+              dataout <<= 8;
+              dataout |= *src++;
 #else
-             dataout |= (uint16_t)(*src++) << 8;
+              dataout |= (uint16_t)(*src++) << 8;
 #endif
-           }
+            }
 #endif
         }
 
@@ -414,7 +404,8 @@ static void spi_exchange(FAR struct spi_dev_s *dev,
  *   nwords - the length of data to send from the buffer in number of words.
  *            The wordsize is determined by the number of bits-per-word
  *            selected for the SPI interface.  If nbits <= 8, the data is
- *            packed into uint8_t's; if nbits >8, the data is packed into uint16_t's
+ *            packed into uint8_t's; if nbits >8, the data is packed into
+ *            uint16_t's
  *
  * Returned Value:
  *   None
@@ -422,7 +413,8 @@ static void spi_exchange(FAR struct spi_dev_s *dev,
  ****************************************************************************/
 
 #ifndef CONFIG_SPI_EXCHANGE
-static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer, size_t nwords)
+static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer,
+                         size_t nwords)
 {
   /* spi_exchange can do this. */
 
@@ -440,9 +432,10 @@ static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer, size
  *   dev -    Device-specific state data
  *   buffer - A pointer to the buffer in which to receive data
  *   nwords - the length of data that can be received in the buffer in number
- *            of words.  The wordsize is determined by the number of bits-per-word
- *            selected for the SPI interface.  If nbits <= 8, the data is
- *            packed into uint8_t's; if nbits >8, the data is packed into uint16_t's
+ *            of words.  The wordsize is determined by the number of
+ *            bits-per-word selected for the SPI interface.  If nbits <= 8,
+ *            the data is packed into uint8_t's; if nbits >8, the data is
+ *            packed into uint16_t's
  *
  * Returned Value:
  *   None
@@ -450,7 +443,8 @@ static void spi_sndblock(FAR struct spi_dev_s *dev, FAR const void *buffer, size
  ****************************************************************************/
 
 #ifndef CONFIG_SPI_EXCHANGE
-static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer, size_t nwords)
+static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *buffer,
+                          size_t nwords)
 {
   /* spi_exchange can do this. */
 
@@ -502,7 +496,7 @@ static int spi_cmddata(FAR struct spi_dev_s *dev, uint32_t devid,
                        bool cmd)
 {
   FAR struct spi_bitbang_s *priv = (FAR struct spi_bitbang_s *)dev;
-  DEBUGASSERTcmddata(priv && priv->low && priv->low->status);
+  DEBUGASSERT(priv && priv->low && priv->low->status);
 
   return priv->low->cmddata(priv, devid, cmd);
 }
@@ -520,7 +514,8 @@ static int spi_cmddata(FAR struct spi_dev_s *dev, uint32_t devid,
  *
  ****************************************************************************/
 
-FAR struct spi_dev_s *spi_create_bitbang(FAR const struct spi_bitbang_ops_s *low)
+FAR struct spi_dev_s *spi_create_bitbang(FAR const struct
+                                         spi_bitbang_ops_s *low)
 {
   FAR struct spi_bitbang_s *priv;
 
@@ -528,7 +523,8 @@ FAR struct spi_dev_s *spi_create_bitbang(FAR const struct spi_bitbang_ops_s *low
 
   /* Allocate an instance of the SPI bit bang structure */
 
-  priv = (FAR struct spi_bitbang_s *)zalloc(sizeof(struct spi_bitbang_s));
+  priv = (FAR struct spi_bitbang_s *)
+    kmm_zalloc(sizeof(struct spi_bitbang_s));
   if (!priv)
     {
       spierr("ERROR: Failed to allocate the device structure\n");

@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/mips/pic32mx/sure-pic32mx/src/pic32mx_buttons.c
  *
- *   Copyright (C) 2011, 2013-2015, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -48,11 +33,11 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_arch.h"
+#include "mips_arch.h"
 
 #include "pic32mx.h"
-#include "pic32mx-ioport.h"
-#include "pic32mx-adc.h"
+#include "pic32mx_ioport.h"
+#include "pic32mx_adc.h"
 #include "sure-pic32mx.h"
 
 #ifdef CONFIG_ARCH_BUTTONS
@@ -60,18 +45,19 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* The Sure DB_DP11215 PIC32 Storage Demo Board has three buttons.
  *
- * SW1  (SW_UP, left arrow)          RB3 Pulled high, Grounded/low when depressed
- * SW2  (SW_DOWN, down/right arrow)  RB2 Pulled high, Grounded/low when depressed
- * SW3  (SW_OK, right arrow)         RB4 Pulled high, Grounded/low when depressed
+ * SW1  (SW_UP, left arrow)      RB3 Pulled high, Grounded/low when depressed
+ * SW2  (SW_DOWN, down arrow)    RB2 Pulled high, Grounded/low when depressed
+ * SW3  (SW_OK, right arrow)     RB4 Pulled high, Grounded/low when depressed
  *
- * The Sure DB-DP11212 PIC32 General Purpose Demo Board also has three buttons,
- * but these are connected differently:
+ * The Sure DB-DP11212 PIC32 General Purpose Demo Board also has three
+ * buttons, but these are connected differently:
  *
- * SW2-1                             RF0  Pulled high, Grounded/low when depressed
- * SW3-1                             RF1  Pulled high, Grounded/low when depressed
- * SW5-1                             RD6  Pulled high, Grounded/low when depressed
+ * SW2-1                         RF0 Pulled high, Grounded/low when depressed
+ * SW3-1                         RF1 Pulled high, Grounded/low when depressed
+ * SW5-1                         RD6 Pulled high, Grounded/low when depressed
  *
  * Internal pull-ups are not required since the LEDs are pull-up externally.
  * Change notification interrupts are not *automatically* enabled.  Change
@@ -131,13 +117,13 @@ static const uint8_t g_buttoncn[NUM_BUTTONS] =
  *
  * Description:
  *   board_button_initialize() must be called to initialize button resources.
- *   After that, board_buttons() may be called to collect the current state of
- *   all buttons or board_button_irq() may be called to register button
+ *   After that, board_buttons() may be called to collect the current state
+ *   of all buttons or board_button_irq() may be called to register button
  *   interrupt handlers.
  *
  ****************************************************************************/
 
-void board_button_initialize(void)
+uint32_t board_button_initialize(void)
 {
   int i;
 
@@ -151,6 +137,7 @@ void board_button_initialize(void)
   /* Change AN2/AN3/AN4 to digital */
 
   putreg32(0xffff, PIC32MX_ADC_CFG);
+  return NUM_BUTTONS;
 }
 
 /****************************************************************************

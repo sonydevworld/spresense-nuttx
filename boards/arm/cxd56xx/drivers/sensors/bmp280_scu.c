@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/cxd56xx/drivers/sensors/bmp280_scu.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -154,8 +139,10 @@ struct bmp280_dev_s
  * Private Function Prototypes
  ****************************************************************************/
 
-static uint8_t bmp280_getreg8(FAR struct bmp280_dev_s *priv, uint8_t regaddr);
-static void bmp280_putreg8(FAR struct bmp280_dev_s *priv, uint8_t regaddr,
+static uint8_t bmp280_getreg8(FAR struct bmp280_dev_s *priv,
+                              uint8_t regaddr);
+static void bmp280_putreg8(FAR struct bmp280_dev_s *priv,
+                           uint8_t regaddr,
                            uint8_t regval);
 
 /* Character driver methods */
@@ -322,31 +309,31 @@ static int bmp280_get_calib_param_press(FAR struct bmp280_dev_s *priv)
 {
   /* Read calibration values */
 
-  g_press_adj.dig_P1 =
+  g_press_adj.dig_p1 =
         ((uint16_t)bmp280_getreg8(priv, BMP280_DIG_P1_MSB) << 8) |
          bmp280_getreg8(priv, BMP280_DIG_P1_LSB);
-  g_press_adj.dig_P2 =
+  g_press_adj.dig_p2 =
         ((int16_t)bmp280_getreg8(priv, BMP280_DIG_P2_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_P2_LSB);
-  g_press_adj.dig_P3 =
+  g_press_adj.dig_p3 =
         ((int16_t)bmp280_getreg8(priv, BMP280_DIG_P3_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_P3_LSB);
-  g_press_adj.dig_P4 =
+  g_press_adj.dig_p4 =
         ((int16_t)bmp280_getreg8(priv, BMP280_DIG_P4_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_P4_LSB);
-  g_press_adj.dig_P5 =
+  g_press_adj.dig_p5 =
         ((int16_t)bmp280_getreg8(priv, BMP280_DIG_P5_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_P5_LSB);
-  g_press_adj.dig_P6 =
+  g_press_adj.dig_p6 =
         ((int16_t)bmp280_getreg8(priv, BMP280_DIG_P6_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_P6_LSB);
-  g_press_adj.dig_P7 =
+  g_press_adj.dig_p7 =
         ((int16_t)bmp280_getreg8(priv, BMP280_DIG_P7_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_P7_LSB);
-  g_press_adj.dig_P8 =
+  g_press_adj.dig_p8 =
         ((int16_t)bmp280_getreg8(priv, BMP280_DIG_P8_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_P8_LSB);
-  g_press_adj.dig_P9 =
+  g_press_adj.dig_p9 =
         ((int16_t)bmp280_getreg8(priv, BMP280_DIG_P9_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_P9_LSB);
 
@@ -365,13 +352,13 @@ static int bmp280_get_calib_param_temp(FAR struct bmp280_dev_s *priv)
 {
   /* Read calibration values */
 
-  g_temp_adj.dig_T1 =
+  g_temp_adj.dig_t1 =
         ((uint16_t)bmp280_getreg8(priv, BMP280_DIG_T1_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_T1_LSB);
-  g_temp_adj.dig_T2 =
+  g_temp_adj.dig_t2 =
         ((int16_t)bmp280_getreg8(priv, BMP280_DIG_T2_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_T2_LSB);
-  g_temp_adj.dig_T3 =
+  g_temp_adj.dig_t3 =
         ((int16_t)bmp280_getreg8(priv, BMP280_DIG_T3_MSB) << 8) |
         bmp280_getreg8(priv, BMP280_DIG_T3_LSB);
 
@@ -386,7 +373,8 @@ static int bmp280_get_calib_param_temp(FAR struct bmp280_dev_s *priv)
  *
  ****************************************************************************/
 
-static void bmp280_set_power_mode(FAR struct bmp280_dev_s *priv, uint8_t value)
+static void bmp280_set_power_mode(FAR struct bmp280_dev_s *priv,
+                                  uint8_t value)
 {
   uint8_t v_data_u8 = 0;
 
@@ -403,7 +391,8 @@ static void bmp280_set_power_mode(FAR struct bmp280_dev_s *priv, uint8_t value)
  *
  ****************************************************************************/
 
-static void bmp280_set_oversamp_press(FAR struct bmp280_dev_s *priv, uint8_t value)
+static void bmp280_set_oversamp_press(FAR struct bmp280_dev_s *priv,
+                                      uint8_t value)
 {
   uint8_t v_data_u8 = 0;
 
@@ -475,7 +464,7 @@ static int bmp280_initialize(FAR struct bmp280_dev_s *priv)
 {
   int ret;
 
-  ret = bmp280_set_standby(priv, BMP280_STANDBY_1_MS);
+  ret = bmp280_set_standby(priv, BMP280_STANDBY_05_MS);
 
   if (ret != OK)
     {
@@ -770,15 +759,15 @@ static int bmp280_ioctl_press(FAR struct file *filep, int cmd,
           struct bmp280_press_adj_s *user = (struct bmp280_press_adj_s *)
                                             (uintptr_t)arg;
 
-          user->dig_P1 = g_press_adj.dig_P1;
-          user->dig_P2 = g_press_adj.dig_P2;
-          user->dig_P3 = g_press_adj.dig_P3;
-          user->dig_P4 = g_press_adj.dig_P4;
-          user->dig_P5 = g_press_adj.dig_P5;
-          user->dig_P6 = g_press_adj.dig_P6;
-          user->dig_P7 = g_press_adj.dig_P7;
-          user->dig_P8 = g_press_adj.dig_P8;
-          user->dig_P9 = g_press_adj.dig_P9;
+          user->dig_p1 = g_press_adj.dig_p1;
+          user->dig_p2 = g_press_adj.dig_p2;
+          user->dig_p3 = g_press_adj.dig_p3;
+          user->dig_p4 = g_press_adj.dig_p4;
+          user->dig_p5 = g_press_adj.dig_p5;
+          user->dig_p6 = g_press_adj.dig_p6;
+          user->dig_p7 = g_press_adj.dig_p7;
+          user->dig_p8 = g_press_adj.dig_p8;
+          user->dig_p9 = g_press_adj.dig_p9;
         }
         break;
 
@@ -827,11 +816,12 @@ static int bmp280_ioctl_temp(FAR struct file *filep, int cmd,
 
       case SNIOC_GETADJ:
         {
-          struct bmp280_temp_adj_s *user = (struct bmp280_temp_adj_s *)(uintptr_t)arg;
+          struct bmp280_temp_adj_s *user = (struct bmp280_temp_adj_s *)
+                                           (uintptr_t)arg;
 
-          user->dig_T1 = g_temp_adj.dig_T1;
-          user->dig_T2 = g_temp_adj.dig_T2;
-          user->dig_T3 = g_temp_adj.dig_T3;
+          user->dig_t1 = g_temp_adj.dig_t1;
+          user->dig_t2 = g_temp_adj.dig_t2;
+          user->dig_t3 = g_temp_adj.dig_t3;
         }
         break;
 

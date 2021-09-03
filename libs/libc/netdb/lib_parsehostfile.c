@@ -1,35 +1,20 @@
 /****************************************************************************
- * libs/libc/netdb/lib_parsehostile.c
+ * libs/libc/netdb/lib_parsehostfile.c
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -50,7 +35,7 @@
 
 #include <arpa/inet.h>
 
-#include "libc.h"
+#include "lib_netdb.h"
 
 #ifdef CONFIG_NETDB_HOSTFILE
 
@@ -72,8 +57,10 @@
 struct hostent_info_s
 {
   FAR char *hi_aliases[CONFIG_NETDB_MAX_ALTNAMES + 1];
+  int       hi_addrtypes[1];
+  int       hi_lengths[1];
   FAR char *hi_addrlist[2];
-  char hi_data[1];
+  char      hi_data[1];
 };
 
 /****************************************************************************
@@ -193,6 +180,13 @@ static ssize_t lib_copystring(FAR FILE *stream, FAR char *ptr,
 
   for (; ; )
     {
+      /* There there space to buffer one more character? */
+
+      if (nwritten >= buflen)
+        {
+          return -ERANGE;
+        }
+
       /* Read the next character from the file */
 
       ch = fgetc(stream);
@@ -205,7 +199,7 @@ static ssize_t lib_copystring(FAR FILE *stream, FAR char *ptr,
 
       if (isspace(ch) || ch == EOF)
         {
-          /* Remeber what terminated the string */
+          /* Remember what terminated the string */
 
           *terminator = ch;
 
@@ -215,20 +209,13 @@ static ssize_t lib_copystring(FAR FILE *stream, FAR char *ptr,
 
           /* Return EOF if nothing has written */
 
-          return nwritten == 0 ? 0 : nwritten + 1;
+          return nwritten + 1;
         }
 
       /* Write the next string to the buffer */
 
       *ptr++ = ch;
       nwritten++;
-
-      /* There there space to buffer one more character? */
-
-      if (nwritten >= buflen)
-        {
-          return -ERANGE;
-        }
     }
 }
 
@@ -237,7 +224,7 @@ static ssize_t lib_copystring(FAR FILE *stream, FAR char *ptr,
  ****************************************************************************/
 
 /****************************************************************************
- * Name: lib_parse_hostfile
+ * Name: parse_hostfile
  *
  * Description:
  *   Parse the next line from the hosts file.
@@ -262,8 +249,8 @@ static ssize_t lib_copystring(FAR FILE *stream, FAR char *ptr,
  *
  ****************************************************************************/
 
-ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
-                           FAR char *buf, size_t buflen)
+ssize_t parse_hostfile(FAR FILE *stream, FAR struct hostent_s *host,
+                       FAR char *buf, size_t buflen)
 {
   FAR struct hostent_info_s *info;
   FAR char addrstring[48];
@@ -281,16 +268,20 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
    */
 
   if (buflen <= sizeof(struct hostent_info_s))
-   {
-     return -ERANGE;
-   }
+    {
+      return -ERANGE;
+    }
 
   info    = (FAR struct hostent_info_s *)buf;
   ptr     = info->hi_data;
   buflen -= (sizeof(struct hostent_info_s) - 1);
 
-  memset(host, 0, sizeof(struct hostent));
+  memset(host, 0, sizeof(struct hostent_s));
   memset(info, 0, sizeof(struct hostent_info_s));
+
+  host->h_addrtypes = info->hi_addrtypes;
+  host->h_lengths   = info->hi_lengths;
+  host->h_addr_list = info->hi_addrlist;
 
   /* Skip over any leading spaces */
 
@@ -306,7 +297,7 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
 
       if (ch == '#')
         {
-           /* Skip to the end of line. */
+          /* Skip to the end of line. */
 
           ch = lib_skipline(stream, &nread);
           if (ch == EOF)
@@ -322,7 +313,7 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
   addrstring[0] = ch;
 
   nwritten = lib_copystring(stream, &addrstring[1], &nread, 47, &ch);
-  if (nwritten <= 0)
+  if (nwritten < 0)
     {
       return nwritten;
     }
@@ -331,7 +322,7 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
     {
       /* The string was terminated with a newline of EOF */
 
-      return -EAGAIN;
+      return ch == EOF ? -EPIPE : -EAGAIN;
     }
 
   /* If the address contains a colon, say it is IPv6 */
@@ -347,7 +338,7 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
         }
 
       ret = inet_pton(AF_INET6, addrstring, ptr);
-      if (ret < 0)
+      if (ret <= 0)
         {
           /* Conversion failed.  Entry is corrupted */
 
@@ -355,7 +346,7 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
           return -EAGAIN;
         }
 
-      host->h_addrtype  = AF_INET6;
+      host->h_addrtypes[0] = AF_INET6;
     }
   else
     {
@@ -368,7 +359,7 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
         }
 
       ret = inet_pton(AF_INET, addrstring, ptr);
-      if (ret < 0)
+      if (ret <= 0)
         {
           /* Conversion failed.  Entry is corrupted */
 
@@ -376,15 +367,14 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
           return -EAGAIN;
         }
 
-      host->h_addrtype  = AF_INET;
+      host->h_addrtypes[0] = AF_INET;
     }
 
-  info->hi_addrlist[0] = ptr;
-  host->h_addr_list    = info->hi_addrlist;
-  host->h_length       = addrlen;
+  host->h_addr_list[0] = ptr;
+  host->h_lengths[0]   = addrlen;
 
-  ptr                 += addrlen;
-  buflen              -= addrlen;
+  ptr    += addrlen;
+  buflen -= addrlen;
 
   /* Skip over any additional whitespace */
 
@@ -397,6 +387,10 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
     {
       return -EAGAIN;
     }
+  else if (buflen == 0)
+    {
+      return -ERANGE;
+    }
 
   /* Parse the host name */
 
@@ -405,7 +399,7 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
   buflen--;
 
   nwritten = lib_copystring(stream, ptr, &nread, buflen, &ch);
-  if (nwritten <= 0)
+  if (nwritten < 0)
     {
       return nwritten;
     }
@@ -424,7 +418,7 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
 
   /* Parse any host name aliases */
 
-  for (i = 0; i < CONFIG_NETDB_MAX_ALTNAMES; i++)
+  for (i = 0; ; i++)
     {
       /* Skip over any leading whitespace */
 
@@ -434,6 +428,10 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
           /* No further aliases on the line */
 
           return nread;
+        }
+      else if (buflen == 0 || i >= CONFIG_NETDB_MAX_ALTNAMES)
+        {
+          return -ERANGE;
         }
 
       /* Parse the next alias */
@@ -447,18 +445,14 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
         {
           return nwritten;
         }
-      else if (nwritten == 0)
+
+      /* Save the pointer to the beginning of the next alias */
+
+      info->hi_aliases[i] = start;
+      if (host->h_aliases == NULL)
         {
-          return nread;
+          host->h_aliases = info->hi_aliases;
         }
-
-       /* Save the pointer to the beginning of the next alias */
-
-       info->hi_aliases[i] = start;
-       if (host->h_aliases == NULL)
-         {
-           host->h_aliases = info->hi_aliases;
-         }
 
       if (!lib_isspace(ch))
         {
@@ -470,14 +464,6 @@ ssize_t lib_parse_hostfile(FAR FILE *stream, FAR struct hostent *host,
       ptr += nwritten;
       buflen -= nwritten;
     }
-
-  /* We get here only if there are more than CONFIG_NETDB_MAX_ALTNAMES
-   * aliases on the line.  Skip to the endof the line, ignoring any
-   * additional aliases.
-   */
-
-  lib_skipline(stream, &nread);
-  return nread;
 }
 
 #endif /* CONFIG_NETDB_HOSTFILE */

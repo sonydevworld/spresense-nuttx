@@ -64,7 +64,7 @@ DRAMBOOT, AT25BOOT, SRAMBOOT
 
   The boards/arm/sama5/sama5d4-xult/README.txt also describes variants AT25BOOT and
   SRAMBOOT.  This have not yet been ported to the SAMA5D2-XULT, but are
-  available if they are usefult too you.
+  available if they are useful too you.
 
 Running NuttX from SDRAM
 ========================
@@ -144,7 +144,7 @@ REVISIT: Unverified, cloned text from the SAMA5D4-EK README.txt
   0x0000:0000 - 0x0003:ffff: AT91BootStrap
   0x0004:0000 - 0x000b:ffff: U-Boot
   0x000c:0000 - 0x000f:ffff: U-Boot environment
-  0x0010:0000 - 0x0017:ffff: U-Boot environement redundant
+  0x0010:0000 - 0x0017:ffff: U-Boot environment redundant
   0x0018:0000 - 0x001f:ffff: Device tree (DTB)
   0x0020:0000 - 0x007f:ffff: NuttX
   0x0080:0000 - end:         Available for use as a NAND file system
@@ -203,7 +203,7 @@ REVISIT: Unverified, cloned text from the SAMA5D4-EK README.txt
 
      http://www.at91.com/linux4sam/bin/view/Linux4SAM/U-Boot#Build_U_Boot_from_sources
 
-     A pre-Built binay image is available here:
+     A pre-Built binary image is available here:
 
      ftp://www.at91.com/pub/uboot/u-boot-v2013.07/u-boot-sama5d3_xplained-v2013.07-at91-r1.bin
 
@@ -237,7 +237,7 @@ REVISIT: Unverified, cloned text from the SAMA5D4-EK README.txt
      - Press the "Send File" button
      - Close SAM-BA, remove the USB Device cable.
 
-  You should now be able to interrupt with U-Boot vie the DBGU interface.
+  You should now be able to interrupt with U-Boot via the DBGU interface.
 
   Load NuttX with U-Boot on AT91 boards
   -------------------------------------
@@ -489,7 +489,7 @@ Serial Console
     ---- ------------------------ -------------
 
   Standard UART on Arduino connector (J21) is FLEXCOM4.
-  Terminologicy: FLEXCOM is the same as USART in previous SAMA5D versions.
+  Terminology: FLEXCOM is the same as USART in previous SAMA5D versions.
 
     ---- ------- -------------
     J21  BOARD      SAMA5D2
@@ -759,23 +759,6 @@ Configurations
      System Type -> Toolchain:
        CONFIG_ARMV7A_TOOLCHAIN_GNU_EABIW=y : GNU EABI toolchain for windows
 
-     That same configuration will work with Atmel GCC toolchain.  The only
-     change required to use the Atmel GCC toolchain is to change the PATH
-     variable so that those tools are selected instead of the CodeSourcery
-     tools.  Try 'which arm-none-eabi-gcc' to make sure that you are
-     selecting the right tool.
-
-     See also the "NOTE about Windows native toolchains" in the section call
-     "GNU Toolchain Options" above.
-
-     !!!WARNING!!! The first time that you type 'make', the system will
-     configure itself based on the settings in the .config file.  One of
-     these settings can cause a lot of confusion if you configure the build
-     in the wrong state:  If you are running on Linux, make *certain* that
-     you have CONFIG_HOST_LINUX=y *before* the first make or you will
-     create a very corrupt configuration that may not be easy to recover
-     from.
-
   4. The SAMA5Dx is running at 528MHz by default in these configurations.
 
        Board Selection -> CPU Frequency
@@ -794,6 +777,13 @@ Configurations
   for status of individual configurations.
 
   Now for the gory details:
+
+  netnsh:
+
+    This is a network enabled configuration based on the NuttShell (NSH).
+    The CDC-ECM driver is enabled, so you can plug a USB cable into the
+    USB-Micro port (USB-A) and the board will appear as an CDC-ECM
+    ethernet adapter.
 
   nsh:
 
@@ -827,14 +817,13 @@ Configurations
 
     4. This configuration supports logging of debug output to a circular
        buffer in RAM.  This feature is discussed fully in this Wiki page:
-       http://nuttx.org/doku.php?id=wiki:howtos:syslog . Relevant
+       https://cwiki.apache.org/confluence/display/NUTTX/SYSLOG . Relevant
        configuration settings are summarized below:
 
        File System:
 
        Device Drivers:
        CONFIG_RAMLOG=y             : Enable the RAM-based logging feature.
-       CONFIG_RAMLOG_CONSOLE=n     : (We don't use the RAMLOG console)
        CONFIG_RAMLOG_SYSLOG=y      : This enables the RAM-based logger as the
                                      system logger.
        CONFIG_RAMLOG_NONBLOCKING=y : Needs to be non-blocking for dmesg
@@ -938,7 +927,7 @@ Configurations
 
        The FAT file system includes long file name support.  Please be aware
        that Microsoft claims patents against the long file name support (see
-       more discussion in the top-level COPYING file).
+       more discussion in the top-level NOTICE file).
 
          CONFIG_FS_FAT=y        : Enables the FAT file system
          CONFIG_FAT_LCNAMES=y   : Enable lower case 8.3 file names
@@ -965,3 +954,10 @@ Configurations
        NOTE:  If you want the RTC to preserve time over power cycles, you
        will need to install a battery in the battery holder (J12) and close
        the jumper, JP13.
+
+  sdmmcnsh:
+
+    This is a configuration based on the NuttShell (NSH). The SDMMC
+    peripheral is enabled, and can read and write to a VFAT filesystem
+    on the SD Card.
+

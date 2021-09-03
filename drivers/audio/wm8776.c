@@ -1,37 +1,20 @@
 /****************************************************************************
  * drivers/audio/wm8776.c
  *
- *   Copyright 2017, 2018 Sony Video & Sound Products Inc.
- *   Author: Masayuki Ishikawa <Masayuki.Ishikawa@jp.sony.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Based on drivers/audio/wm8904.c
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -44,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -74,7 +58,8 @@
 static void     wm8776_writereg(FAR struct wm8776_dev_s *priv,
                   uint8_t regaddr, uint16_t regval);
 
-static void     wm8776_takesem(sem_t *sem);
+static int      wm8776_takesem(FAR sem_t *sem);
+static int      wm8776_forcetake(FAR sem_t *sem);
 #define         wm8776_givesem(s) nxsem_post(s)
 
 static int      wm8776_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
@@ -174,13 +159,13 @@ static const struct audio_ops_s g_audioops =
   wm8776_release        /* release        */
 };
 
-/************************************************************************************
+/****************************************************************************
  * Name: wm8776_writereg
  *
  * Description:
  *   Write the specified 16-bit register to the WM8776 device.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static void wm8776_writereg(FAR struct wm8776_dev_s *priv,
                             uint8_t regaddr,
@@ -208,28 +193,65 @@ static void wm8776_writereg(FAR struct wm8776_dev_s *priv,
     }
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: wm8776_takesem
  *
  * Description:
- *  Take a semaphore count, handling the nasty EINTR return if we are interrupted
- *  by a signal.
+ *  Take a semaphore count, handling the nasty EINTR return if we are
+ *  interrupted by a signal.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-static void wm8776_takesem(sem_t *sem)
+static int wm8776_takesem(sem_t *sem)
 {
-  nxsem_wait_uninterruptible(sem);
+  return nxsem_wait_uninterruptible(sem);
 }
 
-/************************************************************************************
+/****************************************************************************
+ * Name: wm8776_forcetake
+ *
+ * Description:
+ *   This is just another wrapper but this one continues even if the thread
+ *   is canceled.  This must be done in certain conditions where were must
+ *   continue in order to clean-up resources.
+ *
+ ****************************************************************************/
+
+static int wm8776_forcetake(FAR sem_t *sem)
+{
+  int result;
+  int ret = OK;
+
+  do
+    {
+      result = nxsem_wait_uninterruptible(sem);
+
+      /* The only expected error would -ECANCELED meaning that the
+       * parent thread has been canceled.  We have to continue and
+       * terminate the poll in this case.
+       */
+
+      DEBUGASSERT(result == OK || result == -ECANCELED);
+      if (ret == OK && result < 0)
+        {
+          /* Remember the first failure */
+
+          ret = result;
+        }
+    }
+  while (result < 0);
+
+  return ret;
+}
+
+/****************************************************************************
  * Name: wm8776_setvolume
  *
  * Description:
- *   Set the right and left volume values in the WM8776 device based on the current
- *   volume and balance settings.
+ *   Set the right and left volume values in the WM8776 device based on the
+ *   current volume and balance settings.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef CONFIG_AUDIO_EXCLUDE_VOLUME
 static void wm8776_setvolume(FAR struct wm8776_dev_s *priv, uint16_t volume,
@@ -312,8 +334,9 @@ static int wm8776_getcaps(FAR struct audio_lowerhalf_s *dev, int type,
 
               /* The types of audio units we implement */
 
-              caps->ac_controls.b[0] = AUDIO_TYPE_OUTPUT | AUDIO_TYPE_FEATURE |
-                                     AUDIO_TYPE_PROCESSING;
+              caps->ac_controls.b[0] =
+                AUDIO_TYPE_OUTPUT | AUDIO_TYPE_FEATURE |
+                AUDIO_TYPE_PROCESSING;
 
               break;
 
@@ -413,15 +436,16 @@ static int wm8776_configure(FAR struct audio_lowerhalf_s *dev,
               {
                 /* Scale the volume setting to the range {0x2f .. 0x79} */
 
-                wm8776_setvolume(priv, (0x4a * volume / 1000) + 0x2f, priv->mute);
+                wm8776_setvolume(priv, (0x4a * volume / 1000) + 0x2f,
+                                 priv->mute);
               }
             else
               {
                 ret = -EDOM;
               }
-           }
+          }
           break;
-#endif  /* CONFIG_AUDIO_EXCLUDE_VOLUME */
+#endif /* CONFIG_AUDIO_EXCLUDE_VOLUME */
 
         default:
           auderr("    ERROR: Unrecognized feature unit\n");
@@ -523,7 +547,7 @@ static void  wm8776_senddone(FAR struct i2s_dev_s *i2s,
    * against that possibility.
    */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
 
   /* Add the completed buffer to the end of our doneq.  We do not yet
    * decrement the reference count.
@@ -537,21 +561,22 @@ static void  wm8776_senddone(FAR struct i2s_dev_s *i2s,
   priv->inflight--;
 
   /* Save the result of the transfer */
+
   /* REVISIT:  This can be overwritten */
 
   priv->result = result;
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 
   /* Now send a message to the worker thread, informing it that there are
    * buffers in the done queue that need to be cleaned up.
    */
 
-  msg.msgId = AUDIO_MSG_COMPLETE;
-  ret = mq_send(priv->mq, (FAR const char *)&msg, sizeof(msg),
-                CONFIG_WM8776_MSG_PRIO);
+  msg.msg_id = AUDIO_MSG_COMPLETE;
+  ret = file_mq_send(&priv->mq, (FAR const char *)&msg, sizeof(msg),
+                     CONFIG_WM8776_MSG_PRIO);
   if (ret < 0)
     {
-      auderr("ERROR: mq_send failed: %d\n", get_errno());
+      auderr("ERROR: file_mq_send failed: %d\n", ret);
     }
 }
 
@@ -575,13 +600,13 @@ static void wm8776_returnbuffers(FAR struct wm8776_dev_s *priv)
    * use interrupt controls to protect against that possibility.
    */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   while (dq_peek(&priv->doneq) != NULL)
     {
       /* Take the next buffer from the queue of completed transfers */
 
       apb = (FAR struct ap_buffer_s *)dq_remfirst(&priv->doneq);
-      spin_unlock_irqrestore(flags);
+      spin_unlock_irqrestore(NULL, flags);
 
       audinfo("Returning: apb=%p curbyte=%d nbytes=%d flags=%04x\n",
               apb, apb->curbyte, apb->nbytes, apb->flags);
@@ -616,10 +641,10 @@ static void wm8776_returnbuffers(FAR struct wm8776_dev_s *priv)
 #else
       priv->dev.upper(priv->dev.priv, AUDIO_CALLBACK_DEQUEUE, apb, OK);
 #endif
-      flags = spin_lock_irqsave();
+      flags = spin_lock_irqsave(NULL);
     }
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 }
 
 /****************************************************************************
@@ -639,7 +664,7 @@ static int wm8776_sendbuffer(FAR struct wm8776_dev_s *priv)
   irqstate_t flags;
   uint32_t timeout;
   int shift;
-  int ret = OK;
+  int ret;
 
   /* Loop while there are audio buffers to be sent and we have few than
    * CONFIG_WM8776_INFLIGHT then "in-flight"
@@ -653,7 +678,12 @@ static int wm8776_sendbuffer(FAR struct wm8776_dev_s *priv)
    * only while accessing 'inflight'.
    */
 
-  wm8776_takesem(&priv->pendsem);
+  ret = wm8776_takesem(&priv->pendsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   while (priv->inflight < CONFIG_WM8776_INFLIGHT &&
          dq_peek(&priv->pendq) != NULL && !priv->paused)
     {
@@ -667,9 +697,9 @@ static int wm8776_sendbuffer(FAR struct wm8776_dev_s *priv)
        * to avoid a possible race condition.
        */
 
-      flags = spin_lock_irqsave();
+      flags = spin_lock_irqsave(NULL);
       priv->inflight++;
-      spin_unlock_irqrestore(flags);
+      spin_unlock_irqrestore(NULL, flags);
 
       shift  = (priv->bpsamp == 8) ? 14 - 3 : 14 - 4;
       shift -= (priv->nchannels > 1) ? 1 : 0;
@@ -713,19 +743,22 @@ static int wm8776_start(FAR struct audio_lowerhalf_s *dev)
   audinfo("Entry\n");
 
   /* Exit reduced power modes of operation */
+
   /* REVISIT */
 
   /* Create a message queue for the worker thread */
 
-  snprintf(priv->mqname, sizeof(priv->mqname), "/tmp/%X", priv);
+  snprintf(priv->mqname, sizeof(priv->mqname), "/tmp/%" PRIXPTR,
+           (uintptr_t)priv);
 
   attr.mq_maxmsg  = 16;
   attr.mq_msgsize = sizeof(struct audio_msg_s);
   attr.mq_curmsgs = 0;
   attr.mq_flags   = 0;
 
-  priv->mq = mq_open(priv->mqname, O_RDWR | O_CREAT, 0644, &attr);
-  if (priv->mq == NULL)
+  ret = file_mq_open(&priv->mq, priv->mqname,
+                     O_RDWR | O_CREAT, 0644, &attr);
+  if (ret < 0)
     {
       /* Error creating message queue! */
 
@@ -785,10 +818,10 @@ static int wm8776_stop(FAR struct audio_lowerhalf_s *dev)
 
   /* Send a message to stop all audio streaming */
 
-  term_msg.msgId = AUDIO_MSG_STOP;
+  term_msg.msg_id = AUDIO_MSG_STOP;
   term_msg.u.data = 0;
-  mq_send(priv->mq, (FAR const char *)&term_msg, sizeof(term_msg),
-          CONFIG_WM8776_MSG_PRIO);
+  file_mq_send(&priv->mq, (FAR const char *)&term_msg, sizeof(term_msg),
+               CONFIG_WM8776_MSG_PRIO);
 
   /* Join the worker thread */
 
@@ -796,6 +829,7 @@ static int wm8776_stop(FAR struct audio_lowerhalf_s *dev)
   priv->threadid = 0;
 
   /* Enter into a reduced power usage mode */
+
   /* REVISIT: */
 
   return OK;
@@ -837,7 +871,8 @@ static int wm8776_pause(FAR struct audio_lowerhalf_s *dev)
 
 #ifndef CONFIG_AUDIO_EXCLUDE_PAUSE_RESUME
 #ifdef CONFIG_AUDIO_MULTI_SESSION
-static int wm8776_resume(FAR struct audio_lowerhalf_s *dev, FAR void *session)
+static int wm8776_resume(FAR struct audio_lowerhalf_s *dev,
+                         FAR void *session)
 #else
 static int wm8776_resume(FAR struct audio_lowerhalf_s *dev)
 #endif
@@ -878,31 +913,33 @@ static int wm8776_enqueuebuffer(FAR struct audio_lowerhalf_s *dev,
 
   /* Add the new buffer to the tail of pending audio buffers */
 
-  wm8776_takesem(&priv->pendsem);
+  ret = wm8776_takesem(&priv->pendsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   apb->flags |= AUDIO_APB_OUTPUT_ENQUEUED;
   dq_addlast(&apb->dq_entry, &priv->pendq);
   wm8776_givesem(&priv->pendsem);
 
-  /* Send a message to the worker thread indicating that a new buffer has been
-   * enqueued.  If mq is NULL, then the playing has not yet started.  In that
-   * case we are just "priming the pump" and we don't need to send any message.
+  /* Send a message to the worker thread indicating that a new buffer has
+   * been enqueued.  If mq is NULL, then the playing has not yet started.
+   * In that case we are just "priming the pump" and we don't need to send
+   * any message.
    */
 
   ret = OK;
-  if (priv->mq != NULL)
+  if (priv->mq.f_inode != NULL)
     {
-      term_msg.msgId  = AUDIO_MSG_ENQUEUE;
+      term_msg.msg_id  = AUDIO_MSG_ENQUEUE;
       term_msg.u.data = 0;
 
-      ret = mq_send(priv->mq, (FAR const char *)&term_msg, sizeof(term_msg),
-                    CONFIG_WM8776_MSG_PRIO);
+      ret = file_mq_send(&priv->mq, (FAR const char *)&term_msg,
+                         sizeof(term_msg), CONFIG_WM8776_MSG_PRIO);
       if (ret < 0)
         {
-          int errcode = get_errno();
-          DEBUGASSERT(errcode > 0);
-
-          auderr("ERROR: mq_send failed: %d\n", errcode);
-          UNUSED(errcode);
+          auderr("ERROR: file_mq_send failed: %d\n", ret);
         }
     }
 
@@ -933,6 +970,7 @@ static int wm8776_cancelbuffer(FAR struct audio_lowerhalf_s *dev,
 static int wm8776_ioctl(FAR struct audio_lowerhalf_s *dev, int cmd,
                         unsigned long arg)
 {
+  int ret = OK;
 #ifdef CONFIG_AUDIO_DRIVER_SPECIFIC_BUFFERS
   FAR struct ap_buffer_info_s *bufinfo;
 #endif
@@ -970,11 +1008,12 @@ static int wm8776_ioctl(FAR struct audio_lowerhalf_s *dev, int cmd,
 #endif
 
       default:
+        ret = -ENOTTY;
         audinfo("Ignored\n");
         break;
     }
 
-  return OK;
+  return ret;
 }
 
 /****************************************************************************
@@ -996,7 +1035,12 @@ static int wm8776_reserve(FAR struct audio_lowerhalf_s *dev)
 
   /* Borrow the APBQ semaphore for thread sync */
 
-  wm8776_takesem(&priv->pendsem);
+  ret = wm8776_takesem(&priv->pendsem);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   if (priv->reserved)
     {
       ret = -EBUSY;
@@ -1037,7 +1081,8 @@ static int wm8776_release(FAR struct audio_lowerhalf_s *dev)
 #endif
 {
   FAR struct wm8776_dev_s *priv = (FAR struct wm8776_dev_s *)dev;
-  void  *value;
+  FAR void *value;
+  int ret;
 
   /* Join any old worker thread we had created to prevent a memory leak */
 
@@ -1049,14 +1094,14 @@ static int wm8776_release(FAR struct audio_lowerhalf_s *dev)
 
   /* Borrow the APBQ semaphore for thread sync */
 
-  wm8776_takesem(&priv->pendsem);
+  ret = wm8776_forcetake(&priv->pendsem);
 
   /* Really we should free any queued buffers here */
 
   priv->reserved = false;
   wm8776_givesem(&priv->pendsem);
 
-  return OK;
+  return ret;
 }
 
 /****************************************************************************
@@ -1075,11 +1120,12 @@ static int wm8776_release(FAR struct audio_lowerhalf_s *dev)
 
 static void wm8776_audio_output(FAR struct wm8776_dev_s *priv)
 {
-  wm8776_writereg(priv, WM8776_MASTER_ATT, WM8776_UPDATE | 0x58); /* -33db */
-  wm8776_writereg(priv, WM8776_DAC_IF, 0x32);  /* 32bit, I2S, standard pol */
+  wm8776_writereg(priv, WM8776_MASTER_ATT,
+                  WM8776_UPDATE | 0x58);           /* -33db */
+  wm8776_writereg(priv, WM8776_DAC_IF, 0x32);      /* 32bit, I2S, standard pol */
 
 #ifdef CONFIG_WM8776_SWAP_HPOUT
-  wm8776_writereg(priv, WM8776_DAC_CC, 0x62);  /* Swap HPOUT L/R */
+  wm8776_writereg(priv, WM8776_DAC_CC, 0x62);      /* Swap HPOUT L/R */
 #endif
 
   wm8776_writereg(priv, WM8776_MASTER_MODE, 0x00); /* slave mode, 128fs */
@@ -1120,7 +1166,6 @@ static void wm8776_hw_reset(FAR struct wm8776_dev_s *priv)
   /* Configure the WM8776 hardware as an audio input device */
 
   wm8776_audio_output(priv);
-
 }
 
 /****************************************************************************
@@ -1177,7 +1222,8 @@ repeat:
 
       /* Wait for messages from our message queue */
 
-      msglen = mq_receive(priv->mq, (FAR char *)&msg, sizeof(msg), &prio);
+      msglen = file_mq_receive(&priv->mq, (FAR char *)&msg,
+                               sizeof(msg), &prio);
 
       /* Handle the case when we return with no message */
 
@@ -1189,7 +1235,7 @@ repeat:
 
       /* Process the message */
 
-      switch (msg.msgId)
+      switch (msg.msg_id)
         {
           /* The ISR has requested more data.  We will catch this case at
            * the top of the loop.
@@ -1203,6 +1249,7 @@ repeat:
 
 #ifndef CONFIG_AUDIO_EXCLUDE_STOP
           case AUDIO_MSG_STOP:
+
             /* Indicate that we are terminating */
 
             audinfo("AUDIO_MSG_STOP: Terminating\n");
@@ -1226,11 +1273,11 @@ repeat:
             break;
 
           default:
-            auderr("ERROR: Ignoring message ID %d\n", msg.msgId);
+            auderr("ERROR: Ignoring message ID %d\n", msg.msg_id);
             break;
         }
 
-      mq_getattr(priv->mq, &attr);
+      file_mq_getattr(&priv->mq, &attr);
 
       /* If there is a message in the queue, process it */
 
@@ -1238,7 +1285,6 @@ repeat:
         {
           goto repeat;
         }
-
     }
 
   /* Reset the WM8776 hardware */
@@ -1247,7 +1293,7 @@ repeat:
 
   /* Return any pending buffers in our pending queue */
 
-  wm8776_takesem(&priv->pendsem);
+  wm8776_forcetake(&priv->pendsem);
   while ((apb = (FAR struct ap_buffer_s *)dq_remfirst(&priv->pendq)) != NULL)
     {
       /* Release our reference to the buffer */
@@ -1271,9 +1317,8 @@ repeat:
 
   /* Close the message queue */
 
-  mq_close(priv->mq);
-  mq_unlink(priv->mqname);
-  priv->mq = NULL;
+  file_mq_close(&priv->mq);
+  file_mq_unlink(priv->mqname);
 
   /* Send an AUDIO_MSG_COMPLETE message to the client */
 
@@ -1286,7 +1331,6 @@ repeat:
   audinfo("Exit\n");
   return NULL;
 }
-
 
 /****************************************************************************
  * Public Functions

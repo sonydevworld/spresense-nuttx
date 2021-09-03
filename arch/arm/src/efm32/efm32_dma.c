@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/efm32/efm32_dma.c
  *
- *   Copyright (C) 2014, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -49,7 +34,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/semaphore.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "hardware/efm32_cmu.h"
 #include "hardware/efm32_dma.h"
 #include "efm32_dma.h"
@@ -63,8 +48,9 @@
 #define ALIGN_UP(v,m)   (((v) + (m)) & ~m)
 
 /****************************************************************************
- * Public Types
+ * Private Types
  ****************************************************************************/
+
 /* This structure describes one DMA channel */
 
 struct dma_channel_s
@@ -124,7 +110,8 @@ static struct dma_channel_s g_dmach[EFM32_DMA_NCHANNELS];
 #endif
 
 #ifdef CONFIG_EFM32_DMA_ALTDSEC
-static struct dma_descriptor_s g_descriptors[DESC_TABLE_SIZE + EFM32_DMA_NCHANNELS]
+static struct dma_descriptor_s
+  g_descriptors[DESC_TABLE_SIZE + EFM32_DMA_NCHANNELS]
   __attribute__((aligned(DESC_TABLE_ALIGN)));
 #else
 static struct dma_descriptor_s g_descriptors[EFM32_DMA_NCHANNELS]
@@ -147,18 +134,21 @@ static struct dma_descriptor_s g_descriptors[EFM32_DMA_NCHANNELS]
  *
  ****************************************************************************/
 
-static void efm32_set_chctrl(struct dma_channel_s *dmach, dma_config_t config)
+static void efm32_set_chctrl(struct dma_channel_s *dmach,
+                             dma_config_t config)
 {
   uintptr_t regaddr;
   uint32_t decoded;
   uint32_t regval;
 
-  decoded  = (uint32_t)(config & EFM32_DMA_SIGSEL_MASK) >> EFM32_DMA_SIGSEL_SHIFT;
+  decoded  = (uint32_t)(config & EFM32_DMA_SIGSEL_MASK) >>
+              EFM32_DMA_SIGSEL_SHIFT;
   regval   = (decoded << _DMA_CH_CTRL_SIGSEL_SHIFT);
-  decoded  = (uint32_t)(config & EFM32_DMA_SOURCSEL_MASK) >> EFM32_DMA_SOURCSEL_SHIFT;
+  decoded  = (uint32_t)(config & EFM32_DMA_SOURCSEL_MASK) >>
+              EFM32_DMA_SOURCSEL_SHIFT;
   regval  |= (decoded << _DMA_CH_CTRL_SOURCESEL_SHIFT);
 
-  regaddr = EFM32_DMA_CHn_CTRL(dmach->chan);
+  regaddr = EFM32_DMA_CHN_CTRL(dmach->chan);
   putreg32(regval, regaddr);
 }
 
@@ -255,7 +245,7 @@ static int efm32_dmac_interrupt(int irq, void *context, FAR void *arg)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_dma_initialize
+ * Name: arm_dma_initialize
  *
  * Description:
  *   Initialize the DMA subsystem
@@ -265,7 +255,7 @@ static int efm32_dmac_interrupt(int irq, void *context, FAR void *arg)
  *
  ****************************************************************************/
 
-void weak_function up_dma_initialize(void)
+void weak_function arm_dma_initialize(void)
 {
   uint32_t regval;
   int i;
@@ -336,18 +326,28 @@ DMA_HANDLE efm32_dmachannel(void)
   struct dma_channel_s *dmach;
   unsigned int chndx;
   uint32_t bit;
+  int ret;
 
-  /* Take a count from from the channel counting semaphore.  We may block
+  /* Take a count from the channel counting semaphore.  We may block
    * if there are no free channels.  When we get the count, then we can
    * be assured that a channel is available in the channel list and is
    * reserved for us.
    */
 
-  nxsem_wait_uninterruptible(&g_dmac.chansem);
+  ret = nxsem_wait_uninterruptible(&g_dmac.chansem);
+  if (ret < 0)
+    {
+      return NULL;
+    }
 
   /* Get exclusive access to the DMA channel list */
 
-  nxsem_wait_uninterruptible(&g_dmac.exclsem);
+  ret = nxsem_wait_uninterruptible(&g_dmac.exclsem);
+  if (ret < 0)
+    {
+      nxsem_post(&g_dmac.chansem);
+      return NULL;
+    }
 
   /* Search for an available DMA channel */
 
@@ -386,7 +386,7 @@ DMA_HANDLE efm32_dmachannel(void)
  * Name: efm32_dmafree
  *
  * Description:
- *   Release a DMA channel.  If another thread is waiting for this DMA channel
+ *   Release a DMA channel. If another thread is waiting for this DMA channel
  *   in a call to efm32_dmachannel, then this function will re-assign the
  *   DMA channel to that thread and wake it up.  NOTE:  The 'handle' used
  *   in this argument must NEVER be used again until efm32_dmachannel() is
@@ -412,8 +412,8 @@ void efm32_dmafree(DMA_HANDLE handle)
 
   putreg32(1 << dmach->chan, EFM32_DMA_CHENC);
 
-  /* Mark the channel no longer in use.  Clearing the in-use flag is an atomic
-   * operation and so should be safe.
+  /* Mark the channel no longer in use.  Clearing the in-use flag is an
+   * atomic operation and so should be safe.
    */
 
   dmach->inuse = false;
@@ -458,8 +458,8 @@ void efm32_rxdmasetup(DMA_HANDLE handle, uintptr_t paddr, uintptr_t maddr,
   shift = efm32_align_shift(config);
   mask  = ALIGN_MASK(shift);
 
-  /* Make sure that the number of bytes we are asked to transfer is a multiple
-   * of the transfer size.
+  /* Make sure that the number of bytes we are asked to transfer is a
+   * multiple of the transfer size.
    */
 
   xfersize = (1 << shift);
@@ -555,8 +555,8 @@ void efm32_txdmasetup(DMA_HANDLE handle, uintptr_t paddr, uintptr_t maddr,
   shift = efm32_align_shift(config);
   mask  = ALIGN_MASK(shift);
 
-  /* Make sure that the number of bytes we are asked to transfer is a multiple
-   * of the transfer size.
+  /* Make sure that the number of bytes we are asked to transfer is a
+   * multiple of the transfer size.
    */
 
   xfersize = (1 << shift);
@@ -650,8 +650,8 @@ void efm32_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg)
   bit = 1 << dmach->chan;
   if ((dmach->config & EFM32_DMA_SINGLE_MASK) == EFM32_DMA_BUFFER_FULL)
     {
-      /* Disable the single requests for the channel (i.e. do not react to data
-       * available, wait for buffer full)
+      /* Disable the single requests for the channel (i.e. do not react to
+       * data available, wait for buffer full)
        */
 
       putreg32(bit, EFM32_DMA_CHUSEBURSTS);
@@ -770,7 +770,7 @@ void efm32_dmasample(DMA_HANDLE handle, struct efm32_dmaregs_s *regs)
 
   /* Sample channel control register */
 
-  regaddr            = EFM32_DMA_CHn_CTRL(dmach->chan)
+  regaddr            = EFM32_DMA_CHN_CTRL(dmach->chan)
   regs->chnctrl      = getreg32(regaddr);
 
   leave_critical_section(flags);

@@ -123,32 +123,6 @@ the following lines in each Make.defs file:
     ARCHCPUFLAGS = -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
   endif
 
-Configuration Changes
----------------------
-
-Below are all of the configuration changes that I had to make to
-boards/arm/stm32/stm3240g-eval/configs/nsh2 in order to successfully build NuttX using
-the Atollic toolchain WITH FPU support:
-
-  -CONFIG_ARCH_FPU=n                       : Enable FPU support
-  +CONFIG_ARCH_FPU=y
-
-  -CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : Disable the CodeSourcery toolchain
-  +CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=n
-
-  -CONFIG_ARMV7M_TOOLCHAIN_ATOLLIC=n       : Enable the Atollic toolchains
-  +CONFIG_ARMV7M_TOOLCHAIN_ATOLLIC=y       :
-
-  -CONFIG_INTELHEX_BINARY=y                : Suppress generation FLASH download formats
-  +CONFIG_INTELHEX_BINARY=n                : (Only necessary with the "Lite" version)
-
-  -CONFIG_HAVE_CXX=y                       : Suppress generation of C++ code
-  +CONFIG_HAVE_CXX=n                       : (Only necessary with the "Lite" version)
-
-See the section above on Toolchains, NOTE 2, for explanations for some of
-the configuration settings.  Some of the usual settings are just not supported
-by the "Lite" version of the Atollic toolchain.
-
 Bambino-200e Configuration Options
 ==================================
 
@@ -305,7 +279,7 @@ Bambino-200e Configuration Options
   also require CONFIG_NET and CONFIG_LPC43_ETHERNET.
 
     CONFIG_ETH0_PHY_KS8721 - Selects Micrel KS8721 PHY
-    CONFIG_LPC43_AUTONEG - Enable auto-negotion
+    CONFIG_LPC43_AUTONEG - Enable auto-negotiation
 
     CONFIG_LPC17_40_EMACRAM_SIZE - Size of EMAC RAM.  Default: 16Kb
     CONFIG_LPC43_ETH_NTXDESC - Configured number of Tx descriptors. Default: 18
@@ -453,8 +427,8 @@ Where <subdir> is one of the following:
     2. By default, this project assumes that you are executing directly from
        SRAM.
 
-         CONFIG_LPC43_BOOT_SRAM=y           : Executing in SRAM
-         CONFIG_ARMV7M_TOOLCHAIN_CODEREDW=y : Code Red under Windows
+         CONFIG_LPC43_BOOT_SRAM=y            : Executing in SRAM
+         CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y : GNU EABI toolchain for Windows
 
     3. To execute from SPIFI, you would need to set:
 
@@ -517,7 +491,7 @@ Where <subdir> is one of the following:
        CONFIG_SYSLOG_CHAR=y               : Use a character device for system logging
        CONFIG_SYSLOG_DEVPATH="/dev/ttyS0" : UART1 will be /dev/ttyS0
 
-       However, there is nothing to generate SYLOG output in the default
+       However, there is nothing to generate SYSLOG output in the default
        configuration so nothing should appear on UART1 unless you enable
        some debug output or enable the USB monitor.
 
@@ -547,4 +521,3 @@ Where <subdir> is one of the following:
        CONFIG_USBMONITOR_TRACETRANSFERS=y
        CONFIG_USBMONITOR_TRACECONTROLLER=y
        CONFIG_USBMONITOR_TRACEINTERRUPTS=y
-

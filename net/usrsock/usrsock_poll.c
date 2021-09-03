@@ -53,20 +53,8 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
-#include <nuttx/kmalloc.h>
 
 #include "usrsock/usrsock.h"
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-struct usrsock_poll_s
-{
-  FAR struct socket *psock;        /* Needed to handle loss of connection */
-  struct pollfd *fds;              /* Needed to handle poll events */
-  FAR struct devif_callback_s *cb; /* Needed to teardown the poll */
-};
 
 /****************************************************************************
  * Private Functions
@@ -166,7 +154,8 @@ static uint16_t poll_event(FAR struct net_driver_s *dev, FAR void *pvconn,
  *
  ****************************************************************************/
 
-static int usrsock_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
+static int usrsock_pollsetup(FAR struct socket *psock,
+                             FAR struct pollfd *fds)
 {
   FAR struct usrsock_conn_s *conn = psock->s_conn;
   FAR struct usrsock_poll_s *info;
@@ -182,16 +171,19 @@ static int usrsock_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
     }
 #endif
 
-  /* Allocate a container to hold the poll information */
-
-  info = (FAR struct usrsock_poll_s *)
-    kmm_malloc(sizeof(struct usrsock_poll_s));
-  if (!info)
-    {
-      return -ENOMEM;
-    }
-
   net_lock();
+
+  /* Find a container to hold the poll information */
+
+  info = conn->pollinfo;
+  while (info->psock != NULL)
+    {
+      if (++info >= &conn->pollinfo[CONFIG_NET_USRSOCK_NPOLLWAITERS])
+        {
+          ret = -ENOMEM;
+          goto errout_unlock;
+        }
+    }
 
   /* Allocate a usrsock callback structure */
 
@@ -199,7 +191,6 @@ static int usrsock_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
   if (cb == NULL)
     {
       ret = -EBUSY;
-      kmm_free(info); /* fds->priv not set, so we need to free info here. */
       goto errout_unlock;
     }
 
@@ -240,8 +231,10 @@ static int usrsock_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
 
   /* Stream sockets need to be connected or connecting (or listening). */
 
-  else if ((conn->type == SOCK_STREAM || conn->type == SOCK_SEQPACKET) &&
-           !(conn->connected || conn->state == USRSOCK_CONN_STATE_CONNECTING))
+  else if ((conn->type == SOCK_STREAM ||
+            conn->type == SOCK_SEQPACKET) &&
+          !(conn->connected || conn->state ==
+            USRSOCK_CONN_STATE_CONNECTING))
     {
       ninfo("stream socket not connected and not connecting.\n");
 
@@ -263,14 +256,14 @@ static int usrsock_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
         {
           ninfo("socket send ready.\n");
 
-          fds->revents |= (POLLOUT & fds->events);
+          fds->revents |= POLLOUT;
         }
 
       if (conn->flags & USRSOCK_EVENT_RECVFROM_AVAIL)
         {
           ninfo("socket recv avail.\n");
 
-          fds->revents |= (POLLIN & fds->events);
+          fds->revents |= POLLIN;
         }
     }
 
@@ -338,9 +331,7 @@ static int usrsock_pollteardown(FAR struct socket *psock,
     {
       /* Release the callback */
 
-      net_lock();
       devif_conn_callback_free(NULL, info->cb, &conn->list);
-      net_unlock();
 
       /* Release the poll/select data slot */
 
@@ -348,7 +339,7 @@ static int usrsock_pollteardown(FAR struct socket *psock,
 
       /* Then free the poll info container */
 
-      kmm_free(info);
+      info->psock = NULL;
     }
 
   return OK;
@@ -375,7 +366,8 @@ static int usrsock_pollteardown(FAR struct socket *psock,
  *
  ****************************************************************************/
 
-int usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup)
+int usrsock_poll(FAR struct socket *psock,
+                 FAR struct pollfd *fds, bool setup)
 {
   if (setup)
     {

@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/icmpv6/icmpv6_autoconfig.c
  *
- *   Copyright (C) 2015-2016, 2018-2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -41,7 +26,6 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <time.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -57,15 +41,6 @@
 #include "icmpv6/icmpv6.h"
 
 #ifdef CONFIG_NET_ICMPv6_AUTOCONF
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#define CONFIG_ICMPv6_AUTOCONF_DELAYSEC  \
-  (CONFIG_ICMPv6_AUTOCONF_DELAYMSEC / 1000)
-#define CONFIG_ICMPv6_AUTOCONF_DELAYNSEC \
-  ((CONFIG_ICMPv6_AUTOCONF_DELAYMSEC - 1000*CONFIG_ICMPv6_AUTOCONF_DELAYSEC) * 1000000)
 
 /****************************************************************************
  * Private Types
@@ -133,9 +108,9 @@ static uint16_t icmpv6_router_eventhandler(FAR struct net_driver_s *dev,
         }
 
       /* Check if the outgoing packet is available. It may have been claimed
-       * by a send event handler serving a different thread -OR- if the output
-       * buffer currently contains unprocessed incoming data. In these cases
-       * we will just have to wait for the next polling cycle.
+       * by a send event handler serving a different thread -OR- if the
+       * output buffer currently contains unprocessed incoming data. In
+       * these cases we will just have to wait for the next polling cycle.
        */
 
       else if (dev->d_sndlen > 0 || (flags & ICMPv6_NEWDATA) != 0)
@@ -210,7 +185,7 @@ static int icmpv6_send_message(FAR struct net_driver_s *dev, bool advertise)
    */
 
   nxsem_init(&state.snd_sem, 0, 0); /* Doesn't really fail */
-  nxsem_setprotocol(&state.snd_sem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&state.snd_sem, SEM_PRIO_NONE);
 
   /* Remember the routing device name */
 
@@ -293,7 +268,6 @@ errout_with_semaphore:
 int icmpv6_autoconfig(FAR struct net_driver_s *dev)
 {
   struct icmpv6_rnotify_s notify;
-  struct timespec delay;
   net_ipv6addr_t lladdr;
   int retries;
   int ret;
@@ -320,7 +294,8 @@ int icmpv6_autoconfig(FAR struct net_driver_s *dev)
   net_lock();
 
   /* IPv6 Stateless Autoconfiguration
-   * Reference: http://www.tcpipguide.com/free/t_IPv6AutoconfigurationandRenumbering.htm
+   * Reference:
+   * http://www.tcpipguide.com/free/t_IPv6AutoconfigurationandRenumbering.htm
    *
    * The following is a summary of the steps a device takes when using
    * stateless auto-configuration:
@@ -336,20 +311,22 @@ int icmpv6_autoconfig(FAR struct net_driver_s *dev)
   icmpv6_linkipaddr(dev, lladdr);
 
   ninfo("lladdr=%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-        ntohs(lladdr[0]), ntohs(lladdr[1]), ntohs(lladdr[2]), ntohs(lladdr[3]),
-        ntohs(lladdr[4]), ntohs(lladdr[5]), ntohs(lladdr[6]), ntohs(lladdr[7]));
+        ntohs(lladdr[0]), ntohs(lladdr[1]),
+        ntohs(lladdr[2]), ntohs(lladdr[3]),
+        ntohs(lladdr[4]), ntohs(lladdr[5]),
+        ntohs(lladdr[6]), ntohs(lladdr[7]));
 
 #ifdef CONFIG_NET_ICMPv6_NEIGHBOR
   /* 2. Link-Local Address Uniqueness Test:  The node tests to ensure that
    *    the address it generated isn't for some reason already in use on the
-   *    local network. (This is very unlikely to be an issue if the link-local
-   *    address came from a MAC address but more likely if it was based on a
-   *    generated token.) It sends a Neighbor Solicitation message using the
-   *    Neighbor Discovery (ND) protocol. It then listens for a Neighbor
-   *    Advertisement in response that indicates that another device is
-   *    already using its link-local address; if so, either a new address
-   *    must be generated, or auto-configuration fails and another method
-   *    must be employed.
+   *    local network. (This is very unlikely to be an issue if the link-
+   *    local address came from a MAC address but more likely if it was
+   *    based on a generated token.) It sends a Neighbor Solicitation
+   *    message using the Neighbor Discovery (ND) protocol. It then listens
+   *    for a Neighbor Advertisement in response that indicates that another
+   *    device is already using its link-local address; if so, either a new
+   *    address  must be generated, or auto-configuration fails and another
+   *    method must be employed.
    */
 
   ret = icmpv6_neighbor(lladdr);
@@ -373,11 +350,6 @@ int icmpv6_autoconfig(FAR struct net_driver_s *dev)
    */
 
   net_ipv6addr_copy(dev->d_ipv6addr, lladdr);
-
-  /* The optimal delay would be the worst case round trip time. */
-
-  delay.tv_sec  = CONFIG_ICMPv6_AUTOCONF_DELAYSEC;
-  delay.tv_nsec = CONFIG_ICMPv6_AUTOCONF_DELAYNSEC;
 
   /* 4. Router Contact: The node next attempts to contact a local router for
    *    more information on continuing the configuration. This is done either
@@ -405,7 +377,7 @@ int icmpv6_autoconfig(FAR struct net_driver_s *dev)
 
       /* Wait to receive the Router Advertisement message */
 
-      ret = icmpv6_rwait(&notify, &delay);
+      ret = icmpv6_rwait(&notify, CONFIG_ICMPv6_AUTOCONF_DELAYMSEC);
       if (ret != -ETIMEDOUT)
         {
           /* ETIMEDOUT is the only expected failure.  We will retry on that
@@ -415,9 +387,6 @@ int icmpv6_autoconfig(FAR struct net_driver_s *dev)
           break;
         }
 
-      /* Double the delay time for the next loop */
-
-      clock_timespec_add(&delay, &delay, &delay);
       ninfo("Timed out... retrying %d\n", retries + 1);
     }
 
@@ -427,7 +396,8 @@ int icmpv6_autoconfig(FAR struct net_driver_s *dev)
     {
       int senderr;
 
-      nerr("ERROR: Failed to get the router advertisement: %d (retries=%d)\n",
+      nerr("ERROR: Failed to get the router advertisement: "
+           "%d (retries=%d)\n",
            ret, retries);
 
       /* Claim the link local address as ours by sending the ICMPv6 Neighbor
@@ -449,11 +419,11 @@ int icmpv6_autoconfig(FAR struct net_driver_s *dev)
       net_ipv6addr_copy(dev->d_ipv6netmask, g_ipv6_llnetmask);
     }
 
-  /* 5. Router Direction: The router provides direction to the node on how to
-   *    proceed with the auto-configuration. It may tell the node that on this
-   *    network "stateful" auto-configuration is in use, and tell it the
-   *    address of a DHCP server to use. Alternately, it will tell the host
-   *    how to determine its global Internet address.
+  /* 5. Router Direction: The router provides direction to the node on how
+   *    to proceed with the auto-configuration. It may tell the node that on
+   *    this network "stateful" auto-configuration is in use, and tell it
+   *    the address of a DHCP server to use. Alternately, it will tell the
+   *    host how to determine its global Internet address.
    *
    * 6. Global Address Configuration: Assuming that stateless auto-
    *    configuration is in use on the network, the host will configure

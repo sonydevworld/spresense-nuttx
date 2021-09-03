@@ -1,35 +1,20 @@
 /****************************************************************************
- *  arch/arm/src/s32k1xx/s32k1xx_pinirq.c
+ * arch/arm/src/s32k1xx/s32k1xx_pinirq.c
  *
- *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,10 +32,10 @@
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
-#include "s32k1xx.h"
+#include "s32k1xx_pin.h"
 #include "hardware/s32k1xx_port.h"
 
 #ifdef CONFIG_S32K1XX_GPIOIRQ
@@ -58,7 +43,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
- 
+
 /* Configuration ************************************************************/
 
 /* The S32K1xx port interrupt logic is very flexible and will program
@@ -86,6 +71,7 @@ struct s32k1xx_pinirq_s
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
 /* Per pin port interrupt vectors.  NOTE:  Not all pins in each port
  * correspond to externally available GPIOs.  However, I believe that the
  * Kinesis will support interrupts even if the pin is not available as
@@ -123,7 +109,8 @@ static struct s32k1xx_pinirq_s g_porteisrs[32];
 
 #ifdef HAVE_PORTINTS
 static int s32k1xx_portinterrupt(int irq, FAR void *context,
-                                uintptr_t addr, struct s32k1xx_pinirq_s *isrtab)
+                                 uintptr_t addr,
+                                 struct s32k1xx_pinirq_s *isrtab)
 {
   uint32_t isfr = getreg32(addr);
   int i;
@@ -184,31 +171,40 @@ static int s32k1xx_portinterrupt(int irq, FAR void *context,
 #ifdef CONFIG_S32K1XX_PORTAINTS
 static int s32k1xx_portainterrupt(int irq, FAR void *context, FAR void *arg)
 {
-  return s32k1xx_portinterrupt(irq, context, S32K1XX_PORTA_ISFR, g_portaisrs);
+  return s32k1xx_portinterrupt(irq, context, S32K1XX_PORTA_ISFR,
+                               g_portaisrs);
 }
 #endif
+
 #ifdef CONFIG_S32K1XX_PORTBINTS
 static int s32k1xx_portbinterrupt(int irq, FAR void *context, FAR void *arg)
 {
-  return s32k1xx_portinterrupt(irq, context, S32K1XX_PORTB_ISFR, g_portbisrs);
+  return s32k1xx_portinterrupt(irq, context, S32K1XX_PORTB_ISFR,
+                               g_portbisrs);
 }
 #endif
+
 #ifdef CONFIG_S32K1XX_PORTCINTS
 static int s32k1xx_portcinterrupt(int irq, FAR void *context, FAR void *arg)
 {
-  return s32k1xx_portinterrupt(irq, context, S32K1XX_PORTC_ISFR, g_portcisrs);
+  return s32k1xx_portinterrupt(irq, context, S32K1XX_PORTC_ISFR,
+                               g_portcisrs);
 }
 #endif
+
 #ifdef CONFIG_S32K1XX_PORTDINTS
 static int s32k1xx_portdinterrupt(int irq, FAR void *context, FAR void *arg)
 {
-  return s32k1xx_portinterrupt(irq, context, S32K1XX_PORTD_ISFR, g_portdisrs);
+  return s32k1xx_portinterrupt(irq, context, S32K1XX_PORTD_ISFR,
+                               g_portdisrs);
 }
 #endif
+
 #ifdef CONFIG_S32K1XX_PORTEINTS
 static int s32k1xx_porteinterrupt(int irq, FAR void *context, FAR void *arg)
 {
-  return s32k1xx_portinterrupt(irq, context, S32K1XX_PORTE_ISFR, g_porteisrs);
+  return s32k1xx_portinterrupt(irq, context, S32K1XX_PORTE_ISFR,
+                               g_porteisrs);
 }
 #endif
 
@@ -276,7 +272,7 @@ void s32k1xx_pinirq_initialize(void)
  *   Zero (OK) is returned on success; a negated errno value is returned on
  *   any failure to indicate the nature of the failure.
  *
- *******************************************************************************/
+ ****************************************************************************/
 
 int s32k1xx_pinirqattach(uint32_t pinset, xcpt_t pinisr, void *arg)
 {
@@ -286,8 +282,8 @@ int s32k1xx_pinirqattach(uint32_t pinset, xcpt_t pinisr, void *arg)
   unsigned int port;
   unsigned int pin;
 
-  /* It only makes sense to call this function for input pins that are configured
-   * as interrupts.
+  /* It only makes sense to call this function for input pins that are
+   * configured as interrupts.
    */
 
   DEBUGASSERT((pinset & _PIN_INTDMA_MASK) == _PIN_INTERRUPT);
@@ -334,27 +330,27 @@ int s32k1xx_pinirqattach(uint32_t pinset, xcpt_t pinisr, void *arg)
         return -EINVAL;
     }
 
-   /* Get the old PIN ISR and set the new PIN ISR */
+  /* Get the old PIN ISR and set the new PIN ISR */
 
-   isrtab[pin].handler = pinisr;
-   isrtab[pin].arg     = arg;
+  isrtab[pin].handler = pinisr;
+  isrtab[pin].arg     = arg;
 
-   /* And return the old PIN isr address */
+  /* And return the old PIN isr address */
 
-   leave_critical_section(flags);
-   return OK;
+  leave_critical_section(flags);
+  return OK;
 #else
-   return -ENOSYS;
+  return -ENOSYS;
 #endif /* HAVE_PORTINTS */
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: s32k1xx_pinirqenable
  *
  * Description:
  *   Enable the interrupt for specified pin IRQ
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 void s32k1xx_pinirqenable(uint32_t pinset)
 {
@@ -426,13 +422,13 @@ void s32k1xx_pinirqenable(uint32_t pinset)
 #endif /* HAVE_PORTINTS */
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: s32k1xx_pinirqdisable
  *
  * Description:
  *   Disable the interrupt for specified pin
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 void s32k1xx_pinirqdisable(uint32_t pinset)
 {

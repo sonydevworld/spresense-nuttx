@@ -1,38 +1,20 @@
 /****************************************************************************
- * rm/romfs/fs_romfs.h
+ * fs/romfs/fs_romfs.c
  *
- *   Copyright (C) 2008-2009, 2011, 2017-2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References: Linux/Documentation/filesystems/romfs.txt
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -174,7 +156,12 @@ static int romfs_open(FAR struct file *filep, FAR const char *relpath,
 
   /* Check if the mount is still healthy */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = romfs_checkmount(rm);
   if (ret != OK)
     {
@@ -209,7 +196,7 @@ static int romfs_open(FAR struct file *filep, FAR const char *relpath,
 
   /* The full path exists -- but is the final component a file
    * or a directory?  Or some other Unix file type that is not
-   * appropriate in this contex.
+   * appropriate in this context.
    *
    * REVISIT: This logic should follow hard/soft link file
    * types.  At present, it returns the ENXIO.
@@ -249,7 +236,7 @@ static int romfs_open(FAR struct file *filep, FAR const char *relpath,
   rf = (FAR struct romfs_file_s *)kmm_zalloc(sizeof(struct romfs_file_s));
   if (!rf)
     {
-      ferr("ERROR: Failed to allocate private data\n", ret);
+      ferr("ERROR: Failed to allocate private data\n");
       ret = -ENOMEM;
       goto errout_with_semaphore;
     }
@@ -370,7 +357,7 @@ static ssize_t romfs_read(FAR struct file *filep, FAR char *buffer,
   int                         sectorndx;
   int                         ret;
 
-  finfo("Read %d bytes from offset %d\n", buflen, filep->f_pos);
+  finfo("Read %zu bytes from offset %jd\n", buflen, (intmax_t)filep->f_pos);
 
   /* Sanity checks */
 
@@ -385,7 +372,12 @@ static ssize_t romfs_read(FAR struct file *filep, FAR char *buffer,
 
   /* Make sure that the mount is still healthy */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return (ssize_t)ret;
+    }
+
   ret = romfs_checkmount(rm);
   if (ret != OK)
     {
@@ -418,7 +410,6 @@ static ssize_t romfs_read(FAR struct file *filep, FAR char *buffer,
       offset     = rf->rf_startoffset + filep->f_pos;
       sector     = SEC_NSECTORS(rm, offset);
       sectorndx  = offset & SEC_NDXMASK(rm);
-      bytesread  = 0;
 
       /* Check if the user has provided a buffer large enough to
        * hold one or more complete sectors -AND- the read is
@@ -434,7 +425,8 @@ static ssize_t romfs_read(FAR struct file *filep, FAR char *buffer,
 
           /* Read all of the sectors directly into user memory */
 
-          finfo("Read %d sectors starting with %d\n", nsectors, sector);
+          finfo("Read %d sectors starting with %jd\n", nsectors,
+                (intmax_t)sector);
           ret = romfs_hwread(rm, userbuffer, sector, nsectors);
           if (ret < 0)
             {
@@ -442,7 +434,6 @@ static ssize_t romfs_read(FAR struct file *filep, FAR char *buffer,
               goto errout_with_semaphore;
             }
 
-          sector    += nsectors;
           bytesread  = nsectors * rm->rm_hwsectorsize;
         }
       else
@@ -452,7 +443,7 @@ static ssize_t romfs_read(FAR struct file *filep, FAR char *buffer,
            * it is already there then all is well.
            */
 
-          finfo("Read sector %d\n", sector);
+          finfo("Read sector %jd\n", (intmax_t)sector);
           ret = romfs_filecacheread(rm, rf, sector);
           if (ret < 0)
             {
@@ -469,14 +460,9 @@ static ssize_t romfs_read(FAR struct file *filep, FAR char *buffer,
 
               bytesread = buflen;
             }
-          else
-            {
-              /* We will read to the end of the buffer (or beyond) */
 
-             sector++;
-            }
-
-          finfo("Return %d bytes from sector offset %d\n", bytesread, sectorndx);
+          finfo("Return %d bytes from sector offset %d\n",
+                bytesread, sectorndx);
           memcpy(userbuffer, &rf->rf_buffer[sectorndx], bytesread);
         }
 
@@ -507,7 +493,7 @@ static off_t romfs_seek(FAR struct file *filep, off_t offset, int whence)
   off_t                       position;
   int                         ret;
 
-  finfo("Seek to offset: %d whence: %d\n", offset, whence);
+  finfo("Seek to offset: %jd whence: %d\n", (intmax_t)offset, whence);
 
   /* Sanity checks */
 
@@ -547,7 +533,12 @@ static off_t romfs_seek(FAR struct file *filep, off_t offset, int whence)
 
   /* Make sure that the mount is still healthy */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return (off_t)ret;
+    }
+
   ret = romfs_checkmount(rm);
   if (ret != OK)
     {
@@ -567,7 +558,7 @@ static off_t romfs_seek(FAR struct file *filep, off_t offset, int whence)
   /* Set file position and return success */
 
   filep->f_pos = position;
-  finfo("New file position: %d\n", filep->f_pos);
+  finfo("New file position: %jd\n", (intmax_t)filep->f_pos);
 
   romfs_semgive(rm);
   return OK;
@@ -644,7 +635,12 @@ static int romfs_dup(FAR const struct file *oldp, FAR struct file *newp)
 
   /* Check if the mount is still healthy */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = romfs_checkmount(rm);
   if (ret != OK)
     {
@@ -663,7 +659,7 @@ static int romfs_dup(FAR const struct file *oldp, FAR struct file *newp)
   newrf = (FAR struct romfs_file_s *)kmm_malloc(sizeof(struct romfs_file_s));
   if (!newrf)
     {
-      ferr("ERROR: Failed to allocate private data\n", ret);
+      ferr("ERROR: Failed to allocate private data\n");
       ret = -ENOMEM;
       goto errout_with_semaphore;
     }
@@ -737,7 +733,12 @@ static int romfs_fstat(FAR const struct file *filep, FAR struct stat *buf)
 
   /* Check if the mount is still healthy */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = romfs_checkmount(rm);
   if (ret >= 0)
     {
@@ -778,7 +779,12 @@ static int romfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
 
   /* Make sure that the mount is still healthy */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = romfs_checkmount(rm);
   if (ret != OK)
     {
@@ -801,7 +807,7 @@ static int romfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
     {
       /* The entry is not a directory */
 
-      ferr("ERROR: '%s' is not a directory: %d\n", relpath);
+      ferr("ERROR: '%s' is not a directory\n", relpath);
       ret = -ENOTDIR;
       goto errout_with_semaphore;
     }
@@ -846,7 +852,12 @@ static int romfs_readdir(FAR struct inode *mountpt,
 
   /* Make sure that the mount is still healthy */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = romfs_checkmount(rm);
   if (ret != OK)
     {
@@ -883,7 +894,8 @@ static int romfs_readdir(FAR struct inode *mountpt,
 
       /* Save the filename */
 
-      ret = romfs_parsefilename(rm, dir->u.romfs.fr_curroffset, dir->fd_dir.d_name);
+      ret = romfs_parsefilename(rm, dir->u.romfs.fr_curroffset,
+                                dir->fd_dir.d_name);
       if (ret < 0)
         {
           ferr("ERROR: romfs_parsefilename failed: %d\n", ret);
@@ -904,6 +916,11 @@ static int romfs_readdir(FAR struct inode *mountpt,
       else if (IS_FILE(next))
         {
           dir->fd_dir.d_type = DTYPE_FILE;
+          break;
+        }
+      else if (IS_SOFTLINK(next))
+        {
+          dir->fd_dir.d_type = DTYPE_LINK;
           break;
         }
     }
@@ -938,7 +955,12 @@ static int romfs_rewinddir(FAR struct inode *mountpt,
 
   /* Make sure that the mount is still healthy */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = romfs_checkmount(rm);
   if (ret == OK)
     {
@@ -986,7 +1008,8 @@ static int romfs_bind(FAR struct inode *blkdriver, FAR const void *data,
 
   /* Create an instance of the mountpt state structure */
 
-  rm = (FAR struct romfs_mountpt_s *)kmm_zalloc(sizeof(struct romfs_mountpt_s));
+  rm = (FAR struct romfs_mountpt_s *)
+    kmm_zalloc(sizeof(struct romfs_mountpt_s));
   if (!rm)
     {
       ferr("ERROR: Failed to allocate mountpoint structure\n");
@@ -1064,7 +1087,12 @@ static int romfs_unbind(FAR void *handle, FAR struct inode **blkdriver,
 
   /* Check if there are sill any files opened on the filesystem. */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   if (rm->rm_head)
     {
       /* We cannot unmount now.. there are open files */
@@ -1092,9 +1120,9 @@ static int romfs_unbind(FAR void *handle, FAR struct inode **blkdriver,
                 }
 
               /* We hold a reference to the block driver but should
-               * not but mucking with inodes in this context.  So, we will just return
-               * our contained reference to the block driver inode and let the umount
-               * logic dispose of it.
+               * not but mucking with inodes in this context.  So, we will
+               * just return our contained reference to the block driver
+               * inode and let the umount logic dispose of it.
                */
 
               if (blkdriver)
@@ -1144,7 +1172,12 @@ static int romfs_statfs(FAR struct inode *mountpt, FAR struct statfs *buf)
 
   /* Check if the mount is still healthy */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = romfs_checkmount(rm);
   if (ret < 0)
     {
@@ -1195,11 +1228,20 @@ static int romfs_stat_common(uint8_t type, uint32_t size,
       buf->st_mode = S_IFDIR | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP |
                      S_IRUSR | S_IXUSR;
     }
-  else if (IS_FILE(type))
+  else if (IS_FILE(type) || IS_SOFTLINK(type))
     {
+      if (IS_FILE(type))
+        {
+          buf->st_mode = S_IFREG;
+        }
+      else
+        {
+          buf->st_mode = S_IFLNK;
+        }
+
       /* It's a read-only file name */
 
-      buf->st_mode = S_IFREG | S_IROTH | S_IRGRP | S_IRUSR;
+      buf->st_mode |= S_IROTH | S_IRGRP | S_IRUSR;
       if (IS_EXECUTABLE(type))
         {
           /* It's a read-execute file name */
@@ -1250,7 +1292,12 @@ static int romfs_stat(FAR struct inode *mountpt, FAR const char *relpath,
 
   /* Check if the mount is still healthy */
 
-  romfs_semtake(rm);
+  ret = romfs_semtake(rm);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   ret = romfs_checkmount(rm);
   if (ret != OK)
     {

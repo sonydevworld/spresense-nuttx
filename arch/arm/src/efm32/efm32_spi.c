@@ -1,37 +1,20 @@
 /****************************************************************************
- * arm/arm/src/efm32/efm32_spi.c
+ * arch/arm/src/efm32/efm32_spi.c
  *
- *   Copyright (C) 2014, 2016-2017 Gregory Nutt. All rights reserved.
- *   Copyright (C) 2014 Bouteville Pierre-Noel. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
- *            Bouteville Pierre-Noel <pnb990@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -57,8 +40,8 @@
 
 #include <arch/board/board.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "chip.h"
 #include "hardware/efm32_usart.h"
@@ -73,7 +56,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* SPI DMA */
 
 #ifndef CONFIG_EFM32_SPI_DMA_TIMEO_NSEC
@@ -124,7 +109,7 @@ struct efm32_spidev_s
   const struct efm32_spiconfig_s *config; /* Constant SPI hardware configuration */
 
 #ifdef CONFIG_EFM32_SPI_DMA
-  WDOG_ID wdog;              /* Timer to catch hung DMA */
+  struct wdog_s wdog;        /* Timer to catch hung DMA */
   volatile uint8_t rxresult; /* Result of the RX DMA */
   volatile uint8_t txresult; /* Result of the TX DMA */
   DMA_HANDLE rxdmach;        /* RX DMA channel handle */
@@ -145,6 +130,7 @@ struct efm32_spidev_s
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
 /* Low level SPI access */
 
 static uint32_t  spi_getreg(const struct efm32_spiconfig_s *config,
@@ -158,7 +144,7 @@ static void      spi_wait_status(const struct efm32_spiconfig_s *config,
 /* DMA support */
 
 #ifdef CONFIG_EFM32_SPI_DMA
-static void      spi_dma_timeout(int argc, uint32_t arg1, ...);
+static void      spi_dma_timeout(wdparm_t arg);
 static void      spi_dmarxwait(struct efm32_spidev_s *priv);
 static void      spi_dmatxwait(struct efm32_spidev_s *priv);
 static inline void spi_dmarxwakeup(struct efm32_spidev_s *priv);
@@ -194,7 +180,7 @@ static uint8_t   spi_status(struct spi_dev_s *dev, uint32_t devid);
 static int       spi_cmddata(struct spi_dev_s *dev, uint32_t devid,
                    bool cmd);
 #endif
-static uint16_t  spi_send(struct spi_dev_s *dev, uint16_t wd);
+static uint32_t  spi_send(struct spi_dev_s *dev, uint32_t wd);
 static void      spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
                    void *rxbuffer, size_t nwords);
 #ifndef CONFIG_SPI_EXCHANGE
@@ -372,7 +358,8 @@ static void spi_rxflush(const struct efm32_spiconfig_s *config)
 {
   /* Loop while data is available */
 
-  while ((spi_getreg(config, EFM32_USART_STATUS_OFFSET) & USART_STATUS_RXDATAV) != 0)
+  while ((spi_getreg(config, EFM32_USART_STATUS_OFFSET) &
+         USART_STATUS_RXDATAV) != 0)
     {
       /* Read and discard the data */
 
@@ -403,13 +390,14 @@ static void spi_wait_status(const struct efm32_spiconfig_s *config,
  ****************************************************************************/
 
 #ifdef CONFIG_EFM32_SPI_DMA
-static void spi_dma_timeout(int argc, uint32_t arg1, ...)
+static void spi_dma_timeout(wdparm_t arg)
 {
-  struct efm32_spidev_s *priv = (struct efm32_spidev_s *)((uintptr_t)arg1);
+  struct efm32_spidev_s *priv = (struct efm32_spidev_s *)arg;
 
   /* Mark DMA timeout error and wakeup form RX and TX waiters */
 
-  DEBUGASSERT(priv->rxresult == EINPROGRESS || priv->txresult == EINPROGRESS);
+  DEBUGASSERT(priv->rxresult == EINPROGRESS ||
+              priv->txresult == EINPROGRESS);
   if (priv->rxresult == EINPROGRESS)
     {
       priv->rxresult = ETIMEDOUT;
@@ -447,7 +435,7 @@ static void spi_dmarxwait(struct efm32_spidev_s *priv)
   DEBUGASSERT(priv->rxresult != EINPROGRESS);
   if (priv->txresult != EINPROGRESS)
     {
-      wd_cancel(priv->wdog);
+      wd_cancel(&priv->wdog);
     }
 
   leave_critical_section(flags);
@@ -477,7 +465,7 @@ static void spi_dmatxwait(struct efm32_spidev_s *priv)
   DEBUGASSERT(priv->txresult != EINPROGRESS);
   if (priv->rxresult != EINPROGRESS)
     {
-      wd_cancel(priv->wdog);
+      wd_cancel(&priv->wdog);
     }
 
   leave_critical_section(flags);
@@ -802,7 +790,7 @@ static uint32_t spi_setfrequency(struct spi_dev_s *dev, uint32_t frequency)
 
   if (frequency == priv->frequency)
     {
-      /* No... just return the actual frequency from the last calcualtion */
+      /* No... just return the actual frequency from the last calculation */
 
       actual = priv->actual;
     }
@@ -815,7 +803,9 @@ static uint32_t spi_setfrequency(struct spi_dev_s *dev, uint32_t frequency)
        *
        * CLKDIV = 256 * (fHFPERCLK/(2 * br) - 1)
        * or
-       * CLKDIV = (256 * fHFPERCLK)/(2 * br) - 256 = (128 * fHFPERCLK)/br - 256
+       * CLKDIV = (256 * fHFPERCLK)/(2 * br) - 256
+       * or
+       * CLKDIV = (128 * fHFPERCLK)/br - 256
        *
        * The basic problem with integer division in the above formula is that
        * the dividend (128 * fHFPERCLK) may become higher than max 32 bit
@@ -825,7 +815,7 @@ static uint32_t spi_setfrequency(struct spi_dev_s *dev, uint32_t frequency)
        *
        * One can possibly factorize 128 and br. However, since the last
        * 6 bits of CLKDIV are don't care, we can base our integer arithmetic
-       * on the below formula without loosing any extra precision:
+       * on the below formula without losing any extra precision:
        *
        * CLKDIV / 64 = (2 * fHFPERCLK)/br - 4
        *
@@ -907,19 +897,23 @@ static void spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode)
       switch (mode)
         {
         case SPIDEV_MODE0: /* CPOL=0; CPHA=0 */
-          setting = USART_CTRL_CLKPOL_IDLELOW | USART_CTRL_CLKPHA_SAMPLELEADING;
+          setting = USART_CTRL_CLKPOL_IDLELOW |
+                    USART_CTRL_CLKPHA_SAMPLELEADING;
           break;
 
         case SPIDEV_MODE1: /* CPOL=0; CPHA=1 */
-          setting = USART_CTRL_CLKPOL_IDLELOW | USART_CTRL_CLKPHA_SAMPLETRAILING;
+          setting = USART_CTRL_CLKPOL_IDLELOW |
+                    USART_CTRL_CLKPHA_SAMPLETRAILING;
           break;
 
         case SPIDEV_MODE2: /* CPOL=1; CPHA=0 */
-          setting = USART_CTRL_CLKPOL_IDLEHIGH | USART_CTRL_CLKPHA_SAMPLELEADING;
+          setting = USART_CTRL_CLKPOL_IDLEHIGH |
+                    USART_CTRL_CLKPHA_SAMPLELEADING;
           break;
 
         case SPIDEV_MODE3: /* CPOL=1; CPHA=1 */
-          setting = USART_CTRL_CLKPOL_IDLEHIGH | USART_CTRL_CLKPHA_SAMPLETRAILING;
+          setting = USART_CTRL_CLKPOL_IDLEHIGH |
+                    USART_CTRL_CLKPHA_SAMPLETRAILING;
           break;
 
         default:
@@ -1033,8 +1027,8 @@ static void spi_setbits(struct spi_dev_s *dev, int nbits)
       regval |= setting;
       spi_putreg(config, EFM32_USART_FRAME_OFFSET, regval);
 
-      /* Save the selection so the subsequence re-configurations will be
-       * faster
+      /* Save the selection so that subsequent re-configurations will be
+       * faster.
        */
 
       priv->nbits = nbits;
@@ -1058,7 +1052,8 @@ static void spi_setbits(struct spi_dev_s *dev, int nbits)
  ****************************************************************************/
 
 #ifdef CONFIG_SPI_HWFEATURES
-static int spi_hwfeatures(FAR struct spi_dev_s *dev, spi_hwfeatures_t features)
+static int spi_hwfeatures(FAR struct spi_dev_s *dev,
+                          spi_hwfeatures_t features)
 {
 #ifdef CONFIG_SPI_BITORDER
   struct efm32_spidev_s *priv = (struct efm32_spidev_s *)dev;
@@ -1093,8 +1088,8 @@ static int spi_hwfeatures(FAR struct spi_dev_s *dev, spi_hwfeatures_t features)
 
       spi_putreg(config, EFM32_USART_CTRL_OFFSET, regval);
 
-      /* Save the selection so the subsequence re-configurations will be
-       * faster
+      /* Save the selection so that subsequent re-configurations will be
+       * faster.
        */
 
       priv->lsbfirst = lsbfirst;
@@ -1194,11 +1189,11 @@ static int spi_cmddata(struct spi_dev_s *dev, uint32_t devid,
  *
  ****************************************************************************/
 
-static uint16_t spi_send(struct spi_dev_s *dev, uint16_t wd)
+static uint32_t spi_send(struct spi_dev_s *dev, uint32_t wd)
 {
   struct efm32_spidev_s *priv = (struct efm32_spidev_s *)dev;
   const struct efm32_spiconfig_s *config;
-  uint16_t ret;
+  uint32_t ret;
 
   DEBUGASSERT(priv && priv->config);
   config = priv->config;
@@ -1213,12 +1208,12 @@ static uint16_t spi_send(struct spi_dev_s *dev, uint16_t wd)
 
   /* Write the data */
 
-  spi_putreg(config, EFM32_USART_TXDATA_OFFSET, (uint32_t)wd);
+  spi_putreg(config, EFM32_USART_TXDATA_OFFSET, wd);
 
   /* Wait for receive data to be available */
 
   spi_wait_status(config, _USART_STATUS_RXDATAV_MASK, USART_STATUS_RXDATAV);
-  ret = (uint16_t)spi_getreg(config, EFM32_USART_RXDATA_OFFSET);
+  ret = spi_getreg(config, EFM32_USART_RXDATA_OFFSET);
 
   spiinfo("Sent: %04x Return: %04x \n", wd, ret);
   return ret;
@@ -1282,10 +1277,11 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
       while (unrecvd > 0)
         {
           /* REVISIT:  Could this cause RX data overruns??? */
+
           /* Send data if there is space in the TX buffer. */
 
-          if ((spi_getreg(config, EFM32_USART_STATUS_OFFSET) & USART_STATUS_TXBL) != 0 &&
-              unsent > 0)
+          if ((spi_getreg(config, EFM32_USART_STATUS_OFFSET) &
+              USART_STATUS_TXBL) != 0 && unsent > 0)
             {
               /* Get the next word to write.  Is there a source buffer? */
 
@@ -1306,8 +1302,8 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
 
           /* Receive data if there is data available */
 
-          if ((spi_getreg(config, EFM32_USART_STATUS_OFFSET) & USART_STATUS_RXDATAV) != 0 &&
-              unrecvd > 0)
+          if ((spi_getreg(config, EFM32_USART_STATUS_OFFSET) &
+              USART_STATUS_RXDATAV) != 0 && unrecvd > 0)
             {
               /* Receive the data */
 
@@ -1336,10 +1332,11 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
       while (unrecvd > 0)
         {
           /* REVISIT:  Could this cause RX data overruns??? */
+
           /* Send data if there is space in the TX buffer. */
 
-          if ((spi_getreg(config, EFM32_USART_STATUS_OFFSET) & USART_STATUS_TXBL) != 0 &&
-                 unsent > 0)
+          if ((spi_getreg(config, EFM32_USART_STATUS_OFFSET) &
+              USART_STATUS_TXBL) != 0 && unsent > 0)
             {
               /* Get the next word to write.  Is there a source buffer? */
 
@@ -1360,8 +1357,8 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
 
           /* Receive data if there is data available */
 
-          if ((spi_getreg(config, EFM32_USART_STATUS_OFFSET) & USART_STATUS_RXDATAV) != 0 &&
-              unrecvd > 0)
+          if ((spi_getreg(config, EFM32_USART_STATUS_OFFSET) &
+              USART_STATUS_RXDATAV) != 0 && unrecvd > 0)
             {
               /* Receive the data */
 
@@ -1451,7 +1448,8 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
        * when both RX and TX transfers complete.
        */
 
-      ret = wd_start(priv->wdog, (int)ticks, spi_dma_timeout, 1, (uint32_t)priv);
+      ret = wd_start(&priv->wdog, ticks,
+                     spi_dma_timeout, (wdparm_t)priv);
       if (ret < 0)
         {
           spierr("ERROR: Failed to start timeout: %d\n", ret);
@@ -1558,8 +1556,8 @@ static int spi_portinitialize(struct efm32_spidev_s *priv)
 
   /* Set bits for synchronous mode */
 
-  regval = _USART_CTRL_RESETVALUE | USART_CTRL_SYNC | USART_CTRL_CLKPOL_IDLELOW |
-            USART_CTRL_CLKPHA_SAMPLELEADING;
+  regval = _USART_CTRL_RESETVALUE | USART_CTRL_SYNC |
+            USART_CTRL_CLKPOL_IDLELOW | USART_CTRL_CLKPHA_SAMPLELEADING;
 
   /* MSB First, 8 bits */
 
@@ -1592,7 +1590,7 @@ static int spi_portinitialize(struct efm32_spidev_s *priv)
   priv->rxdmach = efm32_dmachannel();
   if (!priv->rxdmach)
     {
-      spierr("ERROR: Failed to allocate the RX DMA channel for SPI port: %d\n",
+      spierr("ERROR: Failed to allocate RX DMA channel for SPI port: %d\n",
              port);
       goto errout;
     }
@@ -1600,18 +1598,9 @@ static int spi_portinitialize(struct efm32_spidev_s *priv)
   priv->txdmach = efm32_dmachannel();
   if (!priv->txdmach)
     {
-      spierr("ERROR: Failed to allocate the TX DMA channel for SPI port: %d\n",
+      spierr("ERROR: Failed to allocate TX DMA channel for SPI port: %d\n",
              port);
       goto errout_with_rxdmach;
-    }
-
-  /* Allocate a timer to catch hung DMA transfers */
-
-  priv->wdog = wd_create();
-  if (!priv->wdog)
-    {
-      spierr("ERROR: Failed to create a timer for SPI port: %d\n", port);
-      goto errout_with_txdmach;
     }
 
   /* Initialized semaphores used to wait for DMA completion */
@@ -1623,13 +1612,14 @@ static int spi_portinitialize(struct efm32_spidev_s *priv)
    * priority inheritance enabled.
    */
 
-   nxsem_setprotocol(&priv->rxdmasem, SEM_PRIO_NONE);
-   nxsem_setprotocol(&priv->txdmasem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&priv->rxdmasem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&priv->txdmasem, SEM_PRIO_NONE);
 #endif
 
   /* Enable SPI */
 
-  spi_putreg(config, EFM32_USART_CMD_OFFSET, USART_CMD_RXEN | USART_CMD_TXEN);
+  spi_putreg(config, EFM32_USART_CMD_OFFSET,
+             USART_CMD_RXEN | USART_CMD_TXEN);
   return OK;
 
 #ifdef CONFIG_EFM32_SPI_DMA

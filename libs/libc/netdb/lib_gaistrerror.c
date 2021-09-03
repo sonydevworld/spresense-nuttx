@@ -48,8 +48,8 @@
 
 struct errno_strmap_s
 {
-  uint8_t     errnum;
-  const char *str;
+  uint8_t         errnum;
+  FAR const char *str;
 };
 
 /****************************************************************************
@@ -122,4 +122,3 @@ FAR const char *gai_strerror(int errnum)
 #endif
   return "Unknown error";
 }
-

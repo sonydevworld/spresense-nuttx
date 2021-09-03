@@ -1,37 +1,22 @@
 /****************************************************************************
  * boards/arm/stm32f7/nucleo-144/src/stm32_bbsram.c
  *
- *   Copyright (C) 2016, 2018 Gregory Nutt. All rights reserved.
- *   Author: David Sidrane <david_s5@nscdg.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Included Files
@@ -52,7 +37,7 @@
 
 #include <nuttx/fs/fs.h>
 
-#include "up_internal.h"
+#include "arm_internal.h"
 #include "stm32_bbsram.h"
 
 #include "nucleo-144.h"
@@ -118,7 +103,7 @@
 
 #define ARRAYSIZE(a) (sizeof((a))/sizeof(a[0]))
 
-/* For Assert keep this much of the file name*/
+/* For Assert keep this much of the file name */
 
 #define MAX_FILE_PATH_LENGTH 40
 
@@ -142,7 +127,6 @@ typedef struct
   uint32_t sp;
   uint32_t top;
   uint32_t size;
-
 } _stack_t;
 
 typedef struct
@@ -264,12 +248,13 @@ typedef struct
 typedef struct
 {
   info_t    info;                  /* The info */
-#if CONFIG_ARCH_INTERRUPTSTACK > 3 /* The amount of stack data is compile time
-                                    * sized backed on what is left after the
-                                    * other BBSRAM files are defined
-                                    * The order is such that only the
-                                    * ustack should be truncated
-                                    */
+#if CONFIG_ARCH_INTERRUPTSTACK > 3
+  /* The amount of stack data is compile time
+   * sized backed on what is left after the
+   * other BBSRAM files are defined
+   * The order is such that only the
+   * ustack should be truncated
+   */
   stack_word_t istack[CONFIG_USTACK_SIZE];
 #endif
   stack_word_t ustack[CONFIG_ISTACK_SIZE];
@@ -308,8 +293,8 @@ static int hardfault_get_desc(struct bbsramd_s *desc)
 
       if (ret < 0)
         {
-          syslog(LOG_INFO, "stm32 bbsram: Failed to get Fault Log descriptor "
-              "(%d)\n", ret);
+          syslog(LOG_INFO, "stm32 bbsram: Failed to get Fault Log "
+              "descriptor (%d)\n", ret);
         }
     }
 
@@ -354,6 +339,7 @@ int stm32_bbsram_int(void)
 
 #if defined(CONFIG_STM32F7_SAVE_CRASHDUMP)
   /* Panic Logging in Battery Backed Up Files */
+
   /* Do we have an hard fault in BBSRAM? */
 
   rv = hardfault_get_desc(&desc);
@@ -363,7 +349,7 @@ int stm32_bbsram_int(void)
       state = (desc.lastwrite.tv_sec || desc.lastwrite.tv_nsec) ?  OK : 1;
 
       syslog(LOG_INFO, "Fault Log info File No %d Length %d flags:0x%02x "
-          "state:%d\n",(unsigned int)desc.fileno, (unsigned int) desc.len,
+          "state:%d\n", (unsigned int)desc.fileno, (unsigned int)desc.len,
           (unsigned int)desc.flags, state);
 
       if (state == OK)
@@ -375,11 +361,11 @@ int stm32_bbsram_int(void)
           syslog(LOG_INFO, "Fault Logged on %s - Valid\n", buf);
         }
 
-      rv = unlink(HARDFAULT_PATH);
+      rv = nx_unlink(HARDFAULT_PATH);
       if (rv < 0)
         {
-          syslog(LOG_INFO, "stm32 bbsram: Failed to unlink Fault Log file [%s"
-                 "] (%d)\n", HARDFAULT_PATH, rv);
+          syslog(LOG_INFO, "stm32 bbsram: Failed to unlink Fault Log file"
+                 " [%s] (%d)\n", HARDFAULT_PATH, rv);
         }
     }
 #endif /* CONFIG_STM32F7_SAVE_CRASHDUMP */
@@ -393,7 +379,7 @@ int stm32_bbsram_int(void)
 
 #if defined(CONFIG_STM32F7_SAVE_CRASHDUMP)
 void board_crashdump(uintptr_t currentsp, FAR void *tcb,
-                     FAR const uint8_t *filename, int lineno)
+                     FAR const char *filename, int lineno)
 {
   fullcontext_t *pdump = (fullcontext_t *)&g_sdata;
   FAR struct tcb_s *rtcb;
@@ -463,16 +449,8 @@ void board_crashdump(uintptr_t currentsp, FAR void *tcb,
       pdump->info.stacks.user.sp = currentsp;
     }
 
-  if (pdump->info.pid == 0)
-    {
-      pdump->info.stacks.user.top = g_idle_topstack - 4;
-      pdump->info.stacks.user.size = CONFIG_IDLETHREAD_STACKSIZE;
-    }
-  else
-    {
-      pdump->info.stacks.user.top = (uint32_t) rtcb->adj_stack_ptr;
-      pdump->info.stacks.user.size = (uint32_t) rtcb->adj_stack_size;
-    }
+  pdump->info.stacks.user.top = (uint32_t) rtcb->adj_stack_ptr;
+  pdump->info.stacks.user.size = (uint32_t) rtcb->adj_stack_size;
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
   /* Get the limits on the interrupt stack memory */
@@ -493,7 +471,8 @@ void board_crashdump(uintptr_t currentsp, FAR void *tcb,
 
   /* Is it Invalid? */
 
-  if (!(pdump->info.stacks.interrupt.sp <= pdump->info.stacks.interrupt.top &&
+  if (!(pdump->info.stacks.interrupt.sp <=
+        pdump->info.stacks.interrupt.top &&
         pdump->info.stacks.interrupt.sp > pdump->info.stacks.interrupt.top -
           pdump->info.stacks.interrupt.size))
     {
@@ -532,14 +511,14 @@ void board_crashdump(uintptr_t currentsp, FAR void *tcb,
 
       while (*dead)
         {
-          up_lowputc(*dead++);
+          arm_lowputc(*dead++);
         }
     }
   else if (rv == -ENOSPC)
     {
       /* hard fault again */
 
-      up_lowputc('!');
+      arm_lowputc('!');
     }
 }
 #endif /* CONFIG_STM32F7_SAVE_CRASHDUMP */

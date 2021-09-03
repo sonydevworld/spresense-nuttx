@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/drivers/analog/dac7554.c
+ * drivers/analog/dac7554.c
  *
  *   Copyright (C) 2010, 2016, 2018 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2018 Daniel P. Carvalho. All rights reserved.
@@ -153,7 +153,7 @@ static void dac7554_reset(FAR struct dac_dev_s *dev)
  * Description:
  *   Configure the DAC. This method is called the first time that the DAC
  *   device is opened.  This will occur when the port is first opened.
- *   This setup includes configuring and attaching DAC interrupts.  Interrupts
+ *   This setup includes configuring and attaching DAC interrupts. Interrupts
  *   are all disabled upon return.
  *
  ****************************************************************************/
@@ -199,7 +199,7 @@ static int dac7554_send(FAR struct dac_dev_s *dev, FAR struct dac_msg_s *msg)
 
   /* Sanity check */
 
-  DEBUGASSERT(priv->SPI != NULL);
+  DEBUGASSERT(priv->spi != NULL);
 
   /* Set up message to send */
 
@@ -261,11 +261,12 @@ FAR struct dac_dev_s *dac7554_initialize(FAR struct spi_dev_s *spi,
 
   /* Sanity check */
 
-  DEBUGASSERT(i2c != NULL);
+  DEBUGASSERT(spi != NULL);
 
   /* Initialize the DAC7554 device structure */
 
-  priv = (FAR struct dac7554_dev_s *)kmm_malloc(sizeof(struct dac7554_dev_s));
+  priv =
+    (FAR struct dac7554_dev_s *)kmm_malloc(sizeof(struct dac7554_dev_s));
   priv->spi = spi;
   priv->spidev = spidev;
 

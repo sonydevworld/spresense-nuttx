@@ -3,7 +3,20 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
-comment "MTD Configuration"
+menuconfig MTD
+	bool "Memory Technology Device (MTD) Support"
+	default n
+	---help---
+		Memory Technology Device (MTD) drivers.  Some simple drivers for
+		memory technologies like FLASH, EEPROM, NVRAM, etc.  See
+		include/nuttx/mtd/mtd.h
+
+		(Note: This is a simple memory interface and should not be
+		confused with the "real" MTD developed at infradead.org.  This
+		logic is unrelated; I just used the name MTD because I am not
+		aware of any other common way to refer to this class of devices).
+
+if MTD
 
 config MTD_PARTITION
 	bool "Support MTD partitions"
@@ -29,7 +42,7 @@ config MTD_PARTITION
 config FTL_WRITEBUFFER
 	bool "Enable write buffering in the FTL layer"
 	default n
-	depends on DRVR_WRITEBUFFER && FS_WRITABLE
+	depends on DRVR_WRITEBUFFER
 
 config FTL_READAHEAD
 	bool "Enable read-ahead buffering in the FTL layer"
@@ -117,6 +130,7 @@ endif # MTD_READAHEAD
 config MTD_PROGMEM
 	bool "Enable on-chip program FLASH MTD device"
 	default n
+	depends on ARCH_HAVE_PROGMEM
 	---help---
 		Enable to support an MTD device that supports the on-chip FLASH
 		using the interfaces defined in include/nuttx/progmem.  Those
@@ -612,6 +626,35 @@ config N25QXXX_SECTOR512
 
 endif # MTD_N25QXXX
 
+config MTD_W25QXXXJV
+	bool "QuadSPI-based Winbond W25QXXXJV family FLASH"
+	default n
+	---help---
+		Support the W25Q016JV, W25Q032JV, W25Q064JV, W25Q128JV, W25Q256JV, W25Q512JV, W25Q01JV
+
+if MTD_W25QXXXJV
+
+config W25QXXXJV_QSPIMODE
+	int "W25QXXXJV QuadSPI Mode"
+	default 0
+	---help---
+		This device can operate in SPI mode 0 or 3.
+
+config W25QXXXJV_QSPI_FREQUENCY
+	int "W25QXXXJV QuadSPI Frequency"
+	default 133000000
+	---help---
+		Per data sheet:
+		– 133MHz Single, Dual/Quad SPI clocks
+		– 266/532MHz equivalent Dual/Quad SPI
+		– 66MB/S continuous data transfer rate
+
+config W25QXXXJV_SECTOR512
+	bool "Simulate 512 byte Erase Blocks"
+	default n
+
+endif # MTD_W25QXXXJV
+
 config MTD_MX25RXX
 	bool "QuadSPI-based Macronix MX25RXX family FLASH"
 	default n
@@ -749,7 +792,6 @@ endchoice # CRC level selection
 config MTD_SMART_FSCK
 	bool "Enable SMART file system check"
 	default n
-	depends on FS_WRITABLE
 	---help---
 		Enables fsck to check and repair the SMART file system.
 
@@ -780,7 +822,7 @@ config MTD_SMART_SECTOR_CACHE_SIZE
 	---help---
 		Sets the size of the cache used for logical to physical sector mapping.  A
 		larger number allows larger files to be "seek"ed randomly without encountering
-		cache misses.  Any files larger than CACH_SIZE * SECTOR_SIZE that are seeked
+		cache misses.  Any files larger than CACH_SIZE * SECTOR_SIZE that are sought
 		start to end will cause the cache to flush forcing manual scanning of the
 		MTD device to find the logical to physical mappings.
 
@@ -1058,3 +1100,5 @@ config GD5F_SPIFREQUENCY
 	default 20000000
 
 endif # MTD_GD5F
+
+endif # MTD

@@ -1,5 +1,5 @@
 /****************************************************************************
- *  arch/misoc/src/minerva/_irq.c
+ * arch/misoc/src/minerva/minerva_irq.c
  *
  *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
  *   Author: Ramtin Amin <keytwo@gmail.com>
@@ -60,10 +60,10 @@ volatile uint32_t *g_current_regs;
  ****************************************************************************/
 
 /****************************************************************************
- * Name: minerva_irq_initialize
+ * Name: up_irqinitialize
  ****************************************************************************/
 
-void minerva_irq_initialize(void)
+void up_irqinitialize(void)
 {
   /* currents_regs is non-NULL only while processing an interrupt */
 

@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_adc.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -55,7 +40,7 @@
 #include <arch/chip/adc.h>
 
 #include "chip.h"
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "hardware/cxd56_adc.h"
 #include "hardware/cxd56_scuseq.h"
 #include "cxd56_clock.h"
@@ -320,7 +305,8 @@ static struct cxd56adc_dev_s g_hpadc1priv =
 };
 #endif
 
-static bool adc_active[CH_MAX] = {
+static bool adc_active[CH_MAX] =
+{
     false, false, false, false, false, false
 };
 
@@ -405,39 +391,44 @@ static int adc_start(adc_ch_t ch, uint8_t freq, FAR struct seq_s *seq,
       aerr("SETFIFO failed. %d\n", ret);
       return ret;
     }
+
   ret = seq_ioctl(seq, 0, SCUIOC_SETFIFOMODE, fifomode);
   if (ret < 0)
     {
       aerr("SETFIFOMODE failed. %d\n", ret);
       return ret;
     }
-    if (wm)
-      {
-        ret = seq_ioctl(seq, 0, SCUIOC_SETWATERMARK, (unsigned long)wm);
-        if (ret < 0)
-          {
-            aerr("SETWATERMARK failed. %d\n", ret);
-            return ret;
-          }
-      }
-    if (filter)
-      {
-        ret = seq_ioctl(seq, 0, SCUIOC_SETFILTER, (unsigned long)filter);
-        if (ret < 0)
-          {
-            aerr("SETFILTER failed. %d\n", ret);
-            return ret;
-          }
-      }
-    if (notify)
-      {
-        ret = seq_ioctl(seq, 0, SCUIOC_SETNOTIFY, (unsigned long)notify);
-        if (ret < 0)
-          {
-            aerr("SETNOTIFY failed. %d\n", ret);
-            return ret;
-          }
-      }
+
+  if (wm)
+    {
+      ret = seq_ioctl(seq, 0, SCUIOC_SETWATERMARK, (unsigned long)wm);
+      if (ret < 0)
+        {
+          aerr("SETWATERMARK failed. %d\n", ret);
+          return ret;
+        }
+    }
+
+  if (filter)
+    {
+      ret = seq_ioctl(seq, 0, SCUIOC_SETFILTER, (unsigned long)filter);
+      if (ret < 0)
+        {
+          aerr("SETFILTER failed. %d\n", ret);
+          return ret;
+        }
+    }
+
+  if (notify)
+    {
+      ret = seq_ioctl(seq, 0, SCUIOC_SETNOTIFY, (unsigned long)notify);
+      if (ret < 0)
+        {
+          aerr("SETNOTIFY failed. %d\n", ret);
+          return ret;
+        }
+    }
+
   if (ch <= CH3)
     {
       /* LPADC.A1 LPADC_CH : todo: GPS ch */
@@ -512,6 +503,7 @@ static int adc_start(adc_ch_t ch, uint8_t freq, FAR struct seq_s *seq,
         {
           val = 0x00000030;
         }
+
 #endif
       putreg32(val, SCUADCIF_HPADC_AC0);
 #endif
@@ -606,6 +598,7 @@ static int adc_start(adc_ch_t ch, uint8_t freq, FAR struct seq_s *seq,
                                (uint32_t *)SCUADCIF_HPADC1_D2;
           putreg32(1, addr);
         }
+
       adc_active[ch] = true;
     }
   else
@@ -655,6 +648,7 @@ static int adc_stop(adc_ch_t ch, FAR struct seq_s *seq)
               break;
             }
         }
+
       if (is_clockdisable)
         {
           cxd56_lpadc_clock_disable();
@@ -698,6 +692,7 @@ static bool adc_validcheck(int cmd)
     {
       return true;
     }
+
   return false;
 }
 
@@ -757,6 +752,7 @@ static int cxd56_adc_open(FAR struct file *filep)
       nxsem_post(&priv->exclsem);
       return ret;
     }
+
   ainfo("open ch%d freq%d scufifo%d\n", priv->ch, priv->freq, priv->fsize);
 
   nxsem_post(&priv->exclsem);
@@ -804,11 +800,13 @@ static int cxd56_adc_close(FAR struct file *filep)
       kmm_free(priv->wm);
       priv->wm = NULL;
     }
+
   if (priv->filter)
     {
       kmm_free(priv->filter);
       priv->filter = NULL;
     }
+
   if (priv->notify)
     {
       kmm_free(priv->notify);
@@ -941,7 +939,7 @@ static int cxd56_adc_ioctl(FAR struct file *filep, int cmd,
           else
             {
               aerr("Unrecognized cmd: %d\n", cmd);
-              ret = -EINVAL;
+              ret = -ENOTTY;
             }
         }
         break;
@@ -961,8 +959,8 @@ static int cxd56_adc_ioctl(FAR struct file *filep, int cmd,
  *   get sampling interval of ADC.
  *
  * Input Parameters:
- *   bustype - SCU_BUS_LPADC0, SCU_BUS_LPADC1, SCU_BUS_LPADC2, SCU_BUS_LPADC3,
- *             SCU_BUS_HPADC0, SCU_BUS_HPADC1
+ *   bustype - SCU_BUS_LPADC0, SCU_BUS_LPADC1, SCU_BUS_LPADC2,
+ *             SCU_BUS_LPADC3, SCU_BUS_HPADC0, SCU_BUS_HPADC1
  *   *interval - Sampling interval
  *   *adjust   - Adjustment value used for timestamp calculation
  *
@@ -1057,6 +1055,7 @@ void cxd56_adc_getinterval(int adctype, uint32_t *interval, uint16_t *adjust)
         {
           freq /= 6;
         }
+
 #endif
       if (freq > 0)
         {
@@ -1100,6 +1099,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(lpadc0): %d\n", ret);
       return ret;
     }
+
   nxsem_init(&g_lpadc0priv.exclsem, 0, 1);
 #endif
 #if defined (CONFIG_CXD56_LPADC1) || defined (CONFIG_CXD56_LPADC0_1) || defined (CONFIG_CXD56_LPADC_ALL)
@@ -1109,6 +1109,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(lpadc1): %d\n", ret);
       return ret;
     }
+
   nxsem_init(&g_lpadc1priv.exclsem, 0, 1);
 #endif
 #if defined (CONFIG_CXD56_LPADC2) || defined (CONFIG_CXD56_LPADC_ALL)
@@ -1118,6 +1119,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(lpadc2): %d\n", ret);
       return ret;
     }
+
   nxsem_init(&g_lpadc2priv.exclsem, 0, 1);
 #endif
 #if defined (CONFIG_CXD56_LPADC3) || defined (CONFIG_CXD56_LPADC_ALL)
@@ -1127,6 +1129,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(lpadc3): %d\n", ret);
       return ret;
     }
+
   nxsem_init(&g_lpadc3priv.exclsem, 0, 1);
 #endif
 #ifdef CONFIG_CXD56_HPADC0
@@ -1136,6 +1139,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(hpadc0): %d\n", ret);
       return ret;
     }
+
   nxsem_init(&g_hpadc0priv.exclsem, 0, 1);
 #endif
 #ifdef CONFIG_CXD56_HPADC1
@@ -1145,6 +1149,7 @@ int cxd56_adcinitialize(void)
       aerr("Failed to register driver(hpadc1): %d\n", ret);
       return ret;
     }
+
   nxsem_init(&g_hpadc1priv.exclsem, 0, 1);
 #endif
 

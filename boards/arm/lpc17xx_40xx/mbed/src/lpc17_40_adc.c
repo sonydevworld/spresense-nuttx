@@ -54,7 +54,7 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "lpc17_40_adc.h"
 #include "mbed.h"
@@ -83,7 +83,9 @@ int mbed_adc_setup(void)
 
   if (!initialized)
     {
-      /* Call lpc17_40_adcinitialize() to get an instance of the ADC interface */
+      /* Call lpc17_40_adcinitialize() to get an instance of the ADC
+       * interface
+       */
 
       adc = lpc17_40_adcinitialize();
       if (adc == NULL)

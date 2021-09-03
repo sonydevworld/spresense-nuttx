@@ -26,8 +26,8 @@
 4. Configure and build NuttX
 
   $ mkdir ./nuttx; cd ./nuttx
-  $ git clone https://bitbucket.org/nuttx/nuttx.git
-  $ git clone https://bitbucket.org/nuttx/apps.git
+  $ git clone https://github.com/apache/incubator-nuttx.git
+  $ git clone https://github.com/apache/incubator-nuttx-apps.git
   $ cd nuttx
   $ make distclean
   $ ./tools/configure.sh maix-bit:nsh
@@ -36,6 +36,11 @@
 5. Run the nuttx with qemu
 
   $ qemu-system-riscv64 -nographic -machine sifive_u -bios ./nuttx
+
+  NOTE: To run nuttx for kostest, gdb needs to be used to load both nuttx_user.elf and nuttx
+
+  $ qemu-system-riscv64 -nographic -machine sifive_u -s -S
+  $ riscv64-unknown-elf-gdb -ex 'target extended-remot:1234' -ex 'load nuttx_user.elf' -ex 'load nuttx' -ex 'c'
 
 6. TODO
 

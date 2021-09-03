@@ -1,4 +1,4 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/nrf52/nrf52_gpio.h
  *
  *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
@@ -31,14 +31,14 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_NRF52_NRF52_GPIO_H
 #define __ARCH_ARM_SRC_NRF52_NRF52_GPIO_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -50,11 +50,11 @@
 #include <arch/nrf52/chip.h>
 #include "hardware/nrf52_gpio.h"
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ************************************************************************************/
+ ****************************************************************************/
 
-/* Bit-encoded input to nrf52_gpio_config() *****************************************/
+/* Bit-encoded input to nrf52_gpio_config() *********************************/
 
 /* 32-Bit Encoding: .... .... .... ....  FFSS DDDM MVPN NNNN
  *
@@ -95,7 +95,7 @@
  */
 
 #define GPIO_DRIVE_SHIFT        (9)      /* Bits 9-11: Pin pull-up mode */
-#define GPIO_DRIVE_MASK         (0x3 << GPIO_DRIVE_SHIFT)
+#define GPIO_DRIVE_MASK         (0x7 << GPIO_DRIVE_SHIFT)
 #  define GPIO_DRIVE_S0S1       (0 << GPIO_DRIVE_SHIFT) /* Standard '0', standard '1' */
 #  define GPIO_DRIVE_H0S1       (1 << GPIO_DRIVE_SHIFT) /* High drive '0', standard '1' */
 #  define GPIO_DRIVE_S0H1       (2 << GPIO_DRIVE_SHIFT) /* */
@@ -176,15 +176,26 @@
 #  define GPIO_PIN31            (31 << GPIO_PIN_SHIFT)
 #  define GPIO_PIN(n)           ((n) << GPIO_PIN_SHIFT)
 
-/************************************************************************************
+/* Helper macros */
+
+#define GPIO_PIN_DECODE(p)  (((p) & GPIO_PIN_MASK)  >> GPIO_PIN_SHIFT)
+#define GPIO_PORT_DECODE(p) (((p) & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT)
+
+/****************************************************************************
  * Public Types
- ************************************************************************************/
+ ****************************************************************************/
 
 typedef uint32_t nrf52_pinset_t;
 
-/************************************************************************************
+enum nrf52_gpio_detectmode_e
+{
+  NRF52_GPIO_DETECTMODE_DETECT,
+  NRF52_GPIO_DETECTMODE_LDETECT,
+};
+
+/****************************************************************************
  * Public Data
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ASSEMBLY__
 #undef EXTERN
@@ -196,103 +207,58 @@ extern "C"
 #define EXTERN extern
 #endif
 
-/************************************************************************************
- * Public Functions
- ************************************************************************************/
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
 
-/************************************************************************************
- * Name: nrf52_gpio_irqinitialize
- *
- * Description:
- *   Initialize logic to support interrupting GPIO pins.  This function is called by
- *   the OS inialization logic and is not a user interface.
- *
- ************************************************************************************/
-
-#ifdef CONFIG_NRF52_GPIOIRQ
-void nrf52_gpio_irqinitialize(void);
-#else
-#  define nrf52_gpio_irqinitialize()
-#endif
-
-/************************************************************************************
+/****************************************************************************
  * Name: nrf52_gpio_config
  *
  * Description:
  *   Configure a GPIO pin based on bit-encoded description of the pin.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 int nrf52_gpio_config(nrf52_pinset_t cfgset);
 
-/************************************************************************************
- * Name: nrf52_gpio_interrupt
+/****************************************************************************
+ * Name: nrf52_gpio_unconfig
  *
  * Description:
- *   Configure a GPIO interrupt pin based on bit-encoded description of the pin.
- *   This function is called by nrf52_gpio_config to setup interrupting pins.  It is
- *   not a user interface.
+ *   Unconfigure a GPIO pin based on bit-encoded description of the pin.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
-#ifdef CONFIG_NRF52_GPIOIRQ
-int nrf52_gpio_interrupt(nrf52_pinset_t pinset);
-#endif
+int nrf52_gpio_unconfig(nrf52_pinset_t cfgset);
 
-/************************************************************************************
- * Name: nrf52_gpio_irqno
- *
- * Description:
- *   Returns the IRQ number that was associated with an interrupt pin after it was
- *   configured.
- *
- ************************************************************************************/
-
-#ifdef CONFIG_NRF52_GPIOIRQ
-int nrf52_gpio_irqno(nrf52_pinset_t pinset);
-#endif
-
-/************************************************************************************
- * Name: nrf52_gpio_ackedge
- *
- * Description:
- *   Acknowledge edge interrupts by clearing the associated bits in the rising and
- *   falling registers.  This acknowledgemment is, of course, not needed for level
- *   interupts.
- *
- ************************************************************************************/
-
-#ifdef CONFIG_NRF52_GPIOIRQ
-int nrf52_gpio_ackedge(int irq);
-#endif
-
-/************************************************************************************
+/****************************************************************************
  * Name: rnf52_gpio_write
  *
  * Description:
  *   Write one or zero to the selected GPIO pin
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 void nrf52_gpio_write(nrf52_pinset_t pinset, bool value);
 
-/************************************************************************************
+/****************************************************************************
  * Name: nrf52_gpio_read
  *
  * Description:
  *   Read one or zero from the selected GPIO pin
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 bool nrf52_gpio_read(nrf52_pinset_t pinset);
 
-/************************************************************************************
+/****************************************************************************
  * Function:  nf52_gpio_dump
  *
  * Description:
- *   Dump all GPIO registers associated with the base address of the provided pinset.
+ *   Dump all GPIO registers associated with the base address of the provided
+ * pinset.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_DEBUG_GPIO_INFO
 int nrf52_gpio_dump(nrf52_pinset_t pinset, const char *msg);

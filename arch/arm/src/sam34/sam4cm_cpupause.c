@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/sam34/sam4cm_cpupause.c
  *
- *   Copyright (C) 2016 Masayuki Ishikawa. All rights reserved.
- *   Author: Masayuki Ishikawa <masayuki.ishikawa@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -49,9 +34,9 @@
 #include <nuttx/spinlock.h>
 #include <nuttx/sched_note.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "sched/sched.h"
-#include "up_internal.h"
+#include "arm_internal.h"
 #include "hardware/sam4cm_ipc.h"
 
 #ifdef CONFIG_SMP
@@ -144,7 +129,7 @@ int up_cpu_paused(int cpu)
 
   /* Update scheduler parameters */
 
-  sched_suspend_scheduler(tcb);
+  nxsched_suspend_scheduler(tcb);
 
 #ifdef CONFIG_SCHED_INSTRUMENTATION
   /* Notify that we are paused */
@@ -156,7 +141,7 @@ int up_cpu_paused(int cpu)
    * of the assigned task list for this CPU.
    */
 
-  up_savestate(tcb->xcp.regs);
+  arm_savestate(tcb->xcp.regs);
 
   /* Wait for the spinlock to be released */
 
@@ -177,13 +162,13 @@ int up_cpu_paused(int cpu)
 
   /* Reset scheduler parameters */
 
-  sched_resume_scheduler(tcb);
+  nxsched_resume_scheduler(tcb);
 
   /* Then switch contexts.  Any necessary address environment changes
    * will be made when the interrupt returns.
    */
 
-  up_restorestate(tcb->xcp.regs);
+  arm_restorestate(tcb->xcp.regs);
   spin_unlock(&g_cpu_wait[cpu]);
 
   return OK;
@@ -208,6 +193,7 @@ int arm_pause_handler(int irq, void *c, FAR void *arg)
   int cpu = up_cpu_index();
 
   /* Clear : Pause IRQ */
+
   /* IPC Interrupt Clear Command Register (write-only) */
 
   if (1 == cpu)
@@ -256,7 +242,7 @@ int arm_pause_handler(int irq, void *c, FAR void *arg)
 
 int up_cpu_pause(int cpu)
 {
-  DPRINTF("cpu=%d\n",cpu);
+  DPRINTF("cpu=%d\n", cpu);
 
   DEBUGASSERT(cpu >= 0 && cpu < CONFIG_SMP_NCPUS && cpu != this_cpu());
 
@@ -266,10 +252,10 @@ int up_cpu_pause(int cpu)
   sched_note_cpu_pause(this_task(), cpu);
 #endif
 
-  /* Take the both spinlocks.  The g_cpu_wait spinlock will prevent the interrupt
-   * handler from returning until up_cpu_resume() is called; g_cpu_paused
-   * is a handshake that will prefent this function from returning until
-   * the CPU is actually paused.
+  /* Take the both spinlocks.  The g_cpu_wait spinlock will prevent the
+   * interrupt handler from returning until up_cpu_resume() is called;
+   * g_cpu_paused is a handshake that will prefent this function from
+   * returning until the CPU is actually paused.
    */
 
   DEBUGASSERT(!spin_islocked(&g_cpu_wait[cpu]) &&
@@ -279,6 +265,7 @@ int up_cpu_pause(int cpu)
   spin_lock(&g_cpu_paused[cpu]);
 
   /* Execute Pause IRQ to CPU(cpu) */
+
   /* Set IPC Interrupt (IRQ0) (write-only) */
 
   if (cpu == 1)
@@ -298,11 +285,11 @@ int up_cpu_pause(int cpu)
   spin_unlock(&g_cpu_paused[cpu]);
 
   /* On successful return g_cpu_wait will be locked, the other CPU will be
-   * spinninf on g_cpu_wait and will not continue until g_cpu_resume() is
+   * spinning on g_cpu_wait and will not continue until g_cpu_resume() is
    * called.  g_cpu_paused will be unlocked in any case.
    */
 
- return OK;
+  return OK;
 }
 
 /****************************************************************************
@@ -326,7 +313,7 @@ int up_cpu_pause(int cpu)
 
 int up_cpu_resume(int cpu)
 {
-  DPRINTF("cpu=%d\n",cpu);
+  DPRINTF("cpu=%d\n", cpu);
 
   DEBUGASSERT(cpu >= 0 && cpu < CONFIG_SMP_NCPUS && cpu != this_cpu());
 

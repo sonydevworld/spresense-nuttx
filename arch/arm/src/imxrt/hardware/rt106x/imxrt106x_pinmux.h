@@ -1,52 +1,37 @@
-/*****************************************************************************
+/****************************************************************************
  * arch/arm/src/imxrt/hardware/rt106x/imxrt106x_pinmux.h
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
- *            David Sidrane <david_s5@nscdg.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_IMXRT_HARDWARE_IMXRT106X_PINMUX_H
 #define __ARCH_ARM_SRC_IMXRT_HARDWARE_IMXRT106X_PINMUX_H
 
-/*****************************************************************************
+/****************************************************************************
  * Included Files
- *****************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 #include "imxrt_iomuxc.h"
+#include "imxrt_gpio.h"
 
-/*****************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- *****************************************************************************/
+ ****************************************************************************/
 
 /* Alternate Pin Functions.
  *
@@ -521,7 +506,9 @@
 /* General Purpose Timer (GPT) */
 
 #define GPIO_GPT1_CAPTURE1_1           (GPIO_PERIPH | GPIO_ALT4 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_EMC_24_INDEX))
+#define GPIO_GPT1_CAPTURE1_2           (GPIO_PERIPH | GPIO_ALT8 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_B1_05_INDEX))
 #define GPIO_GPT1_CAPTURE2_1           (GPIO_PERIPH | GPIO_ALT4 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_EMC_23_INDEX))
+#define GPIO_GPT1_CAPTURE2_2           (GPIO_PERIPH | GPIO_ALT8 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_B1_06_INDEX))
 #define GPIO_GPT1_CLK_1                (GPIO_PERIPH | GPIO_ALT1 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_13_INDEX))
 #define GPIO_GPT1_COMPARE1_1           (GPIO_PERIPH | GPIO_ALT2 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_EMC_35_INDEX))
 #define GPIO_GPT1_COMPARE2_1           (GPIO_PERIPH | GPIO_ALT2 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_EMC_36_INDEX))
@@ -532,6 +519,7 @@
 #define GPIO_GPT2_CLK_1                (GPIO_PERIPH | GPIO_ALT7 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_09_INDEX))
 #define GPIO_GPT2_COMPARE2_1           (GPIO_PERIPH | GPIO_ALT1 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_07_INDEX))
 #define GPIO_GPT2_COMPARE3_1           (GPIO_PERIPH | GPIO_ALT1 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_08_INDEX))
+#define GPIO_GPT2_COMPARE3_2           (GPIO_PERIPH | GPIO_ALT8 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_07_INDEX))
 
 /* JTAG */
 
@@ -1001,6 +989,22 @@
 #define GPIO_USDHC2_WP_1               (GPIO_PERIPH | GPIO_ALT6 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_10_INDEX))
 #define GPIO_USDHC2_WP_2               (GPIO_PERIPH | GPIO_ALT6 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_EMC_37_INDEX))
 
+/* USB OTG */
+
+#define GPIO_USB1_OTG_ID_1             (GPIO_PERIPH | GPIO_ALT3 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_01_INDEX))
+#define GPIO_USB1_OTG_ID_2             (GPIO_PERIPH | GPIO_ALT0 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_02_INDEX))
+#define GPIO_USB1_OTG_OC_1             (GPIO_PERIPH | GPIO_ALT3 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_03_INDEX))
+#define GPIO_USB1_OTG_OC_2             (GPIO_PERIPH | GPIO_ALT0 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_03_INDEX))
+#define GPIO_USB1_OTG_PWR_1            (GPIO_PERIPH | GPIO_ALT3 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_02_INDEX))
+#define GPIO_USB1_OTG_PWR_2            (GPIO_PERIPH | GPIO_ALT0 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_01_INDEX))
+
+#define GPIO_USB2_OTG_ID_1             (GPIO_PERIPH | GPIO_ALT3 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_00_INDEX))
+#define GPIO_USB2_OTG_ID_2             (GPIO_PERIPH | GPIO_ALT0 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_00_INDEX))
+#define GPIO_USB2_OTG_OC_1             (GPIO_PERIPH | GPIO_ALT3 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_EMC_40_INDEX))
+#define GPIO_USB2_OTG_OC_2             (GPIO_PERIPH | GPIO_ALT0 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_14_INDEX))
+#define GPIO_USB2_OTG_PWR_1            (GPIO_PERIPH | GPIO_ALT3 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_EMC_41_INDEX))
+#define GPIO_USB2_OTG_PWR_2            (GPIO_PERIPH | GPIO_ALT0 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_15_INDEX))
+
 /* Watchdog Timer (WDOG1-2) */
 
 #define GPIO_WDOG1_1                   (GPIO_PERIPH | GPIO_ALT0 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_B1_13_INDEX))
@@ -1061,5 +1065,39 @@
 #define GPIO_XBAR1_INOUT19_3           (GPIO_PERIPH | GPIO_ALT1 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_EMC_14_INDEX))
 #define GPIO_XBAR1_INOUT19_4           (GPIO_PERIPH | GPIO_ALT6 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_07_INDEX))
 #define GPIO_XBAR1_XBAR_IN02_1         (GPIO_PERIPH | GPIO_ALT3 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_EMC_00_INDEX))
+
+/* ADC */
+#define GPIO_ADC1_CH0                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_11_INDEX))
+#define GPIO_ADC1_CH1                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_12_INDEX))
+#define GPIO_ADC1_CH2                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_13_INDEX))
+#define GPIO_ADC1_CH3                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_14_INDEX))
+#define GPIO_ADC1_CH4                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B0_15_INDEX))
+#define GPIO_ADC1_CH5                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_00_INDEX))
+#define GPIO_ADC1_CH6                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_01_INDEX))
+#define GPIO_ADC1_CH7                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_02_INDEX))
+#define GPIO_ADC1_CH8                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_03_INDEX))
+#define GPIO_ADC1_CH9                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_04_INDEX))
+#define GPIO_ADC1_CH10                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_05_INDEX))
+#define GPIO_ADC1_CH11                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_06_INDEX))
+#define GPIO_ADC1_CH12                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_07_INDEX))
+#define GPIO_ADC1_CH13                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_08_INDEX))
+#define GPIO_ADC1_CH14                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_09_INDEX))
+#define GPIO_ADC1_CH15                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_10_INDEX))
+#define GPIO_ADC2_CH0                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_11_INDEX))
+#define GPIO_ADC2_CH1                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_12_INDEX))
+#define GPIO_ADC2_CH2                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_13_INDEX))
+#define GPIO_ADC2_CH3                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_14_INDEX))
+#define GPIO_ADC2_CH4                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_15_INDEX))
+#define GPIO_ADC2_CH5                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_00_INDEX))
+#define GPIO_ADC2_CH6                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_01_INDEX))
+#define GPIO_ADC2_CH7                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_02_INDEX))
+#define GPIO_ADC2_CH8                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_03_INDEX))
+#define GPIO_ADC2_CH9                  (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_04_INDEX))
+#define GPIO_ADC2_CH10                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_05_INDEX))
+#define GPIO_ADC2_CH11                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_06_INDEX))
+#define GPIO_ADC2_CH12                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_07_INDEX))
+#define GPIO_ADC2_CH13                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_08_INDEX))
+#define GPIO_ADC2_CH14                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_09_INDEX))
+#define GPIO_ADC2_CH15                 (GPIO_PERIPH | GPIO_ALT5 | GPIO_PADMUX(IMXRT_PADMUX_GPIO_AD_B1_10_INDEX))
 
 #endif /* __ARCH_ARM_SRC_IMXRT_HARDWARE_IMXRT106X_PINMUX_H */

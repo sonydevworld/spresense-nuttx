@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/hardware/cxd56_emmc.h
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -181,15 +166,15 @@
 
 #define EMMC_IDSTS_INT_CLEAR (0x000003FFu)
 #define EMMC_IDSTS_FSM       (0xFu << 13) /* DMAC FSM present state */
-#define EMMC_IDSTS_EB_RESP   (1u << 11) /* This bit valids when EMMC_IDSTS_FBE */
-#define EMMC_IDSTS_EB_TRANS  (1u << 10) /* This bit valids when EMMC_IDSTS_FBE */
-#define EMMC_IDSTS_AIS       (1u <<  9) /* Abnormal Interrupt Summary */
-#define EMMC_IDSTS_NIS       (1u <<  8) /* Normal Interrupt Summary */
-#define EMMC_IDSTS_CES       (1u <<  5) /* Card Error Summary */
-#define EMMC_IDSTS_DU        (1u <<  4) /* Descriptor Unavailable Interrupt */
-#define EMMC_IDSTS_FBE       (1u <<  2) /* Fatal Bus Error Interrupt */
-#define EMMC_IDSTS_RI        (1u <<  1) /* Receive Interrupt */
-#define EMMC_IDSTS_TI        (1u <<  0) /* Transmit Interrupt */
+#define EMMC_IDSTS_EB_RESP   (1u << 11)   /* This bit valids when EMMC_IDSTS_FBE */
+#define EMMC_IDSTS_EB_TRANS  (1u << 10)   /* This bit valids when EMMC_IDSTS_FBE */
+#define EMMC_IDSTS_AIS       (1u <<  9)   /* Abnormal Interrupt Summary */
+#define EMMC_IDSTS_NIS       (1u <<  8)   /* Normal Interrupt Summary */
+#define EMMC_IDSTS_CES       (1u <<  5)   /* Card Error Summary */
+#define EMMC_IDSTS_DU        (1u <<  4)   /* Descriptor Unavailable Interrupt */
+#define EMMC_IDSTS_FBE       (1u <<  2)   /* Fatal Bus Error Interrupt */
+#define EMMC_IDSTS_RI        (1u <<  1)   /* Receive Interrupt */
+#define EMMC_IDSTS_TI        (1u <<  0)   /* Transmit Interrupt */
 
 /* EMMC_IDINTEN */
 
@@ -339,6 +324,9 @@
 #define EXTCSD_BUS_WIDTH            (183u)
 #define EXTCSD_BUS_WIDTH_4BIT_SDR   (0x01u)
 #define EXTCSD_BUS_WIDTH_4BIT_DDR   (0x05u)
+
+/* Vendor-specific Extended CSD */
+
 #define EXTCSD_PON                  (34u) /* Power Off Notification */
 #define EXTCSD_PON_POWERED_ON       (0x01u)
 #define EXTCSD_PON_POWERED_OFF_LONG (0x03u)

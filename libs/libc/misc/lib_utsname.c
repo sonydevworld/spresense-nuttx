@@ -1,5 +1,5 @@
 /****************************************************************************
- * include/sys/utsname.c
+ * libs/libc/misc/lib_utsname.c
  *
  *   Copyright (C) 2015 Stavros Polymenis. All rights reserved.
  *   Author: Stavros Polymenis <sp@orbitalfox.com>
@@ -46,19 +46,6 @@
 #include <nuttx/version.h>
 #include <unistd.h>
 
-/* In the protected and kernel build modes where kernel and application code
- * are separated, some of these common system property must reside only in
- * the kernel.  In that case, uname() can only be called from user space via
- * a kernel system call.
- */
-
-#if (!defined(CONFIG_BUILD_PROTECTED) && !defined(CONFIG_BUILD_KERNEL)) || \
-      defined(__KERNEL__)
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -101,11 +88,7 @@ int uname(FAR struct utsname *name)
 
   /* Get the hostname */
 
-  if (-1 == gethostname(name->nodename, HOST_NAME_MAX))
-    {
-      ret = -1;
-    }
-
+  ret = gethostname(name->nodename, HOST_NAME_MAX);
   name->nodename[HOST_NAME_MAX - 1] = '\0';
 
   strncpy(name->release,  CONFIG_VERSION_STRING, SYS_NAMELEN);
@@ -124,5 +107,3 @@ int uname(FAR struct utsname *name)
 
   return ret;
 }
-
-#endif /* (!CONFIG_BUILD_PROTECTED) && !CONFIG_BUILD_KERNEL) || __KERNEL__ */

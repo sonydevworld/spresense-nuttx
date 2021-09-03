@@ -51,7 +51,7 @@
 
 #include <nuttx/irq.h>
 
-#include "up_internal.h"
+#include "arm_internal.h"
 #include "stm32_pm.h"
 #include "stm32_rcc.h"
 #include "stm32_exti.h"
@@ -61,7 +61,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
+
 /* Does the board support an IDLE LED to indicate that the board is in the
  * IDLE state?
  */
@@ -276,4 +278,3 @@ void up_idle(void)
   END_IDLE();
 #endif
 }
-

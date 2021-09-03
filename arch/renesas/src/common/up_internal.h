@@ -1,36 +1,20 @@
 /****************************************************************************
  * arch/renesas/src/common/up_internal.h
  *
- *   Copyright (C) 2008-2009, 2012-2013, 2015, 2018 Gregory Nutt. All
- *     rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -54,7 +38,7 @@
 
 /* Determine which (if any) console driver to use.  NOTE that the naming
  * implies that the console is a serial driver.  That is usually the case,
- * however, if no UARTs are enabled, the console could als be provided
+ * however, if no UARTs are enabled, the console could also be provided
  * through some other device, such as an LCD.  Architecture-specific logic
  * will have to detect that case.
  *
@@ -65,14 +49,8 @@
 #ifndef CONFIG_DEV_CONSOLE
 #  undef  USE_SERIALDRIVER
 #  undef  USE_EARLYSERIALINIT
-#  undef  CONFIG_DEV_LOWCONSOLE
-#  undef  CONFIG_RAMLOG_CONSOLE
 #else
-#  if defined(CONFIG_RAMLOG_CONSOLE)
-#    undef  USE_SERIALDRIVER
-#    undef  USE_EARLYSERIALINIT
-#    undef  CONFIG_DEV_LOWCONSOLE
-#  elif defined(CONFIG_DEV_LOWCONSOLE)
+#  if defined(CONFIG_CONSOLE_SYSLOG)
 #    undef  USE_SERIALDRIVER
 #    undef  USE_EARLYSERIALINIT
 #  else
@@ -94,8 +72,10 @@
 /* Check if an interrupt stack size is configured */
 
 #ifndef CONFIG_ARCH_INTERRUPTSTACK
-# define CONFIG_ARCH_INTERRUPTSTACK 0
+#  define CONFIG_ARCH_INTERRUPTSTACK 0
 #endif
+
+#define up_savestate(regs)    up_copystate(regs, (uint32_t *)g_current_regs)
 
 /****************************************************************************
  * Public Types
@@ -131,7 +111,7 @@ extern uint32_t g_idle_topstack;
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
@@ -143,7 +123,6 @@ void up_dataabort(uint32_t *regs);
 void up_decodeirq(uint32_t *regs);
 uint32_t *up_doirq(int irq, uint32_t *regs);
 void up_fullcontextrestore(uint32_t *regs) noreturn_function;
-void up_irqinitialize(void);
 void up_prefetchabort(uint32_t *regs);
 int  up_saveusercontext(uint32_t *regs);
 void up_sigdeliver(void);
@@ -165,30 +144,22 @@ void up_vectorfiq(void);
 
 /* Defined in xyz_serial.c */
 
+#ifdef USE_EARLYSERIALINIT
 void up_earlyconsoleinit(void);
+#endif
+
+#ifdef USE_SERIALDRIVER
 void up_consoleinit(void);
+void up_serialinit(void);
+#endif
 
 #ifdef CONFIG_RPMSG_UART
 void rpmsg_serialinit(void);
-#else
-#  define rpmsg_serialinit()
-#endif
-
-/* Defined in drivers/lowconsole.c */
-
-#ifdef CONFIG_DEV_LOWCONSOLE
-void lowconsole_init(void);
-#else
-# define lowconsole_init()
 #endif
 
 /* Defined in xyz_watchdog.c */
 
 void up_wdtinit(void);
-
-/* Defined in xyz_timerisr.c */
-
-void renesas_timer_initialize(void);
 
 /* Defined in board/xyz_lcd.c */
 
@@ -227,4 +198,4 @@ void up_dumpstate(void);
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif  /* ___ARCH_RENESAS_SRC_COMMON_UP_INTERNAL_H */
+#endif /* ___ARCH_RENESAS_SRC_COMMON_UP_INTERNAL_H */

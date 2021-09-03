@@ -1,35 +1,20 @@
 /****************************************************************************
  * drivers/net/rpmsgdrv.c
  *
- *   Copyright (C) 2018 Pinecone Inc. All rights reserved.
- *   Author: Jianli Dong <dongjianli@pinecone.net>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -141,7 +126,9 @@
 #  define net_rpmsg_drv_dumppacket(m, b, l)
 #endif
 
-/* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per second */
+/* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per
+ * second.
+ */
 
 #define NET_RPMSG_DRV_WDDELAY      (1*CLK_TCK)
 
@@ -164,7 +151,7 @@ struct net_rpmsg_drv_s
   FAR const char        *cpuname;
   FAR const char        *devname;
   struct rpmsg_endpoint ept;
-  WDOG_ID               txpoll;   /* TX poll timer */
+  struct wdog_s         txpoll;   /* TX poll timer */
   struct work_s         pollwork; /* For deferring poll work to the work queue */
 
   /* This holds the information visible to the NuttX network */
@@ -208,7 +195,7 @@ static int  net_rpmsg_drv_send_recv(struct net_driver_s *dev,
 /* Watchdog timer expirations */
 
 static void net_rpmsg_drv_poll_work(FAR void *arg);
-static void net_rpmsg_drv_poll_expiry(int argc, wdparm_t arg, ...);
+static void net_rpmsg_drv_poll_expiry(wdparm_t arg);
 
 /* NuttX callback functions */
 
@@ -379,8 +366,8 @@ static int net_rpmsg_drv_txpoll(FAR struct net_driver_s *dev)
 
           net_rpmsg_drv_transmit(dev, true);
 
-          /* Check if there is room in the device to hold another packet. If not,
-           * return a non-zero value to terminate the poll.
+          /* Check if there is room in the device to hold another packet. If
+           * not, return a non-zero value to terminate the poll.
            */
 
           dev->d_buf = rpmsg_get_tx_payload_buffer(&priv->ept, &size, false);
@@ -394,8 +381,8 @@ static int net_rpmsg_drv_txpoll(FAR struct net_driver_s *dev)
         }
     }
 
-  /* If zero is returned, the polling will continue until all connections have
-   * been examined.
+  /* If zero is returned, the polling will continue until all connections
+   * have been examined.
    */
 
   return 0;
@@ -489,11 +476,11 @@ static int net_rpmsg_drv_sockioctl_task(int argc, FAR char *argv[])
       protocol = IPPROTO_ICMP6;
     }
 
-  sock.s_crefs = 1; /* Initialize reference count manually */
   msg->header.result = psock_socket(domain, type, protocol, &sock);
   if (msg->header.result >= 0)
     {
-      msg->header.result = psock_ioctl(&sock, msg->code, (unsigned long)msg->arg);
+      msg->header.result = psock_ioctl(&sock, msg->code,
+                                       (unsigned long)msg->arg);
       psock_close(&sock); /* Close the temporary sock */
     }
 
@@ -537,7 +524,8 @@ static int net_rpmsg_drv_sockioctl_handler(FAR struct rpmsg_endpoint *ept,
 #ifdef CONFIG_NET_IPv4
 static bool net_rpmsg_drv_is_ipv4(FAR struct net_driver_s *dev)
 {
-  FAR struct ipv4_hdr_s *ip = (struct ipv4_hdr_s *)(dev->d_buf + dev->d_llhdrlen);
+  FAR struct ipv4_hdr_s *ip =
+    (struct ipv4_hdr_s *)(dev->d_buf + dev->d_llhdrlen);
   FAR struct eth_hdr_s *eth = (struct eth_hdr_s *)dev->d_buf;
 
   if (dev->d_lltype == NET_LL_ETHERNET || dev->d_lltype == NET_LL_IEEE80211)
@@ -554,7 +542,8 @@ static bool net_rpmsg_drv_is_ipv4(FAR struct net_driver_s *dev)
 #ifdef CONFIG_NET_IPv6
 static bool net_rpmsg_drv_is_ipv6(FAR struct net_driver_s *dev)
 {
-  FAR struct ipv6_hdr_s *ip = (struct ipv6_hdr_s *)(dev->d_buf + dev->d_llhdrlen);
+  FAR struct ipv6_hdr_s *ip =
+    (struct ipv6_hdr_s *)(dev->d_buf + dev->d_llhdrlen);
   FAR struct eth_hdr_s *eth = (struct eth_hdr_s *)dev->d_buf;
 
   if (dev->d_lltype == NET_LL_ETHERNET || dev->d_lltype == NET_LL_IEEE80211)
@@ -633,7 +622,7 @@ static int net_rpmsg_drv_transfer_handler(FAR struct rpmsg_endpoint *ept,
   dev->d_len = msg->length;
 
 #ifdef CONFIG_NET_PKT
-  /* When packet sockets are enabled, feed the frame into the packet tap */
+  /* When packet sockets are enabled, feed the frame into the tap */
 
   pkt_input(dev);
 #endif
@@ -662,7 +651,7 @@ static int net_rpmsg_drv_transfer_handler(FAR struct rpmsg_endpoint *ept,
 #ifdef CONFIG_NET_IPv6
   if (net_rpmsg_drv_is_ipv6(dev))
     {
-      ninfo("Iv6 frame\n");
+      ninfo("IPv6 frame\n");
       NETDEV_RXIPV6(dev);
 
       /* Dispatch IPv6 packet to the network layer */
@@ -738,7 +727,8 @@ static int net_rpmsg_drv_ept_cb(FAR struct rpmsg_endpoint *ept, void *data,
   FAR struct net_rpmsg_header_s *header = data;
   uint32_t command = header->command;
 
-  if (command < sizeof(g_net_rpmsg_drv_handler) / sizeof(g_net_rpmsg_drv_handler[0]))
+  if (command < sizeof(g_net_rpmsg_drv_handler) /
+                sizeof(g_net_rpmsg_drv_handler[0]))
     {
       return g_net_rpmsg_drv_handler[command](ept, data, len, src, priv);
     }
@@ -756,7 +746,7 @@ static int net_rpmsg_drv_send_recv(FAR struct net_driver_s *dev,
   int ret;
 
   nxsem_init(&cookie.sem, 0, 0);
-  nxsem_setprotocol(&cookie.sem, SEM_PRIO_NONE);
+  nxsem_set_protocol(&cookie.sem, SEM_PRIO_NONE);
 
   cookie.header   = header;
   header->command = command;
@@ -828,9 +818,9 @@ static void net_rpmsg_drv_poll_work(FAR void *arg)
 
   if (dev->d_buf)
     {
-      /* If so, update TCP timing states and poll the network for new XMIT data.
-       * Hmmm.. might be bug here.  Does this mean if there is a transmit in
-       * progress, we will missing TCP time state updates?
+      /* If so, update TCP timing states and poll the network for new XMIT
+       * data.  Hmmm.. might be bug here.  Does this mean if there is a
+       * transmit in progress, we will missing TCP time state updates?
        */
 
       devif_timer(dev, NET_RPMSG_DRV_WDDELAY, net_rpmsg_drv_txpoll);
@@ -838,8 +828,8 @@ static void net_rpmsg_drv_poll_work(FAR void *arg)
 
   /* Setup the watchdog poll timer again */
 
-  wd_start(priv->txpoll, NET_RPMSG_DRV_WDDELAY, net_rpmsg_drv_poll_expiry, 1,
-           (wdparm_t)dev);
+  wd_start(&priv->txpoll, NET_RPMSG_DRV_WDDELAY,
+           net_rpmsg_drv_poll_expiry, (wdparm_t)dev);
   net_unlock();
 }
 
@@ -850,8 +840,7 @@ static void net_rpmsg_drv_poll_work(FAR void *arg)
  *   Periodic timer handler.  Called from the timer interrupt handler.
  *
  * Parameters:
- *   argc - The number of available arguments
- *   arg  - The first argument
+ *   arg  - The argument
  *
  * Returned Value:
  *   None
@@ -862,7 +851,7 @@ static void net_rpmsg_drv_poll_work(FAR void *arg)
  *
  ****************************************************************************/
 
-static void net_rpmsg_drv_poll_expiry(int argc, wdparm_t arg, ...)
+static void net_rpmsg_drv_poll_expiry(wdparm_t arg)
 {
   FAR struct net_driver_s *dev = (FAR struct net_driver_s *)arg;
   FAR struct net_rpmsg_drv_s *priv = dev->d_private;
@@ -963,8 +952,8 @@ static int net_rpmsg_drv_ifup(FAR struct net_driver_s *dev)
 
   /* Set and activate a timer process */
 
-  wd_start(priv->txpoll, NET_RPMSG_DRV_WDDELAY, net_rpmsg_drv_poll_expiry, 1,
-           (wdparm_t)dev);
+  wd_start(&priv->txpoll, NET_RPMSG_DRV_WDDELAY,
+           net_rpmsg_drv_poll_expiry, (wdparm_t)dev);
 
   net_unlock();
 
@@ -980,7 +969,8 @@ static int net_rpmsg_drv_ifup(FAR struct net_driver_s *dev)
       dnsaddr.sin_port   = htons(DNS_DEFAULT_PORT);
       memcpy(&dnsaddr.sin_addr, &msg.dnsaddr, sizeof(msg.dnsaddr));
 
-      dns_add_nameserver((FAR const struct sockaddr *)&dnsaddr, sizeof(dnsaddr));
+      dns_add_nameserver((FAR const struct sockaddr *)&dnsaddr,
+                         sizeof(dnsaddr));
     }
 #  endif
 
@@ -995,7 +985,8 @@ static int net_rpmsg_drv_ifup(FAR struct net_driver_s *dev)
       dnsaddr.sin6_port   = htons(DNS_DEFAULT_PORT);
       memcpy(&dnsaddr.sin6_addr, msg.ipv6dnsaddr, sizeof(msg.ipv6dnsaddr));
 
-      dns_add_nameserver((FAR const struct sockaddr *)&dnsaddr, sizeof(dnsaddr));
+      dns_add_nameserver((FAR const struct sockaddr *)&dnsaddr,
+                         sizeof(dnsaddr));
     }
 #  endif
 #endif
@@ -1032,14 +1023,14 @@ static int net_rpmsg_drv_ifdown(FAR struct net_driver_s *dev)
 
   /* Cancel the TX poll timer and work */
 
-  wd_cancel(priv->txpoll);
+  wd_cancel(&priv->txpoll);
   work_cancel(LPWORK, &priv->pollwork);
 
   leave_critical_section(flags);
 
   /* Put the EMAC in its reset, non-operational state.  This should be
-   * a known configuration that will guarantee the net_rpmsg_drv_ifup() always
-   * successfully brings the interface back up.
+   * a known configuration that will guarantee the net_rpmsg_drv_ifup()
+   * always successfully brings the interface back up.
    */
 
   return net_rpmsg_drv_send_recv(dev, &msg, NET_RPMSG_IFDOWN, sizeof(msg));
@@ -1092,13 +1083,15 @@ static void net_rpmsg_drv_txavail_work(FAR void *arg)
             }
         }
 
-      /* Check if there is room in the hardware to hold another outgoing packet. */
+      /* Check if there is room in the hardware to hold another outgoing
+       * packet.
+       */
 
       if (dev->d_buf)
         {
           /* If so, then poll the network for new XMIT data */
 
-          devif_poll(dev, net_rpmsg_drv_txpoll);
+          devif_timer(dev, 0, net_rpmsg_drv_txpoll);
         }
     }
 
@@ -1137,7 +1130,8 @@ static int net_rpmsg_drv_txavail(FAR struct net_driver_s *dev)
     {
       /* Schedule to serialize the poll on the worker thread. */
 
-      work_queue(LPWORK, &priv->pollwork, net_rpmsg_drv_txavail_work, dev, 0);
+      work_queue(LPWORK, &priv->pollwork, net_rpmsg_drv_txavail_work,
+                 dev, 0);
     }
 
   return OK;
@@ -1177,8 +1171,8 @@ static int net_rpmsg_drv_addmac(FAR struct net_driver_s *dev,
  * Name: net_rpmsg_drv_rmmac
  *
  * Description:
- *   NuttX Callback: Remove the specified MAC address from the hardware multicast
- *   address filtering
+ *   NuttX Callback: Remove the specified MAC address from the hardware
+ *   multicast address filtering
  *
  * Parameters:
  *   dev  - Reference to the NuttX driver state structure
@@ -1384,11 +1378,6 @@ int net_rpmsg_drv_init(FAR const char *cpuname,
   dev->d_ioctl   = net_rpmsg_drv_ioctl;   /* Handle network IOCTL commands */
 #endif
   dev->d_private = priv;                  /* Used to recover private state from dev */
-
-  /* Create a watchdog for timing polling for transmissions */
-
-  priv->txpoll   = wd_create();           /* Create periodic poll timer */
-  DEBUGASSERT(priv->txpoll != NULL);
 
   /* Register the device with the openamp */
 

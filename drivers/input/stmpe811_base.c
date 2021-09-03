@@ -1,41 +1,27 @@
 /****************************************************************************
  * drivers/input/stmpe811_base.c
  *
- *   Copyright (C) 2012, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * References:
- *   "STMPE811 S-Touch® advanced resistive touchscreen controller with 8-bit
- *    GPIO expander," Doc ID 14489 Rev 6, CD00186725, STMicroelectronics"
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
+
+/* References:
+ *   "STMPE811 S-Touch advanced resistive touchscreen controller with 8-bit
+ *    GPIO expander," Doc ID 14489 Rev 6, CD00186725, STMicroelectronics"
+ */
 
 /****************************************************************************
  * Included Files
@@ -206,7 +192,7 @@ static int stmpe811_checkid(FAR struct stmpe811_dev_s *priv)
 
   devid = stmpe811_getreg8(priv, STMPE811_CHIP_ID);
   devid = (uint32_t)(devid << 8);
-  devid |= (uint32_t)stmpe811_getreg8(priv, STMPE811_CHIP_ID+1);
+  devid |= (uint32_t)stmpe811_getreg8(priv, STMPE811_CHIP_ID + 1);
   iinfo("devid: %04x\n", devid);
 
   if (devid != (uint16_t)CHIP_ID)
@@ -235,7 +221,7 @@ static void stmpe811_reset(FAR struct stmpe811_dev_s *priv)
 
   /* Wait a bit */
 
-  nxsig_usleep(20*1000);
+  nxsig_usleep(20 * 1000);
 
   /* Then power on again.  All registers will be in their reset state. */
 
@@ -255,7 +241,7 @@ static void stmpe811_reset(FAR struct stmpe811_dev_s *priv)
  *
  * Input Parameters:
  *   dev     - An I2C or SPI driver instance
- *   config  - Persistant board configuration data
+ *   config  - Persistent board configuration data
  *
  * Returned Value:
  *   A non-zero handle is returned on success.  This handle may then be used
@@ -279,13 +265,16 @@ STMPE811_HANDLE stmpe811_instantiate(FAR struct i2c_master_s *dev,
   /* Allocate the device state structure */
 
 #ifdef CONFIG_STMPE811_MULTIPLE
-  priv = (FAR struct stmpe811_dev_s *)kmm_zalloc(sizeof(struct stmpe811_dev_s));
+  priv = (FAR struct stmpe811_dev_s *)kmm_zalloc(
+    sizeof(struct stmpe811_dev_s));
   if (!priv)
     {
       return NULL;
     }
 
-  /* And save the device structure in the list of STMPE811 so that we can find it later */
+  /* And save the device structure in the list of STMPE811 so that we can
+   * find it later.
+   */
 
   priv->flink   = g_stmpe811list;
   g_stmpe811list = priv;
@@ -323,7 +312,9 @@ STMPE811_HANDLE stmpe811_instantiate(FAR struct i2c_master_s *dev,
 
   stmpe811_reset(priv);
 
-  /* Configure the interrupt output pin to generate interrupts on high or low level. */
+  /* Configure the interrupt output pin to generate interrupts on high or
+   * low level.
+   */
 
   regval  = stmpe811_getreg8(priv, STMPE811_INT_CTRL);
 #ifdef CONFIG_STMPE811_ACTIVELOW
@@ -367,18 +358,20 @@ STMPE811_HANDLE stmpe811_instantiate(FAR struct i2c_master_s *dev,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_STMPE811_I2C
 uint8_t stmpe811_getreg8(FAR struct stmpe811_dev_s *priv, uint8_t regaddr)
 {
   /* 8-bit data read sequence:
-   *
+   * i2c:
    *  Start - I2C_Write_Address - STMPE811_Reg_Address -
    *    Repeated_Start - I2C_Read_Address  - STMPE811_Read_Data - STOP
+   * spi:
+   *  [STMPE811_Reg_Address | 0x80] - Dummy Address - Read Register
    */
 
-  struct i2c_msg_s msg[2];
   uint8_t regval;
+#ifdef CONFIG_STMPE811_I2C
   int ret;
+  struct i2c_msg_s msg[2];
 
   /* Setup 8-bit STMPE811 address write message */
 
@@ -406,13 +399,26 @@ uint8_t stmpe811_getreg8(FAR struct stmpe811_dev_s *priv, uint8_t regaddr)
       ierr("ERROR: I2C_TRANSFER failed: %d\n", ret);
       return 0;
     }
+#else  /* CONFIG_STMPE811_SPI */
+  SPI_LOCK(priv->spi, true);
 
+  SPI_SETMODE(priv->spi, SPIDEV_MODE0);
+  SPI_SETBITS(priv->spi, 8);
+  SPI_HWFEATURES(priv->spi, 0);
+  SPI_SETFREQUENCY(priv->spi, priv->config->frequency);
+
+  SPI_SELECT(priv->spi, SPIDEV_TOUCHSCREEN(0), true);
+  SPI_SEND(priv->spi, regaddr | 0x80);  /* Issue a read on the address */
+  SPI_SEND(priv->spi, 0);               /* Next address (not used) */
+  regval = SPI_SEND(priv->spi, 0);      /* Read register */
+  SPI_SELECT(priv->spi, SPIDEV_TOUCHSCREEN(0), false);
+  SPI_LOCK(priv->spi, false);
+#endif
 #ifdef CONFIG_STMPE811_REGDEBUG
   _err("%02x->%02x\n", regaddr, regval);
 #endif
   return regval;
 }
-#endif
 
 /****************************************************************************
  * Name: stmpe811_putreg8
@@ -422,18 +428,21 @@ uint8_t stmpe811_getreg8(FAR struct stmpe811_dev_s *priv, uint8_t regaddr)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_STMPE811_I2C
 void stmpe811_putreg8(FAR struct stmpe811_dev_s *priv,
                       uint8_t regaddr, uint8_t regval)
 {
   /* 8-bit data read sequence:
    *
-   *  Start - I2C_Write_Address - STMPE811_Reg_Address - STMPE811_Write_Data - STOP
+   *  Start - I2C_Write_Address - STMPE811_Reg_Address -
+   *   STMPE811_Write_Data - STOP
+   * spi:
+   *  STMPE811_Reg_Address - Dummy Address - Write Data
    */
 
+#ifdef CONFIG_STMPE811_I2C
+  int ret;
   struct i2c_msg_s msg;
   uint8_t txbuffer[2];
-  int ret;
 
 #ifdef CONFIG_STMPE811_REGDEBUG
   _err("%02x<-%02x\n", regaddr, regval);
@@ -453,7 +462,7 @@ void stmpe811_putreg8(FAR struct stmpe811_dev_s *priv,
   msg.flags     = 0;                       /* Write transaction, beginning with START */
   msg.buffer    = txbuffer;                /* Transfer from this address */
   msg.length    = 2;                       /* Send two byte following the address
-                                       * (then STOP) */
+                                            * (then STOP) */
 
   /* Perform the transfer */
 
@@ -462,8 +471,22 @@ void stmpe811_putreg8(FAR struct stmpe811_dev_s *priv,
     {
       ierr("ERROR: I2C_TRANSFER failed: %d\n", ret);
     }
-}
+#else  /* CONFIG_STMPE811_SPI */
+  SPI_LOCK(priv->spi, true);
+
+  SPI_SETMODE(priv->spi, SPIDEV_MODE0);
+  SPI_SETBITS(priv->spi, 8);
+  SPI_HWFEATURES(priv->spi, 0);
+  SPI_SETFREQUENCY(priv->spi, priv->config->frequency);
+
+  SPI_SELECT(priv->spi, SPIDEV_TOUCHSCREEN(0), true);
+  SPI_SEND(priv->spi, regaddr);  /* Issue a read on the address */
+  SPI_SEND(priv->spi, 0);        /* Next address (not used) */
+  SPI_SEND(priv->spi, regval);   /* write register */
+  SPI_SELECT(priv->spi, SPIDEV_TOUCHSCREEN(0), false);
+  SPI_LOCK(priv->spi, false);
 #endif
+}
 
 /****************************************************************************
  * Name: stmpe811_getreg16
@@ -473,20 +496,23 @@ void stmpe811_putreg8(FAR struct stmpe811_dev_s *priv,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_STMPE811_I2C
 uint16_t stmpe811_getreg16(FAR struct stmpe811_dev_s *priv, uint8_t regaddr)
 {
   /* 16-bit data read sequence:
-   *
+   * i2c:
    *  Start - I2C_Write_Address - STMPE811_Reg_Address -
    *    Repeated_Start - I2C_Read_Address  - STMPE811_Read_Data_1 -
    *      STMPE811_Read_Data_2 - STOP
+   * spi:
+   *  16 bit registers are MSB.
+   *  [STMPE811_Reg_Address | 0x80] - [STMPE811_Reg_Address + 1 | 0x80] -
+   *    Read Register - Read Register + 1
    */
 
-
-  struct i2c_msg_s msg[2];
   uint8_t rxbuffer[2];
+#ifdef CONFIG_STMPE811_I2C
   int ret;
+  struct i2c_msg_s msg[2];
 
   /* Setup 8-bit STMPE811 address write message */
 
@@ -514,13 +540,27 @@ uint16_t stmpe811_getreg16(FAR struct stmpe811_dev_s *priv, uint8_t regaddr)
       ierr("ERROR: I2C_TRANSFER failed: %d\n", ret);
       return 0;
     }
+#else  /* CONFIG_STMPE811_SPI */
 
+  SPI_LOCK(priv->spi, true);
+
+  SPI_SETMODE(priv->spi, SPIDEV_MODE0);
+  SPI_SETBITS(priv->spi, 8);
+  SPI_HWFEATURES(priv->spi, 0);
+  SPI_SETFREQUENCY(priv->spi, priv->config->frequency);
+
+  SPI_SELECT(priv->spi, SPIDEV_TOUCHSCREEN(0), true);
+  SPI_SEND(priv->spi, regaddr | 0x80);         /* Issue a read on the address */
+  SPI_SEND(priv->spi, regaddr + 1);            /* Next address  */
+  rxbuffer[0] = SPI_SEND(priv->spi, 0);        /* Read MSB */
+  rxbuffer[1] = SPI_SEND(priv->spi, 0);        /* Read LSB */
+  SPI_SELECT(priv->spi, SPIDEV_TOUCHSCREEN(0), true);
+  SPI_LOCK(priv->spi, false);
+#endif
 #ifdef CONFIG_STMPE811_REGDEBUG
   _err("%02x->%02x%02x\n", regaddr, rxbuffer[0], rxbuffer[1]);
 #endif
   return (uint16_t)rxbuffer[0] << 8 | (uint16_t)rxbuffer[1];
 }
-#endif
 
 #endif /* CONFIG_INPUT && CONFIG_INPUT_STMPE811 */
-

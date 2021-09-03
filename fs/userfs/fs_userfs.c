@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/userfs/fs_userfs.c
  *
- *   Copyright (C) 2017-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -114,7 +99,8 @@ static int     userfs_ioctl(FAR struct file *filep, int cmd,
                  unsigned long arg);
 
 static int     userfs_sync(FAR struct file *filep);
-static int     userfs_dup(FAR const struct file *oldp, FAR struct file *newp);
+static int     userfs_dup(FAR const struct file *oldp,
+                          FAR struct file *newp);
 static int     userfs_fstat(FAR const struct file *filep,
                  FAR struct stat *buf);
 static int     userfs_truncate(FAR struct file *filep, off_t length);
@@ -143,8 +129,8 @@ static int     userfs_rmdir(FAR struct inode *mountpt,
                  FAR const char *relpath);
 static int     userfs_rename(FAR struct inode *mountpt,
                  FAR const char *oldrelpath, FAR const char *newrelpath);
-static int     userfs_stat(FAR struct inode *mountpt, FAR const char *relpath,
-                 FAR struct stat *buf);
+static int     userfs_stat(FAR struct inode *mountpt,
+                 FAR const char *relpath, FAR struct stat *buf);
 
 /****************************************************************************
  * Public Data
@@ -370,7 +356,7 @@ static ssize_t userfs_read(FAR struct file *filep, char *buffer,
   int respsize;
   int ret;
 
-  finfo("Read %d bytes from offset %d\n", buflen, filep->f_pos);
+  finfo("Read %zu bytes from offset %jd\n", buflen, (intmax_t)filep->f_pos);
 
   DEBUGASSERT(filep != NULL &&
               filep->f_inode != NULL &&
@@ -461,7 +447,7 @@ static ssize_t userfs_write(FAR struct file *filep, FAR const char *buffer,
   ssize_t nrecvd;
   int ret;
 
-  finfo("Write %d bytes to offset %d\n", buflen, filep->f_pos);
+  finfo("Write %zu bytes to offset %jd\n", buflen, (intmax_t)filep->f_pos);
 
   DEBUGASSERT(filep != NULL &&
               filep->f_inode != NULL &&
@@ -474,7 +460,7 @@ static ssize_t userfs_write(FAR struct file *filep, FAR const char *buffer,
 
   if (buflen > priv->mxwrite)
     {
-      return -E2BIG; /* No implememented yet */
+      return -E2BIG; /* No implemented yet */
     }
 
   /* Get exclusive access */
@@ -1334,7 +1320,7 @@ static int userfs_bind(FAR struct inode *blkdriver, FAR const void *data,
   /* Allocate an instance of the UserFS state structure */
 
   iolen = USERFS_REQ_MAXSIZE + config->mxwrite;
-  priv  = (FAR struct userfs_state_s *)kmm_malloc(SIZEOF_USERFS_STATE_S(iolen));
+  priv  = kmm_malloc(SIZEOF_USERFS_STATE_S(iolen));
   if (priv == NULL)
     {
       ferr("ERROR: Failed to allocate state structure\n");
@@ -1370,8 +1356,6 @@ static int userfs_bind(FAR struct inode *blkdriver, FAR const void *data,
       goto errout_with_alloc;
     }
 
-  priv->psock.s_crefs = 1;
-
   /* Bind the socket to the client address */
 
   client.sin_family      = AF_INET;
@@ -1385,8 +1369,6 @@ static int userfs_bind(FAR struct inode *blkdriver, FAR const void *data,
       ferr("ERROR: bind() failed: %d\n", ret);
       goto errout_with_psock;
     }
-
-  priv->psock.s_crefs = 1;
 
   /* Mounted! */
 
@@ -1874,9 +1856,9 @@ static int userfs_rename(FAR struct inode *mountpt,
   strncpy(&req->oldrelpath[oldpathlen], newrelpath, newpathlen);
 
   nsent = psock_sendto(&priv->psock, priv->iobuffer,
-                       SIZEOF_USERFS_RENAME_REQUEST_S(oldpathlen, newpathlen), 0,
-                       (FAR struct sockaddr *)&priv->server,
-                       sizeof(struct sockaddr_in));
+                      SIZEOF_USERFS_RENAME_REQUEST_S(oldpathlen, newpathlen),
+                      0, (FAR struct sockaddr *)&priv->server,
+                      sizeof(struct sockaddr_in));
   if (nsent < 0)
     {
       ferr("ERROR: psock_sendto failed: %d\n", (int)nsent);

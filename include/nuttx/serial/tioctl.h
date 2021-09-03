@@ -1,60 +1,46 @@
-/********************************************************************************************
+/****************************************************************************
  * include/nuttx/serial/tioctl.h
  *
- *   Copyright (C) 2011-2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ********************************************************************************************/
-/* This function should not be included directly.  Rather, it should be included indirectly
- * via include/nuttx/fs/ioctl.h.
+ ****************************************************************************/
+
+/* This function should not be included directly.
+ * Rather, it should be included indirectly via include/nuttx/fs/ioctl.h.
  */
 
 #ifndef __INCLUDE_NUTTX_SERIAL_TIOCTL_H
 #define __INCLUDE_NUTTX_SERIAL_TIOCTL_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include <stdint.h>
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
 /* Get and Set Terminal Attributes (see termios.h) */
 
 #define TCGETS          _TIOC(0x0001)  /* Get serial port settings: FAR struct termios* */
 #define TCSETS          _TIOC(0x0002)  /* Set serial port settings: FAR const struct termios* */
 #define TCSETSW         _TIOC(0x0003)  /* Drain output and set serial port settings: FAR const struct termios* */
-#define TCSETSF         _TIOC(0x0004)  /* Drain output, discard intput, and set serial port settings: FAR const struct termios* */
+#define TCSETSF         _TIOC(0x0004)  /* Drain output, discard input, and set serial port settings: FAR const struct termios* */
 #define TCGETA          _TIOC(0x0005)  /* See TCGETS: FAR struct termio* */
 #define TCSETA          _TIOC(0x0006)  /* See TCSETS: FAR const struct termio* */
 #define TCSETAW         _TIOC(0x0007)  /* See TCSETSF: FAR const struct termio* */
@@ -174,7 +160,7 @@
 
 /* Definitions for flags used in struct serial_rs485 (Linux compatible) */
 
-#  define SER_RS485_ENABLED        (1 << 0) /* Enable/disble RS-485 support */
+#  define SER_RS485_ENABLED        (1 << 0) /* Enable/disable RS-485 support */
 #  define SER_RS485_RTS_ON_SEND    (1 << 1) /* Logic level for RTS pin when sending */
 #  define SER_RS485_RTS_AFTER_SEND (1 << 2) /* Logic level for RTS pin after sent */
 #  define SER_RS485_RX_DURING_TX   (1 << 4)
@@ -190,6 +176,7 @@
 #  define SER_SINGLEWIRE_PULL_DISABLE (0 << SER_SINGLEWIRE_PULL_SHIFT) /* Float RX/TX Line */
 #  define SER_SINGLEWIRE_PULLUP       (1 << SER_SINGLEWIRE_PULL_SHIFT) /* Enable Pull up the RX/TX Line */
 #  define SER_SINGLEWIRE_PULLDOWN     (2 << SER_SINGLEWIRE_PULL_SHIFT) /* Enable Pull down the RX/TX Line */
+#  define SER_SINGLEWIRE_PUSHPULL     (1 << 3)                         /* Use PUSH/PULL not Open Drain with Single wire */
 
 /* Debugging */
 
@@ -197,8 +184,8 @@
 
 /* Inversion Support */
 
-#define TIOCSINVERT     _TIOC(0x0033)  /* Set Singal Inversion */
-#define TIOCGINVERT     _TIOC(0x0034)  /* Get Singal Inversion */
+#define TIOCSINVERT     _TIOC(0x0033)  /* Set Signal Inversion */
+#define TIOCGINVERT     _TIOC(0x0034)  /* Get Signal Inversion */
 
 #define SER_INVERT_ENABLED_RX   (1 << 0) /* Enable/disable signal inversion for RX */
 #define SER_INVERT_ENABLED_TX   (1 << 1) /* Enable/disable signal inversion for TX */
@@ -210,9 +197,9 @@
 
 #define SER_SWAP_ENABLED   (1 << 0) /* Enable/disable RX/TX swap */
 
-/********************************************************************************************
+/****************************************************************************
  * Public Type Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
 /* Used with TTY ioctls */
 
@@ -220,8 +207,9 @@ struct winsize
 {
   uint16_t ws_row;
   uint16_t ws_col;
-/* uint16_t ws_xpixel;    unused */
-/* uint16_t ws_ypixel;    unused */
+
+  uint16_t ws_xpixel; /* unused */
+  uint16_t ws_ypixel; /* unused */
 };
 
 /* Structure used with TIOCSRS485 and TIOCGRS485 (Linux compatible) */
@@ -233,9 +221,9 @@ struct serial_rs485
   uint32_t delay_rts_after_send;   /* Delay after send (milliseconds) */
 };
 
-/********************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifdef __cplusplus
 #define EXTERN extern "C"

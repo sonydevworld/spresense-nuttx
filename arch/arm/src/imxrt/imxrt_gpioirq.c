@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/imxrt/imxrt_gpioirq.c
  *
- *   Copyright (C) 2018-2019 Gregory Nutt. All rights reserved.
- *   Author:  Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -47,7 +32,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "imxrt_config.h"
 #include "imxrt_irq.h"
@@ -617,18 +602,21 @@ static int imxrt_gpio5_16_31_interrupt(int irq, FAR void *context,
 
   return OK;
 }
+
 #endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-/************************************************************************************
+/****************************************************************************
  * Name: imxrt_gpioirq_initialize
  *
  * Description:
- *   Initialize logic to support a second level of interrupt decoding for GPIO pins.
+ *   Initialize logic to support a second level of interrupt decoding for
+ *   GPIO pins.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 void imxrt_gpioirq_initialize(void)
 {
@@ -695,7 +683,7 @@ void imxrt_gpioirq_initialize(void)
 
 #ifdef CONFIG_IMXRT_GPIO2_0_15_IRQ
   DEBUGVERIFY(irq_attach(IMXRT_IRQ_GPIO2_0_15,
-                         imxrt_gpio2_0_15_interrupt,NULL));
+                         imxrt_gpio2_0_15_interrupt, NULL));
   up_enable_irq(IMXRT_IRQ_GPIO2_0_15);
 #endif
 
@@ -744,13 +732,13 @@ void imxrt_gpioirq_initialize(void)
 #endif
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: imxrt_gpioirq_configure
  *
  * Description:
  *   Configure an interrupt for the specified GPIO pin.
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 int imxrt_gpioirq_configure(gpio_pinset_t pinset)
 {
@@ -759,12 +747,15 @@ int imxrt_gpioirq_configure(gpio_pinset_t pinset)
   uintptr_t regaddr;
   uint32_t regval;
   uint32_t icr;
+  uint32_t bothedge;
 
   /* Decode information in the pin configuration */
 
-  port    = ((unsigned int)pinset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
-  pin     = ((unsigned int)pinset & GPIO_PIN_MASK)  >> GPIO_PIN_SHIFT;
-  icr     = ((uint32_t)pinset & GPIO_INTCFG_MASK)   >> GPIO_INTCFG_SHIFT;
+  port     = ((unsigned int)pinset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  pin      = ((unsigned int)pinset & GPIO_PIN_MASK)  >> GPIO_PIN_SHIFT;
+  icr      = ((uint32_t)pinset & GPIO_INTCFG_MASK)   >> GPIO_INTCFG_SHIFT;
+  bothedge = ((uint32_t)pinset & GPIO_INTBOTHCFG_MASK) >>
+             GPIO_INTBOTHCFG_SHIFT;
 
   /* Set the right field in the right ICR register */
 
@@ -774,16 +765,24 @@ int imxrt_gpioirq_configure(gpio_pinset_t pinset)
   regval |= GPIO_ICR(icr, pin);
   putreg32(regval, regaddr);
 
+  /* Add any both-edge setup (overrides above see User Manual 12.5.9) */
+
+  regaddr = IMXRT_GPIO_EDGE(port);
+  regval = getreg32(regaddr);
+  regval &= ~GPIO_EDGE_MASK(pin);
+  regval |= GPIO_EDGE(bothedge, pin);
+  putreg32(regval, regaddr);
+
   return OK;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: imxrt_gpioirq_enable
  *
  * Description:
  *   Enable the interrupt for specified GPIO IRQ
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 int imxrt_gpioirq_enable(int irq)
 {
@@ -800,13 +799,13 @@ int imxrt_gpioirq_enable(int irq)
   return ret;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: imxrt_gpioirq_disable
  *
  * Description:
  *   Disable the interrupt for specified GPIO IRQ
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 int imxrt_gpioirq_disable(int irq)
 {

@@ -47,7 +47,7 @@
 #include <assert.h>
 #include <errno.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "sam_config.h"
 
@@ -109,12 +109,16 @@ int sam_ac_initialize(uint8_t gclkgen)
 
   /* Enable comparator digital GCLK which provides the sampling rate */
 
-  regval = GCLK_CLKCTRL_ID_ACDIG | GCLK_CLKCTRL_GEN(gclkgen) | GCLK_CLKCTRL_CLKEN;
+  regval = GCLK_CLKCTRL_ID_ACDIG |
+           GCLK_CLKCTRL_GEN(gclkgen) |
+           GCLK_CLKCTRL_CLKEN;
   putreg16(regval, SAM_GCLK_CLKCTRL);
 
   /* Enable comparator analog GCLK */
 
-  regval = GCLK_CLKCTRL_ID_ACANA | GCLK_CLKCTRL_GEN(gclkgen) | GCLK_CLKCTRL_CLKEN;
+  regval = GCLK_CLKCTRL_ID_ACANA |
+           GCLK_CLKCTRL_GEN(gclkgen) |
+           GCLK_CLKCTRL_CLKEN;
   putreg16(regval, SAM_GCLK_CLKCTRL);
 
   putreg8(AC_CTRLA_ENABLE, SAM_AC_CTRLA);

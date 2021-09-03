@@ -48,7 +48,7 @@
 #include <nuttx/irq.h>
 
 #include "chip.h"
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "imxrt_iomuxc.h"
 #include "imxrt_gpio.h"
 #include "hardware/imxrt_daisy.h"
@@ -102,7 +102,8 @@ static const uint8_t g_gpio1_padmux[IMXRT_GPIO_NPINS] =
   IMXRT_PADMUX_GPIO_AD_B1_15_INDEX            /* GPIO1 Pin 31 */
 };
 
-#if (defined(CONFIG_ARCH_FAMILY_IMXRT105x) || defined(CONFIG_ARCH_FAMILY_IMXRT106x))
+#if (defined(CONFIG_ARCH_FAMILY_IMXRT105x) || \
+     defined(CONFIG_ARCH_FAMILY_IMXRT106x))
 static const uint8_t g_gpio2_padmux[IMXRT_GPIO_NPINS] =
 {
   IMXRT_PADMUX_GPIO_B0_00_INDEX,              /* GPIO2 Pin 0 */
@@ -185,7 +186,8 @@ static const uint8_t g_gpio2_padmux[IMXRT_GPIO_NPINS] =
 #  error "Unrecognised IMXRT family member"
 #endif
 
-#if (defined(CONFIG_ARCH_FAMILY_IMXRT105x) || defined(CONFIG_ARCH_FAMILY_IMXRT106x))
+#if (defined(CONFIG_ARCH_FAMILY_IMXRT105x) || \
+    defined(CONFIG_ARCH_FAMILY_IMXRT106x))
 static const uint8_t g_gpio3_padmux[IMXRT_GPIO_NPINS] =
 {
   IMXRT_PADMUX_GPIO_SD_B1_00_INDEX,           /* GPIO3 Pin 0 */
@@ -265,7 +267,8 @@ static const uint8_t g_gpio3_padmux[IMXRT_GPIO_NPINS] =
 };
 #endif
 
-#if (defined(CONFIG_ARCH_FAMILY_IMXRT105x) || defined(CONFIG_ARCH_FAMILY_IMXRT106x))
+#if (defined(CONFIG_ARCH_FAMILY_IMXRT105x) || \
+     defined(CONFIG_ARCH_FAMILY_IMXRT106x))
 static const uint8_t g_gpio4_padmux[IMXRT_GPIO_NPINS] =
 {
   IMXRT_PADMUX_GPIO_EMC_00_INDEX,             /* GPIO4 Pin 0 */
@@ -345,12 +348,13 @@ static const uint8_t g_gpio5_padmux[IMXRT_GPIO_NPINS] =
   IMXRT_PADMUX_INVALID                        /* GPIO5 Pin 31 */
 };
 
-static FAR const uint8_t *g_gpio_padmux[IMXRT_GPIO_NPORTS + 1] =
+static const uint8_t * const g_gpio_padmux[IMXRT_GPIO_NPORTS + 1] =
 {
   g_gpio1_padmux,                             /* GPIO1 */
   g_gpio2_padmux,                             /* GPIO2 */
   g_gpio3_padmux,                             /* GPIO3 */
-#if (defined(CONFIG_ARCH_FAMILY_IMXRT105x) || defined(CONFIG_ARCH_FAMILY_IMXRT106x))
+#if (defined(CONFIG_ARCH_FAMILY_IMXRT105x) || \
+     defined(CONFIG_ARCH_FAMILY_IMXRT106x))
   g_gpio4_padmux,                             /* GPIO4 */
 #else
   NULL,                                       /* GPIO4 doesn't exist on 102x */
@@ -365,13 +369,15 @@ static FAR const uint8_t *g_gpio_padmux[IMXRT_GPIO_NPORTS + 1] =
   NULL                                        /* End of list */
 };
 
-/************************************************************************************
+/****************************************************************************
  * Public Data
- ************************************************************************************/
+ ****************************************************************************/
 
-/* Look-up table that maps GPIO1..GPIOn indexes into GPIO register base addresses */
+/* Look-up table that maps GPIO1..GPIOn indexes into GPIO register base
+ * addresses
+ */
 
-uintptr_t g_gpio_base[IMXRT_GPIO_NPORTS] =
+const uintptr_t g_gpio_base[IMXRT_GPIO_NPORTS] =
 {
   IMXRT_GPIO1_BASE
 #if IMXRT_GPIO_NPORTS > 1
@@ -381,7 +387,8 @@ uintptr_t g_gpio_base[IMXRT_GPIO_NPORTS] =
   , IMXRT_GPIO3_BASE
 #endif
 #if IMXRT_GPIO_NPORTS > 3
-#if (defined(CONFIG_ARCH_FAMILY_IMXRT105x) || defined(CONFIG_ARCH_FAMILY_IMXRT106x))
+#if (defined(CONFIG_ARCH_FAMILY_IMXRT105x) || \
+     defined(CONFIG_ARCH_FAMILY_IMXRT106x))
   , IMXRT_GPIO4_BASE
 #else
   , 0
@@ -417,12 +424,15 @@ static uintptr_t imxrt_padmux_address(unsigned int index)
 #if defined(IMXRT_PAD1MUX_OFFSET)
   if (index >= IMXRT_PADMUX_GPIO_SPI_B0_00_INDEX)
     {
-      return (IMXRT_PAD1MUX_OFFSET(index - IMXRT_PADMUX_GPIO_SPI_B0_00_INDEX));
+      return (IMXRT_PAD1MUX_OFFSET(index -
+                                   IMXRT_PADMUX_GPIO_SPI_B0_00_INDEX));
     }
+
 #endif
   if (index >= IMXRT_PADMUX_WAKEUP_INDEX)
     {
-      return (IMXRT_PADMUX_ADDRESS_SNVS(index - IMXRT_PADMUX_WAKEUP_INDEX));
+      return (IMXRT_PADMUX_ADDRESS_SNVS(index -
+                                        IMXRT_PADMUX_WAKEUP_INDEX));
     }
 
   return (IMXRT_PADMUX_ADDRESS(index));
@@ -437,12 +447,15 @@ static uintptr_t imxrt_padctl_address(unsigned int index)
 #if defined(IMXRT_PAD1CTL_OFFSET)
   if (index >= IMXRT_PADCTL_GPIO_SPI_B0_00_INDEX)
     {
-      return (IMXRT_PAD1CTL_OFFSET(index - IMXRT_PADCTL_GPIO_SPI_B0_00_INDEX));
+      return (IMXRT_PAD1CTL_OFFSET(index -
+                                   IMXRT_PADCTL_GPIO_SPI_B0_00_INDEX));
     }
+
 #endif
   if (index >= IMXRT_PADCTL_WAKEUP_INDEX)
     {
-      return (IMXRT_PADCTL_ADDRESS_SNVS(index - IMXRT_PADCTL_WAKEUP_INDEX));
+      return (IMXRT_PADCTL_ADDRESS_SNVS(index -
+                                        IMXRT_PADCTL_WAKEUP_INDEX));
     }
 
   return (IMXRT_PADCTL_ADDRESS(index));
@@ -490,6 +503,19 @@ static void imxrt_gpio_setoutput(int port, int pin, bool value)
     }
 
   putreg32(regval, regaddr);
+}
+
+/****************************************************************************
+ * Name: imxrt_gpio_getpin_status
+ ****************************************************************************/
+
+static inline bool imxrt_gpio_get_pinstatus(int port, int pin)
+{
+  uintptr_t regaddr = IMXRT_GPIO_PSR(port);
+  uint32_t regval;
+
+  regval = getreg32(regaddr);
+  return ((regval & GPIO_PIN(pin)) != 0);
 }
 
 /****************************************************************************
@@ -546,6 +572,7 @@ static inline int imxrt_gpio_select(int port, int pin)
       regaddr |= gpr * sizeof(uint32_t);
       modifyreg32(regaddr, clearbits, setbits);
     }
+
 #endif
   return OK;
 }
@@ -562,6 +589,7 @@ static int imxrt_gpio_configinput(gpio_pinset_t pinset)
   iomux_pinset_t ioset;
   uintptr_t regaddr;
   unsigned int index;
+  uint32_t sion = 0;
 
   DEBUGASSERT((unsigned int)port < IMXRT_GPIO_NPORTS);
 
@@ -582,8 +610,15 @@ static int imxrt_gpio_configinput(gpio_pinset_t pinset)
     {
       return -EINVAL;
     }
+
   regaddr = imxrt_padmux_address(index);
-  putreg32(PADMUX_MUXMODE_ALT5, regaddr);
+
+  if ((pinset & GPIO_OUTPUT) == GPIO_OUTPUT)
+    {
+      sion |= (pinset & GPIO_SION_MASK) ? PADMUX_SION : 0;
+    }
+
+  putreg32(PADMUX_MUXMODE_ALT5 | sion, regaddr);
 
   imxrt_gpio_select(port, pin);
 
@@ -649,7 +684,7 @@ static inline int imxrt_gpio_configperiph(gpio_pinset_t pinset)
 
   imxrt_daisy_select(index, alt);
 
-  /* Configure pin pad settings SW PAD Control Register*/
+  /* Configure pin pad settings SW PAD Control Register */
 
   index = imxrt_padmux_map(index);
   if (index >= IMXRT_PADCTL_NREGISTERS)
@@ -742,13 +777,13 @@ int imxrt_config_gpio(gpio_pinset_t pinset)
   return ret;
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: imxrt_gpio_write
  *
  * Description:
  *   Write one or zero to the selected GPIO pin
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 void imxrt_gpio_write(gpio_pinset_t pinset, bool value)
 {
@@ -763,13 +798,13 @@ void imxrt_gpio_write(gpio_pinset_t pinset, bool value)
   leave_critical_section(flags);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: imxrt_gpio_read
  *
  * Description:
  *   Read one or zero from the selected GPIO pin
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 bool imxrt_gpio_read(gpio_pinset_t pinset)
 {
@@ -781,7 +816,16 @@ bool imxrt_gpio_read(gpio_pinset_t pinset)
   DEBUGASSERT((unsigned int)port < IMXRT_GPIO_NPORTS);
 
   flags = enter_critical_section();
-  value = imxrt_gpio_getinput(port, pin);
-  leave_critical_section(flags);
+  if ((pinset & (GPIO_OUTPUT | GPIO_SION_ENABLE)) ==
+                (GPIO_OUTPUT | GPIO_SION_ENABLE))
+    {
+      value = imxrt_gpio_get_pinstatus(port, pin);
+    }
+  else
+    {
+      value = imxrt_gpio_getinput(port, pin);
+    }
+
+    leave_critical_section(flags);
   return value;
 }

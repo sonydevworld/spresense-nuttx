@@ -1,36 +1,20 @@
 /****************************************************************************
  * graphics/nxbe/nxbe_filltrapezoid.c
  *
- *   Copyright (C) 2008-2009, 2012, 2016, 2019 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -78,8 +62,8 @@ struct nxbe_filltrap_s
  * Name: nxbe_clipfilltrapezoid
  *
  * Description:
- *  Called from nxbe_clipper() to performed the fill operation on visible portions
- *  of the rectangle.
+ *  Called from nxbe_clipper() to performed the fill operation on visible
+ *  portions of the rectangle.
  *
  ****************************************************************************/
 
@@ -107,7 +91,7 @@ static void nxbe_clipfilltrapezoid(FAR struct nxbe_clipops_s *cops,
                      MIN(fillinfo->trap.bot.x2, rect->pt2.x));
   update.pt2.y = MIN(fillinfo->trap.bot.y, rect->pt2.y);
 
-  nx_notify_rectangle(&plane->pinfo, &update);
+  nxbe_notify_rectangle(plane->driver, &update);
 #endif
 }
 
@@ -129,10 +113,11 @@ static void nxbe_clipfilltrapezoid(FAR struct nxbe_clipops_s *cops,
  *
  ****************************************************************************/
 
-static inline void nxbe_filltrapezoid_dev(FAR struct nxbe_window_s *wnd,
-                                          FAR const struct nxgl_rect_s *bounds,
-                                          FAR const struct nxgl_trapezoid_s *trap,
-                                          nxgl_mxpixel_t color[CONFIG_NX_NPLANES])
+static inline void
+nxbe_filltrapezoid_dev(FAR struct nxbe_window_s *wnd,
+                       FAR const struct nxgl_rect_s *bounds,
+                       FAR const struct nxgl_trapezoid_s *trap,
+                       nxgl_mxpixel_t color[CONFIG_NX_NPLANES])
 {
   struct nxbe_filltrap_s info;
   int i;
@@ -151,7 +136,7 @@ static inline void nxbe_filltrapezoid_dev(FAR struct nxbe_window_s *wnd,
 #endif
     {
       /* Rend any part of the trapezoid that is not occluded by a window
-       * higher in the hiearchy.
+       * higher in the hierarchy.
        */
 
       info.color = color[i];
@@ -190,10 +175,11 @@ static inline void nxbe_filltrapezoid_dev(FAR struct nxbe_window_s *wnd,
  ****************************************************************************/
 
 #ifdef CONFIG_NX_RAMBACKED
-static inline void nxbe_filltrapezoid_pwfb(FAR struct nxbe_window_s *wnd,
-                                           FAR const struct nxgl_rect_s *bounds,
-                                           FAR const struct nxgl_trapezoid_s *trap,
-                                           nxgl_mxpixel_t color[CONFIG_NX_NPLANES])
+static inline void
+nxbe_filltrapezoid_pwfb(FAR struct nxbe_window_s *wnd,
+                        FAR const struct nxgl_rect_s *bounds,
+                        FAR const struct nxgl_trapezoid_s *trap,
+                        nxgl_mxpixel_t color[CONFIG_NX_NPLANES])
 {
   FAR const void *src[CONFIG_NX_NPLANES];
   struct nxgl_trapezoid_s reltrap;
@@ -201,7 +187,7 @@ static inline void nxbe_filltrapezoid_pwfb(FAR struct nxbe_window_s *wnd,
   struct nxgl_point_s origin;
   unsigned int bpp;
 
-  /* Both the rectangle that we receive here are in abolute device
+  /* Both the rectangle that we receive here are in absolute device
    * coordinates.  We need to restore both to windows relative coordinates.
    */
 
@@ -214,9 +200,9 @@ static inline void nxbe_filltrapezoid_pwfb(FAR struct nxbe_window_s *wnd,
    * REVISIT:  Assumes a single color plane.
    */
 
-   DEBUGASSERT(wnd->be->plane[0].pwfb.filltrapezoid != NULL);
-   wnd->be->plane[0].pwfb.filltrapezoid(wnd, &reltrap, &relbounds,
-                                        color[0]);
+  DEBUGASSERT(wnd->be->plane[0].pwfb.filltrapezoid != NULL);
+  wnd->be->plane[0].pwfb.filltrapezoid(wnd, &reltrap, &relbounds,
+                                       color[0]);
 
   /* Get the source of address of the trapezoid bounding box in the
    * framebuffer.

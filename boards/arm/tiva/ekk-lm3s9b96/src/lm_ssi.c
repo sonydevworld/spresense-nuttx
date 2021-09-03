@@ -47,7 +47,7 @@
 #include <nuttx/spi/spi.h>
 #include <arch/board/board.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "chip.h"
 #include "tiva_gpio.h"
 #include "ekk-lm3s9b96.h"
@@ -128,6 +128,7 @@ void tiva_ssiselect(FAR struct spi_dev_s *dev, uint32_t devid, bool selected)
       tiva_gpiowrite(OLEDCS_GPIO, !selected);
     }
 #endif
+
   ssi_dumpgpio("tiva_ssiselect() Exit");
 }
 

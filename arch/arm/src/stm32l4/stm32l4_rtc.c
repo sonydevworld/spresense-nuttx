@@ -42,6 +42,7 @@
 #include <nuttx/config.h>
 #include "chip.h"
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <sched.h>
 #include <errno.h>
@@ -53,7 +54,7 @@
 
 #include <arch/board/board.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 
 #include "stm32l4_rcc.h"
 #include "stm32l4_pwr.h"
@@ -67,6 +68,7 @@
  ****************************************************************************/
 
 /* Configuration ************************************************************/
+
 /* This RTC implementation supports
  *  - date/time RTC hardware
  *  - extended functions Alarm A and B
@@ -195,7 +197,7 @@ static void rtc_dumptime(FAR const struct tm *tp, FAR const char *msg)
   rtcinfo(" tm_year: %08x\n", tp->tm_year);
 #else
   rtcinfo("  tm: %04d-%02d-%02d %02d:%02d:%02d\n",
-          tp->tm_year+1900, tp->tm_mon+1, tp->tm_mday,
+          tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday,
           tp->tm_hour, tp->tm_min, tp->tm_sec);
 #endif
 }
@@ -223,10 +225,11 @@ static void rtc_wprunlock(void)
 
   stm32l4_pwr_enablebkp(true);
 
-  /* The following steps are required to unlock the write protection on all the
-   * RTC registers (except for RTC_ISR[13:8], RTC_TAFCR, and RTC_BKPxR).
+  /* The following steps are required to unlock the write protection on
+   * all the RTC registers (except for RTC_ISR[13:8], RTC_TAFCR, and
+   * RTC_BKPxR).
    *
-   * 1. Write 0xCA into the RTC_WPR register.
+   * 1. Write 0xca into the RTC_WPR register.
    * 2. Write 0x53 into the RTC_WPR register.
    *
    * Writing a wrong key re-activates the write protection.
@@ -472,7 +475,8 @@ static void rtc_resume(void)
  ****************************************************************************/
 
 #ifdef CONFIG_RTC_ALARM
-static int stm32l4_rtc_alarm_handler(int irq, FAR void *context, FAR void *rtc_handler_arg)
+static int stm32l4_rtc_alarm_handler(int irq, FAR void *context,
+                                     FAR void *rtc_handler_arg)
 {
   FAR struct alm_cbinfo_s *cbinfo;
   alm_callback_t cb;
@@ -669,7 +673,7 @@ static int rtchw_set_alrmar(rtc_alarmreg_t alarmreg)
 
   putreg32(alarmreg, STM32L4_RTC_ALRMAR);
   putreg32(0, STM32L4_RTC_ALRMASSR);
-  rtcinfo("  ALRMAR: %08x\n", getreg32(STM32L4_RTC_ALRMAR));
+  rtcinfo("  ALRMAR: %08" PRIx32 "\n", getreg32(STM32L4_RTC_ALRMAR));
 
   /* Enable RTC alarm A */
 
@@ -712,7 +716,7 @@ static int rtchw_set_alrmbr(rtc_alarmreg_t alarmreg)
 
   putreg32(alarmreg, STM32L4_RTC_ALRMBR);
   putreg32(0, STM32L4_RTC_ALRMBSSR);
-  rtcinfo("  ALRMBR: %08x\n", getreg32(STM32L4_RTC_ALRMBR));
+  rtcinfo("  ALRMBR: %08" PRIx32 "\n", getreg32(STM32L4_RTC_ALRMBR));
 
   /* Enable RTC alarm B */
 
@@ -779,9 +783,11 @@ static inline void rtc_enable_alarm(void)
  ****************************************************************************/
 
 #ifdef CONFIG_RTC_ALARM
-static int stm32l4_rtc_getalarmdatetime(rtc_alarmreg_t reg, FAR struct tm *tp)
+static int stm32l4_rtc_getalarmdatetime(rtc_alarmreg_t reg,
+                                        FAR struct tm *tp)
 {
-  uint32_t data, tmp;
+  uint32_t data;
+  uint32_t tmp;
 
   DEBUGASSERT(tp != NULL);
 
@@ -793,16 +799,20 @@ static int stm32l4_rtc_getalarmdatetime(rtc_alarmreg_t reg, FAR struct tm *tp)
    * ranges of values correspond between struct tm and the time register.
    */
 
-  tmp = (data & (RTC_ALRMR_SU_MASK | RTC_ALRMR_ST_MASK)) >> RTC_ALRMR_SU_SHIFT;
+  tmp = (data & (RTC_ALRMR_SU_MASK | RTC_ALRMR_ST_MASK)) >>
+        RTC_ALRMR_SU_SHIFT;
   tp->tm_sec = rtc_bcd2bin(tmp);
 
-  tmp = (data & (RTC_ALRMR_MNU_MASK | RTC_ALRMR_MNT_MASK)) >> RTC_ALRMR_MNU_SHIFT;
+  tmp = (data & (RTC_ALRMR_MNU_MASK | RTC_ALRMR_MNT_MASK)) >>
+        RTC_ALRMR_MNU_SHIFT;
   tp->tm_min = rtc_bcd2bin(tmp);
 
-  tmp = (data & (RTC_ALRMR_HU_MASK | RTC_ALRMR_HT_MASK)) >> RTC_ALRMR_HU_SHIFT;
+  tmp = (data & (RTC_ALRMR_HU_MASK | RTC_ALRMR_HT_MASK)) >>
+        RTC_ALRMR_HU_SHIFT;
   tp->tm_hour = rtc_bcd2bin(tmp);
 
-  tmp = (data & (RTC_ALRMR_DU_MASK | RTC_ALRMR_DT_MASK)) >> RTC_ALRMR_DU_SHIFT;
+  tmp = (data & (RTC_ALRMR_DU_MASK | RTC_ALRMR_DT_MASK)) >>
+        RTC_ALRMR_DU_SHIFT;
   tp->tm_mday = rtc_bcd2bin(tmp);
 
   return OK;
@@ -818,8 +828,9 @@ static int stm32l4_rtc_getalarmdatetime(rtc_alarmreg_t reg, FAR struct tm *tp)
  *
  * Description:
  *    Returns 'true' if the RTC has been initialized
- *    Returns 'false' if the RTC has never been initialized since first time power
- *    up, and the counters are stopped until it is first initialized.
+ *    Returns 'false' if the RTC has never been initialized since first
+ *    time power up, and the counters are stopped until it is first
+ *    initialized.
  *
  * Input Parameters:
  *   None
@@ -842,8 +853,8 @@ bool stm32l4_rtc_is_initialized(void)
  * Name: up_rtc_initialize
  *
  * Description:
- *   Initialize the hardware RTC per the selected configuration.  This function is
- *   called once during the OS initialization sequence
+ *   Initialize the hardware RTC per the selected configuration.  This
+ *   function is called once during the OS initialization sequence
  *
  * Input Parameters:
  *   None
@@ -874,11 +885,14 @@ int up_rtc_initialize(void)
       stm32l4_pwr_enablebkp(true);
 
 #if defined(CONFIG_STM32L4_RTC_HSECLOCK)
-      modifyreg32(STM32L4_RCC_BDCR, RCC_BDCR_RTCSEL_MASK, RCC_BDCR_RTCSEL_HSE);
+      modifyreg32(STM32L4_RCC_BDCR, RCC_BDCR_RTCSEL_MASK,
+                  RCC_BDCR_RTCSEL_HSE);
 #elif defined(CONFIG_STM32L4_RTC_LSICLOCK)
-      modifyreg32(STM32L4_RCC_BDCR, RCC_BDCR_RTCSEL_MASK, RCC_BDCR_RTCSEL_LSI);
+      modifyreg32(STM32L4_RCC_BDCR, RCC_BDCR_RTCSEL_MASK,
+                  RCC_BDCR_RTCSEL_LSI);
 #elif defined(CONFIG_STM32L4_RTC_LSECLOCK)
-      modifyreg32(STM32L4_RCC_BDCR, RCC_BDCR_RTCSEL_MASK, RCC_BDCR_RTCSEL_LSE);
+      modifyreg32(STM32L4_RCC_BDCR, RCC_BDCR_RTCSEL_MASK,
+                  RCC_BDCR_RTCSEL_LSE);
 #else
 #  error "No clock for RTC!"
 #endif
@@ -899,8 +913,8 @@ int up_rtc_initialize(void)
 
           rtc_wprlock();
 
-          /* Disable write access to the backup domain (RTC registers, RTC backup
-           * data registers and backup SRAM).
+          /* Disable write access to the backup domain (RTC registers,
+           * RTC backup data registers and backup SRAM).
            */
 
           stm32l4_pwr_enablebkp(false);
@@ -933,7 +947,9 @@ int up_rtc_initialize(void)
                   ((uint32_t)0x7f << RTC_PRER_PREDIV_A_SHIFT),
                   STM32L4_RTC_PRER);
 #elif defined(CONFIG_STM32L4_RTC_LSICLOCK)
-          /* Suitable values for 32.000 KHz LSI clock (29.5 - 34 KHz, though) */
+          /* Suitable values for 32.000 KHz LSI clock (29.5 - 34 KHz,
+           * though)
+           */
 
           putreg32(((uint32_t)0xf9 << RTC_PRER_PREDIV_S_SHIFT) |
                   ((uint32_t)0x7f << RTC_PRER_PREDIV_A_SHIFT),
@@ -950,8 +966,8 @@ int up_rtc_initialize(void)
 
           rtc_exitinit();
 
-          /* Wait for the RTC Time and Date registers to be synchronized with RTC APB
-           * clock.
+          /* Wait for the RTC Time and Date registers to be synchronized
+           * with RTC APB clock.
            */
 
           rtc_synchwait();
@@ -964,8 +980,8 @@ int up_rtc_initialize(void)
 
           rtc_wprlock();
 
-          /* Disable write access to the backup domain (RTC registers, RTC backup
-           * data registers and backup SRAM).
+          /* Disable write access to the backup domain (RTC registers,
+           * RTC backup data registers and backup SRAM).
            */
 
           stm32l4_pwr_enablebkp(false);
@@ -1002,9 +1018,9 @@ int up_rtc_initialize(void)
  * Description:
  *   Get the current date and time from the date/time RTC.  This interface
  *   is only supported by the date/time RTC hardware implementation.
- *   It is used to replace the system timer.  It is only used by the RTOS during
- *   initialization to set up the system time when CONFIG_RTC and CONFIG_RTC_DATETIME
- *   are selected.
+ *   It is used to replace the system timer.  It is only used by the RTOS
+ *   during initialization to set up the system time when CONFIG_RTC and
+ *   CONFIG_RTC_DATETIME are selected.
  *
  *   Sub-second accuracy is returned through 'nsec'.
  *
@@ -1017,7 +1033,8 @@ int up_rtc_initialize(void)
  *
  ****************************************************************************/
 
-int stm32l4_rtc_getdatetime_with_subseconds(FAR struct tm *tp, FAR long *nsec)
+int stm32l4_rtc_getdatetime_with_subseconds(FAR struct tm *tp,
+                                            FAR long *nsec)
 {
 #ifdef CONFIG_STM32L4_HAVE_RTC_SUBSECONDS
   uint32_t ssr;
@@ -1046,6 +1063,7 @@ int stm32l4_rtc_getdatetime_with_subseconds(FAR struct tm *tp, FAR long *nsec)
           continue;
         }
 #endif
+
       tmp = getreg32(STM32L4_RTC_DR);
       if (tmp == dr)
         {
@@ -1088,12 +1106,12 @@ int stm32l4_rtc_getdatetime_with_subseconds(FAR struct tm *tp, FAR long *nsec)
   tmp = (dr & (RTC_DR_YU_MASK | RTC_DR_YT_MASK)) >> RTC_DR_YU_SHIFT;
   tp->tm_year = rtc_bcd2bin(tmp) + 100;
 
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
   tmp = (dr & RTC_DR_WDU_MASK) >> RTC_DR_WDU_SHIFT;
   tp->tm_wday = tmp % 7;
-  tp->tm_yday = tp->tm_mday + clock_daysbeforemonth(tp->tm_mon, clock_isleapyear(tp->tm_year + 1900));
+  tp->tm_yday = tp->tm_mday +
+                clock_daysbeforemonth(tp->tm_mon,
+                                      clock_isleapyear(tp->tm_year + 1900));
   tp->tm_isdst = 0;
-#endif
 
   /* Return RTC sub-seconds if a non-NULL value
    * of nsec has been provided to receive the sub-second value.
@@ -1131,14 +1149,14 @@ int stm32l4_rtc_getdatetime_with_subseconds(FAR struct tm *tp, FAR long *nsec)
  * Description:
  *   Get the current date and time from the date/time RTC.  This interface
  *   is only supported by the date/time RTC hardware implementation.
- *   It is used to replace the system timer.  It is only used by the RTOS during
- *   initialization to set up the system time when CONFIG_RTC and CONFIG_RTC_DATETIME
- *   are selected.
+ *   It is used to replace the system timer.  It is only used by the RTOS
+ *   during initialization to set up the system time when CONFIG_RTC and
+ *   CONFIG_RTC_DATETIME are selected.
  *
- *   NOTE: Some date/time RTC hardware is capability of sub-second accuracy.  That
- *   sub-second accuracy is lost in this interface.  However, since the system time
- *   is reinitialized on each power-up/reset, there will be no timing inaccuracy in
- *   the long run.
+ *   NOTE: Some date/time RTC hardware is capability of sub-second accuracy.
+ *   That sub-second accuracy is lost in this interface.  However, since the
+ *   system time is reinitialized on each power-up/reset, there will be no
+ *   timing inaccuracy in the long run.
  *
  * Input Parameters:
  *   tp - The location to return the high resolution time value.
@@ -1159,14 +1177,15 @@ int up_rtc_getdatetime(FAR struct tm *tp)
  * Description:
  *   Get the current date and time from the date/time RTC.  This interface
  *   is only supported by the date/time RTC hardware implementation.
- *   It is used to replace the system timer.  It is only used by the RTOS during
- *   initialization to set up the system time when CONFIG_RTC and CONFIG_RTC_DATETIME
- *   are selected (and CONFIG_RTC_HIRES is not).
+ *   It is used to replace the system timer.  It is only used by the RTOS
+ *   during initialization to set up the system time when CONFIG_RTC and
+ *   CONFIG_RTC_DATETIME are selected (and CONFIG_RTC_HIRES is not).
  *
- *   NOTE: This interface exposes sub-second accuracy capability of RTC hardware.
- *   This interface allow maintaining timing accuracy when system time needs constant
- *   resynchronization with RTC, for example with board level power-save mode utilizing
- *   deep-sleep modes such as STOP on STM32 MCUs.
+ *   NOTE: This interface exposes sub-second accuracy capability of RTC
+ *   hardware.  This interface allow maintaining timing accuracy when system
+ *   time needs constant resynchronization with RTC, for example with board
+ *   level power-save mode utilizing deep-sleep modes such as STOP on STM32
+ *   MCUs.
  *
  * Input Parameters:
  *   tp - The location to return the high resolution time value.
@@ -1192,8 +1211,8 @@ int up_rtc_getdatetime_with_subseconds(FAR struct tm *tp, FAR long *nsec)
  *
  * Description:
  *   Set the RTC to the provided time. RTC implementations which provide
- *   up_rtc_getdatetime() (CONFIG_RTC_DATETIME is selected) should provide this
- *   function.
+ *   up_rtc_getdatetime() (CONFIG_RTC_DATETIME is selected) should provide
+ *   this function.
  *
  * Input Parameters:
  *   tp - the time to use
@@ -1223,7 +1242,8 @@ int stm32l4_rtc_setdatetime(FAR const struct tm *tp)
        (rtc_bin2bcd(tp->tm_hour) << RTC_TR_HU_SHIFT);
   tr &= ~RTC_TR_RESERVED_BITS;
 
-  /* Now convert the fields in struct tm format to the RTC date register fields:
+  /* Now convert the fields in struct tm format to the RTC date register
+   * fields:
    * Days: 1-31 match in both cases.
    * Month: STM32 is 1-12, struct tm is 0-11.
    * Years: STM32 is 00-99, struct tm is years since 1900.
@@ -1234,9 +1254,7 @@ int stm32l4_rtc_setdatetime(FAR const struct tm *tp)
 
   dr = (rtc_bin2bcd(tp->tm_mday) << RTC_DR_DU_SHIFT) |
        ((rtc_bin2bcd(tp->tm_mon + 1))  << RTC_DR_MU_SHIFT) |
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
        ((tp->tm_wday == 0 ? 7 : (tp->tm_wday & 7))  << RTC_DR_WDU_SHIFT) |
-#endif
        ((rtc_bin2bcd(tp->tm_year - 100)) << RTC_DR_YU_SHIFT);
 
   dr &= ~RTC_DR_RESERVED_BITS;
@@ -1578,7 +1596,8 @@ int stm32l4_rtc_rdalarm(FAR struct alm_rdalarm_s *alminfo)
  ****************************************************************************/
 
 #ifdef CONFIG_RTC_PERIODIC
-static int stm32l4_rtc_wakeup_handler(int irq, FAR void *context, FAR void *arg)
+static int stm32l4_rtc_wakeup_handler(int irq, FAR void *context,
+                                      FAR void *arg)
 {
   uint32_t regval = 0;
 
@@ -1612,19 +1631,20 @@ static inline void rtc_enable_wakeup(void)
 {
   if (!g_wakeup_enabled)
     {
-      stm32l4_exti_wakeup(true, false, true, stm32l4_rtc_wakeup_handler, NULL);
+      stm32l4_exti_wakeup(true, false, true, stm32l4_rtc_wakeup_handler,
+                          NULL);
       g_wakeup_enabled = true;
     }
 }
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: rtc_set_wcksel
  *
  * Description:
  *    Sets RTC wakeup clock selection value
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_RTC_PERIODIC
 static inline void rtc_set_wcksel(unsigned int wucksel)
@@ -1654,7 +1674,8 @@ static inline void rtc_set_wcksel(unsigned int wucksel)
  ****************************************************************************/
 
 #ifdef CONFIG_RTC_PERIODIC
-int stm32l4_rtc_setperiodic(FAR const struct timespec *period, wakeupcb_t callback)
+int stm32l4_rtc_setperiodic(FAR const struct timespec *period,
+                            wakeupcb_t callback)
 {
   unsigned int wutr_val;
   int ret;
@@ -1668,7 +1689,8 @@ int stm32l4_rtc_setperiodic(FAR const struct timespec *period, wakeupcb_t callba
 #elif defined(CONFIG_STM32L4_RTC_LSICLOCK)
 #  error "Periodic wakeup not available for LSI (and it is too inaccurate!)"
 #elif defined(CONFIG_STM32L4_RTC_LSECLOCK)
-  const uint32_t rtc_div16_max_msecs = 16 * 1000 * 0xffffU / STM32L4_LSE_FREQUENCY;
+  const uint32_t rtc_div16_max_msecs = 16 * 1000 * 0xffffu /
+                                       STM32L4_LSE_FREQUENCY;
 #else
 #  error "No clock for RTC!"
 #endif
@@ -1679,12 +1701,12 @@ int stm32l4_rtc_setperiodic(FAR const struct timespec *period, wakeupcb_t callba
    * We currently go for subseconds accuracy instead of maximum period.
    */
 
-  if (period->tv_sec > 0xffffU ||
-     (period->tv_sec == 0xffffU && period->tv_nsec > 0))
+  if (period->tv_sec > 0xffffu ||
+     (period->tv_sec == 0xffffu && period->tv_nsec > 0))
     {
       /* More than max. */
 
-      secs = 0xffffU;
+      secs = 0xffffu;
       millisecs = secs * 1000;
     }
   else
@@ -1710,7 +1732,9 @@ int stm32l4_rtc_setperiodic(FAR const struct timespec *period, wakeupcb_t callba
   regval &= ~RTC_CR_WUTE;
   putreg32(regval, STM32L4_RTC_CR);
 
-  /* Poll WUTWF until it is set in RTC_ISR (takes around 2 RTCCLK clock cycles) */
+  /* Poll WUTWF until it is set in RTC_ISR (takes around 2 RTCCLK
+   * clock cycles)
+   */
 
   ret = -ETIMEDOUT;
   for (timeout = 0; timeout < SYNCHRO_TIMEOUT; timeout++)
@@ -1790,6 +1814,7 @@ int stm32l4_rtc_setperiodic(FAR const struct timespec *period, wakeupcb_t callba
  *   Zero (OK) on success; a negated errno on failure
  *
  ****************************************************************************/
+
 #ifdef CONFIG_RTC_PERIODIC
 int stm32l4_rtc_cancelperiodic(void)
 {
@@ -1805,7 +1830,9 @@ int stm32l4_rtc_cancelperiodic(void)
   regval &= ~(RTC_CR_WUTE | RTC_CR_WUTIE);
   putreg32(regval, STM32L4_RTC_CR);
 
-  /* Poll WUTWF until it is set in RTC_ISR (takes around 2 RTCCLK clock cycles) */
+  /* Poll WUTWF until it is set in RTC_ISR (takes around 2 RTCCLK
+   * clock cycles)
+   */
 
   ret = -ETIMEDOUT;
   for (timeout = 0; timeout < SYNCHRO_TIMEOUT; timeout++)

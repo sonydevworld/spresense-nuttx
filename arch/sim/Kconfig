@@ -13,6 +13,7 @@ choice
 config HOST_X86_64
 	bool "x86_64"
 	select ARCH_HAVE_STACKCHECK
+	select LIBC_ARCH_ELF_64BIT if LIBC_ARCH_ELF && !SIM_M32
 
 config HOST_X86
 	bool "x86"
@@ -26,7 +27,7 @@ endchoice # Host CPU Type
 
 config ARCH_CHIP
 	string
-	default "sim" if ARCH_SIM
+	default "sim"
 
 config SIM_M32
 	bool "Build 32-bit simulation on 64-bit machine"
@@ -39,7 +40,7 @@ config SIM_M32
 
 		The workaround on 64-bit machines for now is to build for a 32-bit target on the
 		64-bit machine.  The workaround for this issue has been included in NuttX 6.15 and
-		beyond.  For thoses versions, you must add SIM_M32=y to the .config file in
+		beyond.  For those versions, you must add SIM_M32=y to the .config file in
 		order to enable building a 32-bit image on a 64-bit platform.
 
 config SIM_CYGWIN_DECORATED
@@ -57,6 +58,14 @@ config SIM_CYGWIN_DECORATED
 		run:  It will crash early, probably in some function due to the failure to
 		allocate memory.
 
+config SIM_SANITIZE
+	bool "Address Sanitizer"
+	default n
+	depends on MM_CUSTOMIZE_MANAGER
+	---help---
+		AddressSanitizer (ASan) is a fast compiler-based tool for detecting memory
+		bugs in native code.
+
 choice
 	prompt "X64_64 ABI"
 	default SIM_X8664_SYSTEMV if HOST_LINUX
@@ -67,7 +76,7 @@ config SIM_X8664_SYSTEMV
 	bool "System V AMD64 ABI"
 	---help---
 		The calling convention of the System V AMD64 ABI is followed on Solaris,
-		Linux, FreeBSD, Mac OS X, and other UNIX-like or POSIX-compliant operating
+		Linux, FreeBSD, macOS, and other UNIX-like or POSIX-compliant operating
 		systems. The first six integer or pointer arguments are passed in registers
 		RDI, RSI, RDX, RCX, R8, and R9, while XMM0, XMM1, XMM2, XMM3, XMM4, XMM5,
 		XMM6 and XMM7 are used for floating point arguments. For system calls, R10
@@ -97,8 +106,16 @@ config SIM_X8664_MICROSOFT
 endchoice
 
 config SIM_WALLTIME
-	bool "Execution simulation in near real-time"
-	default n
+	bool "Run the simulation at a fixed cadence in near real-time"
+	default y
+
+if SIM_WALLTIME
+choice
+	prompt "Simulation at a fixed cadence in near real-time"
+	default SIM_WALLTIME_SLEEP
+
+config SIM_WALLTIME_SLEEP
+	bool "Execution the simulation in near real-time using host sleep"
 	---help---
 		NOTE:  In order to facility fast testing, the sim target's IDLE loop, by default,
 		calls the system timer "interrupt handler" as fast as possible.  As a result, there
@@ -110,20 +127,59 @@ config SIM_WALLTIME
 		correct for the system timer tick rate.  With this definition in the configuration,
 		sleep() behavior is more or less normal.
 
+config SIM_WALLTIME_SIGNAL
+	bool "Execute the simulation using a host timer"
+	---help---
+		Run the NuttX simulation using a host timer that delivers periodic SIGALRM
+		events at a tick rate specified by CONFIG_USEC_PER_TICK. Enabling this option
+		will generate the timer 'tick' events from the host timer at a fixed rate.
+		The simulated 'tick' events from Idle task are no longer sent.
+
+endchoice
+
+endif
+
 config SIM_NETDEV
 	bool "Simulated Network Device"
 	default y
-	depends on NET
 	select ARCH_HAVE_NETDEV_STATISTICS
+	select SCHED_LPWORK
+	depends on (NET_ETHERNET && SIM_WALLTIME)
+	---help---
+		Build in support for a simulated network device.
+
+if SIM_NETDEV
+
+choice
+	prompt "Simulated Network Device Type"
+	default SIM_NETDEV_TAP
+
+config SIM_NETDEV_TAP
+	bool "Simulated Network Device with TAP/WPCAP"
+	depends on (HOST_LINUX || HOST_WINDOWS)
 	---help---
 		Build in support for a simulated network device using a TAP device on Linux or
 		WPCAP on Windows.
+
+config SIM_NETDEV_VPNKIT
+	bool "Simulated Network Device with VPNKit"
+	---help---
+		Build in support for a simulated network device using VPNKit.
+
+endchoice
+
+endif
+
+config SIM_NETDEV_VPNKIT_PATH
+	string "Unix domain socket to communicate with VPNKit"
+	default "/tmp/vpnkit-nuttx"
+	depends on SIM_NETDEV_VPNKIT
 
 if HOST_LINUX
 choice
 	prompt "Simulation Network Type"
 	default SIM_NET_HOST_ROUTE
-	depends on SIM_NETDEV
+	depends on SIM_NETDEV_TAP
 
 config SIM_NET_HOST_ROUTE
 	bool "Use local host route"
@@ -153,38 +209,47 @@ config SIM_NET_BRIDGE_DEVICE
 
 endif
 
+config SIM_SOUND
+	bool "Simulated sound support"
+	depends on AUDIO
+	default y
+
+if SIM_SOUND
+
+choice
+	prompt "Simulated sound Type"
+	default SIM_SOUND_ALSA
+
+config SIM_SOUND_ALSA
+	bool "alsa support on sim"
+	depends on HOST_LINUX
+
+endchoice
+
+endif
+
 config SIM_RPTUN_MASTER
-	bool "Remote Processer Tunneling Role"
+	bool "Remote Processor Tunneling Role"
 	depends on RPTUN
 
-config SIM_LCDDRIVER
-	bool "Build a simulated LCD driver"
-	default y
-	depends on NX && NX_LCDDRIVER
-	---help---
-		Build a simulated LCD driver"
-
-config SIM_FRAMEBUFFER
-	bool "Build a simulated frame buffer driver"
-	default n
-	depends on !NX_LCDDRIVER
-	---help---
-		Build a simulated frame buffer driver"
-
-if SIM_FRAMEBUFFER
+menu "Simulated Graphics/Input"
 
 config SIM_X11FB
-	bool "Use X11 window"
-	default n
+  bool "X11 graphics/input"
+  default n
+  select SCHED_LPWORK
+	depends on SIM_WALLTIME
 	---help---
-		Use an X11 graphics window to simulate the graphics device"
+		Use X11 to provide graphics and input emulation to interact with host.
 
 config SIM_X11NOSHM
 	bool "Don't use shared memory with X11"
 	default n
 	depends on SIM_X11FB
 	---help---
-		Don't use shared memory with the X11 graphics device emulation."
+		Don't use shared memory with the X11 graphics device emulation.
+
+menu "Window Configuration"
 
 config SIM_FBHEIGHT
 	int "Display height"
@@ -194,8 +259,7 @@ config SIM_FBHEIGHT
 
 config SIM_FBWIDTH
 	int "Display width"
-	default 320 if SIM_LCDDRIVER
-	default 480 if SIM_FRAMEBUFFER
+	default 320
 	---help---
 		Simulated width of the display.  Default: 320 or 480
 
@@ -207,28 +271,59 @@ config SIM_FBBPP
 		If you use the X11 display emulation, the selected BPP must match the BPP
 		of your graphics hardware (probably 32 bits).  Default: 8
 
-endif # SIM_FRAMEBUFFER
+endmenu
 
-if SIM_X11FB && INPUT
 choice
-	prompt "X11 Simulated Input Device"
+	prompt "Graphics Device"
+	default SIM_FRAMEBUFFER
+	---help---
+		Choose which kind of graphics device to emulate
+
+config SIM_LCDDRIVER
+	bool "LCD device"
+	depends on LCD
+	---help---
+		Emulate an LCD driver
+
+config SIM_FRAMEBUFFER
+	bool "Framebuffer"
+	depends on VIDEO_FB
+	---help---
+		Emulate a framebuffer
+
+endchoice
+
+if INPUT
+choice
+	prompt "Input Device"
 	default SIM_NOINPUT
 
 config SIM_TOUCHSCREEN
 	bool "X11 mouse-based touchscreen emulation"
+	depends on SIM_X11FB
 	---help---
 		Support an X11 mouse-based touchscreen emulation.  Also needs INPUT=y
 
 config SIM_AJOYSTICK
 	bool "X11 mouse-based analog joystick emulation"
+	depends on SIM_X11FB
 	---help---
 		Support an X11 mouse-based analog joystick emulation.  Also needs INPUT=y
+
+config SIM_BUTTONS
+	bool "X11 mouse-based button emulation"
+	depends on SIM_X11FB
+	---help---
+		Support an X11 mouse-based button emulation
+		(left-click mapped to button press). Also needs INPUT=y
 
 config SIM_NOINPUT
 	bool "No input device"
 
-endchoice # X11 Simulated Input Device
-endif # SIM_X11FB && INPUT
+endchoice # Input Device
+endif # if INPUT
+
+endmenu
 
 config SIM_TCNWAITERS
 	bool "Maximum number poll() waiters"
@@ -443,5 +538,91 @@ config SIM_QSPIFLASH_PAGESIZE
 		sent on a single Page Program, then the address will
 		"wrap" causing the initial data sent to be overwritten.
 		This is consistent with standard SPI FLASH operation.
+
+config SIM_HCISOCKET
+	bool "Attach Host Bluetooth"
+	default false
+	depends on (WIRELESS_BLUETOOTH && HOST_LINUX && SIM_WALLTIME)
+	---help---
+		Attached the local bluetooth device to the simulation
+		target via HCI_CHANNEL_USER. This gives NuttX full
+		control of the device, but is abstracted from the
+		physical interface which is still handled by Linux.
+
+config SIM_BTUART
+	bool "Attach Host Bluetooth As TTY Device"
+	default false
+	depends on (DRIVERS_BLUETOOTH && HOST_LINUX && SIM_WALLTIME)
+	select BLUETOOTH_UART_SHIM if BLUETOOTH_UART
+	---help---
+		Attached the local bluetooth device to the simulation
+		target via HCI_CHANNEL_USER. This gives NuttX full
+		control of the device, but is abstracted from the
+		physical interface which is still handled by Linux.
+		Unlike SIM_HCISOCKET, BTUART will wrap the bluetooth
+		interface/controller as a TTY device, which provides
+		an option for developers to setup the bluetooth host in
+		userspace.
+
+config SIM_I2CBUS
+	bool "Simulated I2C Bus"
+	default n
+	select I2C
+	---help---
+		Build in support for simulated i2c bus
+
+if SIM_I2CBUS
+
+choice
+	prompt "Simulated I2C Bus Type"
+	default SIM_I2CBUS_LINUX
+
+config SIM_I2CBUS_LINUX
+	bool "Linux I2C Bus Character Dev"
+	depends on HOST_LINUX
+	---help---
+		Attach a Linux I2C bus via the character device
+		interface. This should be used with caution as it
+		could interfere with devices internal to the system.
+		It is recommended to use this with a USB<>I2C device
+		like the MCP2221 and set udev rules so that only
+		the bus provided by this device can be controlled
+		by the user running the simulator.
+		https://www.kernel.org/doc/html/latest/i2c/dev-interface.html
+
+endchoice
+
+endif
+
+config SIM_UART_NUMBER
+	int "The number of tty ports on sim platform, range is 0~4"
+	default 0
+
+config SIM_UART0_NAME
+	string "the name of uart0 on sim"
+	default "/dev/ttySIM0"
+	depends on SIM_UART_NUMBER >= 1
+
+config SIM_UART1_NAME
+	string "the name of uart1 on sim"
+	default "/dev/ttySIM1"
+	depends on SIM_UART_NUMBER >= 2
+
+config SIM_UART2_NAME
+	string "the name of uart2 on sim"
+	default "/dev/ttySIM2"
+	depends on SIM_UART_NUMBER >= 3
+
+config SIM_UART3_NAME
+	string "the name of uart3 on sim"
+	default "/dev/ttySIM3"
+	depends on SIM_UART_NUMBER >= 4
+
+config SIM_MOTOR_FOC
+	bool "Simulated FOC device"
+	default n
+	depends on MOTOR_FOC
+	---help---
+		Build a simulated lower-half FOC device
 
 endif # ARCH_SIM

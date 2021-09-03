@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/cxd56xx/spresense/include/board.h
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -59,7 +44,7 @@
 #include "cxd56_gpioif.h"
 
 #include "cxd56_audio.h"
-#include "cxd56_altmdm.h"
+#include "cxd56_alt1250.h"
 #include "cxd56_ak09912.h"
 #include "cxd56_apds9930.h"
 #include "cxd56_apds9960.h"
@@ -83,7 +68,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Clocking ****************************************************************/
+/* Clocking *****************************************************************/
 
 #ifdef CONFIG_CXD56_80MHz
 #  define BOARD_FCLKOUT_FREQUENCY   (80000000)
@@ -91,7 +76,7 @@
 #  define BOARD_FCLKOUT_FREQUENCY   (100000000)
 #endif
 
-/* UART clocking ***********************************************************/
+/* UART clocking ************************************************************/
 
 /* Configure all UARTs to use the XTAL input frequency */
 
@@ -99,7 +84,7 @@
 #define BOARD_UART1_BASEFREQ        BOARD_FCLKOUT_FREQUENCY
 #define BOARD_UART2_BASEFREQ        CONFIG_CXD56_XOSC_CLOCK
 
-/* LED definitions *********************************************************/
+/* LED definitions **********************************************************/
 
 #define GPIO_LED1           (PIN_I2S1_BCK)
 #define GPIO_LED2           (PIN_I2S1_LRCK)
@@ -130,11 +115,23 @@
 #define LED_ASSERTION           (BOARD_LED1_BIT | BOARD_LED2_BIT | BOARD_LED3_BIT)
 #define LED_PANIC               (BOARD_LED4_BIT)
 
-/* Buttons definitions *****************************************************/
+#ifdef CONFIG_ARCH_LEDS_CPU_ACTIVITY
+/* NOTE: LED_CPUx is not a bit pattern but just a number which
+ * does not conflict with existing LED bit patterns
+ */
+
+#define LED_CPU0                (100)
+#define LED_CPU1                (101)
+#define LED_CPU2                (102)
+#define LED_CPU3                (103)
+#define LED_CPU                 (LED_CPU0 + up_cpu_index())
+#endif
+
+/* Buttons definitions ******************************************************/
 
 #define BOARD_NUM_BUTTONS   (2)
 
-/* Power Control definitions ***********************************************/
+/* Power Control definitions ************************************************/
 
 /*   For SPRESENSE board:
  *
@@ -197,22 +194,22 @@ enum board_power_device
   POWER_LTE             = PMIC_GPO(2),
 };
 
-/* Power Off Level definitions *********************************************/
+/* Power Off Level definitions **********************************************/
 
 #define BOARD_POWEROFF_DEEP (0)
 #define BOARD_POWEROFF_COLD (1)
 
-/* CXD5247 audio control definitions ***************************************/
+/* CXD5247 audio control definitions ****************************************/
 
 #define CXD5247_XRST  PIN_SPI3_CS2_X
 #define CXD5247_AVDD  (0x01)
 #define CXD5247_DVDD  (0x02)
 
-/* LCD Display clocking ****************************************************/
+/* LCD Display clocking *****************************************************/
 
 #define ILI9340_SPI_MAXFREQUENCY    40000000
 
-/* Display device pin definitions ******************************************/
+/* Display device pin definitions *******************************************/
 
 #if defined(CONFIG_LCD_ON_MAIN_BOARD) /* Display connected to main board. */
 
@@ -244,12 +241,12 @@ enum board_power_device
 
 #endif
 
-/* Sensor device bus definitions *******************************************/
+/* Sensor device bus definitions ********************************************/
 
 #define SENSOR_I2C      0
 #define SENSOR_SPI      3
 
-/* Imager device pin definitions *******************************************/
+/* Imager device pin definitions ********************************************/
 
 #define IMAGER_RST      PIN_SDIO_DIR1_3
 #define IMAGER_SLEEP    PIN_SDIO_DIR0
@@ -265,13 +262,13 @@ enum board_power_device
 
 #define BOARDIOC_USBDEV_SETNOTIFYSIG      (BOARDIOC_USER+0x0001)
 
-/* Altair modem device pin definitions *************************************/
+/* Altair modem device pin definitions **************************************/
 
-#define ALTMDM_SLAVE_REQ          PIN_SPI2_SCK
-#define ALTMDM_MASTER_REQ         PIN_RTC_IRQ_OUT
-#define ALTMDM_WAKEUP             PIN_SPI2_MOSI
-#define ALTMDM_SHUTDOWN           PIN_SPI2_MISO
-#define ALTMDM_LTE_POWER_BUTTON   PIN_AP_CLK
+#define ALT1250_SLAVE_REQ          PIN_SPI2_SCK
+#define ALT1250_MASTER_REQ         PIN_RTC_IRQ_OUT
+#define ALT1250_WAKEUP             PIN_SPI2_MOSI
+#define ALT1250_SHUTDOWN           PIN_SPI2_MISO
+#define ALT1250_LTE_POWER_BUTTON   PIN_AP_CLK
 
 /* WIZnet ethernet device pin definitions **********************************/
 

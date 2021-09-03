@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/a1x/a1x_serial.c
  *
- *   Copyright (C) 2013-2014, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,6 +25,7 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -57,8 +43,8 @@
 
 #include <arch/board/board.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "chip.h"
 #include "hardware/a1x_uart.h"
@@ -108,7 +94,7 @@ static int  up_attach(struct uart_dev_s *dev);
 static void up_detach(struct uart_dev_s *dev);
 static int  uart_interrupt(int irq, void *context, void *arg);
 static int  up_ioctl(struct file *filep, int cmd, unsigned long arg);
-static int  up_receive(struct uart_dev_s *dev, uint32_t *status);
+static int  up_receive(struct uart_dev_s *dev, unsigned int *status);
 static void up_rxint(struct uart_dev_s *dev, bool enable);
 static bool up_rxavailable(struct uart_dev_s *dev);
 static void up_send(struct uart_dev_s *dev, int ch);
@@ -656,7 +642,8 @@ static inline uint32_t up_serialin(struct up_dev_s *priv, int offset)
  * Name: up_serialout
  ****************************************************************************/
 
-static inline void up_serialout(struct up_dev_s *priv, int offset, uint32_t value)
+static inline void up_serialout(struct up_dev_s *priv, int offset,
+                                uint32_t value)
 {
   putreg32(value, priv->uartbase + offset);
 }
@@ -706,13 +693,13 @@ static inline void up_enablebreaks(struct up_dev_s *priv, bool enable)
   up_serialout(priv, A1X_UART_LCR_OFFSET, lcr);
 }
 
-/************************************************************************************
+/****************************************************************************
  * Name: a1x_uart0config, uart1config, uart2config, ..., uart7config
  *
  * Description:
  *   Configure the UART
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifdef CONFIG_A1X_UART0
 static inline void a1x_uart0config(void)
@@ -882,7 +869,7 @@ static inline void a1x_uart7config(void)
 };
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Name: a1x_uartdl
  *
  * Description:
@@ -891,7 +878,7 @@ static inline void a1x_uart7config(void)
  *     BAUD = PCLK / (16 * DL), or
  *     DL   = PCLK / BAUD / 16
  *
- ************************************************************************************/
+ ****************************************************************************/
 
 static inline uint32_t a1x_uartdl(uint32_t baud)
 {
@@ -920,11 +907,13 @@ static int up_setup(struct uart_dev_s *dev)
 
   /* Clear fifos */
 
-  up_serialout(priv, A1X_UART_FCR_OFFSET, (UART_FCR_RFIFOR | UART_FCR_XFIFOR));
+  up_serialout(priv, A1X_UART_FCR_OFFSET,
+              (UART_FCR_RFIFOR | UART_FCR_XFIFOR));
 
   /* Set trigger */
 
-  up_serialout(priv, A1X_UART_FCR_OFFSET, (UART_FCR_FIFOE | UART_FCR_RT_HALF));
+  up_serialout(priv, A1X_UART_FCR_OFFSET,
+              (UART_FCR_FIFOE | UART_FCR_RT_HALF));
 
   /* Set up the IER */
 
@@ -1016,14 +1005,16 @@ static void up_shutdown(struct uart_dev_s *dev)
  * Name: up_attach
  *
  * Description:
- *   Configure the UART to operation in interrupt driven mode.  This method is
- *   called when the serial port is opened.  Normally, this is just after the
- *   the setup() method is called, however, the serial console may operate in
+ *   Configure the UART to operation in interrupt driven mode.
+ *   This method is called when the serial port is opened.
+ *   Normally, this is just after the  the setup() method is called,
+ *   however, the serial console may operate in
  *   a non-interrupt driven mode during the boot phase.
  *
- *   RX and TX interrupts are not enabled when by the attach method (unless the
- *   hardware supports multiple levels of interrupt enabling).  The RX and TX
- *   interrupts are not enabled until the txint() and rxint() methods are called.
+ *   RX and TX interrupts are not enabled when by the attach method
+ *   (unless the hardware supports multiple levels of interrupt enabling).
+ *   The RX and TX interrupts are not enabled until the txint() and rxint()
+ *   methods are called.
  *
  ****************************************************************************/
 
@@ -1051,8 +1042,9 @@ static int up_attach(struct uart_dev_s *dev)
  * Name: up_detach
  *
  * Description:
- *   Detach UART interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception is
+ *   Detach UART interrupts.
+ *   This method is called when the serial port is closed normally
+ *   just before the shutdown method is called.  The exception is
  *   the serial console which is never shutdown.
  *
  ****************************************************************************/
@@ -1124,7 +1116,7 @@ static int uart_interrupt(int irq, void *context, void *arg)
               /* Read the modem status register (MSR) to clear */
 
               status = up_serialin(priv, A1X_UART_MSR_OFFSET);
-              _info("MSR: %02x\n", status);
+              _info("MSR: %02" PRIx32 "\n", status);
               break;
             }
 
@@ -1135,15 +1127,20 @@ static int uart_interrupt(int irq, void *context, void *arg)
               /* Read the line status register (LSR) to clear */
 
               status = up_serialin(priv, A1X_UART_LSR_OFFSET);
-              _info("LSR: %02x\n", status);
+              _info("LSR: %02" PRIx32 "\n", status);
               break;
             }
 
-          /* Busy detect.  Just ignore.  Cleared by reading the status register */
+          /* Busy detect.
+           * Just ignore.
+           * Cleared by reading the status register
+           */
 
           case UART_IIR_IID_BUSY:
             {
-              /* Read from the UART status register to clear the BUSY condition */
+              /* Read from the UART status register
+               * to clear the BUSY condition
+               */
 
               status = up_serialin(priv, A1X_UART_USR_OFFSET);
               break;
@@ -1156,11 +1153,13 @@ static int uart_interrupt(int irq, void *context, void *arg)
               return OK;
             }
 
-            /* Otherwise we have received an interrupt that we cannot handle */
+            /* Otherwise we have received an interrupt
+             * that we cannot handle
+             */
 
           default:
             {
-              _err("ERROR: Unexpected IIR: %02x\n", status);
+              _err("ERROR: Unexpected IIR: %02" PRIx32 "\n", status);
               break;
             }
         }
@@ -1257,8 +1256,6 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
          * that only one speed is supported.
          */
 
-        /* Get the c_speed field in the termios struct */
-
         priv->baud = cfgetispeed(termiosp);
 
         /* TODO: Re-calculate the optimal CCLK divisor for the new baud and
@@ -1266,7 +1263,10 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
          */
 
         /* DLAB open latch */
-        /* REVISIT:  Shouldn't we just call up_setup() to do all of the following? */
+
+        /* REVISIT:
+         * Shouldn't we just call up_setup() to do all of the following?
+         */
 
         lcr = getreg32(priv->uartbase + A1X_UART_LCR_OFFSET);
         up_serialout(priv, A1X_UART_LCR_OFFSET, (lcr | UART_LCR_DLAB));
@@ -1302,7 +1302,7 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
  *
  ****************************************************************************/
 
-static int up_receive(struct uart_dev_s *dev, uint32_t *status)
+static int up_receive(struct uart_dev_s *dev, unsigned int *status)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   uint32_t rbr;
@@ -1430,23 +1430,25 @@ static bool up_txempty(struct uart_dev_s *dev)
 }
 
 /****************************************************************************
- * Public Funtions
+ * Public Functions
  ****************************************************************************/
 
+#ifdef USE_EARLYSERIALINIT
+
 /****************************************************************************
- * Name: up_serialinit
+ * Name: arm_earlyserialinit
  *
  * Description:
  *   Performs the low level UART initialization early in debug so that the
  *   serial console will be available during bootup.  This must be called
- *   before up_serialinit.
+ *   before arm_serialinit.
  *
  *   NOTE: Configuration of the CONSOLE UART was performed by up_lowsetup()
  *   very early in the boot sequence.
  *
  ****************************************************************************/
 
-void up_earlyserialinit(void)
+void arm_earlyserialinit(void)
 {
   /* Configure all UARTs (except the CONSOLE UART) and disable interrupts */
 
@@ -1514,17 +1516,18 @@ void up_earlyserialinit(void)
   up_setup(&CONSOLE_DEV);
 #endif
 }
+#endif
 
 /****************************************************************************
- * Name: up_serialinit
+ * Name: arm_serialinit
  *
  * Description:
  *   Register serial console and serial ports.  This assumes that
- *   up_earlyserialinit was called previously.
+ *   arm_earlyserialinit was called previously.
  *
  ****************************************************************************/
 
-void up_serialinit(void)
+void arm_serialinit(void)
 {
 #ifdef CONSOLE_DEV
   uart_register("/dev/console", &CONSOLE_DEV);
@@ -1577,10 +1580,10 @@ int up_putc(int ch)
     {
       /* Add CR */
 
-      up_lowputc('\r');
+      arm_lowputc('\r');
     }
 
-  up_lowputc(ch);
+  arm_lowputc(ch);
 #ifdef HAVE_SERIAL_CONSOLE
   up_restoreuartint(priv, ier);
 #endif
@@ -1607,10 +1610,10 @@ int up_putc(int ch)
     {
       /* Add CR */
 
-      up_lowputc('\r');
+      arm_lowputc('\r');
     }
 
-  up_lowputc(ch);
+  arm_lowputc(ch);
 #endif
   return ch;
 }

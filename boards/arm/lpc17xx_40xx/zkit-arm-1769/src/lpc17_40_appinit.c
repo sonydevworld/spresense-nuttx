@@ -116,18 +116,10 @@
 
 /* Debug ********************************************************************/
 
-#ifdef CONFIG_CPP_HAVE_VARARGS
-#  ifdef CONFIG_DEBUG_INFO
-#    define message(...) _info(__VA_ARGS__)
-#  else
-#    define message(...) syslog(LOG_INFO, __VA_ARGS__)
-#  endif
+#ifdef CONFIG_DEBUG_INFO
+#  define message _info
 #else
-#  ifdef CONFIG_DEBUG_INFO
-#    define message _info
-#  else
-#    define message _err
-#  endif
+#  define message _err
 #endif
 
 /****************************************************************************
@@ -147,7 +139,7 @@
  *         implementation without modification.  The argument has no
  *         meaning to NuttX; the meaning of the argument is a contract
  *         between the board-specific initialization logic and the
- *         matching application logic.  The value cold be such things as a
+ *         matching application logic.  The value could be such things as a
  *         mode enumeration value, a set of DIP switch switch settings, a
  *         pointer to configuration data read from a file or serial FLASH,
  *         or whatever you would like to do with it.  Every implementation
@@ -186,7 +178,7 @@ int board_app_initialize(uintptr_t arg)
                                 CONFIG_NSH_MMCSDSLOTNO, spi);
   if (ret < 0)
     {
-      message("board_app_initialize: Failed to bind SPI port %d to MMC/SD slot %d: %d\n",
+      message("Failed to bind SPI port %d to MMC/SD slot %d: %d\n",
               CONFIG_NSH_MMCSDSPIPORTNO, CONFIG_NSH_MMCSDSLOTNO, ret);
       return ret;
     }

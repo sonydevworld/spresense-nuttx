@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/cxd56xx/drivers/audio/cxd56_audio_ac_reg.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -626,27 +611,31 @@ static void poweron_i2s0(void)
   /* Set I2S mode of SRC1. */
 
   uint32_t is_master =
-    (CXD56_AUDIO_CFG_I2S1_MODE == CXD56_AUDIO_CFG_I2S_MODE_MASTER) ? 1 : 0;
+    (CXD56_AUDIO_CFG_I2S1_MODE ==
+     CXD56_AUDIO_CFG_I2S_MODE_MASTER) ? 1 : 0;
 
   write_ac_reg(RI_SD1MASTER, is_master);
 
   /* Set I2S format of SRC1. */
 
   uint32_t is_left =
-    (CXD56_AUDIO_CFG_I2S1_FORMAT == CXD56_AUDIO_CFG_I2S_FORMAT_LEFT) ? 1 : 0;
+    (CXD56_AUDIO_CFG_I2S1_FORMAT ==
+     CXD56_AUDIO_CFG_I2S_FORMAT_LEFT) ? 1 : 0;
 
   write_ac_reg(RI_DIF1, is_left);
   write_ac_reg(RI_LR_SWAP1, is_left);
 
   /* Set data rate of SRC1. */
 
-  uint32_t data_rate = get_data_rate(CXD56_AUDIO_CFG_I2S1_DATA_RATE);
+  uint32_t data_rate =
+    get_data_rate(CXD56_AUDIO_CFG_I2S1_DATA_RATE);
   write_ac_reg(RI_SRC1, data_rate);
 
   /* Set bypass mode of SRC1. */
 
   uint32_t is_bypass =
-    (CXD56_AUDIO_CFG_I2S1_BYPASS == CXD56_AUDIO_CFG_I2S_BYPASS_ENABLE) ? 1 : 0;
+    (CXD56_AUDIO_CFG_I2S1_BYPASS ==
+     CXD56_AUDIO_CFG_I2S_BYPASS_ENABLE) ? 1 : 0;
 
   write_ac_reg(RI_TEST_OUT_SEL0, is_bypass);
 }
@@ -662,13 +651,15 @@ static void poweron_i2s1(void)
   /* Set I2S mode of SRC2. */
 
   uint32_t is_master =
-    (CXD56_AUDIO_CFG_I2S2_MODE == CXD56_AUDIO_CFG_I2S_MODE_MASTER) ? 1 : 0;
+    (CXD56_AUDIO_CFG_I2S2_MODE ==
+     CXD56_AUDIO_CFG_I2S_MODE_MASTER) ? 1 : 0;
   write_ac_reg(RI_SD2MASTER, is_master);
 
   /* Set I2S format of SRC2. */
 
   uint32_t is_left =
-    (CXD56_AUDIO_CFG_I2S2_FORMAT == CXD56_AUDIO_CFG_I2S_FORMAT_LEFT) ? 1 : 0;
+    (CXD56_AUDIO_CFG_I2S2_FORMAT ==
+     CXD56_AUDIO_CFG_I2S_FORMAT_LEFT) ? 1 : 0;
   write_ac_reg(RI_DIF2, is_left);
   write_ac_reg(RI_LR_SWAP2, is_left);
 
@@ -680,7 +671,8 @@ static void poweron_i2s1(void)
   /* Set bypass mode of SRC2. */
 
   uint32_t is_bypass =
-    (CXD56_AUDIO_CFG_I2S2_BYPASS == CXD56_AUDIO_CFG_I2S_BYPASS_ENABLE) ? 1 : 0;
+    (CXD56_AUDIO_CFG_I2S2_BYPASS ==
+     CXD56_AUDIO_CFG_I2S_BYPASS_ENABLE) ? 1 : 0;
   write_ac_reg(RI_TEST_OUT_SEL0, is_bypass);
 }
 #endif /* #ifdef CONFIG_CXD56_I2S1 */
@@ -1177,10 +1169,11 @@ void cxd56_audio_ac_reg_set_deq_param(FAR cxd56_audio_deq_coef_t *deq)
   set_deq_coef(RI_DEQ_COEF_6B0, &deq->coef[5]);
 }
 
-CXD56_AUDIO_ECODE cxd56_audio_ac_reg_poweron_cic(uint8_t mic_in,
-                                                 uint8_t mic_mode,
-                                                 uint8_t cic_num,
-                                                 FAR cxd56_audio_mic_gain_t *gain)
+CXD56_AUDIO_ECODE cxd56_audio_ac_reg_poweron_cic(
+                                     uint8_t mic_in,
+                                     uint8_t mic_mode,
+                                     uint8_t cic_num,
+                                     FAR cxd56_audio_mic_gain_t *gain)
 {
   /* Power on CIC. */
 
@@ -1439,7 +1432,8 @@ void cxd56_audio_ac_reg_set_dsrrate(uint32_t rate)
   write_ac_reg(RI_DSR_RATE, rate);
 }
 
-void cxd56_audio_ac_reg_set_seloutch(FAR cxd56_audio_ac_reg_seloutch_t *seloutch)
+void cxd56_audio_ac_reg_set_seloutch(
+                        FAR cxd56_audio_ac_reg_seloutch_t *seloutch)
 {
   write_ac_reg(RI_SEL_OUT1_L, seloutch->ch[0]);
   write_ac_reg(RI_SEL_OUT1_R, seloutch->ch[1]);

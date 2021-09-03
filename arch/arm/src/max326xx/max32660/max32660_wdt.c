@@ -1,35 +1,20 @@
 /****************************************************************************
- * arch/arm/src/max326xx/max326_wdt.c
+ * arch/arm/src/max326xx/max32660/max32660_wdt.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -50,8 +35,8 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "hardware/max326_wdt.h"
 #include "max326_clockconfig.h"
@@ -65,7 +50,7 @@
 
 /* Clocking *****************************************************************/
 
-/* The watchdog is alway running with source clock Fpclk.  There are two
+/* The watchdog is always running with source clock Fpclk.  There are two
  * timeout periods:
  *
  * INTPERIOD - Number of PCLK cycles until a watchdog timer interrupt is
@@ -104,7 +89,8 @@ struct max326_wdt_lowerhalf_s
  * Private Function Prototypes
  ****************************************************************************/
 
-static inline void max326_wdog_reset(FAR struct max326_wdt_lowerhalf_s *priv);
+static inline void
+max326_wdog_reset(FAR struct max326_wdt_lowerhalf_s *priv);
 static void max326_int_enable(FAR struct max326_wdt_lowerhalf_s *priv);
 static uint32_t max326_time_left(FAR struct max326_wdt_lowerhalf_s *priv);
 static uint64_t max326_exp2msec(uint32_t pclk, uint8_t exp);
@@ -168,7 +154,7 @@ static inline void max326_wdog_reset(FAR struct max326_wdt_lowerhalf_s *priv)
   putreg32(WDT0_RST_SEQ1, MAX326_WDT0_RST);
   putreg32(WDT0_RST_SEQ2, MAX326_WDT0_RST);
 
-  priv->lastping = clock_systimer();
+  priv->lastping = clock_systime_ticks();
 }
 
 /****************************************************************************
@@ -248,24 +234,24 @@ static uint32_t max326_time_left(FAR struct max326_wdt_lowerhalf_s *priv)
    * matter, the interrupt time period is the right answer in either case.
    */
 
-   ctrl = getreg32(MAX326_WDT0_CTRL);
-   exp  = (ctrl & WDT0_CTRL_INTPERIOD_MASK) >> WDT0_CTRL_INTPERIOD_SHIFT;
+  ctrl = getreg32(MAX326_WDT0_CTRL);
+  exp  = (ctrl & WDT0_CTRL_INTPERIOD_MASK) >> WDT0_CTRL_INTPERIOD_SHIFT;
 
-   timeout = max326_exp2msec(max326_pclk_frequency(), exp);
-   elapsed = TICK2MSEC(clock_systimer() - priv->lastping);
+  timeout = max326_exp2msec(max326_pclk_frequency(), exp);
+  elapsed = TICK2MSEC(clock_systime_ticks() - priv->lastping);
 
-   if (elapsed > timeout)
-     {
-       timeleft = 0;
-     }
-   else
-     {
-       timeleft = timeout - elapsed;
-       if (timeleft > UINT32_MAX)
-         {
-           timeleft = UINT32_MAX;
-         }
-     }
+  if (elapsed > timeout)
+    {
+      timeleft = 0;
+    }
+  else
+    {
+      timeleft = timeout - elapsed;
+      if (timeleft > UINT32_MAX)
+        {
+          timeleft = UINT32_MAX;
+        }
+    }
 
   return (uint32_t)timeleft;
 }
@@ -281,7 +267,7 @@ static uint32_t max326_time_left(FAR struct max326_wdt_lowerhalf_s *priv)
  *   exp -  max32660 time exponent
  *
  * Returned Values:
- *   The time period in millseconds.
+ *   The time period in milliseconds.
  *
  ****************************************************************************/
 
@@ -351,8 +337,8 @@ static uint8_t max326_msec2exp(uint32_t msec)
  *   Start the watchdog timer, resetting the time to the current timeout.
  *
  * Input Parameters:
- *   lower - A pointer the publicly visible representation of the "lower-half"
- *           driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *
  * Returned Values:
  *   Zero on success; a negated errno value on failure.
@@ -374,7 +360,7 @@ static int max326_start(FAR struct watchdog_lowerhalf_s *lower)
 
   /* Perform the reset sequence */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   max326_wdog_reset(priv);
 
   /* Enable reset or interrupt */
@@ -387,7 +373,7 @@ static int max326_start(FAR struct watchdog_lowerhalf_s *lower)
   ctrl |= WDT0_CTRL_WDTEN;
   putreg32(ctrl, MAX326_WDT0_CTRL);
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
   return OK;
 }
 
@@ -398,8 +384,8 @@ static int max326_start(FAR struct watchdog_lowerhalf_s *lower)
  *   Stop the watchdog timer
  *
  * Input Parameters:
- *   lower - A pointer the publicly visible representation of the "lower-half"
- *           driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *
  * Returned Values:
  *   Zero on success; a negated errno value on failure.
@@ -419,14 +405,14 @@ static int max326_stop(FAR struct watchdog_lowerhalf_s *lower)
 
   /* Disable the watchdog timer, reset, and interrupts */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   ctrl  = getreg32(MAX326_WDT0_CTRL);
   ctrl &= ~(WDT0_CTRL_WDTEN | WDT0_CTRL_INTEN | WDT0_CTRL_RSTEN);
 
   up_disable_irq(MAX326_IRQ_WDT0);
   irq_detach(MAX326_IRQ_WDT0);
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
   return OK;
 }
 
@@ -439,8 +425,8 @@ static int max326_stop(FAR struct watchdog_lowerhalf_s *lower)
  *   the watchdog timer or "petting the dog".
  *
  * Input Parameters:
- *   lower - A pointer the publicly visible representation of the "lower-half"
- *           driver state structure.
+ *   lower - A pointer the publicly visible representation of the
+ *           "lower-half" driver state structure.
  *
  * Returned Values:
  *   Zero on success; a negated errno value on failure.
@@ -457,9 +443,9 @@ static int max326_keepalive(FAR struct watchdog_lowerhalf_s *lower)
 
   /* Reset WDT timer */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   max326_wdog_reset(priv);
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
 
   return OK;
 }
@@ -471,8 +457,8 @@ static int max326_keepalive(FAR struct watchdog_lowerhalf_s *lower)
  *   Get the current watchdog timer status
  *
  * Input Parameters:
- *   lower  - A pointer the publicly visible representation of the "lower-half"
- *            driver state structure.
+ *   lower  - A pointer the publicly visible representation of the
+ *            "lower-half" driver state structure.
  *   status - The location to return the watchdog status information.
  *
  * Returned Values:
@@ -528,8 +514,8 @@ static int max326_getstatus(FAR struct watchdog_lowerhalf_s *lower,
  *   Set a new timeout value (and reset the watchdog timer)
  *
  * Input Parameters:
- *   lower   - A pointer the publicly visible representation of the "lower-half"
- *             driver state structure.
+ *   lower   - A pointer the publicly visible representation of the
+ *             "lower-half" driver state structure.
  *   timeout - The new timeout value in milliseconds.
  *
  * Returned Values:
@@ -551,7 +537,7 @@ static int max326_settimeout(FAR struct watchdog_lowerhalf_s *lower,
 
   /* Reset WDT timer */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   max326_wdog_reset(priv);
 
   /* Convert the timeout value in milliseconds to time exponent used by the
@@ -573,7 +559,7 @@ static int max326_settimeout(FAR struct watchdog_lowerhalf_s *lower,
   ctrl |= (WDT0_CTRL_INTPERIOD(exp) | WDT0_CTRL_RSTPERIOD(exp));
   putreg32(ctrl, MAX326_WDT0_CTRL);
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
   return OK;
 }
 
@@ -584,8 +570,8 @@ static int max326_settimeout(FAR struct watchdog_lowerhalf_s *lower,
  *   Attach the user WDT interrupt handler and enable the interrupt.
  *
  * Input Parameters:
- *   lower   - A pointer the publicly visible representation of the "lower-half"
- *             driver state structure.
+ *   lower   - A pointer the publicly visible representation of the
+ *             "lower-half" driver state structure.
  *   handler - The new WDT interrupt handler.
  *
  * Returned Values:
@@ -606,7 +592,7 @@ static xcpt_t max326_capture(FAR struct watchdog_lowerhalf_s *lower,
 
   /* Get the old handler */
 
-  flags = spin_lock_irqsave();
+  flags = spin_lock_irqsave(NULL);
   oldhandler = priv->handler;
 
   /* Save the new handler */
@@ -627,7 +613,7 @@ static xcpt_t max326_capture(FAR struct watchdog_lowerhalf_s *lower,
       max326_int_enable(priv);
     }
 
-  spin_unlock_irqrestore(flags);
+  spin_unlock_irqrestore(NULL, flags);
   return oldhandler;
 }
 
@@ -638,8 +624,8 @@ static xcpt_t max326_capture(FAR struct watchdog_lowerhalf_s *lower,
  *   Handle IOCTL commands forwarded from the upper half driver
  *
  * Input Parameters:
- *   lower   - A pointer the publicly visible representation of the "lower-half"
- *             driver state structure.
+ *   lower   - A pointer the publicly visible representation of the
+ *             "lower-half" driver state structure.
  *   cmd     - IOCTL command
  *   arg     - Argument associated with the IOCTL command.
  *
@@ -690,7 +676,8 @@ int max326_wdt_initialize(FAR const char *devpath)
 
   /* Register the watchdog driver as /dev/watchdog0 */
 
-  handle = watchdog_register(devpath, (FAR struct watchdog_lowerhalf_s *)priv);
+  handle = watchdog_register(devpath,
+                             (FAR struct watchdog_lowerhalf_s *)priv);
   return (handle != NULL) ? OK : -ENODEV;
 }
 

@@ -1,36 +1,20 @@
 /****************************************************************************
  * arch/arm/src/xmc4/xmc4_spi.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Copyright (C) 2018 Alan Carvalho de Assis. All rights reserved.
- *   Authors: Alan Carvalho de Assis <acassis@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -54,12 +38,13 @@
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/wdog.h>
+#include <nuttx/kmalloc.h>
 #include <nuttx/clock.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/spi/spi.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
+#include "arm_internal.h"
+#include "arm_arch.h"
 
 #include "chip.h"
 #include "xmc4_gpio.h"
@@ -78,6 +63,7 @@
  ****************************************************************************/
 
 /* Configuration ************************************************************/
+
 /* When SPI DMA is enabled, small DMA transfers will still be performed by
  * polling logic.  But we need a threshold value to determine what is small.
  * That value is provided by CONFIG_XMC4_SPI_DMATHRESHOLD.
@@ -129,6 +115,7 @@
 #endif
 
 /* Clocking *****************************************************************/
+
 /* Select MCU-specific settings */
 
 #if defined(CONFIG_ARCH_CHIP_XMC4)
@@ -182,7 +169,7 @@ struct xmc4_spics_s
 #ifdef CONFIG_XMC4_SPI_DMA
   bool candma;                  /* DMA is supported */
   sem_t dmawait;                /* Used to wait for DMA completion */
-  WDOG_ID dmadog;               /* Watchdog that handles DMA timeouts */
+  struct wdog_s dmadog;         /* Watchdog that handles DMA timeouts */
   int result;                   /* DMA result */
   DMA_HANDLE rxdma;             /* SPI RX DMA handle */
   DMA_HANDLE txdma;             /* SPI TX DMA handle */
@@ -287,7 +274,7 @@ static void     spi_select(struct spi_dev_s *dev, uint32_t devid,
 static uint32_t spi_setfrequency(struct spi_dev_s *dev, uint32_t frequency);
 static void     spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode);
 static void     spi_setbits(struct spi_dev_s *dev, int nbits);
-static uint16_t spi_send(struct spi_dev_s *dev, uint16_t ch);
+static uint32_t spi_send(struct spi_dev_s *dev, uint32_t wd);
 
 #ifdef CONFIG_XMC4_SPI_DMA
 static void     spi_exchange_nodma(struct spi_dev_s *dev,
@@ -897,8 +884,7 @@ static void spi_dma_sampledone(struct xmc4_spics_s *spics)
  *   DMA.
  *
  * Input Parameters:
- *   argc - The number of arguments (should be 1)
- *   arg  - The argument (state structure reference cast to uint32_t)
+ *   arg  - The argument
  *
  * Returned Value:
  *   None
@@ -909,7 +895,7 @@ static void spi_dma_sampledone(struct xmc4_spics_s *spics)
  ****************************************************************************/
 
 #ifdef CONFIG_XMC4_SPI_DMA
-static void spi_dmatimeout(int argc, uint32_t arg)
+static void spi_dmatimeout(wdparm_t arg)
 {
   struct xmc4_spics_s *spics = (struct xmc4_spics_s *)arg;
 
@@ -956,7 +942,7 @@ static void spi_rxcallback(DMA_HANDLE handle, void *arg, int result)
 
   /* Cancel the watchdog timeout */
 
-  wd_cancel(spics->dmadog);
+  wd_cancel(&spics->dmadog);
 
   /* Sample DMA registers at the time of the callback */
 
@@ -1249,7 +1235,7 @@ static void spi_setmode(struct spi_dev_s *dev, enum spi_mode_e mode)
  *
  * Input Parameters:
  *   dev -  Device-specific state data
- *   nbits - The number of bits requests
+ *   nbits - The number of bits requested
  *
  * Returned Value:
  *   none
@@ -1263,13 +1249,13 @@ static void spi_setbits(struct spi_dev_s *dev, int nbits)
   uint32_t regval;
 
   spiinfo("cs=%d nbits=%d\n", spics->cs, nbits);
-  DEBUGASSERT(spics && nbits > 7 && nbits < 17);
+  DEBUGASSERT(nbits > 7 && nbits < 17);
 
   /* Has the number of bits changed? */
 
   if (nbits != spics->nbits)
     {
-      /* Yes... Configure the new word lenght */
+      /* Yes... Configure the new word length */
 
       regval  = spi_getreg(spi, XMC4_USIC_SCTR_OFFSET);
       regval &= ~(USIC_SCTR_WLE_MASK);
@@ -1278,7 +1264,7 @@ static void spi_setbits(struct spi_dev_s *dev, int nbits)
 
       spiinfo("SCTR = %08x\n", regval);
 
-      /* Save the selection so the subsequence re-configs will be faster */
+      /* Save the selection so that subsequent re-configs will be faster. */
 
       spics->nbits = nbits;
     }
@@ -1300,7 +1286,7 @@ static void spi_setbits(struct spi_dev_s *dev, int nbits)
  *
  ****************************************************************************/
 
-static uint16_t spi_send(struct spi_dev_s *dev, uint16_t wd)
+static uint32_t spi_send(struct spi_dev_s *dev, uint32_t wd)
 {
   uint8_t txbyte;
   uint8_t rxbyte;
@@ -1315,7 +1301,7 @@ static uint16_t spi_send(struct spi_dev_s *dev, uint16_t wd)
   spi_exchange(dev, &txbyte, &rxbyte, 1);
 
   spiinfo("Sent %02x received %02x\n", txbyte, rxbyte);
-  return (uint16_t)rxbyte;
+  return (uint32_t)rxbyte;
 }
 
 /****************************************************************************
@@ -1395,7 +1381,8 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
 
   /* Loop, sending each word in the user-provided data buffer.
    *
-   * Note: Good SPI performance would require that we implement DMA transfers!
+   * Note: Good SPI performance would require that we implement
+   * DMA transfers!
    */
 
   for (; nwords > 0; nwords--)
@@ -1419,7 +1406,7 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
 
       spi_putreg(spi, data, XMC4_USIC_TBUF_OFFSET);
 
-      /* Wait until the last bit be transfered */
+      /* Wait until the last bit be transferred */
 
       while ((spi_getreg(spi, XMC4_USIC_PSR_OFFSET) &
              (USIC_PSR_TSIF)) == 0)
@@ -1435,7 +1422,8 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
         {
         }
 
-      spi_putreg(spi, (USIC_PSCR_CRIF | USIC_PSCR_CAIF), XMC4_USIC_PSCR_OFFSET);
+      spi_putreg(spi, (USIC_PSCR_CRIF | USIC_PSCR_CAIF),
+                 XMC4_USIC_PSCR_OFFSET);
 
       /* Read the received data from the SPI Data Register. */
 
@@ -1551,7 +1539,8 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
        * the DMA completes
        */
 
-      xmc4_cmcc_invalidate((uintptr_t)rxbuffer, (uintptr_t)rxbuffer + nbytes);
+      xmc4_cmcc_invalidate((uintptr_t)rxbuffer,
+                           (uintptr_t)rxbuffer + nbytes);
 
       /* Use normal RX memory incrementing. */
 
@@ -1655,8 +1644,8 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
     {
       /* Start (or re-start) the watchdog timeout */
 
-      ret = wd_start(spics->dmadog, DMA_TIMEOUT_TICKS,
-                     (wdentry_t)spi_dmatimeout, 1, (uint32_t)spics);
+      ret = wd_start(&spics->dmadog, DMA_TIMEOUT_TICKS,
+                     spi_dmatimeout, (wdparm_t)spics);
       if (ret != OK)
         {
            spierr("ERROR: wd_start failed: %d\n", ret);
@@ -1668,7 +1657,7 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
 
       /* Cancel the watchdog timeout */
 
-      wd_cancel(spics->dmadog);
+      wd_cancel(&spics->dmadog);
 
       /* Check if we were awakened by an error of some kind. */
 
@@ -1747,10 +1736,10 @@ static void spi_sndblock(struct spi_dev_s *dev, const void *buffer,
  *   dev -    Device-specific state data
  *   buffer - A pointer to the buffer in which to receive data
  *   nwords - the length of data that can be received in the buffer in number
- *            of words.  The wordsize is determined by the number of bits-per-word
- *            selected for the SPI interface.  If nbits <= 8, the data is
- *            packed into uint8_t's; if nbits >8, the data is packed into
- *            uint16_t's
+ *            of words.  The wordsize is determined by the number of
+ *            bits-per-word selected for the SPI interface.  If nbits <= 8,
+ *            the data is packed into uint8_t's; if nbits >8, the data is
+ *            packed into uint16_t's
  *
  * Returned Value:
  *   None
@@ -1801,7 +1790,7 @@ struct spi_dev_s *xmc4_spibus_initialize(int channel)
    * chip select structures.
    */
 
-  spics = (struct xmc4_spics_s *)zalloc(sizeof(struct xmc4_spics_s));
+  spics = (struct xmc4_spics_s *)kmm_zalloc(sizeof(struct xmc4_spics_s));
   if (!spics)
     {
       spierr("ERROR: Failed to allocate a chip select structure\n");
@@ -1809,7 +1798,7 @@ struct spi_dev_s *xmc4_spibus_initialize(int channel)
     }
 
   /* Set up the initial state for this chip select structure.  Other fields
-   * were zeroed by zalloc().
+   * were zeroed by kmm_zalloc().
    */
 
 #ifdef CONFIG_XMC4_SPI_DMA
@@ -1890,13 +1879,14 @@ struct spi_dev_s *xmc4_spibus_initialize(int channel)
     }
   else
 #endif
-   {
+    {
       spierr("ERROR:  spino invalid: %d\n", spino);
-   }
+    }
 
   /* Save the chip select and SPI controller numbers */
 
-  /*spics->cs    = csno; */
+  /* spics->cs    = csno; */
+
   spics->cs     = 0;
   spics->spino  = spino;
 
@@ -2005,9 +1995,9 @@ struct spi_dev_s *xmc4_spibus_initialize(int channel)
         }
       else
 #endif
-       {
+        {
           spierr("ERROR:  spino invalid: %d\n", spino);
-       }
+        }
 
       /* Leave critical section */
 
@@ -2054,7 +2044,7 @@ struct spi_dev_s *xmc4_spibus_initialize(int channel)
                USIC_PCR_SSCMODE_FEM | USIC_PCR_SSCMODE_SELINV;
       spi_putreg(spi, regval, XMC4_USIC_PCR_OFFSET);
 
-      /* Define SPI Mode 0 by defaul */
+      /* Define SPI Mode 0 by default */
 
       regval  = spi_getreg(spi, XMC4_USIC_BRG_OFFSET);
       regval &= ~(USIC_BRG_SCLKCFG_MASK);
@@ -2063,7 +2053,7 @@ struct spi_dev_s *xmc4_spibus_initialize(int channel)
 
       /* Clear protocol status */
 
-      spi_putreg(spi, 0xffffffffUL, XMC4_USIC_PSCR_OFFSET);
+      spi_putreg(spi, 0xfffffffful, XMC4_USIC_PSCR_OFFSET);
 
       /* Disable the parity */
 
@@ -2084,12 +2074,7 @@ struct spi_dev_s *xmc4_spibus_initialize(int channel)
        */
 
       nxsem_init(&spics->dmawait, 0, 0);
-      nxsem_setprotocol(&spics->dmawait, SEM_PRIO_NONE);
-
-      /* Create a watchdog time to catch DMA timeouts */
-
-      spics->dmadog = wd_create();
-      DEBUGASSERT(spics->dmadog);
+      nxsem_set_protocol(&spics->dmawait, SEM_PRIO_NONE);
 #endif
 
       spi_dumpregs(spi, "After initialization");
@@ -2098,7 +2083,7 @@ struct spi_dev_s *xmc4_spibus_initialize(int channel)
   return &spics->spidev;
 
 errchannel:
-  free(spics);
+  kmm_free(spics);
   return NULL;
 }
 #endif /* CONFIG_XMC4_SPI0 || CONFIG_XMC4_SPI1 */

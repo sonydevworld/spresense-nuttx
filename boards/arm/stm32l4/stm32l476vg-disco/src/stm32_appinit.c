@@ -1,35 +1,20 @@
 /****************************************************************************
  * boards/arm/stm32l4/stm32l476vg-disco/src/stm32_appinit.c
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -40,7 +25,6 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
-#include <sys/mount.h>
 #include <stdio.h>
 #include <syslog.h>
 #include <errno.h>
@@ -50,6 +34,7 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
+#include <nuttx/fs/fs.h>
 
 #include <stm32l4.h>
 #include <stm32l4_uart.h>
@@ -65,9 +50,9 @@
 
 #include "stm32l476vg-disco.h"
 
-/* Conditional logic in stm32l476vg-disco.h will determine if certain features
- * are supported.  Tests for these features need to be made after including
- * stm32l476vg-disco.h.
+/* Conditional logic in stm32l476vg-disco.h will determine if certain
+ * features are supported.  Tests for these features need to be made after
+ * including stm32l476vg-disco.h.
  */
 
 #ifdef HAVE_RTC_DRIVER
@@ -110,7 +95,7 @@ FAR struct mtd_dev_s *g_mtd_fs;
  *         implementation without modification.  The argument has no
  *         meaning to NuttX; the meaning of the argument is a contract
  *         between the board-specific initialization logic and the
- *         matching application logic.  The value cold be such things as a
+ *         matching application logic.  The value could be such things as a
  *         mode enumeration value, a set of DIP switch switch settings, a
  *         pointer to configuration data read from a file or serial FLASH,
  *         or whatever you would like to do with it.  Every implementation
@@ -129,11 +114,13 @@ int board_app_initialize(uintptr_t arg)
   FAR struct rtc_lowerhalf_s *rtclower;
 #endif
 #if defined(HAVE_N25QXXX)
-FAR struct mtd_dev_s *mtd_temp;
+  FAR struct mtd_dev_s *mtd_temp;
 #endif
 #if defined(HAVE_N25QXXX_CHARDEV)
+#if defined(CONFIG_BCH)
   char blockdev[18];
   char chardev[12];
+#endif /* defined(CONFIG_BCH) */
 #endif
   int ret = OK;
 
@@ -142,12 +129,11 @@ FAR struct mtd_dev_s *mtd_temp;
 
   syslog(LOG_INFO, "Mounting procfs to /proc\n");
 
-  ret = mount(NULL, CONFIG_NSH_PROC_MOUNTPOINT, "procfs", 0, NULL);
+  ret = nx_mount(NULL, CONFIG_NSH_PROC_MOUNTPOINT, "procfs", 0, NULL);
   if (ret < 0)
     {
       syslog(LOG_ERR,
-             "ERROR: Failed to mount the PROC filesystem: %d (%d)\n",
-             ret, errno);
+             "ERROR: Failed to mount the PROC filesystem: %d\n", ret);
       return ret;
     }
 #endif
@@ -197,34 +183,35 @@ FAR struct mtd_dev_s *mtd_temp;
           _err("ERROR: n25qxxx_initialize failed\n");
           return ret;
         }
+
       g_mtd_fs = mtd_temp;
 
 #ifdef CONFIG_MTD_PARTITION
-      {
-        FAR struct mtd_geometry_s geo;
-        off_t nblocks;
+        {
+          FAR struct mtd_geometry_s geo;
+          off_t nblocks;
 
-        /* Setup a partition of 256KiB for our file system. */
+          /* Setup a partition of 256KiB for our file system. */
 
-        ret = MTD_IOCTL(g_mtd_fs, MTDIOC_GEOMETRY,
-                        (unsigned long)(uintptr_t)&geo);
-        if (ret < 0)
-          {
-            _err("ERROR: MTDIOC_GEOMETRY failed\n");
-            return ret;
-          }
+          ret = MTD_IOCTL(g_mtd_fs, MTDIOC_GEOMETRY,
+                          (unsigned long)(uintptr_t)&geo);
+          if (ret < 0)
+            {
+              _err("ERROR: MTDIOC_GEOMETRY failed\n");
+              return ret;
+            }
 
-        nblocks = (256*1024) / geo.blocksize;
+          nblocks = (256 * 1024) / geo.blocksize;
 
-        mtd_temp = mtd_partition(g_mtd_fs, 0, nblocks);
-        if (!mtd_temp)
-          {
-            _err("ERROR: mtd_partition failed\n");
-            return ret;
-          }
+          mtd_temp = mtd_partition(g_mtd_fs, 0, nblocks);
+          if (!mtd_temp)
+            {
+              _err("ERROR: mtd_partition failed\n");
+              return ret;
+            }
 
-        g_mtd_fs = mtd_temp;
-      }
+          g_mtd_fs = mtd_temp;
+        }
 #endif
 
 #ifdef HAVE_N25QXXX_SMARTFS
@@ -247,10 +234,10 @@ FAR struct mtd_dev_s *mtd_temp;
 
       /* Mount the file system at /mnt/nxffs */
 
-      ret = mount(NULL, "/mnt/nxffs", "nxffs", 0, NULL);
+      ret = nx_mount(NULL, "/mnt/nxffs", "nxffs", 0, NULL);
       if (ret < 0)
         {
-          _err("ERROR: Failed to mount the NXFFS volume: %d\n", errno);
+          _err("ERROR: Failed to mount the NXFFS volume: %d\n", ret);
           return ret;
         }
 
@@ -264,6 +251,7 @@ FAR struct mtd_dev_s *mtd_temp;
           return ret;
         }
 
+#if defined(CONFIG_BCH)
       /* Use the minor number to create device paths */
 
       snprintf(blockdev, 18, "/dev/mtdblock%d", N25QXXX_MTD_MINOR);
@@ -271,20 +259,13 @@ FAR struct mtd_dev_s *mtd_temp;
 
       /* Now create a character device on the block device */
 
-      /* NOTE:  for this to work, you will need to make sure that
-       * CONFIG_FS_WRITABLE is set in the config.  It's not a user-
-       * visible setting, but you can make it set by selecting an
-       * arbitrary writable file system (you don't have to actually
-       * use it, just select it so that the block device created via
-       * ftl_initialize() will be writable).
-       */
-
       ret = bchdev_register(blockdev, chardev, false);
       if (ret < 0)
         {
           _err("ERROR: bchdev_register %s failed: %d\n", chardev, ret);
           return ret;
         }
+#endif /* defined(CONFIG_BCH) */
 #endif
     }
 #endif

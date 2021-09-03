@@ -1,35 +1,20 @@
 /****************************************************************************
- * drivers/wireless/bcm43xxx/bcmf_netdev.c
+ * drivers/wireless/ieee80211/bcm43xxx/bcmf_netdev.c
  *
- *   Copyright (C) 2017-2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -90,15 +75,17 @@
 
 #define BCMFWORK LPWORK
 
-/* CONFIG_IEEE80211_BROADCOM_NINTERFACES determines the number of physical interfaces
- * that will be supported.
+/* CONFIG_IEEE80211_BROADCOM_NINTERFACES determines the number of physical
+ * interfaces that will be supported.
  */
 
 #ifndef CONFIG_IEEE80211_BROADCOM_NINTERFACES
 # define CONFIG_IEEE80211_BROADCOM_NINTERFACES 1
 #endif
 
-/* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per second */
+/* TX poll delay = 1 seconds.
+ * CLK_TCK is the number of clock ticks per second
+ */
 
 #define BCMF_WDDELAY   (1*CLK_TCK)
 
@@ -106,7 +93,7 @@
 
 #define BCMF_TXTIMEOUT (60*CLK_TCK)
 
-/* This is a helper pointer for accessing the contents of the Ethernet header */
+/* This is a helper pointer for accessing the contents of Ethernet header */
 
 #define BUF ((struct eth_hdr_s *)priv->bc_dev.d_buf)
 
@@ -125,7 +112,7 @@ static void bcmf_rxpoll(FAR void *arg);
 /* Watchdog timer expirations */
 
 static void bcmf_poll_work(FAR void *arg);
-static void bcmf_poll_expiry(int argc, wdparm_t arg, ...);
+static void bcmf_poll_expiry(wdparm_t arg);
 
 /* NuttX callback functions */
 
@@ -166,7 +153,8 @@ int bcmf_netdev_alloc_tx_frame(FAR struct bcmf_dev_s *priv)
 
   /* Allocate frame for TX */
 
-  priv->cur_tx_frame = bcmf_bdc_allocate_frame(priv, MAX_NETDEV_PKTSIZE, true);
+  priv->cur_tx_frame = bcmf_bdc_allocate_frame(priv,
+                                               MAX_NETDEV_PKTSIZE, true);
   if (!priv->cur_tx_frame)
     {
       wlerr("ERROR: Cannot allocate TX frame\n");
@@ -259,12 +247,12 @@ static void bcmf_receive(FAR struct bcmf_dev_s *priv)
         }
 
       priv->bc_dev.d_buf = frame->data;
-      priv->bc_dev.d_len = frame->len - (uint32_t)(frame->data - frame->base);
+      priv->bc_dev.d_len = frame->len - (frame->data - frame->base);
 
       wlinfo("Got frame %p %d\n", frame, priv->bc_dev.d_len);
 
 #ifdef CONFIG_NET_PKT
-      /* When packet sockets are enabled, feed the frame into the packet tap */
+      /* When packet sockets are enabled, feed the frame into the tap */
 
        pkt_input(&priv->bc_dev);
 #endif
@@ -303,7 +291,7 @@ static void bcmf_receive(FAR struct bcmf_dev_s *priv)
           ipv4_input(&priv->bc_dev);
 
           /* If the above function invocation resulted in data that should be
-           * sent out on the network, the field  d_len will set to a value > 0.
+           * sent out on the network, d_len field will set to a value > 0.
            */
 
           if (priv->bc_dev.d_len > 0)
@@ -339,7 +327,7 @@ static void bcmf_receive(FAR struct bcmf_dev_s *priv)
 #ifdef CONFIG_NET_IPv6
       if (BUF->type == HTONS(ETHTYPE_IP6))
         {
-          ninfo("Iv6 frame\n");
+          ninfo("IPv6 frame\n");
           NETDEV_RXIPV6(&priv->bc_dev);
 
           /* Give the IPv6 packet to the network layer */
@@ -347,7 +335,7 @@ static void bcmf_receive(FAR struct bcmf_dev_s *priv)
           ipv6_input(&priv->bc_dev);
 
           /* If the above function invocation resulted in data that should be
-           * sent out on the network, the field  d_len will set to a value > 0.
+           * sent out on the network, d_len field will set to a value > 0.
            */
 
           if (priv->bc_dev.d_len > 0)
@@ -387,7 +375,7 @@ static void bcmf_receive(FAR struct bcmf_dev_s *priv)
           NETDEV_RXARP(&priv->bc_dev);
 
           /* If the above function invocation resulted in data that should be
-           * sent out on the network, the field  d_len will set to a value > 0.
+           * sent out on the network, d_len field will set to a value > 0.
            */
 
           if (priv->bc_dev.d_len > 0)
@@ -479,8 +467,8 @@ static int bcmf_txpoll(FAR struct net_driver_s *dev)
 
           bcmf_transmit(priv, priv->cur_tx_frame);
 
-          /* TODO: Check if there is room in the device to hold another packet.
-           * If not, return a non-zero value to terminate the poll.
+          /* TODO: Check if there is room in the device to hold another
+           * packet. If not, return a non-zero value to terminate the poll.
            */
 
           priv->cur_tx_frame = NULL;
@@ -488,8 +476,8 @@ static int bcmf_txpoll(FAR struct net_driver_s *dev)
         }
     }
 
-  /* If zero is returned, the polling will continue until all connections have
-   * been examined.
+  /* If zero is returned, the polling will continue until all connections
+   * have been examined.
    */
 
   return 0;
@@ -622,8 +610,8 @@ static void bcmf_poll_work(FAR void *arg)
 
   /* Setup the watchdog poll timer again */
 
-  wd_start(priv->bc_txpoll, BCMF_WDDELAY, bcmf_poll_expiry, 1,
-  ,        (wdparm_t)priv);
+  wd_start(&priv->bc_txpoll, BCMF_WDDELAY,
+           bcmf_poll_expiry, (wdparm_t)priv);
 exit_unlock:
   net_unlock();
 }
@@ -635,8 +623,7 @@ exit_unlock:
  *   Periodic timer handler.  Called from the timer interrupt handler.
  *
  * Input Parameters:
- *   argc - The number of available arguments
- *   arg  - The first argument
+ *   arg  - The argument
  *
  * Returned Value:
  *   None
@@ -646,7 +633,7 @@ exit_unlock:
  *
  ****************************************************************************/
 
-static void bcmf_poll_expiry(int argc, wdparm_t arg, ...)
+static void bcmf_poll_expiry(wdparm_t arg)
 {
   FAR struct bcmf_dev_s *priv = (FAR struct bcmf_dev_s *)arg;
 
@@ -678,8 +665,10 @@ static int bcmf_ifup(FAR struct net_driver_s *dev)
 
 #ifdef CONFIG_NET_IPv4
   ninfo("Bringing up: %d.%d.%d.%d\n",
-        dev->d_ipaddr & 0xff, (dev->d_ipaddr >> 8) & 0xff,
-        (dev->d_ipaddr >> 16) & 0xff, dev->d_ipaddr >> 24);
+        (int)(dev->d_ipaddr & 0xff),
+        (int)((dev->d_ipaddr >> 8) & 0xff),
+        (int)((dev->d_ipaddr >> 16) & 0xff),
+        (int)(dev->d_ipaddr >> 24));
 #endif
 #ifdef CONFIG_NET_IPv6
   ninfo("Bringing up: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
@@ -688,7 +677,7 @@ static int bcmf_ifup(FAR struct net_driver_s *dev)
         dev->d_ipv6addr[6], dev->d_ipv6addr[7]);
 #endif
 
-  /* Instantiate the MAC address from priv->bc_dev.d_mac.ether.ether_addr_octet */
+  /* Instantiate MAC address from priv->bc_dev.d_mac.ether.ether_addr_octet */
 
 #ifdef CONFIG_NET_ICMPv6
   /* Set up IPv6 multicast address filtering */
@@ -698,8 +687,8 @@ static int bcmf_ifup(FAR struct net_driver_s *dev)
 
   /* Set and activate a timer process */
 
-  wd_start(priv->bc_txpoll, BCMF_WDDELAY, bcmf_poll_expiry, 1,
-           (wdparm_t)priv);
+  wd_start(&priv->bc_txpoll, BCMF_WDDELAY,
+           bcmf_poll_expiry, (wdparm_t)priv);
 
   /* Enable the hardware interrupt */
 
@@ -735,7 +724,7 @@ static int bcmf_ifdown(FAR struct net_driver_s *dev)
 
   /* Cancel the TX poll timer */
 
-  wd_cancel(priv->bc_txpoll);
+  wd_cancel(&priv->bc_txpoll);
 
   /* Put the EMAC in its reset, non-operational state.  This should be
    * a known configuration that will guarantee the bcmf_ifup() always
@@ -782,7 +771,7 @@ static void bcmf_txavail_work(FAR void *arg)
 
   if (priv->bc_bifup)
     {
-      /* Check if there is room in the hardware to hold another outgoing packet. */
+      /* Check if there is room in the hardware to hold another packet. */
 
       if (bcmf_netdev_alloc_tx_frame(priv))
         {
@@ -793,7 +782,7 @@ static void bcmf_txavail_work(FAR void *arg)
 
       priv->bc_dev.d_buf = priv->cur_tx_frame->data;
       priv->bc_dev.d_len = 0;
-      devif_poll(&priv->bc_dev, bcmf_txpoll);
+      devif_timer(&priv->bc_dev, 0, bcmf_txpoll);
     }
 
 exit_unlock:
@@ -871,8 +860,8 @@ static int bcmf_addmac(FAR struct net_driver_s *dev, FAR const uint8_t *mac)
  * Name: bcmf_rmmac
  *
  * Description:
- *   NuttX Callback: Remove the specified MAC address from the hardware multicast
- *   address filtering
+ *   NuttX Callback: Remove the specified MAC address from the hardware
+ *   multicast address filtering
  *
  * Input Parameters:
  *   dev  - Reference to the NuttX driver state structure
@@ -1122,13 +1111,7 @@ int bcmf_netdev_register(FAR struct bcmf_dev_s *priv)
 #ifdef CONFIG_NETDEV_IOCTL
   priv->bc_dev.d_ioctl   = bcmf_ioctl;    /* Handle network IOCTL commands */
 #endif
-  priv->bc_dev.d_private = (FAR void *)priv; /* Used to recover private state from dev */
-
-  /* Create a watchdog for timing polling */
-
-  priv->bc_txpoll        = wd_create();   /* Create periodic poll timer */
-
-  DEBUGASSERT(priv->bc_txpoll != NULL);
+  priv->bc_dev.d_private = priv;          /* Used to recover private state from dev */
 
   /* Initialize network stack interface buffer */
 

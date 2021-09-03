@@ -4,16 +4,8 @@
  *   Copyright (C) 2015, 2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
- * References:
- *
- *  "Cortex-A5™ MPCore, Technical Reference Manual", Revision: r0p1,
- *   Copyright © 2010  ARM. All rights reserved. ARM DDI 0434B (ID101810)
- *  "ARM® Architecture Reference Manual, ARMv7-A and ARMv7-R edition",
- *   Copyright © 1996-1998, 2000, 2004-2012 ARM. All rights reserved. ARM
- *   DDI 0406C.b (ID072512)
- *
- * Portions of this file derive from Atmel sample code for the SAMA5D3 Cortex-A5
- * which also has a modified BSD-style license:
+ * Portions of this file derive from Atmel sample code for the SAMA5D3
+ * Cortex-A5 which also has a modified BSD-style license:
  *
  *   Copyright (c) 2012, Atmel Corporation
  *   All rights reserved.
@@ -46,6 +38,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+
+/* References:
+ *
+ *  "Cortex-A5 MPCore, Technical Reference Manual", Revision: r0p1,
+ *   Copyright (c) 2010  ARM. All rights reserved. ARM DDI 0434B (ID101810)
+ *  "ARM Architecture Reference Manual, ARMv7-A and ARMv7-R edition",
+ *   Copyright (c) 1996-1998, 2000, 2004-2012 ARM. All rights reserved. ARM
+ *   DDI 0406C.b (ID072512)
+ */
 
 /****************************************************************************
  * Included Files
@@ -93,20 +94,20 @@
 cp15_flush_dcache:
 
 	mrc		CP15_CTR(r3)			/* Read the Cache Type Register */
-	lsr		r3, r3, #16				/* Isolate the DMinLine field */
+	lsr		r3, r3, #16			/* Isolate the DMinLine field */
 	and		r3, r3, #0xf
 	mov		r2, #4
 	mov		r2, r2, lsl r3			/* Get the cache line size in bytes */
 
-	sub		r3, r2, #1				/* R3=Cache line size mask */
-	bic		r0, r0, r3				/* R0=aligned start address */
+	sub		r3, r2, #1			/* R3=Cache line size mask */
+	bic		r0, r0, r3			/* R0=aligned start address */
 
 	/* Loop, cleaning and invaliding each D cache line in the address range */
 
 1:
 	mcr		CP15_DCCIMVAC(r0)		/* Clean and invalidate data cache line by VA to PoC */
-	add		r0, r0, r2				/* R12=Next cache line */
-	cmp		r0, r1					/* Loop until all cache lines have been cleaned */
+	add		r0, r0, r2			/* R12=Next cache line */
+	cmp		r0, r1				/* Loop until all cache lines have been cleaned */
 	blo		1b
 
 	dsb

@@ -1,5 +1,5 @@
-/****************************************************************************************************
- * include/nuttx/sensors/lsm6dsl.h [from the IKS01A2 MEMS board STM]
+/****************************************************************************
+ * include/nuttx/sensors/lsm6dsl.h
  *
  *   Copyright (C) 2016 Omni Hoverboards Inc. All rights reserved.
  *   Author: Paul Alexander Patience <paul-a.patience@polymtl.ca>
@@ -31,37 +31,37 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __INCLUDE_NUTTX_SENSORS_LSM6DSL
 #define __INCLUDE_NUTTX_SENSORS_LSM6DSL
 
-/****************************************************************************************************
+/****************************************************************************
  * Included Files
- ****************************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 #include <nuttx/sensors/ioctl.h>
 
 #if defined(CONFIG_I2C) && defined(CONFIG_SENSORS_LSM6DSL)
 
-/****************************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ****************************************************************************************************/
+ ****************************************************************************/
 
-/* I2C Addresses ************************************************************************************/
+/* I2C Addresses ************************************************************/
 
 /* Accelerometer addresses */
 
-#define LSM6DSLACCEL_ADDR0  (0xD4>>1) /*0x6a low */
-#define LSM6DSLACCEL_ADDR1  (0xD6>>1) /* 0x6B .. high */
+#define LSM6DSLACCEL_ADDR0  (0xD4 >> 1) /* 0x6a low */
+#define LSM6DSLACCEL_ADDR1  (0xD6 >> 1) /* 0x6B .. high */
 
 /* Gyroscope addresses */
 
 #define LSM6DSLGYRO_ADDR0   0xd4
 #define LSM6DSLGYRO_ADDR1   0xd6
 
-/* Register Addresses *******************************************************************************/
+/* Register Addresses *******************************************************/
 
 /* Accelerometer and gyroscope registers */
 
@@ -138,12 +138,10 @@
 #define LSM6DSL_SENSORHUB16_REG                         0x50 /* Sixteenth byte associated to external sensors. */
 #define LSM6DSL_SENSORHUB17_REG                         0x51 /* Seventeenth byte associated to external sensors. */
 #define LSM6DSL_SENSORHUB18_REG                         0x52 /* Eighteenth byte associated to external sensors. */
-#define LSM6DSL_FUNC_SRC1                               0x53 /* Significant motion, tilt, step detector, hard/soft-iron and sensor hub interrupt source register
-(r). */
+#define LSM6DSL_FUNC_SRC1                               0x53 /* Significant motion, tilt, step detector, hard/soft-iron and sensor hub interrupt source register (r). */
 #define LSM6DSL_FUNC_SRC2                               0x54 /* Wrist tilt interrupt source register (r). */
 #define LSM6DSL_WRIST_TILT_IA                           0x55 /* Wrist tilt interrupt source register (r). */
-#define LSM6DSL_TAP_CFG                                 0x58 /* Enables interrupt and inactivity functions, configuration of filtering and tap recognition
-functions (r/w). */
+#define LSM6DSL_TAP_CFG                                 0x58 /* Enables interrupt and inactivity functions, configuration of filtering and tap recognition functions (r/w). */
 #define LSM6DSL_TAP_THS_6D                              0x59 /* Portrait/landscape position and tap function threshold register (r/w). */
 #define LSM6DSL_INT_DUR2                                0x5A /* Tap recognition function setting register (r/w). */
 #define LSM6DSL_WAKE_UP_THS                             0x5B /* Single and double-tap function threshold register (r/w). */
@@ -204,14 +202,17 @@ functions (r/w). */
 #define LSM6DSL_A_WRIST_TILT_THS                        0x54 /* Absolute Wrist Tilt threshold register (r/w). */
 #define LSM6DSL_A_WRIST_TILT_Mask                       0x59 /* Absolute Wrist Tilt mask register (r/w). */
 
-/****************************************************************************************************
+/****************************************************************************
  * Register Bit Definitions
  *
- * For this sensor it is choosen to not define each pin individually...its set bitwise like:
- * 0b000[0]0000 with preferred hex value! Where [] is showing the [not defined in datasheet] bit.
- * A complete definition is written below, just not all registers are validated!!
+ * For this sensor it is chosen to not define each pin individually...its set
+ * bitwise like:
+ * 0b000[0]0000 with preferred hex value!
+ *              Where [] is showing the [not defined in datasheet] bit.
+ * A complete definition is written below, just not all registers are
+ * validated!!
  *
- ****************************************************************************************************/
+ ****************************************************************************/
 
 #define LSM6DSL_FUNC_CFG_ACCESS_FUNC_CFG_EN         (1 << 5)
 #define LSM6DSL_FUNC_CFG_ACCESS_FUNC_CFG_EN_B       (1 << 7)
@@ -247,7 +248,7 @@ functions (r/w). */
 #define LSM6DSL_FIFO_CTRL4_DEC_DS3_FIFO_MASK        (3 << LSM6DSL_FIFO_CTRL4_DEC_DS3_FIFO_SHIFT)
 #define LSM6DSL_FIFO_CTRL4_DEC_DS4_FIFO_SHIFT       3
 #define LSM6DSL_FIFO_CTRL4_DEC_DS4_FIFO_MASK        (3 << LSM6DSL_FIFO_CTRL4_DEC_DS4_FIFO_SHIFT)
-#define LSM6DSL_FIFO_CTRL4_ONLY_HIGH_DATA           (1 << 6)/*  */
+#define LSM6DSL_FIFO_CTRL4_ONLY_HIGH_DATA           (1 << 6) /*  */
 #define LSM6DSL_FIFO_CTRL4_STOP_ON_FTH              (1 << 7) /* .*/
 
 #define LSM6DSL_FIFO_CTRL5_FIFO_MODE_SHIFT          0
@@ -813,9 +814,9 @@ functions (r/w). */
 #define LSM6DSL_A_WRIST_TILT_Mask_SHIFT             2
 #define LSM6DSL_A_WRIST_TILT_Mask_MASK              (63 << LSM6DSL_A_WRIST_TILT_Mask_SHIFT)
 
-/****************************************************************************************************
+/****************************************************************************
  * Public Types
- ****************************************************************************************************/
+ ****************************************************************************/
 
 struct i2c_master_s;
 
@@ -833,9 +834,9 @@ struct lsm6dsl_sensor_data_s
   uint16_t timestamp;
 };
 
-/****************************************************************************************************
- * Private Types
- ****************************************************************************************************/
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
 
 struct lsm6dsl_dev_s;
 struct lsm6dsl_ops_s
@@ -856,20 +857,20 @@ struct lsm6dsl_dev_s
 
   FAR const struct lsm6dsl_ops_s *ops;
 
-  uint8_t                         datareg;    /* Output data register of X low byte */
-  struct lsm6dsl_sensor_data_s    sensor_data;           /* Sensor data container     */
+  uint8_t                         datareg;     /* Output data register of X low byte */
+  struct lsm6dsl_sensor_data_s    sensor_data; /* Sensor data container     */
 };
 
-/****************************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ****************************************************************************************************/
+ ****************************************************************************/
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-/****************************************************************************************************
+/****************************************************************************
  * Name: lsm6dslaccel_register
  *
  * Description:
@@ -883,7 +884,7 @@ extern "C"
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
  *
- ****************************************************************************************************/
+ ****************************************************************************/
 
 int lsm6dsl_sensor_register(FAR const char *devpath,
                             FAR struct i2c_master_s *i2c,

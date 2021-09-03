@@ -1,40 +1,25 @@
 /****************************************************************************
  * boards/arm/s32k1xx/s32k148evb/include/board.h
  *
- *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
-#ifndef __BOARDS_ARM_STM32F4DISCOVERY_INCLUDE_BOARD_H
-#define __BOARDS_ARM_STM32F4DISCOVERY_INCLUDE_BOARD_H
+#ifndef __BOARDS_ARM_S32K148EVB_INCLUDE_BOARD_H
+#define __BOARDS_ARM_S32K148EVB_INCLUDE_BOARD_H
 
 /****************************************************************************
  * Included Files
@@ -89,9 +74,8 @@
 #define BOARD_LED_B_BIT   (1 << BOARD_LED_B)
 
 /* If CONFIG_ARCH_LEDs is defined, then NuttX will control the LEDs on board
- * the s32k148evb.  The following definitions describe how NuttX controls the
+ * the S32K148EVB.  The following definitions describe how NuttX controls the
  * LEDs:
- *
  *
  *   SYMBOL                Meaning                      LED state
  *                                                      RED   GREEN  BLUE
@@ -106,7 +90,7 @@
 #define LED_SIGNAL        0 /* In a signal handler      (no change)       */
 #define LED_ASSERTION     0 /* An assertion failed      (no change)       */
 #define LED_PANIC         4 /* The system has crashed    FLASH OFF    OFF */
-#undef  LED_IDLE            /* S32K148EVN in sleep mode (Not used)        */
+#undef  LED_IDLE            /* S32K148EVB in sleep mode (Not used)        */
 
 /* Button definitions *******************************************************/
 
@@ -134,7 +118,12 @@
 #define PIN_LPUART1_RX    PIN_LPUART1_RX_1  /* PTC6 */
 #define PIN_LPUART1_TX    PIN_LPUART1_TX_1  /* PTC7 */
 
-/* DMA Channel/Stream Selections ********************************************/
+/* CAN selections ***********************************************************/
+#define PIN_CAN0_TX      PIN_CAN0_TX_1
+#define PIN_CAN0_RX      PIN_CAN0_RX_1
+#define PIN_CAN1_TX      PIN_CAN1_TX_1
+#define PIN_CAN1_RX      PIN_CAN1_RX_1
+#define PIN_CAN2_TX      PIN_CAN2_TX_1
+#define PIN_CAN2_RX      PIN_CAN2_RX_1
 
-
-#endif  /* __BOARDS_ARM_STM32F4DISCOVERY_INCLUDE_BOARD_H */
+#endif  /* __BOARDS_ARM_S32K148EVB_INCLUDE_BOARD_H */

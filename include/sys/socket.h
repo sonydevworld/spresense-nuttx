@@ -1,36 +1,20 @@
 /****************************************************************************
  * include/sys/socket.h
  *
- *   Copyright (C) 2007, 2009, 2011, 2015-2016, 2018 Gregory Nutt. All
- *     rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -48,8 +32,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* The socket()domain parameter specifies a communication domain; this selects
- * the protocol family which will be used for communication.
+/* The socket()domain parameter specifies a communication domain; this
+ * selects the protocol family which will be used for communication.
  */
 
 /* Supported Protocol Families */
@@ -62,9 +46,11 @@
 #define PF_NETLINK    16         /* Netlink IPC socket */
 #define PF_ROUTE      PF_NETLINK /* 4.4BSD Compatibility*/
 #define PF_PACKET     17         /* Low level packet interface */
+#define PF_CAN        29         /* Controller Area Network (SocketCAN) */
 #define PF_BLUETOOTH  31         /* Bluetooth sockets */
 #define PF_IEEE802154 36         /* Low level IEEE 802.15.4 radio frame interface */
 #define PF_PKTRADIO   64         /* Low level packet radio interface */
+#define PF_RPMSG      65         /* Remote core communication */
 
 /* Supported Address Families. Opengroup.org requires only AF_UNSPEC,
  * AF_UNIX, AF_INET and AF_INET6.
@@ -78,36 +64,48 @@
 #define AF_NETLINK     PF_NETLINK
 #define AF_ROUTE       PF_ROUTE
 #define AF_PACKET      PF_PACKET
+#define AF_CAN         PF_CAN
 #define AF_BLUETOOTH   PF_BLUETOOTH
 #define AF_IEEE802154  PF_IEEE802154
 #define AF_PKTRADIO    PF_PKTRADIO
+#define AF_RPMSG       PF_RPMSG
 
 /* The socket created by socket() has the indicated type, which specifies
  * the communication semantics.
  */
 
-#define SOCK_UNSPEC    0 /* Unspecified socket type */
-#define SOCK_STREAM    1 /* Provides sequenced, reliable, two-way,
-                          * connection-based byte streams. An out-of-band data
-                          * transmission mechanism may be supported.
-                          */
-#define SOCK_DGRAM     2 /* Supports  datagrams (connectionless, unreliable
-                          * messages of a fixed maximum length).
-                          */
-#define SOCK_RAW       3 /* Provides raw network protocol access. */
-#define SOCK_RDM       4 /* Provides a reliable datagram layer that does not
-                          * guarantee ordering.
-                          */
-#define SOCK_SEQPACKET 5 /* Provides a sequenced, reliable, two-way
-                          * connection-based data transmission path for
-                          * datagrams of fixed maximum length; a consumer is
-                          * required to read an entire packet with each read
-                          * system call.
-                          */
-#define SOCK_PACKET    10 /* Obsolete and should not be used in new programs */
+#define SOCK_UNSPEC    0        /* Unspecified socket type */
+#define SOCK_STREAM    1        /* Provides sequenced, reliable, two-way,
+                                 * connection-based byte streams. An out-of-band data
+                                 * transmission mechanism may be supported.
+                                 */
+#define SOCK_DGRAM     2        /* Supports  datagrams (connectionless, unreliable
+                                 * messages of a fixed maximum length).
+                                 */
+#define SOCK_RAW       3        /* Provides raw network protocol access. */
+#define SOCK_RDM       4        /* Provides a reliable datagram layer that does not
+                                 * guarantee ordering.
+                                 */
+#define SOCK_SEQPACKET 5        /* Provides a sequenced, reliable, two-way
+                                 * connection-based data transmission path for
+                                 * datagrams of fixed maximum length; a consumer is
+                                 * required to read an entire packet with each read
+                                 * system call.
+                                 */
+#define SOCK_PACKET   10        /* Obsolete and should not be used in new programs */
+
+#define SOCK_CLOEXEC  02000000  /* Atomically set close-on-exec flag for the new
+                                 * descriptor(s).
+                                 */
+#define SOCK_NONBLOCK 00004000  /* Atomically mark descriptor(s) as non-blocking. */
+
+#define SOCK_MAX (SOCK_PACKET + 1)
+#define SOCK_TYPE_MASK 0xf      /* Mask which covers at least up to SOCK_MASK-1.
+                                 * The remaining bits are used as flags.
+                                 */
 
 /* Bits in the FLAGS argument to `send', `recv', et al. These are the bits
- * recognized by Linus, not all are supported by NuttX.
+ * recognized by Linux, not all are supported by NuttX.
  */
 
 #define MSG_OOB        0x0001 /* Process out-of-band data.  */
@@ -129,7 +127,7 @@
 
 /* Protocol levels supported by get/setsockopt(): */
 
-#define SOL_SOCKET      0 /* Only socket-level options supported */
+#define SOL_SOCKET       1 /* Only socket-level options supported */
 
 /* Socket-level options */
 
@@ -199,17 +197,30 @@
 #define SO_TYPE         15 /* Reports the socket type (get only).
                             * return: int
                             */
+#define SO_TIMESTAMP    16 /* Generates a timestamp for each incoming packet
+                            * arg: integer value
+                            */
+
+/* The options are unsupported but included for compatibility
+ * and portability
+ */
+#define SO_SNDBUFFORCE  32
+#define SO_RCVBUFFORCE  33
+#define SO_RXQ_OVFL     40
 
 /* Protocol-level socket operations. */
 
-#define SOL_IP          1 /* See options in include/netinet/ip.h */
-#define SOL_IPV6        2 /* See options in include/netinet/ip6.h */
-#define SOL_TCP         3 /* See options in include/netinet/tcp.h */
-#define SOL_UDP         4 /* See options in include/netinit/udp.h */
-#define SOL_HCI         5 /* See options in include/netpacket/bluetooth.h */
-#define SOL_L2CAP       6 /* See options in include/netpacket/bluetooth.h */
-#define SOL_SCO         7 /* See options in include/netpacket/bluetooth.h */
-#define SOL_RFCOMM      8 /* See options in include/netpacket/bluetooth.h */
+#define SOL_IP          IPPROTO_IP   /* See options in include/netinet/ip.h */
+#define SOL_IPV6        IPPROTO_IPV6 /* See options in include/netinet/ip6.h */
+#define SOL_TCP         IPPROTO_TCP  /* See options in include/netinet/tcp.h */
+#define SOL_UDP         IPPROTO_UDP  /* See options in include/netinit/udp.h */
+
+/* Bluetooth-level operations. */
+
+#define SOL_HCI         0  /* See options in include/netpacket/bluetooth.h */
+#define SOL_L2CAP       6  /* See options in include/netpacket/bluetooth.h */
+#define SOL_SCO         17 /* See options in include/netpacket/bluetooth.h */
+#define SOL_RFCOMM      18 /* See options in include/netpacket/bluetooth.h */
 
 /* Protocol-level socket options may begin with this value */
 
@@ -238,7 +249,7 @@
 #define CMSG_ALIGN(len) \
   (((len)+sizeof(long)-1) & ~(sizeof(long)-1))
 #define CMSG_DATA(cmsg) \
-  ((void *)((char *)(cmsg) + CMSG_ALIGN(sizeof(struct cmsghdr))))
+  ((FAR void *)((FAR char *)(cmsg) + CMSG_ALIGN(sizeof(struct cmsghdr))))
 #define CMSG_SPACE(len) \
   (CMSG_ALIGN(sizeof(struct cmsghdr)) + CMSG_ALIGN(len))
 #define CMSG_LEN(len)   \
@@ -250,18 +261,24 @@
 #define CMSG_FIRSTHDR(msg) \
   __CMSG_FIRSTHDR((msg)->msg_control, (msg)->msg_controllen)
 
+/* "Socket"-level control message types: */
+
+#define SCM_RIGHTS      0x01    /* rw: access rights (array of int) */
+#define SCM_CREDENTIALS 0x02    /* rw: struct ucred */
+#define SCM_SECURITY    0x03    /* rw: security label */
+
 /****************************************************************************
  * Type Definitions
  ****************************************************************************/
 
- /* sockaddr_storage structure. This structure must be (1) large enough to
-  * accommodate all supported protocol-specific address structures, and (2)
-  * aligned at an appropriate boundary so that pointers to it can be cast
-  * as pointers to protocol-specific address structures and used to access
-  * the fields of those structures without alignment problems.
-  *
-  * REVISIT: sizeof(struct sockaddr_storge) should be 128 bytes.
-  */
+/* sockaddr_storage structure. This structure must be (1) large enough to
+ * accommodate all supported protocol-specific address structures, and (2)
+ * aligned at an appropriate boundary so that pointers to it can be cast
+ * as pointers to protocol-specific address structures and used to access
+ * the fields of those structures without alignment problems.
+ *
+ * REVISIT: sizeof(struct sockaddr_storge) should be 128 bytes.
+ */
 
 #ifdef CONFIG_NET_IPv6
 struct sockaddr_storage
@@ -298,11 +315,11 @@ struct linger
 
 struct msghdr
 {
-  void *msg_name;               /* Socket name */
-  int msg_namelen;              /* Length of name */
-  struct iovec *msg_iov;        /* Data blocks */
+  FAR void *msg_name;           /* Socket name */
+  socklen_t msg_namelen;        /* Length of name */
+  FAR struct iovec *msg_iov;    /* Data blocks */
   unsigned long msg_iovlen;     /* Number of blocks */
-  void *msg_control;            /* Per protocol magic (eg BSD file descriptor passing) */
+  FAR void *msg_control;        /* Per protocol magic (eg BSD file descriptor passing) */
   unsigned long msg_controllen; /* Length of cmsg list */
   unsigned int msg_flags;
 };
@@ -318,23 +335,24 @@ struct cmsghdr
  * Inline Functions
  ****************************************************************************/
 
-static inline struct cmsghdr *__cmsg_nxthdr(FAR void *__ctl,
-                                            unsigned int __size,
-                                            FAR struct cmsghdr *__cmsg)
+static inline FAR struct cmsghdr *__cmsg_nxthdr(FAR void *__ctl,
+                                                unsigned int __size,
+                                                FAR struct cmsghdr *__cmsg)
 {
   FAR struct cmsghdr *__ptr;
 
-  __ptr = (struct cmsghdr *)(((unsigned char *)__cmsg) + CMSG_ALIGN(__cmsg->cmsg_len));
-  if ((unsigned long)((char *)(__ptr + 1) - (char *)__ctl) > __size)
+  __ptr = (FAR struct cmsghdr *)
+    (((FAR char *)__cmsg) + CMSG_ALIGN(__cmsg->cmsg_len));
+  if ((unsigned long)((FAR char *)(__ptr + 1) - (FAR char *)__ctl) > __size)
     {
-      return (struct cmsghdr *)0;
+      return (FAR struct cmsghdr *)NULL;
     }
 
   return __ptr;
 }
 
-static inline struct cmsghdr *cmsg_nxthdr(FAR struct msghdr *__msg,
-                                          FAR struct cmsghdr *__cmsg)
+static inline FAR struct cmsghdr *cmsg_nxthdr(FAR struct msghdr *__msg,
+                                              FAR struct cmsghdr *__cmsg)
 {
   return __cmsg_nxthdr(__msg->msg_control, __msg->msg_controllen, __cmsg);
 }
@@ -353,11 +371,12 @@ extern "C"
 #endif
 
 int socket(int domain, int type, int protocol);
+int socketpair(int domain, int type, int protocol, int sv[2]);
 int bind(int sockfd, FAR const struct sockaddr *addr, socklen_t addrlen);
 int connect(int sockfd, FAR const struct sockaddr *addr, socklen_t addrlen);
 
 int listen(int sockfd, int backlog);
-int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+int accept(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen);
 
 ssize_t send(int sockfd, FAR const void *buf, size_t len, int flags);
 ssize_t sendto(int sockfd, FAR const void *buf, size_t len, int flags,

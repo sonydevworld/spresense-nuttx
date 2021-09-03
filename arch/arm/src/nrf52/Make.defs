@@ -33,64 +33,62 @@
 #
 ############################################################################
 
-HEAD_ASRC  =
+CMN_ASRCS  = arm_saveusercontext.S arm_fullcontextrestore.S arm_switchcontext.S
+CMN_ASRCS += arm_testset.S vfork.S
 
-CMN_ASRCS  = up_saveusercontext.S up_fullcontextrestore.S up_switchcontext.S
-CMN_ASRCS += up_testset.S vfork.S
+CMN_CSRCS  = arm_assert.c arm_blocktask.c arm_copyfullstate.c
+CMN_CSRCS += arm_createstack.c arm_doirq.c arm_exit.c arm_hardfault.c
+CMN_CSRCS += arm_initialize.c arm_initialstate.c arm_interruptcontext.c
+CMN_CSRCS += arm_memfault.c arm_modifyreg8.c arm_modifyreg16.c
+CMN_CSRCS += arm_modifyreg32.c arm_releasepending.c arm_releasestack.c
+CMN_CSRCS += arm_reprioritizertr.c arm_schedulesigaction.c arm_sigdeliver.c
+CMN_CSRCS += arm_stackframe.c arm_svcall.c arm_trigger_irq.c arm_udelay.c
+CMN_CSRCS += arm_unblocktask.c arm_usestack.c arm_vfork.c arm_systemreset.c
 
-ifeq ($(CONFIG_ARCH_SETJMP_H),y)
-ifeq ($(CONFIG_ARCH_TOOLCHAIN_GNU),y)
-CMN_ASRCS += up_setjmp.S
+ifeq ($(CONFIG_NRF52_SYSTIMER_SYSTICK),y)
+CMN_CSRCS += arm_systick.c nrf52_systick.c
+else
+ifeq ($(CONFIG_NRF52_SYSTIMER_RTC),y)
+CMN_CSRCS += nrf52_tickless_rtc.c arm_mdelay.c
 endif
 endif
-
-CMN_CSRCS  = up_assert.c up_blocktask.c up_copyfullstate.c
-CMN_CSRCS += up_createstack.c up_doirq.c up_exit.c up_hardfault.c
-CMN_CSRCS += up_initialize.c up_initialstate.c up_interruptcontext.c
-CMN_CSRCS += up_memfault.c up_mdelay.c up_modifyreg8.c up_modifyreg16.c
-CMN_CSRCS += up_modifyreg32.c up_releasepending.c up_releasestack.c
-CMN_CSRCS += up_reprioritizertr.c up_schedulesigaction.c up_sigdeliver.c
-CMN_CSRCS += up_stackframe.c up_svcall.c up_trigger_irq.c up_udelay.c
-CMN_CSRCS += up_unblocktask.c up_usestack.c up_vfork.c
 
 ifeq ($(CONFIG_ARMV7M_LAZYFPU),y)
-CMN_ASRCS += up_lazyexception.S
+CMN_ASRCS += arm_lazyexception.S
 else
-CMN_ASRCS += up_exception.S
+CMN_ASRCS += arm_exception.S
 endif
-CMN_CSRCS += up_vectors.c
+CMN_CSRCS += arm_vectors.c
 
 ifeq ($(CONFIG_ARCH_RAMVECTORS),y)
-CMN_CSRCS += up_ramvec_initialize.c up_ramvec_attach.c
+CMN_CSRCS += arm_ramvec_initialize.c arm_ramvec_attach.c
 endif
 
 ifeq ($(CONFIG_BUILD_PROTECTED),y)
-CMN_CSRCS += up_mpu.c up_task_start.c up_pthread_start.c
-CMN_CSRCS += up_signal_dispatch.c
-CMN_UASRCS += up_signal_handler.S
+CMN_CSRCS += arm_mpu.c arm_task_start.c arm_pthread_start.c
+CMN_CSRCS += arm_signal_dispatch.c
+CMN_UASRCS += arm_signal_handler.S
 endif
 
 ifeq ($(CONFIG_STACK_COLORATION),y)
-CMN_CSRCS += up_checkstack.c
+CMN_CSRCS += arm_checkstack.c
+endif
+
+ifeq ($(CONFIG_ARMV7M_STACKCHECK),y)
+CMN_CSRCS += arm_stackcheck.c
 endif
 
 ifeq ($(CONFIG_ARCH_FPU),y)
-CMN_ASRCS += up_fpu.S
-CMN_CSRCS += up_copyarmstate.c
+CMN_ASRCS += arm_fpu.S
+CMN_CSRCS += arm_copyarmstate.c
 endif
 
-CHIP_ASRCS  =
 CHIP_CSRCS  = nrf52_start.c nrf52_clockconfig.c nrf52_irq.c nrf52_utils.c
 CHIP_CSRCS += nrf52_allocateheap.c nrf52_lowputc.c nrf52_gpio.c nrf52_nvmc.c
+CHIP_CSRCS += nrf52_uid.c
 
-ifeq ($(CONFIG_ARCH_FAMILY_NRF52832),y)
+ifeq ($(CONFIG_ARCH_CHIP_NRF52832),y)
 CHIP_CSRCS += nrf52832_errdata.c
-endif
-
-ifneq ($(CONFIG_SCHED_TICKLESS),y)
-CHIP_CSRCS += nrf52_timerisr.c
-else
-CHIP_CSRCS += nrf52_tickless.c
 endif
 
 ifeq ($(CONFIG_BUILD_PROTECTED),y)
@@ -101,7 +99,11 @@ ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CHIP_CSRCS += nrf52_idle.c
 endif
 
-ifeq ($(CONFIG_NRF52_HAVE_UART),y)
+ifeq ($(CONFIG_NRF52_GPIOTE),y)
+CHIP_CSRCS += nrf52_gpiote.c
+endif
+
+ifeq ($(CONFIG_NRF52_UART),y)
 CHIP_CSRCS += nrf52_serial.c
 endif
 
@@ -111,9 +113,112 @@ endif
 
 ifeq ($(CONFIG_NRF52_WDT),y)
 CHIP_CSRCS += nrf52_wdt.c
+
+ifeq ($(CONFIG_WATCHDOG),y)
+CHIP_CSRCS += nrf52_wdt_lowerhalf.c
+endif
 endif
 
 ifeq ($(CONFIG_NRF52_RNG),y)
 CHIP_CSRCS += nrf52_rng.c
 endif
 
+ifeq ($(CONFIG_NRF52_SPI_MASTER),y)
+CHIP_CSRCS += nrf52_spi.c
+endif
+
+ifeq ($(CONFIG_NRF52_I2C_MASTER),y)
+CHIP_CSRCS += nrf52_i2c.c
+endif
+
+ifeq ($(CONFIG_I2C_BITBANG),y)
+CHIP_CSRCS += nrf52_i2c_bitbang.c
+endif
+
+ifeq ($(CONFIG_NRF52_PPI),y)
+CHIP_CSRCS += nrf52_ppi.c
+endif
+
+ifeq ($(CONFIG_NRF52_RADIO),y)
+CHIP_CSRCS += nrf52_radio.c
+endif
+
+ifeq ($(CONFIG_NRF52_TIMER),y)
+CHIP_CSRCS += nrf52_tim.c
+ifeq ($(CONFIG_TIMER),y)
+CHIP_CSRCS += nrf52_tim_lowerhalf.c
+endif
+endif
+
+ifeq ($(CONFIG_NRF52_RTC),y)
+CHIP_CSRCS += nrf52_rtc.c
+endif
+
+ifeq ($(CONFIG_NRF52_PWM),y)
+CHIP_CSRCS += nrf52_pwm.c
+endif
+
+ifeq ($(CONFIG_NRF52_SAADC),y)
+CHIP_CSRCS += nrf52_adc.c
+endif
+
+ifeq ($(CONFIG_PM),y)
+CHIP_CSRCS += nrf52_pminitialize.c
+endif
+
+ifeq ($(CONFIG_NRF52_SOFTDEVICE_CONTROLLER),y)
+
+NRFXLIB_UNPACK  := sdk-nrfxlib
+NRFXLIB_VER     := 1.4.2
+NRFXLIB_REF     := v$(NRFXLIB_VER)
+NRFXLIB_TGZ     := $(NRFXLIB_REF).tar.gz
+NRFXLIB_URL     := https://github.com/nrfconnect/sdk-nrfxlib/archive
+
+$(NRFXLIB_TGZ):
+	$(Q) echo "Downloading: NRFXLIB"
+	$(Q) curl -L $(NRFXLIB_URL)/$(NRFXLIB_TGZ) -o chip/$(NRFXLIB_TGZ)
+
+chip/$(NRFXLIB_UNPACK): $(NRFXLIB_TGZ)
+	$(Q) echo "Unpacking: NRXFLIB"
+	$(Q) cd chip && tar zxf $(NRFXLIB_TGZ)
+	$(Q) mv chip/$(NRFXLIB_UNPACK)-$(NRFXLIB_VER)* chip/$(NRFXLIB_UNPACK)
+	$(Q) touch chip/$(NRFXLIB_UNPACK)
+
+context:: chip/$(NRFXLIB_UNPACK)
+
+clean_context::
+	$(call DELFILE, chip/$(NRFXLIB_TGZ))
+	$(call DELDIR, chip/$(NRFXLIB_UNPACK))
+
+CHIP_CSRCS += nrf52_sdc.c
+
+NRFX_DIR = $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)nrfx
+NRFXLIB_DIR = $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)sdk-nrfxlib
+CMSIS_DIR = $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)CMSIS_5
+
+INCLUDES += \
+	$(shell $(INCDIR) "$(CC)" $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)sdc) \
+	$(shell $(INCDIR) "$(CC)" $(NRFXLIB_DIR)$(DELIM)mpsl$(DELIM)include) \
+	$(shell $(INCDIR) "$(CC)" $(NRFXLIB_DIR)$(DELIM)softdevice_controller$(DELIM)include)
+
+ifeq ($(CONFIG_ARCH_CHIP_NRF52832),y)
+	CFLAGS += -DNRF52832_XXAB
+else
+	ifeq ($(CONFIG_ARCH_CHIP_NRF52840),y)
+		CFLAGS += -DNRF52840_XXAB
+	endif
+endif
+
+ifeq ($(CONFIG_ARCH_FPU),y)
+	LIB_VARIANT=hard-float
+else
+	LIB_VARIANT=soft-float
+endif
+
+EXTRA_LIBPATHS += \
+	-L $(NRFXLIB_DIR)$(DELIM)mpsl$(DELIM)lib$(DELIM)cortex-m4$(DELIM)$(LIB_VARIANT) \
+	-L $(NRFXLIB_DIR)$(DELIM)softdevice_controller$(DELIM)lib$(DELIM)cortex-m4$(DELIM)$(LIB_VARIANT)
+
+EXTRA_LIBS += -lmpsl -lsoftdevice_controller_s$(CONFIG_NRF52_SDC_VERSION)
+
+endif

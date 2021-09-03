@@ -1,44 +1,29 @@
-/************************************************************************************
+/****************************************************************************
  * arch/arm/src/stm32/stm32_hrtim.h
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Author: Mateusz Szafoni <raiden00@railab.me>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_STM32_STM32_HRTIM_H
 #define __ARCH_ARM_SRC_STM32_STM32_HRTIM_H
 
-/************************************************************************************
+/****************************************************************************
  * Included Files
- ************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -55,9 +40,9 @@
 #  error
 #endif
 
-/************************************************************************************
+/****************************************************************************
  * Pre-processor definitions
- ************************************************************************************/
+ ****************************************************************************/
 
 #if defined(CONFIG_STM32_HRTIM_TIMA) || defined(CONFIG_STM32_HRTIM_TIMB) || \
     defined(CONFIG_STM32_HRTIM_TIMC) || defined(CONFIG_STM32_HRTIM_TIMD) || \
@@ -206,7 +191,7 @@
 
 #define HRTIM_CLOCK (HRTIM_MAIN_CLOCK*32ull)
 
-/* Helpers **************************************************************************/
+/* Helpers ******************************************************************/
 
 #define HRTIM_CMP_SET(hrtim, tim, index, cmp)               \
         (hrtim)->hd_ops->cmp_update(hrtim, tim, index, cmp)
@@ -256,31 +241,31 @@
 #define HRTIM_CPT_MAX 0xFFFF
 #define HRTIM_REP_MAX 0xFF
 
-/************************************************************************************
+/****************************************************************************
  * Public Types
- ************************************************************************************/
+ ****************************************************************************/
 
 /* HRTIM Timer X index */
 
 enum stm32_hrtim_tim_e
 {
-  HRTIM_TIMER_MASTER = (1<<0),
+  HRTIM_TIMER_MASTER = (1 << 0),
 #ifdef CONFIG_STM32_HRTIM_TIMA
-  HRTIM_TIMER_TIMA   = (1<<1),
+  HRTIM_TIMER_TIMA   = (1 << 1),
 #endif
 #ifdef CONFIG_STM32_HRTIM_TIMB
-  HRTIM_TIMER_TIMB   = (1<<2),
+  HRTIM_TIMER_TIMB   = (1 << 2),
 #endif
 #ifdef CONFIG_STM32_HRTIM_TIMC
-  HRTIM_TIMER_TIMC   = (1<<3),
+  HRTIM_TIMER_TIMC   = (1 << 3),
 #endif
 #ifdef CONFIG_STM32_HRTIM_TIMD
-  HRTIM_TIMER_TIMD   = (1<<4),
+  HRTIM_TIMER_TIMD   = (1 << 4),
 #endif
 #ifdef CONFIG_STM32_HRTIM_TIME
-  HRTIM_TIMER_TIME   = (1<<5),
+  HRTIM_TIMER_TIME   = (1 << 5),
 #endif
-  HRTIM_TIMER_COMMON = (1<<6),
+  HRTIM_TIMER_COMMON = (1 << 6),
 
   HRTIM_TIMERS_MASK = 0x3f
 };
@@ -369,52 +354,52 @@ enum stm32_hrtim_tim_rst_e
 {
   /* Timer owns events */
 
-  HRTIM_RST_UPDT      = (1<<1),
-  HRTIM_RST_CMP4      = (1<<2),
-  HRTIM_RST_CMP2      = (1<<3),
+  HRTIM_RST_UPDT      = (1 << 1),
+  HRTIM_RST_CMP4      = (1 << 2),
+  HRTIM_RST_CMP2      = (1 << 3),
 
   /* Master Timer Events */
 
-  HRTIM_RST_MSTPER    = (1<<4),
-  HRTIM_RST_MSTCMP1   = (1<<5),
-  HRTIM_RST_MSTCMP2   = (1<<6),
-  HRTIM_RST_MSTCMP3   = (1<<7),
-  HRTIM_RST_MSTCMP4   = (1<<8),
+  HRTIM_RST_MSTPER    = (1 << 4),
+  HRTIM_RST_MSTCMP1   = (1 << 5),
+  HRTIM_RST_MSTCMP2   = (1 << 6),
+  HRTIM_RST_MSTCMP3   = (1 << 7),
+  HRTIM_RST_MSTCMP4   = (1 << 8),
 
   /* External Events */
 
-  HRTIM_RST_EXTEVNT1  = (1<<9),
-  HRTIM_RST_EXTEVNT2  = (1<<10),
-  HRTIM_RST_EXTEVNT3  = (1<<11),
-  HRTIM_RST_EXTEVNT4  = (1<<12),
-  HRTIM_RST_EXTEVNT5  = (1<<13),
-  HRTIM_RST_EXTEVNT6  = (1<<14),
-  HRTIM_RST_EXTEVNT7  = (1<<15),
-  HRTIM_RST_EXTEVNT8  = (1<<16),
-  HRTIM_RST_EXTEVNT9  = (1<<17),
-  HRTIM_RST_EXTEVNT10 = (1<<18),
+  HRTIM_RST_EXTEVNT1  = (1 << 9),
+  HRTIM_RST_EXTEVNT2  = (1 << 10),
+  HRTIM_RST_EXTEVNT3  = (1 << 11),
+  HRTIM_RST_EXTEVNT4  = (1 << 12),
+  HRTIM_RST_EXTEVNT5  = (1 << 13),
+  HRTIM_RST_EXTEVNT6  = (1 << 14),
+  HRTIM_RST_EXTEVNT7  = (1 << 15),
+  HRTIM_RST_EXTEVNT8  = (1 << 16),
+  HRTIM_RST_EXTEVNT9  = (1 << 17),
+  HRTIM_RST_EXTEVNT10 = (1 << 18),
 
   /* TimerX events */
 
-  HRTIM_RST_TACMP1    = (1<<19),
-  HRTIM_RST_TACMP2    = (1<<20),
-  HRTIM_RST_TACMP4    = (1<<21),
-  HRTIM_RST_TBCMP1    = (1<<22),
-  HRTIM_RST_TBCMP2    = (1<<23),
-  HRTIM_RST_TBCMP4    = (1<<24),
-  HRTIM_RST_TCCMP1    = (1<<25),
-  HRTIM_RST_TCCMP2    = (1<<26),
-  HRTIM_RST_TCCMP4    = (1<<27),
-  HRTIM_RST_TDCMP1    = (1<<28),
-  HRTIM_RST_TDCMP2    = (1<<29),
-  HRTIM_RST_TDCMP4    = (1<<30),
-  HRTIM_RST_TECMP1    = (1<<31),
+  HRTIM_RST_TACMP1    = (1 << 19),
+  HRTIM_RST_TACMP2    = (1 << 20),
+  HRTIM_RST_TACMP4    = (1 << 21),
+  HRTIM_RST_TBCMP1    = (1 << 22),
+  HRTIM_RST_TBCMP2    = (1 << 23),
+  HRTIM_RST_TBCMP4    = (1 << 24),
+  HRTIM_RST_TCCMP1    = (1 << 25),
+  HRTIM_RST_TCCMP2    = (1 << 26),
+  HRTIM_RST_TCCMP4    = (1 << 27),
+  HRTIM_RST_TDCMP1    = (1 << 28),
+  HRTIM_RST_TDCMP2    = (1 << 29),
+  HRTIM_RST_TDCMP4    = (1 << 30),
+  HRTIM_RST_TECMP1    = (1 << 31),
 };
 
 /* This definitions does not fit to the above 32 bit enum */
 
-#define HRTIM_RST_TECMP2 (1ull<<32)
-#define HRTIM_RST_TECMP4 (1ull<<33)
+#define HRTIM_RST_TECMP2 (1ull << 32)
+#define HRTIM_RST_TECMP4 (1ull << 33)
 
 /* HRTIM Timer X prescaler */
 
@@ -877,15 +862,15 @@ enum stm32_hrtim_dma_e
   HRTIM_DMA_CMP4   = (1 << 3),  /* Common:Compare 4 DMA request */
   HRTIM_DMA_REP    = (1 << 4),  /* Common: Repetition DMA request */
   HRTIM_DMA_SYNC   = (1 << 5),  /* Master: Sync Input DMA request */
-  HRTIM_DMA_UPD    = (1 << 6),  /* Common: Update DMA reques */
-  HRTIM_DMA_CPT1   = (1 << 7),  /* Slaves: Capture 1 DMA reques */
-  HRTIM_DMA_CPT2   = (1 << 8),  /* Slaves: Capture 2 DMA reques */
-  HRTIM_DMA_SET1   = (1 << 9),  /* Slaves: Output 1 Set DMA reques */
-  HRTIM_DMA_RST1   = (1 << 10), /* Slaves: Output 1 Reset DMA reques */
-  HRTIM_DMA_SET2   = (1 << 11), /* Slaves: Output 2 Set DMA reques */
-  HRTIM_DMA_RST2   = (1 << 12), /* Slaves: Output 2 Reset DMA reques */
-  HRTIM_DMA_RST    = (1 << 13), /* Slaves: Reset DMA reques */
-  HRTIM_DMA_DLYPRT = (1 << 14)  /* Slaves: Delayed Protection DMA reques */
+  HRTIM_DMA_UPD    = (1 << 6),  /* Common: Update DMA request */
+  HRTIM_DMA_CPT1   = (1 << 7),  /* Slaves: Capture 1 DMA request */
+  HRTIM_DMA_CPT2   = (1 << 8),  /* Slaves: Capture 2 DMA request */
+  HRTIM_DMA_SET1   = (1 << 9),  /* Slaves: Output 1 Set DMA request */
+  HRTIM_DMA_RST1   = (1 << 10), /* Slaves: Output 1 Reset DMA request */
+  HRTIM_DMA_SET2   = (1 << 11), /* Slaves: Output 2 Set DMA request */
+  HRTIM_DMA_RST2   = (1 << 12), /* Slaves: Output 2 Reset DMA request */
+  HRTIM_DMA_RST    = (1 << 13), /* Slaves: Reset DMA request */
+  HRTIM_DMA_DLYPRT = (1 << 14)  /* Slaves: Delayed Protection DMA request */
 };
 
 /* HRTIM Output IDLE state */
@@ -973,6 +958,7 @@ enum stm32_hrtim_burst_triggers_e
 };
 
 /* HRTIM Capture triggers */
+
 enum stm32_hrtim_capture_index_e
 {
   HRTIM_CAPTURE1 = 0,
@@ -1024,8 +1010,10 @@ struct stm32_hrtim_ops_s
 {
   int      (*cmp_update)(FAR struct hrtim_dev_s *dev, uint8_t timer,
                          uint8_t index, uint16_t cmp);
-  int      (*per_update)(FAR struct hrtim_dev_s *dev, uint8_t timer, uint16_t per);
-  int      (*rep_update)(FAR struct hrtim_dev_s *dev, uint8_t timer, uint8_t rep);
+  int      (*per_update)(FAR struct hrtim_dev_s *dev,
+                         uint8_t timer, uint16_t per);
+  int      (*rep_update)(FAR struct hrtim_dev_s *dev,
+                         uint8_t timer, uint8_t rep);
   uint16_t (*per_get)(FAR struct hrtim_dev_s *dev, uint8_t timer);
   uint16_t (*cmp_get)(FAR struct hrtim_dev_s *dev, uint8_t timer,
                       uint8_t index);
@@ -1038,7 +1026,8 @@ struct stm32_hrtim_ops_s
                          bool state);
 
 #ifdef CONFIG_STM32_HRTIM_INTERRUPTS
-  int      (*irq_ack)(FAR struct hrtim_dev_s *dev, uint8_t timer, int source);
+  int      (*irq_ack)(FAR struct hrtim_dev_s *dev,
+                      uint8_t timer, int source);
   uint16_t (*irq_get)(FAR struct hrtim_dev_s *dev, uint8_t timer);
 #endif
 #ifdef CONFIG_STM32_HRTIM_PWM
@@ -1095,9 +1084,9 @@ struct hrtim_dev_s
   bool initialized;                           /* true: HRTIM driver has been initialized */
 };
 
-/************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ASSEMBLY__
 #ifdef __cplusplus

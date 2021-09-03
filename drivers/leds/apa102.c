@@ -1,42 +1,28 @@
 /****************************************************************************
- * drivers/sensors/apa102.c
- * Character driver to control LED strips with APA102.
+ * drivers/leds/apa102.c
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
- *   Copyright (C) 2017 Alan Carvalho de Assis
- *   Author: Alan Carvalho de Assis <acassis@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/* Character driver to control LED strips with APA102.
  *
  * More info:
  * https://cpldcpu.com/2014/11/30/understanding-the-apa102-superled/
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ****************************************************************************/
+ */
 
 /****************************************************************************
  * Included Files
@@ -139,6 +125,7 @@ static inline void apa102_write32(FAR struct apa102_dev_s *priv,
   apa102_configspi(priv->spi);
 
   /* Note: APA102 doesn't use chip select */
+
   /* Send 32 bits (4 bytes) */
 
   SPI_SEND(priv->spi, (value & 0xff));
@@ -168,7 +155,7 @@ static int apa102_open(FAR struct file *filep)
  * Name: apa102_close
  *
  * Description:
- *   This routine is called when the LM-75 device is closed.
+ *   This routine is called when the APA102 device is closed.
  *
  ****************************************************************************/
 
@@ -181,7 +168,8 @@ static int apa102_close(FAR struct file *filep)
  * Name: apa102_read
  ****************************************************************************/
 
-static ssize_t apa102_read(FAR struct file *filep, FAR char *buffer, size_t buflen)
+static ssize_t apa102_read(FAR struct file *filep, FAR char *buffer,
+                          size_t buflen)
 {
   return -ENOSYS;
 }
@@ -217,7 +205,8 @@ static ssize_t apa102_write(FAR struct file *filep, FAR const char *buffer,
 
   if ((buflen % 4) != 0)
     {
-      snerr("ERROR: Each LED uses 4 bytes, so (buflen % 4) needs to be 0!\n");
+      snerr("ERROR: Each LED uses 4 bytes, so (buflen % 4)"
+            " needs to be 0!\n");
       return -1;
     }
 
@@ -240,7 +229,7 @@ static ssize_t apa102_write(FAR struct file *filep, FAR const char *buffer,
 
   apa102_write32(priv, APA102_END_FRAME);
 
-  for (i = 0; i < (1 + nleds/32); i++)
+  for (i = 0; i < (1 + nleds / 32); i++)
     {
       apa102_write32(priv, 0);
     }
@@ -262,11 +251,8 @@ static ssize_t apa102_write(FAR struct file *filep, FAR const char *buffer,
  *
  * Input Parameters:
  *   devpath - The full path to the driver to register. E.g., "/dev/temp0"
- *   i2c     - An instance of the I2C interface to use to communicate with
+ *   spi     - An instance of the SPI interface to use to communicate with
  *             APA102
- *   addr    - The I2C address of the LM-75.  The base I2C address of the
- *             APA102 is 0x48.  Bits 0-3 can be controlled to get 8 unique
- *             addresses from 0x48 through 0x4f.
  *
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.

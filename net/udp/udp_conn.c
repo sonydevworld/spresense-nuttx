@@ -54,6 +54,7 @@
 
 #include <arch/irq.h>
 
+#include <nuttx/clock.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/net/netconfig.h>
 #include <nuttx/net/net.h>
@@ -89,10 +90,6 @@ static sem_t g_free_sem;
 /* A list of all allocated UDP connections */
 
 static dq_queue_t g_active_udp_connections;
-
-/* Last port used by a UDP connection connection. */
-
-static uint16_t g_last_udp_port;
 
 /****************************************************************************
  * Private Functions
@@ -197,13 +194,27 @@ static FAR struct udp_conn_s *udp_find_conn(uint8_t domain,
 
 static uint16_t udp_select_port(uint8_t domain, FAR union ip_binding_u *u)
 {
+  static uint16_t g_last_udp_port;
   uint16_t portno;
+
+  net_lock();
+
+  /* Generate port base dynamically */
+
+  if (g_last_udp_port == 0)
+    {
+      g_last_udp_port = clock_systime_ticks() % 32000;
+
+      if (g_last_udp_port < 4096)
+        {
+          g_last_udp_port += 4096;
+        }
+    }
 
   /* Find an unused local port number.  Loop until we find a valid
    * listen port number that is not being used by any other connection.
    */
 
-  net_lock();
   do
     {
       /* Guess that the next available port number will be the one after
@@ -542,8 +553,6 @@ void udp_initialize(void)
       g_udp_connections[i].lport = 0;
       dq_addlast(&g_udp_connections[i].node, &g_free_udp_connections);
     }
-
-  g_last_udp_port = 1024;
 }
 
 /****************************************************************************
@@ -617,11 +626,9 @@ void udp_free(FAR struct udp_conn_s *conn)
 
   dq_rem(&conn->node, &g_active_udp_connections);
 
-#ifdef CONFIG_NET_UDP_READAHEAD
   /* Release any read-ahead buffers attached to the connection */
 
   iob_free_queue(&conn->readahead, IOBUSER_NET_UDP_READAHEAD);
-#endif
 
 #ifdef CONFIG_NET_UDP_WRITE_BUFFERS
   /* Release any write buffers attached to the connection */
@@ -771,7 +778,9 @@ int udp_bind(FAR struct udp_conn_s *conn, FAR const struct sockaddr *addr)
 
       net_lock();
 
-      /* Is any other UDP connection already bound to this address and port? */
+      /* Is any other UDP connection already bound to this address
+       * and port ?
+       */
 
       if (udp_find_conn(conn->domain, &conn->u, portno) == NULL)
         {

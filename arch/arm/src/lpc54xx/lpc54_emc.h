@@ -82,7 +82,7 @@ enum emc_dynamic_read_e
 {
   EMC_NODELAY = 0,     /* No delay */
   EMC_CMDDELAY,        /* Command delayed strategy, using EMCCLKDELAY */
-  EMC_CMDDELAYPLUS1,   /* Command delayed strategy pluse one clock cycle
+  EMC_CMDDELAYPLUS1,   /* Command delayed strategy pulse one clock cycle
                         * using EMCCLKDELAY */
   EMC_CMDDELAYPLUS2,   /* Command delayed strategy pulse two clock cycle
                         * using EMCCLKDELAY */
@@ -181,8 +181,8 @@ struct emc_static_chip_config_s
                           * nanoseconds */
 };
 
-/***************************************************************************
- * Public Functions
+/****************************************************************************
+ * Public Functions Prototypes
  ****************************************************************************/
 
 /****************************************************************************
@@ -204,8 +204,8 @@ void lpc54_emc_initialize(FAR const struct emc_config_s *config);
  *
  * Description:
  *   This function initializes the dynamic memory controller in external
- *   memory controller. This function must be called after lpc54_emc_initialize
- *   and before accessing the external dynamic memory.
+ *   memory controller. This function must be called after
+ *   lpc54_emc_initialize and before accessing the external dynamic memory.
  *
  * Input Parameters:
  *   timing   - The timing and latency for dynamica memory controller
@@ -221,9 +221,10 @@ void lpc54_emc_initialize(FAR const struct emc_config_s *config);
  ****************************************************************************/
 
 #ifdef CONFIG_LPC54_EMC_DYNAMIC
-void lpc54_emc_sdram_initialize(FAR const struct emc_dynamic_timing_config_s *timing,
-                                FAR const struct emc_dynamic_chip_config_s *chconfig,
-                                unsigned int nchips);
+void lpc54_emc_sdram_initialize(
+                       FAR const struct emc_dynamic_timing_config_s *timing,
+                       FAR const struct emc_dynamic_chip_config_s *chconfig,
+                       unsigned int nchips);
 #endif /* CONFIG_LPC54_EMC_DYNAMIC */
 
 /****************************************************************************
@@ -231,8 +232,8 @@ void lpc54_emc_sdram_initialize(FAR const struct emc_dynamic_timing_config_s *ti
  *
  * Description:
  *   This function initializes the static memory controller in external
- *   memory controller. This function must be called after lpc54_emc_initialize
- *   and before accessing the external dynamic memory.
+ *   memory controller. This function must be called after
+ *   lpc54_emc_initialize and before accessing the external dynamic memory.
  *
  * Input Parameters:
  *   extwait    - The extended wait timeout or the read/write transfer time.
@@ -247,8 +248,8 @@ void lpc54_emc_sdram_initialize(FAR const struct emc_dynamic_timing_config_s *ti
 
 #ifdef CONFIG_LPC54_EMC_STATIC
 void lpc54_emc_sram_initialize(FAR uint32_t *extwait,
-                               FAR const struct emc_static_chip_config_s *statconfig,
-                               uint32_t nchips);
+                       FAR const struct emc_static_chip_config_s *statconfig,
+                       uint32_t nchips);
 #endif /* CONFIG_LPC54_EMC_STATIC */
 
 #endif /* CONFIG_LPC54_EMC */

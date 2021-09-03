@@ -1,35 +1,20 @@
 /****************************************************************************
  * arch/arm/src/sama5/sam_flexcom_serial.c
  *
- *   Copyright (C) 2015 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -58,8 +43,8 @@
 
 #include <arch/board/board.h>
 
-#include "up_arch.h"
-#include "up_internal.h"
+#include "arm_arch.h"
+#include "arm_internal.h"
 
 #include "chip.h"
 #include "hardware/sam_flexcom.h"
@@ -384,7 +369,7 @@ static uart_dev_t g_flexus2port =
   {
     .size   = CONFIG_USART2_TXBUFSIZE,
     .buffer = g_flexus2txbuffer,
-   },
+  },
   .ops      = &g_flexus_ops,
   .priv     = &g_flexus2priv,
 };
@@ -417,7 +402,7 @@ static uart_dev_t g_flexus3port =
   {
     .size   = CONFIG_USART3_TXBUFSIZE,
     .buffer = g_flexus3txbuffer,
-   },
+  },
   .ops      = &g_flexus_ops,
   .priv     = &g_flexus3priv,
 };
@@ -450,7 +435,7 @@ static uart_dev_t g_flexus4port =
   {
     .size   = CONFIG_USART4_TXBUFSIZE,
     .buffer = g_flexus4txbuffer,
-   },
+  },
   .ops      = &g_flexus_ops,
   .priv     = &g_flexus4priv,
 };
@@ -486,7 +471,9 @@ static inline void flexus_serialout(struct flexus_dev_s *priv, int offset,
 static inline void flexus_restoreusartint(struct flexus_dev_s *priv,
                                           uint32_t imr)
 {
-  /* Restore the previous interrupt state (assuming all interrupts disabled) */
+  /* Restore the previous interrupt state (assuming all interrupts
+   * disabled)
+   */
 
   flexus_serialout(priv, SAM_FLEXUS_IER_OFFSET, imr);
 }
@@ -547,14 +534,16 @@ static int flexus_interrupt(int irq, void *context, FAR void *arg)
     {
       handled = false;
 
-      /* Get the UART/USART status (we are only interested in the unmasked interrupts). */
+      /* Get the UART/USART status (we are only interested in the unmasked
+       * interrupts).
+       */
 
       priv->sr = flexus_serialin(priv, SAM_FLEXUS_CSR_OFFSET); /* Save for error reporting */
       imr      = flexus_serialin(priv, SAM_FLEXUS_IMR_OFFSET); /* Interrupt mask */
       pending  = priv->sr & imr;                               /* Mask out disabled interrupt sources */
 
-      /* Handle an incoming, receive byte.  RXRDY: At least one complete character
-       * has been received and US_RHR has not yet been read.
+      /* Handle an incoming, receive byte.  RXRDY: At least one complete
+       * character has been received and US_RHR has not yet been read.
        */
 
       if ((pending & FLEXUS_INT_RXRDY) != 0)
@@ -605,17 +594,18 @@ static int flexus_setup(struct uart_dev_s *dev)
   flexus_shutdown(dev);
 
 #if defined(CONFIG_SERIAL_IFLOWCONTROL) || defined(CONFIG_SERIAL_OFLOWCONTROL)
-  /* "Setting the USART to operate with hardware handshaking is performed by
-   *  writing the USART_MODE field in the Mode Register (US_MR) to the value
-   *  0x2. ... Using this mode requires using the PDC or DMAC channel for
-   *  reception. The transmitter can handle hardware handshaking in any case."
+  /* Setting the USART to operate with hardware handshaking is performed by
+   * writing the USART_MODE field in the Mode Register (US_MR) to the value
+   * 0x2. ... Using this mode requires using the PDC or DMAC channel for
+   * reception. The transmitter can handle hardware handshaking in any case.
    */
 
   if (priv->flowc)
     {
       /* Enable hardware flow control and MCK as the timing source */
 
-      regval = (FLEXUS_MR_MODE_HWHS | SAM_MR_USCLKS | FLEXUS_MR_CHMODE_NORMAL);
+      regval = (FLEXUS_MR_MODE_HWHS | SAM_MR_USCLKS |
+                FLEXUS_MR_CHMODE_NORMAL);
     }
   else
 #endif
@@ -624,7 +614,8 @@ static int flexus_setup(struct uart_dev_s *dev)
        * as the timing source
        */
 
-      regval = (FLEXUS_MR_MODE_NORMAL | SAM_MR_USCLKS | FLEXUS_MR_CHMODE_NORMAL);
+      regval = (FLEXUS_MR_MODE_NORMAL | SAM_MR_USCLKS |
+                FLEXUS_MR_CHMODE_NORMAL);
     }
 
   /* OR in settings for the selected number of bits */
@@ -689,7 +680,8 @@ static int flexus_setup(struct uart_dev_s *dev)
 
   /* Enable receiver & transmitter */
 
-  flexus_serialout(priv, SAM_FLEXUS_CR_OFFSET, (FLEXUS_CR_RXEN | FLEXUS_CR_TXEN));
+  flexus_serialout(priv, SAM_FLEXUS_CR_OFFSET,
+                   FLEXUS_CR_RXEN | FLEXUS_CR_TXEN);
 #endif
   return OK;
 }
@@ -722,14 +714,15 @@ static void flexus_shutdown(struct uart_dev_s *dev)
  * Name: flexus_attach
  *
  * Description:
- *   Configure the USART to operation in interrupt driven mode.  This method is
- *   called when the serial port is opened.  Normally, this is just after the
+ *   Configure the USART to operation in interrupt driven mode.  This method
+ *   is called when the serial port is opened.  Normally, this is just after
  *   the setup() method is called, however, the serial console may operate in
  *   a non-interrupt driven mode during the boot phase.
  *
- *   RX and TX interrupts are not enabled when by the attach method (unless the
- *   hardware supports multiple levels of interrupt enabling).  The RX and TX
- *   interrupts are not enabled until the txint() and rxint() methods are called.
+ *   RX and TX interrupts are not enabled when by the attach method (unless
+ *   the hardware supports multiple levels of interrupt enabling).  The RX
+ *   and TX interrupts are not enabled until the txint() and rxint() methods
+ *   are called.
  *
  ****************************************************************************/
 
@@ -758,7 +751,7 @@ static int flexus_attach(struct uart_dev_s *dev)
  *
  * Description:
  *   Detach USART interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception
+ *   closed normally just before the shutdown method is called. The exception
  *   is the serial console which is never shutdown.
  *
  ****************************************************************************/
@@ -816,10 +809,6 @@ static int flexus_ioctl(struct file *filep, int cmd, unsigned long arg)
             break;
           }
 
-        /* Return baud */
-
-        cfsetispeed(termiosp, priv->baud);
-
         /* Return parity */
 
         termiosp->c_cflag = ((priv->parity != 0) ? PARENB : 0) |
@@ -834,6 +823,10 @@ static int flexus_ioctl(struct file *filep, int cmd, unsigned long arg)
 #if defined(CONFIG_SERIAL_IFLOWCONTROL) || defined(CONFIG_SERIAL_OFLOWCONTROL)
         termiosp->c_cflag |= (priv->flowc) ? (CCTS_OFLOW | CRTS_IFLOW): 0;
 #endif
+        /* Return baud */
+
+        cfsetispeed(termiosp, priv->baud);
+
         /* Return number of bits */
 
         switch (priv->bits)
@@ -856,7 +849,7 @@ static int flexus_ioctl(struct file *filep, int cmd, unsigned long arg)
             break;
 
           case 9:
-            termiosp->c_cflag |= CS8 /* CS9 */;
+            termiosp->c_cflag |= CS8; /* CS9 */
             break;
           }
       }
@@ -1009,8 +1002,8 @@ static void flexus_rxint(struct uart_dev_s *dev, bool enable)
 
   if (enable)
     {
-      /* Receive an interrupt when their is anything in the Rx data register (or an Rx
-       * timeout occurs).
+      /* Receive an interrupt when their is anything in the Rx data register
+       * (or an Rx timeout occurs).
        */
 
 #ifndef CONFIG_SUPPRESS_SERIAL_INTS
@@ -1034,7 +1027,8 @@ static void flexus_rxint(struct uart_dev_s *dev, bool enable)
 static bool flexus_rxavailable(struct uart_dev_s *dev)
 {
   struct flexus_dev_s *priv = (struct flexus_dev_s *)dev->priv;
-  return ((flexus_serialin(priv, SAM_FLEXUS_CSR_OFFSET) & FLEXUS_INT_RXRDY) != 0);
+  uint32_t value = flexus_serialin(priv, SAM_FLEXUS_CSR_OFFSET);
+  return (value & FLEXUS_INT_RXRDY) != 0;
 }
 
 /****************************************************************************
@@ -1103,7 +1097,8 @@ static void flexus_txint(struct uart_dev_s *dev, bool enable)
 static bool flexus_txready(struct uart_dev_s *dev)
 {
   struct flexus_dev_s *priv = (struct flexus_dev_s *)dev->priv;
-  return ((flexus_serialin(priv, SAM_FLEXUS_CSR_OFFSET) & FLEXUS_INT_TXRDY) != 0);
+  uint32_t value = flexus_serialin(priv, SAM_FLEXUS_CSR_OFFSET);
+  return (value & FLEXUS_INT_TXRDY) != 0;
 }
 
 /****************************************************************************
@@ -1117,12 +1112,15 @@ static bool flexus_txready(struct uart_dev_s *dev)
 static bool flexus_txempty(struct uart_dev_s *dev)
 {
   struct flexus_dev_s *priv = (struct flexus_dev_s *)dev->priv;
-  return ((flexus_serialin(priv, SAM_FLEXUS_CSR_OFFSET) & FLEXUS_INT_TXEMPTY) != 0);
+  uint32_t value = flexus_serialin(priv, SAM_FLEXUS_CSR_OFFSET);
+  return (value & FLEXUS_INT_TXEMPTY) != 0;
 }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+#ifdef USE_EARLYSERIALINIT
 
 /****************************************************************************
  * Name: flexus_earlyserialinit
@@ -1145,7 +1143,8 @@ void flexus_earlyserialinit(void)
 #ifdef TTYFC0_DEV
   /* Select USART mode for the Flexcom */
 
-  flexus_serialout(TTYFC0_DEV.priv, SAM_FLEX_MR_OFFSET, FLEX_MR_OPMODE_USART);
+  flexus_serialout(TTYFC0_DEV.priv,
+                   SAM_FLEX_MR_OFFSET, FLEX_MR_OPMODE_USART);
 
   /* Disable the USART */
 
@@ -1154,7 +1153,8 @@ void flexus_earlyserialinit(void)
 #ifdef TTYFC1_DEV
   /* Select USART mode for the Flexcom */
 
-  flexus_serialout(TTYFC1_DEV.priv, SAM_FLEX_MR_OFFSET, FLEX_MR_OPMODE_USART);
+  flexus_serialout(TTYFC1_DEV.priv,
+                   SAM_FLEX_MR_OFFSET, FLEX_MR_OPMODE_USART);
 
   /* Disable the USART */
 
@@ -1163,7 +1163,8 @@ void flexus_earlyserialinit(void)
 #ifdef TTYFC2_DEV
   /* Select USART mode for the Flexcom */
 
-  flexus_serialout(TTYFC2_DEV.priv, SAM_FLEX_MR_OFFSET, FLEX_MR_OPMODE_USART);
+  flexus_serialout(TTYFC2_DEV.priv,
+                   SAM_FLEX_MR_OFFSET, FLEX_MR_OPMODE_USART);
 
   /* Disable the USART */
 
@@ -1172,7 +1173,8 @@ void flexus_earlyserialinit(void)
 #ifdef TTYFC3_DEV
   /* Select USART mode for the Flexcom */
 
-  flexus_serialout(TTYFC3_DEV.priv, SAM_FLEX_MR_OFFSET, FLEX_MR_OPMODE_USART);
+  flexus_serialout(TTYFC3_DEV.priv,
+                   SAM_FLEX_MR_OFFSET, FLEX_MR_OPMODE_USART);
 
   /* Disable the USART */
 
@@ -1181,7 +1183,8 @@ void flexus_earlyserialinit(void)
 #ifdef TTYFC4_DEV
   /* Select USART mode for the Flexcom */
 
-  flexus_serialout(TTYFC4_DEV.priv, SAM_FLEX_MR_OFFSET, FLEX_MR_OPMODE_USART);
+  flexus_serialout(TTYFC4_DEV.priv,
+                   SAM_FLEX_MR_OFFSET, FLEX_MR_OPMODE_USART);
 
   /* Disable the USART */
 
@@ -1195,6 +1198,7 @@ void flexus_earlyserialinit(void)
   flexus_setup(&CONSOLE_DEV);
 #endif
 }
+#endif
 
 /****************************************************************************
  * Name: flexus_serialinit

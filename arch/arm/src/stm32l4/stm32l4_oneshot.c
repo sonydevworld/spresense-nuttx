@@ -277,7 +277,8 @@ int stm32l4_oneshot_start(FAR struct stm32l4_oneshot_s *oneshot,
   irqstate_t flags;
 
   tmrinfo("handler=%p arg=%p, ts=(%lu, %lu)\n",
-         handler, arg, (unsigned long)ts->tv_sec, (unsigned long)ts->tv_nsec);
+         handler, arg, (unsigned long)ts->tv_sec,
+          (unsigned long)ts->tv_nsec);
   DEBUGASSERT(oneshot && handler && ts);
   DEBUGASSERT(oneshot->tch);
 
@@ -313,6 +314,7 @@ int stm32l4_oneshot_start(FAR struct stm32l4_oneshot_s *oneshot,
   period = (usec * (uint64_t)oneshot->frequency) / USEC_PER_SEC;
 
   tmrinfo("usec=%llu period=%08llx\n", usec, period);
+  DEBUGASSERT(period > 0);
   DEBUGASSERT(period <= UINT32_MAX);
 
   /* Set up to receive the callback when the interrupt occurs */
@@ -445,7 +447,7 @@ int stm32l4_oneshot_cancel(FAR struct stm32l4_oneshot_s *oneshot,
         }
       else
         {
-          /* The total time remaining is the difference.  Convert the that
+          /* The total time remaining is the difference.  Convert that
            * to units of microseconds.
            *
            *   frequency = ticks / second

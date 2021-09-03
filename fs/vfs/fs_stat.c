@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/vfs/fs_stat.c
  *
- *   Copyright (C) 2007-2009, 2012, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -46,6 +31,8 @@
 #include <errno.h>
 
 #include "inode/inode.h"
+#include <nuttx/mtd/mtd.h>
+#include <nuttx/fs/ioctl.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -70,31 +57,18 @@
  * Private Function Prototypes
  ****************************************************************************/
 
-static inline int statroot(FAR struct stat *buf);
-int stat_recursive(FAR const char *path, FAR struct stat *buf);
+static int stat_recursive(FAR const char *path,
+                          FAR struct stat *buf, int resolve);
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: statroot
- ****************************************************************************/
-
-static inline int statroot(FAR struct stat *buf)
-{
-  /* There is no inode associated with the fake root directory */
-
-  RESET_BUF(buf);
-  buf->st_mode = S_IFDIR | S_IROTH | S_IRGRP | S_IRUSR;
-  return OK;
-}
-
-/****************************************************************************
  * Name: stat_recursive
  *
  * Returned Value:
- *   Zero on success; -1 on failure with errno set:
+ *   Zero on success; < 0 on failure:
  *
  *   EACCES  Search permission is denied for one of the directories in the
  *           path prefix of path.
@@ -106,7 +80,8 @@ static inline int statroot(FAR struct stat *buf)
  *
  ****************************************************************************/
 
-int stat_recursive(FAR const char *path, FAR struct stat *buf)
+static int stat_recursive(FAR const char *path,
+                          FAR struct stat *buf, int resolve)
 {
   struct inode_search_s desc;
   FAR struct inode *inode;
@@ -123,7 +98,6 @@ int stat_recursive(FAR const char *path, FAR struct stat *buf)
        * there is no mountpoint that includes in this path.
        */
 
-      ret = -ret;
       goto errout_with_search;
     }
 
@@ -157,37 +131,57 @@ int stat_recursive(FAR const char *path, FAR struct stat *buf)
        * recurse if soft links are supported in the pseudo file system.
        */
 
-      ret = inode_stat(inode, buf);
+      ret = inode_stat(inode, buf, resolve);
     }
 
-  /* Check if the stat operation was successful */
-
-  if (ret < 0)
-    {
-      ret = -ret;
-      goto errout_with_inode;
-    }
-
-  /* Successfully stat'ed the file */
-
   inode_release(inode);
-  RELEASE_SEARCH(&desc);
-  return OK;
-
-  /* Failure conditions always set the errno appropriately */
-
-errout_with_inode:
-  inode_release(inode);
-
 errout_with_search:
   RELEASE_SEARCH(&desc);
-  set_errno(ret);
-  return ERROR;
+  return ret;
 }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: nx_stat
+ *
+ * Description:
+ *   nx_stat() is similar to the standard 'stat' interface except that is
+ *   not a cancellation point and it does not modify the errno variable.
+ *
+ *   nx_stat() is an internal NuttX interface and should not be called from
+ *   applications.
+ *
+ * Returned Value:
+ *   Zero is returned on success; a negated value is returned on any failure.
+ *
+ ****************************************************************************/
+
+int nx_stat(FAR const char *path, FAR struct stat *buf, int resolve)
+{
+  /* Sanity checks */
+
+  if (path == NULL  || buf == NULL)
+    {
+      return -EFAULT;
+    }
+
+  if (*path == '\0')
+    {
+      return -ENOENT;
+    }
+
+  /* The perform the stat() operation on the path.  This is potentially
+   * recursive if soft link support is enabled.
+   */
+
+#ifdef CONFIG_PSEUDOFS_SOFTLINKS
+  buf->st_count = 0;
+#endif
+  return stat_recursive(path, buf, resolve);
+}
 
 /****************************************************************************
  * Name: stat
@@ -209,39 +203,28 @@ int stat(FAR const char *path, FAR struct stat *buf)
 {
   int ret;
 
-  /* Sanity checks */
-
-  if (path == NULL  || buf == NULL)
+  ret = nx_stat(path, buf, 1);
+  if (ret < 0)
     {
-      ret = EFAULT;
-      goto errout;
+      set_errno(-ret);
+      ret = ERROR;
     }
 
-  if (*path == '\0')
+  return ret;
+}
+
+int lstat(FAR const char *path, FAR struct stat *buf)
+{
+  int ret;
+
+  ret = nx_stat(path, buf, 0);
+  if (ret < 0)
     {
-      ret = ENOENT;
-      goto errout;
+      set_errno(-ret);
+      ret = ERROR;
     }
 
-  /* Check for the fake root directory (which has no inode) */
-
-  if (strcmp(path, "/") == 0)
-    {
-      return statroot(buf);
-    }
-
-  /* The perform the stat() operation on the path.  This is potentially
-   * recursive if soft link support is enabled.
-   */
-
-#ifdef CONFIG_PSEUDOFS_SOFTLINKS
-  buf->st_count = 0;
-#endif
-  return stat_recursive(path, buf);
-
-errout:
-  set_errno(ret);
-  return ERROR;
+  return ret;
 }
 
 /****************************************************************************
@@ -249,15 +232,16 @@ errout:
  *
  * Description:
  *   The inode_stat() function will obtain information about an 'inode' in
- *   the pseudo file system and will write it to the area pointed to by 'buf'.
+ *   the pseudo file system and write it to the area pointed to by 'buf'.
  *
  *   The 'buf' argument is a pointer to a stat structure, as defined in
  *   <sys/stat.h>, into which information is placed concerning the file.
  *
  * Input Parameters:
- *   inode - The indoe of interest
- *   buf   - The caller provide location in which to return information about
- *           the inode.
+ *   inode   - The inode of interest
+ *   buf     - The caller provide location in which to return information
+ *             about the inode.
+ *   resolve - Whether to resolve the symbolic link
  *
  * Returned Value:
  *   Zero (OK) returned on success.  Otherwise, a negated errno value is
@@ -265,7 +249,7 @@ errout:
  *
  ****************************************************************************/
 
-int inode_stat(FAR struct inode *inode, FAR struct stat *buf)
+int inode_stat(FAR struct inode *inode, FAR struct stat *buf, int resolve)
 {
   DEBUGASSERT(inode != NULL && buf != NULL);
 
@@ -273,57 +257,76 @@ int inode_stat(FAR struct inode *inode, FAR struct stat *buf)
 
   RESET_BUF(buf);
 
-  if (INODE_IS_SPECIAL(inode))
-    {
+  /* Handle "special" nodes */
+
 #if defined(CONFIG_FS_NAMED_SEMAPHORES)
-      if (INODE_IS_NAMEDSEM(inode))
-        {
-          buf->st_mode = S_IFSEM;
-        }
-      else
+  /* Check for a named semaphore */
+
+  if (INODE_IS_NAMEDSEM(inode))
+    {
+      buf->st_mode = S_IFSEM;
+    }
+  else
 #endif
 #if !defined(CONFIG_DISABLE_MQUEUE)
-      if (INODE_IS_MQUEUE(inode))
-        {
-          buf->st_mode = S_IFMQ;
-        }
-      else
+  /* Check for a message queue */
+
+  if (INODE_IS_MQUEUE(inode))
+    {
+      buf->st_mode = S_IFMQ;
+    }
+  else
 #endif
 #if defined(CONFIG_FS_SHM)
-      if (INODE_IS_SHM(inode))
-        {
-          buf->st_mode = S_IFSHM;
-        }
-      else
+  /* Check for shared memory */
+
+  if (INODE_IS_SHM(inode))
+    {
+      buf->st_mode = S_IFSHM;
+    }
+  else
 #endif
 #if defined(CONFIG_MTD)
-      if (INODE_IS_MTD(inode))
+  /* Check for an MTD driver */
+
+  if (INODE_IS_MTD(inode))
+    {
+      struct mtd_geometry_s mtdgeo;
+
+      buf->st_mode  = S_IFMTD;
+      buf->st_mode |= S_IROTH | S_IRGRP | S_IRUSR;
+      buf->st_mode |= S_IWOTH | S_IWGRP | S_IWUSR;
+
+      if (inode->u.i_mtd != NULL &&
+          MTD_IOCTL(inode->u.i_mtd, MTDIOC_GEOMETRY,
+                    (unsigned long)((uintptr_t)&mtdgeo)) >= 0)
         {
-          buf->st_mode  = S_IFMTD;
-          buf->st_mode |= S_IROTH | S_IRGRP | S_IRUSR;
-          buf->st_mode |= S_IWOTH | S_IWGRP | S_IWUSR;
+          buf->st_size = mtdgeo.neraseblocks * mtdgeo.erasesize;
         }
-      else
+    }
+  else
 #endif
 #ifdef CONFIG_PSEUDOFS_SOFTLINKS
-      /* Handle softlinks differently.  Just call stat() recursively on the
-       * target of the softlink.
-       *
-       * REVISIT: This has the possibility of an infinite loop!
-       */
+  /* Handle softlinks differently.  Just call stat() recursively on the
+   * target of the softlink.
+   *
+   * REVISIT: This has the possibility of an infinite loop!
+   */
 
-      if (INODE_IS_SOFTLINK(inode))
+  if (INODE_IS_SOFTLINK(inode))
+    {
+      if (resolve)
         {
           int ret;
 
           /* Increment the link counter.  This is necessary to avoid
-           * infinite recursion if loops are encountered in the traversal.
-           * If we encounter more SYMLOOP_MAX symbolic links at any time
-           * during the traversal, error out.
+           * infinite recursion if loops are encountered in the
+           * traversal. If we encounter more SYMLOOP_MAX symbolic links
+           * at any time during the traversal, error out.
            *
            * NOTE: That inode_search() will automatically skip over
-           * consecutive, intermediate symbolic links.  Those numbers will
-           * not be included in the total.
+           * consecutive, intermediate symbolic links.  Those numbers
+           * will not be included in the total.
            */
 
           if (++buf->st_count > SYMLOOP_MAX)
@@ -335,28 +338,31 @@ int inode_stat(FAR struct inode *inode, FAR struct stat *buf)
 
           /* stat() the target of the soft link. */
 
-          ret = stat_recursive((FAR const char *)inode->u.i_link, buf);
+          ret = stat_recursive(inode->u.i_link, buf, 1);
 
-          /* If stat() fails, then there is a problem with the target of the
-           * symbolic link, but not with the symbolic link itself.  We should
-           * still report success, just with less information.
+          /* If stat() fails, then there is a problem with the target of
+           * the symbolic link, but not with the symbolic link itself.
+           * We should still report success, just with less information.
            */
 
           if (ret < 0)
             {
               RESET_BUF(buf);
             }
-
-          /* Make sure that the caller knows that this really a symbolic link. */
-
-          buf->st_mode |= S_IFLNK;
         }
       else
-#endif
-       {
-       }
+        {
+          /* Make sure the caller knows that this is a symbolic link. */
+
+          buf->st_mode = S_IRWXO | S_IRWXG | S_IRWXU | S_IFLNK;
+        }
     }
-  else if (inode->u.i_ops != NULL)
+  else
+#endif
+
+  /* Handle "normal inodes */
+
+  if (inode->u.i_ops != NULL)
     {
       /* Determine read/write privileges based on the existence of read
        * and write methods.
@@ -374,16 +380,37 @@ int inode_stat(FAR struct inode *inode, FAR struct stat *buf)
 
       /* Determine the type of the inode */
 
+      /* Check for a mountpoint */
+
       if (INODE_IS_MOUNTPT(inode))
         {
           buf->st_mode |= S_IFDIR;
         }
+
+      /* Check for a block driver */
+
       else if (INODE_IS_BLOCK(inode))
         {
           /* What is if also has child inodes? */
 
           buf->st_mode |= S_IFBLK;
+
+#ifndef CONFIG_DISABLE_MOUNTPOINT
+          if ((inode->u.i_bops != NULL) &&
+              (inode->u.i_bops->geometry != NULL))
+            {
+              struct geometry geo;
+              if (inode->u.i_bops->geometry(inode, &geo) >= 0 &&
+                  geo.geo_available)
+                {
+                  buf->st_size = geo.geo_nsectors * geo.geo_sectorsize;
+                }
+            }
+#endif
         }
+
+      /* Otherwise, the node must refer to a character driver */
+
       else /* if (INODE_IS_DRIVER(inode)) */
         {
           /* What is it if it also has child inodes? */

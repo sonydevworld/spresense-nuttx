@@ -50,7 +50,7 @@
 #include <arch/board/board.h>
 
 #include "chip.h"
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "stm32_pwm.h"
 #include "omnibusf4.h"
 
@@ -123,5 +123,6 @@ int stm32_pwm_setup(void)
 
       pwm_register(ppwm, pwm);
     }
+
   return 0;
 }

@@ -1,57 +1,42 @@
-/********************************************************************************************
+/****************************************************************************
  * arch/arm/src/samd5e5/hardware/sam_eic.h
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_SAMD5E5_HARDWARE_SAM_EIC_H
 #define __ARCH_ARM_SRC_SAMD5E5_HARDWARE_SAM_EIC_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
 #include "hardware/sam_memorymap.h"
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
-/* EIC register offsets *********************************************************************/
+/* EIC register offsets *****************************************************/
 
 #define SAM_EIC_CTRLA_OFFSET         0x0000  /* Control A register */
-#define SAM_EIC_NMITRCL_OFFSET       0x0001  /* Non-maskable interrupt control register */
+#define SAM_EIC_NMICTRL_OFFSET       0x0001  /* Non-maskable interrupt control register */
 #define SAM_EIC_NMIFLAG_OFFSET       0x0002  /* Non-maskable interrupt flasg status and clear register */
 #define SAM_EIC_SYNCBUSY_OFFSET      0x0004  /* Synchronization busy register */
 #define SAM_EIC_EVCTRL_OFFSET        0x0008  /* Event control register */
@@ -65,10 +50,10 @@
 #define SAM_EIC_DPRESCALER_OFFSET    0x0034  /* Debouncer prescaler */
 #define SAM_EIC_PINSTATE_OFFSET      0x0038  /* Pin state */
 
-/* EIC register addresses *******************************************************************/
+/* EIC register addresses ***************************************************/
 
 #define SAM_EIC_CTRLA                (SAM_EIC_BASE + SAM_EIC_CTRLA_OFFSET)
-#define SAM_EIC_NMITRCL              (SAM_EIC_BASE + SAM_EIC_NMITRCL_OFFSET)
+#define SAM_EIC_NMICTRL              (SAM_EIC_BASE + SAM_EIC_NMICTRL_OFFSET)
 #define SAM_EIC_NMIFLAG              (SAM_EIC_BASE + SAM_EIC_NMIFLAG_OFFSET)
 #define SAM_EIC_SYNCBUSY             (SAM_EIC_BASE + SAM_EIC_SYNCBUSY_OFFSET)
 #define SAM_EIC_EVCTRL               (SAM_EIC_BASE + SAM_EIC_EVCTRL_OFFSET)
@@ -82,13 +67,13 @@
 #define SAM_EIC_DPRESCALER           (SAM_EIC_BASE + SAM_EIC_DPRESCALER_OFFSET)
 #define SAM_EIC_PINSTATE             (SAM_EIC_BASE + SAM_EIC_PINSTATE_OFFSET)
 
-/* EIC register bit definitions *************************************************************/
+/* EIC register bit definitions *********************************************/
 
 /* Control A register */
 
-#define EIC_CTRLA_SWRST              (1 << 0)  /* Bit 0:  Software reset */
-#define EIC_CTRLA_ENABLE             (1 << 1)  /* Bit 1:  Enable */
-#define EIC_CTRLA_CKSEL              (1 << 4)  /* Bit 4:  Clock selection */
+#define EIC_CTRLA_SWRST              (1 << 0)        /* Bit 0:  Software reset */
+#define EIC_CTRLA_ENABLE             (1 << 1)        /* Bit 1:  Enable */
+#define EIC_CTRLA_CKSEL              (1 << 4)        /* Bit 4:  Clock selection */
 #  define EIC_CTRLA_CKSEL_GCLK_EIC   (0)             /*   0=EIC clocked by GCLK_EIC */
 #  define EIC_CTRLA_CKSEL_CLK_ULP32K EIC_CTRLA_CKSEL /*   1=EIC clocked by CLK_ULP32K */
 
@@ -102,8 +87,8 @@
 #  define EIC_NMITRCL_NMISENSE_BOTH  (3 << EIC_NMITRCL_NMISENSE_SHIFT) /* Both edge detection */
 #  define EIC_NMITRCL_NMISENSE_HIGH  (4 << EIC_NMITRCL_NMISENSE_SHIFT) /* High level detection */
 #  define EIC_NMITRCL_NMISENSE_LOW   (5 << EIC_NMITRCL_NMISENSE_SHIFT) /* Low level detection */
-#define EIC_NMITRCL_NMIFLTEN         (1 << 3)  /* Bit 3: Non-maskable interrupt filter enable */
-#define EIC_NMITRCL_ASYNC            (1 << 4)  /* Bit 4: Asynchronous edge detection mode */
+#define EIC_NMITRCL_NMIFLTEN         (1 << 3)                          /* Bit 3: Non-maskable interrupt filter enable */
+#define EIC_NMITRCL_ASYNC            (1 << 4)                          /* Bit 4: Asynchronous edge detection mode */
 
 /* Non-maskable interrupt flas status and clear register */
 
@@ -114,8 +99,9 @@
 #define EIC_SYNCBUSY_SWRST           (1 << 0)  /* Bit 0:  Software reset syncrhonization busy */
 #define EIC_SYNCBUSY_ENABLE          (1 << 1)  /* Bit 1:  Enable synchronization busy */
 
-/* Event control, Interrupt enable clear, interrupt enable set register, interrupt flag
- * status and clear, and External interrupt asynchronous mode registers.
+/* Event control, Interrupt enable clear, interrupt enable set register,
+ * interrupt flag status and clear, and External interrupt asynchronous mode
+ * registers.
  */
 
 #define EIC_EXTINT_SHIFT             (0)       /* Bits 0-15: External interrupt n */
@@ -142,7 +128,7 @@
 
 /* Configuration 0 register */
 
-#define EIC_CONFIG0_FILTEN(n)        (3 + ((n) << 2))                  /* Filter n enable, n=0-7 */
+#define EIC_CONFIG0_FILTEN(n)        (0x8 << ((n) << 2))               /* Filter n enable, n=0-7 */
 #define EIC_CONFIG0_SENSE_SHIFT(n)   ((n) << 2)                        /* Filter n input sense, n=0-7 */
 #define EIC_CONFIG0_SENSE_MASK(n)    (7 << EIC_CONFIG0_SENSE_SHIFT(n))
 #  define EIC_CONFIG0_SENSE_NONE(n)  (0 << EIC_CONFIG0_SENSE_SHIFT(n)) /* No detection */
@@ -154,7 +140,7 @@
 
 /* Configuration 1 register */
 
-#define EIC_CONFIG1_FILTEN(n)        (3 + (((n) - 8) << 2))            /* Filter n enable, n=8-15 */
+#define EIC_CONFIG1_FILTEN(n)        (0x8 << (((n) - 8) << 2))         /* Filter n enable, n=8-15 */
 #define EIC_CONFIG1_SENSE_SHIFT(n)   (((n) - 8) << 2)                  /* Filter n input sense, n=8-17 */
 #define EIC_CONFIG1_SENSE_MASK(n)    (7 << EIC_CONFIG1_SENSE_SHIFT(n))
 #  define EIC_CONFIG1_SENSE_NONE(n)  (0 << EIC_CONFIG1_SENSE_SHIFT(n)) /* No detection */
@@ -198,10 +184,10 @@
 #  define EIC_DPRESCALER_PRESCALER0_DIV64  (5 << EIC_DPRESCALER_PRESCALER0_SHIFT) /* EIC clock divided by 64 */
 #  define EIC_DPRESCALER_PRESCALER0_DIV128 (6 << EIC_DPRESCALER_PRESCALER0_SHIFT) /* EIC clock divided by 128 */
 #  define EIC_DPRESCALER_PRESCALER0_DIV256 (7 << EIC_DPRESCALER_PRESCALER0_SHIFT) /* EIC clock divided by 256 */
-#define EIC_DPRESCALER_STATES0          (1 << 3)  /* Bit 3:  Debouncer number of states. EXTINT 0-7 */
-#  define EIC_DPRESCALER_STATES0_3      (0)                    /* 3 low frequency samples */
-#  define EIC_DPRESCALER_STATES0_7      EIC_DPRESCALER_STATES0 /* 7 low frequency samples */
-#define EIC_DPRESCALER_PRESCALER1_SHIFT (4)       /* Bitx 4-6: Debouncer Prescaler. EXTINT 8-15 */
+#define EIC_DPRESCALER_STATES0          (1 << 3)                                  /* Bit 3:  Debouncer number of states. EXTINT 0-7 */
+#  define EIC_DPRESCALER_STATES0_3      (0)                                       /* 3 low frequency samples */
+#  define EIC_DPRESCALER_STATES0_7      EIC_DPRESCALER_STATES0                    /* 7 low frequency samples */
+#define EIC_DPRESCALER_PRESCALER1_SHIFT (4)                                       /* Bitx 4-6: Debouncer Prescaler. EXTINT 8-15 */
 #define EIC_DPRESCALER_PRESCALER1_MASK  (7 << EIC_DPRESCALER_PRESCALER1_SHIFT)
 #  define EIC_DPRESCALER_PRESCALER1_DIV2   (0 << EIC_DPRESCALER_PRESCALER1_SHIFT) /* EIC clock divided by 2 */
 #  define EIC_DPRESCALER_PRESCALER1_DIV4   (1 << EIC_DPRESCALER_PRESCALER1_SHIFT) /* EIC clock divided by 4 */
@@ -211,12 +197,12 @@
 #  define EIC_DPRESCALER_PRESCALER1_DIV64  (5 << EIC_DPRESCALER_PRESCALER1_SHIFT) /* EIC clock divided by 64 */
 #  define EIC_DPRESCALER_PRESCALER1_DIV128 (6 << EIC_DPRESCALER_PRESCALER1_SHIFT) /* EIC clock divided by 128 */
 #  define EIC_DPRESCALER_PRESCALER1_DIV256 (7 << EIC_DPRESCALER_PRESCALER1_SHIFT) /* EIC clock divided by 256 */
-#define EIC_DPRESCALER_STATES1          (1 << 7)  /* Bit 7:  Debouncer number of states. EXTINT 8-15 */
-#  define EIC_DPRESCALER_STATES1_3      (0)                    /* 3 low frequency samples */
-#  define EIC_DPRESCALER_STATES1_7      EIC_DPRESCALER_STATES1 /* 7 low frequency samples */
-#define EIC_DPRESCALER_TICKON           (1 << 16) /* Bit 16: Pin Sampler frequency selection */
-#  define EIC_DPRESCALER_TICKON_GCLKEIC (0)                    /* Bounce sampler uses GCLK_EIC */
-#  define EIC_DPRESCALER_TICKON_LFCLK   EIC_DPRESCALER_TICKON  /* Bounce sampler uses low frequency clock */
+#define EIC_DPRESCALER_STATES1          (1 << 7)                                  /* Bit 7:  Debouncer number of states. EXTINT 8-15 */
+#  define EIC_DPRESCALER_STATES1_3      (0)                                       /* 3 low frequency samples */
+#  define EIC_DPRESCALER_STATES1_7      EIC_DPRESCALER_STATES1                    /* 7 low frequency samples */
+#define EIC_DPRESCALER_TICKON           (1 << 16)                                 /* Bit 16: Pin Sampler frequency selection */
+#  define EIC_DPRESCALER_TICKON_GCLKEIC (0)                                       /* Bounce sampler uses GCLK_EIC */
+#  define EIC_DPRESCALER_TICKON_LFCLK   EIC_DPRESCALER_TICKON                     /* Bounce sampler uses low frequency clock */
 
 /* Pin state */
 
@@ -240,16 +226,16 @@
 #  define EIC_PINSTATE_14               (1 << 14) /* Bit 14: EXTINT 14 pin state */
 #  define EIC_PINSTATE_15               (1 << 15) /* Bit 15: EXTINT 15 pin state */
 
-/********************************************************************************************
+/****************************************************************************
  * Public Types
- ********************************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************************
+/****************************************************************************
  * Public Data
- ********************************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************************
- * Public Functions
- ********************************************************************************************/
+/****************************************************************************
+ * Public Functions Prototypes
+ ****************************************************************************/
 
 #endif /* __ARCH_ARM_SRC_SAMD5E5_HARDWARE_SAM_EIC_H */

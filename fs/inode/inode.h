@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/inode/inode.h
  *
- *   Copyright (C) 2007, 2009, 2012, 2014, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -55,45 +40,29 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_PSEUDOFS_SOFTLINKS
+#define SETUP_SEARCH(d,p,n) \
+  do \
+    { \
+      (d)->path     = (p); \
+      (d)->node     = NULL; \
+      (d)->peer     = NULL; \
+      (d)->parent   = NULL; \
+      (d)->relpath  = NULL; \
+      (d)->buffer   = NULL; \
+      (d)->nofollow = (n); \
+    } \
+  while (0)
 
-#  define SETUP_SEARCH(d,p,n) \
-    do \
-      { \
-        (d)->path     = (p); \
-        (d)->node     = NULL; \
-        (d)->peer     = NULL; \
-        (d)->parent   = NULL; \
-        (d)->relpath  = NULL; \
-        (d)->linktgt  = NULL; \
-        (d)->buffer   = NULL; \
-        (d)->nofollow = (n); \
-      } \
-    while (0)
-
-#  define RELEASE_SEARCH(d) \
-     if ((d)->buffer != NULL) \
-       { \
-         kmm_free((d)->buffer); \
-         (d)->buffer  = NULL; \
-       }
-
-#else
-
-#  define SETUP_SEARCH(d,p,n) \
-    do \
-      { \
-        (d)->path     = (p); \
-        (d)->node     = NULL; \
-        (d)->peer     = NULL; \
-        (d)->parent   = NULL; \
-        (d)->relpath  = NULL; \
-      } \
-    while (0)
-
-#  define RELEASE_SEARCH(d)
-
-#endif
+#define RELEASE_SEARCH(d) \
+  do \
+    { \
+      if ((d)->buffer != NULL) \
+        { \
+          kmm_free((d)->buffer); \
+          (d)->buffer  = NULL; \
+        } \
+    } \
+  while (0)
 
 /****************************************************************************
  * Public Types
@@ -112,12 +81,12 @@
  *  relpath  - INPUT:  (not used)
  *             OUTPUT: If the returned inode is a mountpoint, this is the
  *                     relative path from the mountpoint.
- *  linktgt  - INPUT:  (not used)
  *             OUTPUT: If a symobolic link into a mounted file system is
  *                     detected while traversing the path, then the link
  *                     will be converted to a mountpoint inode if the
  *                     mountpoint link is in an intermediate node of the
- *                     path or at the final node of the path with nofollow=true.
+ *                     path or at the final node of the path with
+ *                     nofollow=true.
  *  nofollow - INPUT:  true: terminal node is returned; false: if the
  *                     terminal is a soft link, then return the inode of
  *                     the link target.
@@ -135,11 +104,8 @@ struct inode_search_s
   FAR struct inode *peer;    /* Node to the "left" for the found inode */
   FAR struct inode *parent;  /* Node "above" the found inode */
   FAR const char *relpath;   /* Relative path into the mountpoint */
-#ifdef CONFIG_PSEUDOFS_SOFTLINKS
-  FAR const char *linktgt;   /* Target of symbolic link if linked to a directory */
   FAR char *buffer;          /* Path expansion buffer */
   bool nofollow;             /* true: Don't follow terminal soft link */
-#endif
 };
 
 /* Callback used by foreach_inode to traverse all inodes in the pseudo-
@@ -188,7 +154,7 @@ void inode_initialize(void);
  *
  ****************************************************************************/
 
-void inode_semtake(void);
+int inode_semtake(void);
 
 /****************************************************************************
  * Name: inode_semgive
@@ -199,6 +165,16 @@ void inode_semtake(void);
  ****************************************************************************/
 
 void inode_semgive(void);
+
+/****************************************************************************
+ * Name: inode_checkflags
+ *
+ * Description:
+ *   Check if the access described by 'oflags' is supported on 'inode'
+ *
+ ****************************************************************************/
+
+int inode_checkflags(FAR struct inode *inode, int oflags);
 
 /****************************************************************************
  * Name: inode_search
@@ -245,15 +221,17 @@ int inode_find(FAR struct inode_search_s *desc);
  *
  * Description:
  *   The inode_stat() function will obtain information about an 'inode' in
- *   the pseudo file system and will write it to the area pointed to by 'buf'.
+ *   the pseudo file system and will write it to the area pointed to by
+ *   'buf'.
  *
  *   The 'buf' argument is a pointer to a stat structure, as defined in
  *   <sys/stat.h>, into which information is placed concerning the file.
  *
  * Input Parameters:
- *   inode - The indoe of interest
- *   buf   - The caller provide location in which to return information about
- *           the inode.
+ *   inode   - The inode of interest
+ *   buf     - The caller provide location in which to return information
+ *             about the inode.
+ *   resolve - Whether to resolve the symbolic link
  *
  * Returned Value:
  *   Zero (OK) returned on success.  Otherwise, a negated errno value is
@@ -262,7 +240,7 @@ int inode_find(FAR struct inode_search_s *desc);
  ****************************************************************************/
 
 struct stat;  /* Forward reference */
-int inode_stat(FAR struct inode *inode, FAR struct stat *buf);
+int inode_stat(FAR struct inode *inode, FAR struct stat *buf, int resolve);
 
 /****************************************************************************
  * Name: inode_free
@@ -284,6 +262,16 @@ void inode_free(FAR struct inode *node);
  ****************************************************************************/
 
 const char *inode_nextname(FAR const char *name);
+
+/****************************************************************************
+ * Name: inode_root_reserve
+ *
+ * Description:
+ *   Reserve the root node for the pseudo file system.
+ *
+ ****************************************************************************/
+
+void inode_root_reserve(void);
 
 /****************************************************************************
  * Name: inode_reserve
@@ -349,7 +337,7 @@ int inode_remove(FAR const char *path);
  *
  ****************************************************************************/
 
-void inode_addref(FAR struct inode *inode);
+int inode_addref(FAR struct inode *inode);
 
 /****************************************************************************
  * Name: inode_release
@@ -372,7 +360,7 @@ void inode_release(FAR struct inode *inode);
  *   NOTE 1: Use with caution... The pseudo-file system is locked throughout
  *   the traversal.
  *   NOTE 2: The search algorithm is recursive and could, in principle, use
- *   an indeterminant amount of stack space.  This will not usually be a
+ *   an indeterminate amount of stack space.  This will not usually be a
  *   real work issue.
  *
  ****************************************************************************/
@@ -380,49 +368,16 @@ void inode_release(FAR struct inode *inode);
 int foreach_inode(foreach_inode_t handler, FAR void *arg);
 
 /****************************************************************************
- * Name: files_initialize
- *
- * Description:
- *   This is called from the FS initialization logic to configure the files.
- *
- ****************************************************************************/
-
-void weak_function files_initialize(void);
-
-/****************************************************************************
  * Name: files_allocate
  *
  * Description:
- *   Allocate a struct files instance and associate it with an inode instance.
- *   Returns the file descriptor == index into the files array.
+ *   Allocate a struct files instance and associate it with an inode
+ *   instance.  Returns the file descriptor == index into the files array.
  *
  ****************************************************************************/
 
-int files_allocate(FAR struct inode *inode, int oflags, off_t pos, int minfd);
-
-/****************************************************************************
- * Name: files_close
- *
- * Description:
- *   Close an inode (if open)
- *
- * Assumuptions:
- *   Caller holds the list semaphore because the file descriptor will be freed.
- *
- ****************************************************************************/
-
-int files_close(int fd);
-
-/****************************************************************************
- * Name: files_release
- *
- * Assumuptions:
- *   Similar to files_close().  Called only from open() logic on error
- *   conditions.
- *
- ****************************************************************************/
-
-void files_release(int fd);
+int files_allocate(FAR struct inode *inode, int oflags, off_t pos,
+                   FAR void *priv, int minfd);
 
 #undef EXTERN
 #if defined(__cplusplus)

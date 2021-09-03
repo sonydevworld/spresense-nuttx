@@ -1,36 +1,20 @@
 /****************************************************************************
  * sched/sched/sched_unlock.c
  *
- *   Copyright (C) 2007, 2009, 2014, 2016, 2018 Gregory Nutt. All rights
- *     reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -70,14 +54,12 @@
 int sched_unlock(void)
 {
   FAR struct tcb_s *rtcb;
-  int cpu;
 
   /* This operation is safe because the scheduler is locked and no context
    * switch may occur.
    */
 
-  cpu  = this_cpu();
-  rtcb = current_task(cpu);
+  rtcb = this_task();
 
   /* Check for some special cases:  (1) rtcb may be NULL only during
    * early boot-up phases, and (2) sched_unlock() should have no
@@ -89,6 +71,7 @@ int sched_unlock(void)
       /* Prevent context switches throughout the following. */
 
       irqstate_t flags = enter_critical_section();
+      int cpu = this_cpu();
 
       /* Decrement the preemption lock counter */
 
@@ -106,7 +89,7 @@ int sched_unlock(void)
           /* Note that we no longer have pre-emption disabled. */
 
 #ifdef CONFIG_SCHED_CRITMONITOR
-          sched_critmon_preemption(rtcb, false);
+          nxsched_critmon_preemption(rtcb, false);
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION_PREEMPTION
           sched_note_premption(rtcb, false);
@@ -142,8 +125,9 @@ int sched_unlock(void)
            * There are certain conditions that we must avoid by preventing
            * releasing the pending tasks while within the critical section
            * of other CPUs.  This logic does that and there is matching
-           * logic in sched_addreadytorun to avoid starting new tasks within
-           * the critical section (unless the CPU is the holder of the lock).
+           * logic in nxsched_add_readytorun to avoid starting new tasks
+           * within the critical section (unless the CPU is the holder of
+           * the lock).
            *
            * REVISIT: If this CPU is only one that holds the IRQ lock, then
            * we should go ahead and release the pending tasks.  See the logic
@@ -151,7 +135,7 @@ int sched_unlock(void)
            * BEFORE it clears IRQ lock.
            */
 
-          if (!sched_islocked_global() && !irq_cpu_locked(cpu) &&
+          if (!nxsched_islocked_global() && !irq_cpu_locked(cpu) &&
               g_pendingtasks.head != NULL)
             {
               up_release_pending();
@@ -170,8 +154,8 @@ int sched_unlock(void)
             {
               /* Yes.. that is the situation.  But one more thing.  The call
                * to up_release_pending() above may have actually replaced
-               * the task at the head of the ready-to-run list.  In that case,
-               * we need only to reset the timeslice value back to the
+               * the task at the head of the ready-to-run list.  In that
+               * case, we need only to reset the timeslice value back to the
                * maximum.
                */
 
@@ -182,7 +166,7 @@ int sched_unlock(void)
 #ifdef CONFIG_SCHED_TICKLESS
               else
                 {
-                  sched_timer_reassess();
+                  nxsched_reassess_timer();
                 }
 #endif
             }
@@ -199,14 +183,14 @@ int sched_unlock(void)
            * for the next time slice.
            */
 
-          if ((rtcb->flags & TCB_FLAG_POLICY_MASK) == TCB_FLAG_SCHED_SPORADIC &&
-              rtcb->timeslice < 0)
+          if ((rtcb->flags & TCB_FLAG_POLICY_MASK) == TCB_FLAG_SCHED_SPORADIC
+              && rtcb->timeslice < 0)
             {
               /* Yes.. that is the situation.  Force the low-priority state
                * now
                */
 
-              sched_sporadic_lowpriority(rtcb);
+              nxsched_sporadic_lowpriority(rtcb);
 
 #ifdef CONFIG_SCHED_TICKLESS
               /* Make sure that the call to up_release_pending() did not
@@ -215,7 +199,7 @@ int sched_unlock(void)
 
               if (rtcb == current_task(cpu))
                 {
-                  sched_timer_reassess();
+                  nxsched_reassess_timer();
                 }
 #endif
             }
@@ -261,7 +245,7 @@ int sched_unlock(void)
           /* Note that we no longer have pre-emption disabled. */
 
 #ifdef CONFIG_SCHED_CRITMONITOR
-          sched_critmon_preemption(rtcb, false);
+          nxsched_critmon_preemption(rtcb, false);
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION_PREEMPTION
           sched_note_premption(rtcb, false);
@@ -301,8 +285,8 @@ int sched_unlock(void)
             {
               /* Yes.. that is the situation.  But one more thing.  The call
                * to up_release_pending() above may have actually replaced
-               * the task at the head of the ready-to-run list.  In that case,
-               * we need only to reset the timeslice value back to the
+               * the task at the head of the ready-to-run list.  In that
+               * case, we need only to reset the timeslice value back to the
                * maximum.
                */
 
@@ -313,7 +297,7 @@ int sched_unlock(void)
 #ifdef CONFIG_SCHED_TICKLESS
               else
                 {
-                  sched_timer_reassess();
+                  nxsched_reassess_timer();
                 }
 #endif
             }
@@ -330,14 +314,14 @@ int sched_unlock(void)
            * for the next time slice.
            */
 
-          if ((rtcb->flags & TCB_FLAG_POLICY_MASK) == TCB_FLAG_SCHED_SPORADIC &&
-              rtcb->timeslice < 0)
+          if ((rtcb->flags & TCB_FLAG_POLICY_MASK) == TCB_FLAG_SCHED_SPORADIC
+              && rtcb->timeslice < 0)
             {
               /* Yes.. that is the situation.  Force the low-priority state
                * now
                */
 
-              sched_sporadic_lowpriority(rtcb);
+              nxsched_sporadic_lowpriority(rtcb);
 
 #ifdef CONFIG_SCHED_TICKLESS
               /* Make sure that the call to up_release_pending() did not
@@ -346,7 +330,7 @@ int sched_unlock(void)
 
               if (rtcb == this_task())
                 {
-                  sched_timer_reassess();
+                  nxsched_reassess_timer();
                 }
 #endif
             }

@@ -1,37 +1,20 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_udmac.c
  *
- *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -51,7 +34,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/semaphore.h>
 
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "cxd56_clock.h"
 #include "hardware/cxd56_udmac.h"
 #include "cxd56_udmac.h"
@@ -172,7 +155,8 @@ static inline struct dma_descriptor_s *cxd56_get_descriptor(
 {
   uintptr_t base;
 
-  base = alt ? getreg32(CXD56_DMA_ALTCTRLBASE) : getreg32(CXD56_DMA_CTRLBASE);
+  base = alt ?
+           getreg32(CXD56_DMA_ALTCTRLBASE) : getreg32(CXD56_DMA_CTRLBASE);
   return ((struct dma_descriptor_s *)base) + dmach->chan;
 }
 
@@ -203,6 +187,7 @@ static int cxd56_dmac_interrupt(int irq, void *context, FAR void *arg)
       putreg32(mask, CXD56_DMA_ERR);
       result = EIO;
     }
+
   if (done & mask)
     {
       /* Clear DMA done status */
@@ -269,7 +254,7 @@ void cxd56_udmainitialize(void)
    * will obtain the alternative descriptors.
    */
 
-  putreg32((uint32_t)g_descriptors, CXD56_DMA_CTRLBASE);
+  putreg32(CXD56_PHYSADDR(g_descriptors), CXD56_DMA_CTRLBASE);
 
   /* Enable the DMA controller */
 
@@ -304,6 +289,7 @@ DMA_HANDLE cxd56_udmachannel(void)
   struct dma_channel_s *dmach;
   unsigned int ch;
   uint32_t bit;
+  int ret;
 
   /* Take a count from the channel counting semaphore.  We may block
    * if there are no free channels.  When we get the count, then we can
@@ -311,11 +297,20 @@ DMA_HANDLE cxd56_udmachannel(void)
    * reserved for us.
    */
 
-  nxsem_wait_uninterruptible(&g_dmac.chansem);
+  ret = nxsem_wait_uninterruptible(&g_dmac.chansem);
+  if (ret < 0)
+    {
+      return NULL;
+    }
 
   /* Get exclusive access to the DMA channel list */
 
-  nxsem_wait_uninterruptible(&g_dmac.exclsem);
+  ret = nxsem_wait_uninterruptible(&g_dmac.exclsem);
+  if (ret < 0)
+    {
+      nxsem_post(&g_dmac.chansem);
+      return NULL;
+    }
 
   /* Search for an available DMA channel */
 
@@ -359,11 +354,11 @@ DMA_HANDLE cxd56_udmachannel(void)
  * Name: cxd56_udmafree
  *
  * Description:
- *   Release a DMA channel.  If another thread is waiting for this DMA channel
- *   in a call to cxd56_udmachannel, then this function will re-assign the
- *   DMA channel to that thread and wake it up.  NOTE:  The 'handle' used
- *   in this argument must NEVER be used again until cxd56_udmachannel() is
- *   called again to re-gain access to the channel.
+ *   Release a DMA channel.  If another thread is waiting for this DMA
+ *   channel in a call to cxd56_udmachannel, then this function will
+ *   re-assign the DMA channel to that thread and wake it up.  NOTE:  The
+ *   'handle' used in this argument must NEVER be used again until
+ *   cxd56_udmachannel() is called again to re-gain access to the channel.
  *
  * Returned Value:
  *   None
@@ -385,8 +380,8 @@ void cxd56_udmafree(DMA_HANDLE handle)
 
   putreg32(1 << dmach->chan, CXD56_DMA_CHENC);
 
-  /* Mark the channel no longer in use.  Clearing the in-use flag is an atomic
-   * operation and so should be safe.
+  /* Mark the channel no longer in use.  Clearing the in-use flag is an
+   * atomic operation and so should be safe.
    */
 
   dmach->inuse = false;
@@ -431,8 +426,8 @@ void cxd56_rxudmasetup(DMA_HANDLE handle, uintptr_t paddr, uintptr_t maddr,
   shift = cxd56_align_shift(config);
   mask  = ALIGN_MASK(shift);
 
-  /* Make sure that the number of bytes we are asked to transfer is a multiple
-   * of the transfer size.
+  /* Make sure that the number of bytes we are asked to transfer is a
+   * multiple of the transfer size.
    */
 
   xfersize = (1 << shift);
@@ -446,8 +441,8 @@ void cxd56_rxudmasetup(DMA_HANDLE handle, uintptr_t paddr, uintptr_t maddr,
   /* Configure the primary channel descriptor */
 
   desc         = cxd56_get_descriptor(dmach, false);
-  desc->srcend = (uint32_t *)paddr;
-  desc->dstend = (uint32_t *)(maddr + nbytes - xfersize);
+  desc->srcend = paddr;
+  desc->dstend = CXD56_PHYSADDR(maddr + nbytes - xfersize);
 
   /* No source increment, destination increments according to transfer size.
    * No privileges.  Arbitrate after each transfer. Default priority.
@@ -528,8 +523,8 @@ void cxd56_txudmasetup(DMA_HANDLE handle, uintptr_t paddr, uintptr_t maddr,
   shift = cxd56_align_shift(config);
   mask  = ALIGN_MASK(shift);
 
-  /* Make sure that the number of bytes we are asked to transfer is a multiple
-   * of the transfer size.
+  /* Make sure that the number of bytes we are asked to transfer is a
+   * multiple of the transfer size.
    */
 
   xfersize = (1 << shift);
@@ -543,8 +538,8 @@ void cxd56_txudmasetup(DMA_HANDLE handle, uintptr_t paddr, uintptr_t maddr,
   /* Configure the primary channel descriptor */
 
   desc         = cxd56_get_descriptor(dmach, false);
-  desc->srcend = (uint32_t *)(maddr + nbytes - xfersize);
-  desc->dstend = (uint32_t *)paddr;
+  desc->srcend = CXD56_PHYSADDR(maddr + nbytes - xfersize);
+  desc->dstend = paddr;
 
   /* No destination increment, source increments according to transfer size.
    * No privileges.  Arbitrate after each transfer. Default priority.

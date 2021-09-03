@@ -1,36 +1,20 @@
 /****************************************************************************
  * net/socket/setsockopt.c
  *
- *   Copyright (C) 2007, 2008, 2011-2012, 2014-2015, 2017-2018 Gregory Nutt.
- *     All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -57,6 +41,7 @@
 #include "udp/udp.h"
 #include "usrsock/usrsock.h"
 #include "utils/utils.h"
+#include "can/can.h"
 
 /****************************************************************************
  * Public Functions
@@ -87,7 +72,8 @@
  ****************************************************************************/
 
 static int psock_socketlevel_option(FAR struct socket *psock, int option,
-                                    FAR const void *value, socklen_t value_len)
+                                    FAR const void *value,
+                                    socklen_t value_len)
 {
   /* Verify that the socket option if valid (but might not be supported ) */
 
@@ -95,39 +81,6 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
     {
       return -EINVAL;
     }
-
-  /* Verify that the sockfd corresponds to valid, allocated socket */
-
-  if (psock == NULL || psock->s_crefs <= 0)
-    {
-      return -EBADF;
-    }
-
-#ifdef CONFIG_NET_USRSOCK
-  if (psock->s_type == SOCK_USRSOCK_TYPE)
-    {
-      FAR struct usrsock_conn_s *conn = psock->s_conn;
-
-      DEBUGASSERT(conn);
-
-      /* Some of the socket options are handled from this function. */
-
-      switch (option)
-        {
-          case SO_RCVTIMEO: /* Rx timeouts can be handled at NuttX side, thus
-                             * simplify daemon implementation. */
-          case SO_SNDTIMEO: /* Rx timeouts can be handled at NuttX side, thus
-                             * simplify daemon implementation. */
-            break;
-
-          default:          /* Other options are passed to usrsock daemon. */
-            {
-              return usrsock_setsockopt(conn, SOL_SOCKET, option, value,
-                                        value_len);
-            }
-        }
-    }
-#endif
 
   /* Process the option */
 
@@ -137,6 +90,51 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
        * We will blindly set the bit here although the implementation
        * is outside of the scope of setsockopt.
        */
+
+      case SO_RCVTIMEO:
+      case SO_SNDTIMEO:
+        {
+          FAR struct timeval *tv = (FAR struct timeval *)value;
+          socktimeo_t timeo;
+
+          /* Verify that option is the size of an 'struct timeval'. */
+
+          if (tv == NULL || value_len != sizeof(struct timeval))
+            {
+              return -EINVAL;
+            }
+
+          /* Get the timeout value.  Any microsecond remainder will be
+           * forced to the next larger, whole decisecond value.
+           */
+
+          timeo = (socktimeo_t)net_timeval2dsec(tv, TV2DS_CEIL);
+
+          /* Save the timeout value */
+
+          if (option == SO_RCVTIMEO)
+            {
+              psock->s_rcvtimeo = timeo;
+            }
+          else
+            {
+              psock->s_sndtimeo = timeo;
+            }
+
+          /* Set/clear the corresponding enable/disable bit */
+
+          if (timeo)
+            {
+              _SO_CLROPT(psock->s_options, option);
+            }
+          else
+            {
+              _SO_SETOPT(psock->s_options, option);
+            }
+        }
+        break;
+
+#ifndef CONFIG_NET_USRSOCK
 
       case SO_BROADCAST:  /* Permits sending of broadcast messages */
       case SO_DEBUG:      /* Enables recording of debugging information */
@@ -201,49 +199,6 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
         return tcp_setsockopt(psock, option, value, value_len);
 #endif
 
-      case SO_RCVTIMEO:
-      case SO_SNDTIMEO:
-        {
-          FAR struct timeval *tv = (FAR struct timeval *)value;
-          socktimeo_t timeo;
-
-          /* Verify that option is the size of an 'struct timeval'. */
-
-          if (tv == NULL || value_len != sizeof(struct timeval))
-            {
-              return -EINVAL;
-            }
-
-          /* Get the timeout value.  Any microsecond remainder will be
-           * forced to the next larger, whole decisecond value.
-           */
-
-          timeo = (socktimeo_t)net_timeval2dsec(tv, TV2DS_CEIL);
-
-          /* Save the timeout value */
-
-          if (option == SO_RCVTIMEO)
-            {
-              psock->s_rcvtimeo = timeo;
-            }
-          else
-            {
-              psock->s_sndtimeo = timeo;
-            }
-
-          /* Set/clear the corresponding enable/disable bit */
-
-          if (timeo)
-            {
-              _SO_CLROPT(psock->s_options, option);
-            }
-          else
-            {
-              _SO_SETOPT(psock->s_options, option);
-            }
-        }
-        break;
-
 #ifdef CONFIG_NET_SOLINGER
       case SO_LINGER:  /* Lingers on a close() if data is present */
         {
@@ -266,7 +221,9 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
 
           net_lock();
 
-          /* Set or clear the linger option bit and linger time (in deciseconds) */
+          /* Set or clear the linger option bit and linger time
+           * (in deciseconds)
+           */
 
           if (setting->l_onoff)
             {
@@ -278,6 +235,29 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
               _SO_CLROPT(psock->s_options, option);
               psock->s_linger = 0;
             }
+
+          net_unlock();
+        }
+        break;
+#endif
+
+#ifdef CONFIG_NET_TIMESTAMP
+      case SO_TIMESTAMP:  /* Generates a timestamp for each incoming packet */
+        {
+          /* Verify that option is at least the size of an integer. */
+
+          if (value_len < sizeof(FAR int32_t))
+            {
+              return -EINVAL;
+            }
+
+          /* Lock the network so that we have exclusive access to the socket
+           * options.
+           */
+
+          net_lock();
+
+          psock->s_timestamp = *((FAR int32_t *)value);
 
           net_unlock();
         }
@@ -296,6 +276,7 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
       case SO_ERROR:      /* Reports and clears error status. */
       case SO_TYPE:       /* Reports the socket type */
 
+#endif
       default:
         return -ENOPROTOOPT;
     }
@@ -322,8 +303,8 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
  *   See <sys/socket.h> a complete list of values for the socket level
  *   'option' argument.
  *
- *   Protocol level options, such as SOL_TCP, are defined in protocol-specific
- *   header files, for example include/netinet/tcp.h
+ *   Protocol level options, such as SOL_TCP, are defined in
+ *   protocol-specific header files, for example include/netinet/tcp.h
  *
  * Input Parameters:
  *   psock     Socket structure of socket to operate on
@@ -362,6 +343,13 @@ int psock_setsockopt(FAR struct socket *psock, int level, int option,
 {
   int ret;
 
+  /* Verify that the sockfd corresponds to valid, allocated socket */
+
+  if (psock == NULL || psock->s_conn == NULL)
+    {
+      return -EBADF;
+    }
+
   /* Handle setting of the socket option according to the level at which
    * option should be applied.
    */
@@ -372,38 +360,50 @@ int psock_setsockopt(FAR struct socket *psock, int level, int option,
         ret = psock_socketlevel_option(psock, option, value, value_len);
         break;
 
-      case SOL_TCP:    /* TCP protocol socket options (see include/netinet/tcp.h) */
 #ifdef CONFIG_NET_TCPPROTO_OPTIONS
+      case IPPROTO_TCP:/* TCP protocol socket options (see include/netinet/tcp.h) */
         ret = tcp_setsockopt(psock, option, value, value_len);
         break;
 #endif
 
-      case SOL_UDP:    /* UDP protocol socket options (see include/netinet/udp.h) */
 #ifdef CONFIG_NET_UDPPROTO_OPTIONS
+      case IPPROTO_UDP:/* UDP protocol socket options (see include/netinet/udp.h) */
         ret = udp_setsockopt(psock, option, value, value_len);
         break;
 #endif
 
-      /* These levels are defined in sys/socket.h, but are not yet
-       * implemented.
-       */
-
 #ifdef CONFIG_NET_IPv4
-      case SOL_IP:     /* TCP protocol socket options (see include/netinet/in.h) */
+      case IPPROTO_IP:/* TCP protocol socket options (see include/netinet/in.h) */
         ret = ipv4_setsockopt(psock, option, value, value_len);
         break;
 #endif
 
 #ifdef CONFIG_NET_IPv6
-      case SOL_IPV6:   /* TCP protocol socket options (see include/netinet/in.h) */
+      case IPPROTO_IPV6:/* TCP protocol socket options (see include/netinet/in.h) */
         ret = ipv6_setsockopt(psock, option, value, value_len);
         break;
 #endif
 
+#ifdef CONFIG_NET_CANPROTO_OPTIONS
+      case SOL_CAN_RAW:   /* CAN protocol socket options (see include/netpacket/can.h) */
+        ret = can_setsockopt(psock, option, value, value_len);
+        break;
+#endif
+
       default:         /* The provided level is invalid */
-        ret = -EINVAL;
+        ret = -ENOPROTOOPT;
         break;
     }
+
+#ifdef CONFIG_NET_USRSOCK
+  /* Try usrsock further if the protocol not available */
+
+  if (ret == -ENOPROTOOPT && psock->s_type == SOCK_USRSOCK_TYPE)
+    {
+      ret = usrsock_setsockopt(psock->s_conn, level,
+                               option, value, value_len);
+    }
+#endif
 
   return ret;
 }
@@ -423,8 +423,8 @@ int psock_setsockopt(FAR struct socket *psock, int level, int option,
  *   See <sys/socket.h> a complete list of values for the socket level
  *   'option' argument.
  *
- *   Protocol level options, such as SOL_TCP, are defined in protocol-specific
- *   header files, for example include/netinet/tcp.h
+ *   Protocol level options, such as SOL_TCP, are defined in
+ *   protocol-specific header files, for example include/netinet/tcp.h
  *
  * Input Parameters:
  *   sockfd    Socket descriptor of socket
@@ -459,7 +459,8 @@ int psock_setsockopt(FAR struct socket *psock, int level, int option,
  *
  ****************************************************************************/
 
-int setsockopt(int sockfd, int level, int option, const void *value, socklen_t value_len)
+int setsockopt(int sockfd, int level, int option, const void *value,
+               socklen_t value_len)
 {
   FAR struct socket *psock;
   int ret;

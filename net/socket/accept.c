@@ -1,35 +1,20 @@
 /****************************************************************************
  * net/socket/accept.c
  *
- *   Copyright (C) 2007-2012, 2015-2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -42,11 +27,14 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <unistd.h>
 #include <errno.h>
 #include <assert.h>
 #include <debug.h>
+#include <fcntl.h>
 
 #include <nuttx/cancelpt.h>
+#include <nuttx/fs/fs.h>
 #include <arch/irq.h>
 
 #include "socket/socket.h"
@@ -86,7 +74,8 @@
  * Input Parameters:
  *   psock    Reference to the listening socket structure
  *   addr     Receives the address of the connecting client
- *   addrlen  Input: allocated size of 'addr', Return: returned size of 'addr'
+ *   addrlen  Input: allocated size of 'addr', Return: returned size
+ *            of 'addr'
  *   newsock  Location to return the accepted socket information.
  *
  * Returned Value:
@@ -197,7 +186,8 @@ errout_with_lock:
  * Input Parameters:
  *   sockfd   The listening socket descriptor
  *   addr     Receives the address of the connecting client
- *   addrlen  Input: allocated size of 'addr', Return: returned size of 'addr'
+ *   addrlen  Input: allocated size of 'addr',
+ *            Return: returned size of 'addr'
  *
  * Returned Value:
  *  Returns -1 on error. If it succeeds, it returns a non-negative integer
@@ -239,6 +229,7 @@ int accept(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
 {
   FAR struct socket *psock = sockfd_socket(sockfd);
   FAR struct socket *newsock;
+  FAR struct file *filep;
   int newfd;
   int errcode;
   int ret;
@@ -249,14 +240,14 @@ int accept(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
 
   /* Verify that the sockfd corresponds to valid, allocated socket */
 
-  if (psock == NULL || psock->s_crefs <= 0)
+  if (psock == NULL || psock->s_conn == NULL)
     {
       /* It is not a valid socket description.  Distinguish between the cases
-       * where sockfd is a just valid and when it is a valid file descriptor used
-       * in the wrong context.
+       * where sockfd is a just valid and when it is a valid file descriptor
+       * used in the wrong context.
        */
 
-      if ((unsigned int)sockfd < CONFIG_NFILE_DESCRIPTORS)
+      if (fs_getfilep(sockfd, &filep) == 0)
         {
           errcode = ENOTSOCK;
         }
@@ -272,18 +263,11 @@ int accept(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
    * cannot fail later)
    */
 
-  newfd = sockfd_allocate(0);
+  newfd = sockfd_allocate(&newsock, O_RDWR);
   if (newfd < 0)
     {
       errcode = ENFILE;
       goto errout;
-    }
-
-  newsock = sockfd_socket(newfd);
-  if (newsock == NULL)
-    {
-      errcode = ENFILE;
-      goto errout_with_socket;
     }
 
   ret = psock_accept(psock, addr, addrlen, newsock);
@@ -297,12 +281,11 @@ int accept(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
   return newfd;
 
 errout_with_socket:
-  sockfd_release(newfd);
+  nx_close(newfd);
 
 errout:
   leave_cancellation_point();
 
-  set_errno(errcode);
+  _SO_SETERRNO(psock, errcode);
   return ERROR;
 }
-

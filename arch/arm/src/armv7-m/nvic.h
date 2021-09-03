@@ -1,54 +1,42 @@
-/********************************************************************************************
+/****************************************************************************
  * arch/arm/src/armv7-m/nvic.h
  *
- *   Copyright (C) 2009, 2011, 2018 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ********************************************************************************************/
+ ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_COMMON_ARMV7_M_NVIC_H
 #define __ARCH_ARM_SRC_COMMON_ARMV7_M_NVIC_H
 
-/********************************************************************************************
+/****************************************************************************
  * Included Files
- ********************************************************************************************/
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
-/********************************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
- ********************************************************************************************/
+ ****************************************************************************/
 
-/* Exception/interrupt vector numbers *******************************************************/
+/* Exception/interrupt vector numbers ***************************************/
 
-                                               /* Vector  0: Reset stack pointer value */
+                                              /* Vector  0: Reset stack
+                                               *            pointer value
+                                               */
+
                                                /* Vector  1: Reset */
 #define NVIC_IRQ_NMI                    (2)    /* Vector  2: Non-Maskable Interrupt (NMI) */
 #define NVIC_IRQ_HARDFAULT              (3)    /* Vector  3: Hard fault */
@@ -62,15 +50,17 @@
 #define NVIC_IRQ_PENDSV                 (14)   /* Vector 14: Pendable system service request */
 #define NVIC_IRQ_SYSTICK                (15)   /* Vector 15: System tick */
 
-/* External interrupts (vectors >= 16).  These definitions are chip-specific */
+/* External interrupts (vectors >= 16).
+ * These definitions are chip-specific
+ */
 
 #define NVIC_IRQ_FIRST                  (16)    /* Vector number of the first interrupt */
 
-/* NVIC base address ************************************************************************/
+/* NVIC base address ********************************************************/
 
 #define ARMV7M_NVIC_BASE                0xe000e000
 
-/* NVIC register offsets ********************************************************************/
+/* NVIC register offsets ****************************************************/
 
 #define NVIC_ICTR_OFFSET                0x0004 /* Interrupt controller type register */
 #define NVIC_SYSTICK_CTRL_OFFSET        0x0010 /* SysTick control and status register */
@@ -195,7 +185,7 @@
 #define NVIC_CPUID_BASE_OFFSET          0x0d00 /* CPUID base register */
 #define NVIC_INTCTRL_OFFSET             0x0d04 /* Interrupt control state register */
 #define NVIC_VECTAB_OFFSET              0x0d08 /* Vector table offset register */
-#define NVIC_AIRCR_OFFSET               0x0d0c /* Application interrupt/reset contol registr */
+#define NVIC_AIRCR_OFFSET               0x0d0c /* Application interrupt/reset control registr */
 #define NVIC_SYSCON_OFFSET              0x0d10 /* System control register */
 #define NVIC_CFGCON_OFFSET              0x0d14 /* Configuration control register */
 #define NVIC_SYSH_PRIORITY_OFFSET(n)    (0x0d14 + 4*((n) >> 2))
@@ -267,7 +257,7 @@
 #define NVIC_CID2_OFFSET                0x0ff8 /* Component identification register bits 23:16 (CID0) */
 #define NVIC_CID3_OFFSET                0x0ffc /* Component identification register bits 23:16 (CID0) */
 
-/* NVIC register addresses ******************************************************************/
+/* NVIC register addresses **************************************************/
 
 #define NVIC_ICTR                       (ARMV7M_NVIC_BASE + NVIC_ICTR_OFFSET)
 #define NVIC_SYSTICK_CTRL               (ARMV7M_NVIC_BASE + NVIC_SYSTICK_CTRL_OFFSET)
@@ -457,7 +447,7 @@
 #define NVIC_CID2                       (ARMV7M_NVIC_BASE + NVIC_CID2_OFFSET)
 #define NVIC_CID3                       (ARMV7M_NVIC_BASE + NVIC_CID3_OFFSET)
 
-/* NVIC register bit definitions ************************************************************/
+/* NVIC register bit definitions ********************************************/
 
 /* Interrupt controller type (INCTCTL_TYPE) */
 
@@ -504,6 +494,7 @@
 #define NVIC_INTCTRL_VECTACTIVE_MASK    (0x1ff << NVIC_INTCTRL_VECTACTIVE_SHIFT)
 
 /* System control register (SYSCON) */
+
                                                   /* Bit 0:  Reserved */
 #define NVIC_SYSCON_SLEEPONEXIT         (1 << 1)  /* Bit 1:  Sleep-on-exit (returning from Handler to Thread mode) */
 #define NVIC_SYSCON_SLEEPDEEP           (1 << 2)  /* Bit 2: Use deep sleep in low power mode */
@@ -518,7 +509,7 @@
 #define NVIC_CFGCON_UNALIGNTRP          (1 << 3)  /* Bit 3: Enables unaligned access traps */
 #define NVIC_CFGCON_DIV0TRP             (1 << 4)  /* Bit 4: Enables fault on divide-by-zero */
 #define NVIC_CFGCON_BFHFNMIGN           (1 << 8)  /* Bit 8: Disables data bus faults */
-#define NVIC_CFGCON_STKALIGN            (1 << 9)  /* Bit 9: Indicates stack alignment on exeption */
+#define NVIC_CFGCON_STKALIGN            (1 << 9)  /* Bit 9: Indicates stack alignment on exception */
                                                   /* Cortex-M7: */
 #define NVIC_CFGCON_DC                  (1 << 16) /* Bit 16: Data cache enable */
 #define NVIC_CFGCON_IC                  (1 << 17) /* Bit 17: Instruction cache enable */
@@ -656,6 +647,7 @@
 #define NVIC_DEMCR_TRCENA               (1 << 24) /* Bit 24: Enable trace and debug blocks */
 
 /* Instruction Tightly-Coupled Memory Control Register (ITCMCR) */
+
 /* Data Tightly-Coupled Memory Control Registers (DTCMCR */
 
 #define NVIC_TCMCR_EN                   (1 << 0)  /* Bit 9:  TCM enable */
@@ -695,16 +687,16 @@
 #define NVIC_CACR_ECCDIS                (1 << 1)  /* Bit 1:  Enables ECC in the instruction and data cache */
 #define NVIC_CACR_FORCEWT               (1 << 2)  /* Bit 2:  Enables Force Write-Through in the data cache */
 
-/********************************************************************************************
+/****************************************************************************
  * Public Types
- ********************************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************************
+/****************************************************************************
  * Public Data
- ********************************************************************************************/
+ ****************************************************************************/
 
-/********************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ********************************************************************************************/
+ ****************************************************************************/
 
 #endif /* __ARCH_ARM_SRC_COMMON_ARMV7_M_NVIC_H */

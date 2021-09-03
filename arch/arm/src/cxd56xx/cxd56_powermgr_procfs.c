@@ -1,36 +1,25 @@
 /****************************************************************************
  * arch/arm/src/cxd56xx/cxd56_powermgr_procfs.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
@@ -48,7 +37,7 @@
 
 #include "cxd56_clock.h"
 #include "cxd56_powermgr.h"
-#include "up_arch.h"
+#include "arm_arch.h"
 #include "hardware/cxd56_crg.h"
 #include "hardware/cxd5602_topreg.h"
 
@@ -56,14 +45,22 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_CXD56_PM_DEBUG
-#  define pmerr(format, ...)  _err(format, ##__VA_ARGS__)
-#  define pmwarn(format, ...) _warn(format, ##__VA_ARGS__)
-#  define pminfo(format, ...) _info(format, ##__VA_ARGS__)
+/* Debug */
+
+#ifdef CONFIG_CXD56_PM_DEBUG_ERROR
+#  define pmerr(format, ...)   _err(format, ##__VA_ARGS__)
 #else
-#  define pmerr(x...)
-#  define pmwarn(x...)
-#  define pminfo(x...)
+#  define pmerr(x, ...)
+#endif
+#ifdef CONFIG_CXD56_PM_DEBUG_WARN
+#  define pmwarn(format, ...)  _warn(format, ##__VA_ARGS__)
+#else
+#  define pmwarn(x, ...)
+#endif
+#ifdef CONFIG_CXD56_PM_DEBUG_INFO
+#  define pminfo(format, ...)  _info(format, ##__VA_ARGS__)
+#else
+#  define pminfo(x, ...)
 #endif
 
 #define PWD_STAT(val, shift) ((val >> shift) & 0x1)
@@ -91,19 +88,20 @@ struct cxd56_powermgr_procfs_dir_s
  ****************************************************************************/
 
 static int cxd56_powermgr_procfs_open(FAR struct file *filep,
-                            FAR const char *relpath, int oflags, mode_t mode);
+                                      FAR const char *relpath,
+                                      int oflags, mode_t mode);
 static int cxd56_powermgr_procfs_close(FAR struct file *filep);
 static ssize_t cxd56_powermgr_procfs_read(FAR struct file *filep,
-                                             FAR char *buffer, size_t buflen);
+                                          FAR char *buffer, size_t buflen);
 static int cxd56_powermgr_procfs_dup(FAR const struct file *oldp,
-                                                       FAR struct file *newp);
+                                     FAR struct file *newp);
 static int cxd56_powermgr_procfs_opendir(FAR const char *relpath,
-                                                 FAR struct fs_dirent_s *dir);
+                                         FAR struct fs_dirent_s *dir);
 static int cxd56_powermgr_procfs_closedir(FAR struct fs_dirent_s *dir);
 static int cxd56_powermgr_procfs_readdir(struct fs_dirent_s *dir);
 static int cxd56_powermgr_procfs_rewinddir(struct fs_dirent_s *dir);
 static int cxd56_powermgr_procfs_stat(FAR const char *relpath,
-                                                        FAR struct stat *buf);
+                                      FAR struct stat *buf);
 
 /****************************************************************************
  * Private Data
@@ -124,21 +122,41 @@ const struct procfs_operations cxd56_powermgr_procfs_operations =
 };
 
 static const struct procfs_entry_s g_powermgr_procfs1 =
-                               {"pm**", &cxd56_powermgr_procfs_operations};
+{
+  "pm**", &cxd56_powermgr_procfs_operations
+};
+
 static const struct procfs_entry_s g_powermgr_procfs2 =
-                               {"pm/" , &cxd56_powermgr_procfs_operations};
+{
+  "pm/" , &cxd56_powermgr_procfs_operations
+};
+
 static FAR char *g_powermg_procfs_buffer;
 static size_t g_powermg_procfs_size;
 static size_t g_powermg_procfs_len;
 
-static const char* g_powermg_procfs_clock_source_name[]
-                   = {"RCOSC", "SYSPLL", "XOSC", "RTC"};
-static const char* g_powermg_procfs_power_state[]
-                   = {"-", "o"};
-static const char* g_powermg_procfs_dir[]
-                   = {"clock", "power"};
+static const char *g_powermg_procfs_clock_source_name[] =
+{
+  "RCOSC",
+  "SYSPLL",
+  "XOSC",
+  "RTC"
+};
+
+static const char *g_powermg_procfs_power_state[] =
+{
+  "-",
+  "o"
+};
+
+static const char *g_powermg_procfs_dir[] =
+{
+  "clock",
+  "power"
+};
+
 /****************************************************************************
- * Private Function
+ * Private Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
@@ -269,21 +287,21 @@ static void cxd56_powermgr_procfs_clock(void)
   len = snprintf(g_powermg_procfs_buffer + g_powermg_procfs_len,
                  g_powermg_procfs_size - g_powermg_procfs_len,
                   "Clock Status [Hz]\n"
-                  " |-RTC        : %9d""   |-APP        : %9d\n"
-                  " |-RCOSC      : %9d""   ||-DSP0      : %9d\n"
-                  " |-XOSC       : %9d""   ||-DSP1      : %9d\n"
-                  " |-SYSPLL     : %9d""   ||-DSP2      : %9d\n"
-                  " |-M0P        : %9d""   ||-DSP3      : %9d\n"
-                  " ||-AHB       : %9d""   ||-DSP4      : %9d\n"
-                  " | |-APB      : %9d""   ||-DSP5      : %9d\n"
-                  " |-UART1      : %9d""   ||-UART2     : %9d\n"
-                  " |-SFC        : %9d""   ||-SPI4      : %9d\n"
-                  " |-SCU        : %9d""   ||-SPI5      : %9d\n"
-                  " ||-LPADC     : %9d""   ||-USB       : %9d\n"
-                  " ||-HPADC     : %9d""   ||-EMMC      : %9d\n"
-                  " |-I2C4       : %9d""   ||-SDIO      : %9d\n"
-                  " |-GPS        : %9d""   ||-VSYNC     : %9d\n"
-                  " ||-AHB       : %9d\n",
+                  " |-RTC        : %9ld""   |-APP        : %9ld\n"
+                  " |-RCOSC      : %9ld""   ||-DSP0      : %9ld\n"
+                  " |-XOSC       : %9ld""   ||-DSP1      : %9ld\n"
+                  " |-SYSPLL     : %9ld""   ||-DSP2      : %9ld\n"
+                  " |-M0P        : %9ld""   ||-DSP3      : %9ld\n"
+                  " ||-AHB       : %9ld""   ||-DSP4      : %9ld\n"
+                  " | |-APB      : %9ld""   ||-DSP5      : %9ld\n"
+                  " |-UART1      : %9ld""   ||-UART2     : %9ld\n"
+                  " |-SFC        : %9ld""   ||-SPI4      : %9ld\n"
+                  " |-SCU        : %9ld""   ||-SPI5      : %9ld\n"
+                  " ||-LPADC     : %9ld""   ||-USB       : %9ld\n"
+                  " ||-HPADC     : %9ld""   ||-EMMC      : %9ld\n"
+                  " |-I2C4       : %9ld""   ||-SDIO      : %9ld\n"
+                  " |-GPS        : %9ld""   ||-VSYNC     : %9ld\n"
+                  " ||-AHB       : %9ld\n",
                  cxd56_get_rtc_clock(), cxd56_get_appsmp_baseclock(),
                  cxd56_get_rcosc_clock(), dsptabl[0],
                  cxd56_get_xosc_clock(), dsptabl[1],
@@ -291,8 +309,10 @@ static void cxd56_powermgr_procfs_clock(void)
                  cxd56_get_sys_baseclock(), dsptabl[3],
                  cxd56_get_sys_ahb_baseclock(), dsptabl[4],
                  cxd56_get_sys_apb_baseclock(), dsptabl[5],
-                 cxd56_get_com_baseclock(), cxd56_get_img_uart_baseclock(),
-                 cxd56_get_sys_sfc_baseclock(), cxd56_get_img_spi_baseclock(),
+                 cxd56_get_com_baseclock(),
+                 cxd56_get_img_uart_baseclock(),
+                 cxd56_get_sys_sfc_baseclock(),
+                 cxd56_get_img_spi_baseclock(),
                  scu, cxd56_get_img_wspi_baseclock(),
                  lpadc, cxd56_get_usb_baseclock(),
                  hpadc, emmc,
@@ -385,7 +405,9 @@ static void cxd56_powermgr_procfs_power_state(void)
  ****************************************************************************/
 
 static int cxd56_powermgr_procfs_check_dir(char *relpath,
-                                        mode_t *mode, int *level, int *fileno)
+                                           mode_t *mode,
+                                           int *level,
+                                           int *fileno)
 {
   char *temp;
   int ret = OK;
@@ -443,7 +465,9 @@ static int cxd56_powermgr_procfs_check_dir(char *relpath,
  ****************************************************************************/
 
 static int cxd56_powermgr_procfs_open(FAR struct file *filep,
-                             FAR const char *relpath, int oflags, mode_t mode)
+                                      FAR const char *relpath,
+                                      int oflags,
+                                      mode_t mode)
 {
   FAR struct cxd56_powermgr_procfs_file_s *priv;
   int ret;
@@ -580,7 +604,7 @@ static ssize_t cxd56_powermgr_procfs_read(FAR struct file *filep,
  ****************************************************************************/
 
 static int cxd56_powermgr_procfs_dup(FAR const struct file *oldp,
-                                                        FAR struct file *newp)
+                                     FAR struct file *newp)
 {
   void *oldpriv;
   void *newpriv;
@@ -621,7 +645,7 @@ static int cxd56_powermgr_procfs_dup(FAR const struct file *oldp,
  ****************************************************************************/
 
 static int cxd56_powermgr_procfs_stat(FAR const char *relpath,
-                                                         FAR struct stat *buf)
+                                      FAR struct stat *buf)
 {
   int ret;
   mode_t mode;
@@ -652,7 +676,7 @@ static int cxd56_powermgr_procfs_stat(FAR const char *relpath,
  ****************************************************************************/
 
 static int cxd56_powermgr_procfs_opendir(FAR const char *relpath,
-                                                 FAR struct fs_dirent_s *dir)
+                                         FAR struct fs_dirent_s *dir)
 {
   FAR struct cxd56_powermgr_procfs_dir_s *procfs;
   int ret;
@@ -770,7 +794,7 @@ static int cxd56_powermgr_procfs_rewinddir(struct fs_dirent_s *dir)
 }
 
 /****************************************************************************
- * Public Function
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
@@ -786,9 +810,9 @@ int cxd56_pm_initialize_procfs(void)
   int ret;
   ret = procfs_register(&g_powermgr_procfs1);
   if (ret < 0)
-    return -EPERM;
+      return -EPERM;
   ret = procfs_register(&g_powermgr_procfs2);
   if (ret < 0)
-    return -EPERM;
+      return -EPERM;
   return ret;
 }

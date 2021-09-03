@@ -1,39 +1,24 @@
-/***************************************************************************
+/****************************************************************************
  * boards/arm/cxd56xx/drivers/audio/cxd56_audio.c
  *
- *   Copyright 2018 Sony Semiconductor Solutions Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name of Sony Semiconductor Solutions Corporation nor
- *    the names of its contributors may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
-/***************************************************************************
+/****************************************************************************
  * Included Files
  ****************************************************************************/
 
@@ -59,14 +44,14 @@
 #include "cxd56_audio_ac_reg.h"
 #include "cxd56_audio_bca_reg.h"
 
-/***************************************************************************
+/****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
 #define AUDIO_DNC_ID_NUM      (CXD56_AUDIO_DNC_ID_FF + 1)
 #define AUDIO_VOL_ID_NUM      (CXD56_AUDIO_VOLID_MIXER_OUT + 1)
 
-/***************************************************************************
+/****************************************************************************
  * Private Types
  ****************************************************************************/
 
@@ -141,7 +126,7 @@ struct power_on_param_s
   struct data_path_s          path;
 };
 
-/***************************************************************************
+/****************************************************************************
  * Private Data
  ****************************************************************************/
 
@@ -219,11 +204,11 @@ static struct power_on_param_s g_pwon_param =
     }
 };
 
-/***************************************************************************
+/****************************************************************************
  * Public Data
  ****************************************************************************/
 
-/***************************************************************************
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -760,7 +745,8 @@ CXD56_AUDIO_ECODE cxd56_audio_unmute_vol(cxd56_audio_volid_t id)
   return ret;
 }
 
-CXD56_AUDIO_ECODE cxd56_audio_mute_vol_fade(cxd56_audio_volid_t id, bool wait)
+CXD56_AUDIO_ECODE cxd56_audio_mute_vol_fade(cxd56_audio_volid_t id,
+                                            bool wait)
 {
   CXD56_AUDIO_ECODE ret = CXD56_AUDIO_ECODE_OK;
 
@@ -1041,8 +1027,9 @@ CXD56_AUDIO_ECODE cxd56_audio_set_dmacb(cxd56_audio_dma_t handle,
   return ret;
 }
 
-CXD56_AUDIO_ECODE cxd56_audio_get_dmamstate(cxd56_audio_dma_t handle,
-                                            FAR cxd56_audio_dma_mstate_t *state)
+CXD56_AUDIO_ECODE
+cxd56_audio_get_dmamstate(cxd56_audio_dma_t handle,
+                          FAR cxd56_audio_dma_mstate_t *state)
 {
   CXD56_AUDIO_ECODE ret = CXD56_AUDIO_ECODE_OK;
 

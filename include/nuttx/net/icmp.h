@@ -51,7 +51,6 @@
 
 #include <nuttx/net/netconfig.h>
 #include <nuttx/net/ip.h>
-#include <nuttx/net/tcp.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -108,8 +107,8 @@ struct icmp_hdr_s
   uint16_t icmpchksum;      /* Checksum of ICMP header and data */
 
   /* All ICMP packets have an 8-byte header and variable-sized data section.
-   * The first 4 bytes of the header have fixed format, while the last 4 bytes
-   * depend on the type/code of that ICMP packet.
+   * The first 4 bytes of the header have fixed format, while the last
+   * 4 bytes depend on the type/code of that ICMP packet.
    */
 
   /* ICMP_ECHO_REQUEST and ICMP_ECHO_REPLY data */

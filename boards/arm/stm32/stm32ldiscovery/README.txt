@@ -34,7 +34,7 @@ Status
 
   The basic port is complete.  A NuttShell (NSH) configuration exists for the
   STM32L-Discovery board.  A driver has been developed for the segment LCD on
-  board the STM32L-Discovery.  In the NSH configuration discription below,
+  board the STM32L-Discovery.  In the NSH configuration description below,
   there is information about how the basic NSH extension can be extended to
   use apps/examples/slcd to exercise the segment LCD.
 
@@ -199,8 +199,8 @@ LEDs
 
   These LEDs are not used by the board port unless CONFIG_ARCH_LEDS is
   defined.  In that case, the usage by the board port is defined in
-  include/board.h and src/up_leds.c. The LEDs are used to encode OS-related
-  events as follows:
+  include/board.h and src/stm32_autoleds.c. The LEDs are used to encode
+  OS-related events as follows:
 
     SYMBOL                Meaning                 LED state
                                                     LED3     LED4
@@ -286,10 +286,6 @@ Debugging
   https://github.com/texane/stlink
   --------------------------------
   This is an open source server for the ST-Link that I have never used.
-
-  Atollic GDB Server
-  ------------------
-  You can use the Atollic IDE, but I have never done that either.
 
 STM32L-Discovery-specific Configuration Options
 ===============================================
@@ -514,7 +510,7 @@ Configuration sub-directories
 
     2. Support for NSH built-in applications is *not* enabled.
 
-    3. By default, this configuration uses the CodeSourcery toolchain
+    3. By default, this configuration uses the ARM EABI toolchain
        for Windows and builds under Cygwin (or probably MSYS).  That
        can easily be reconfigured, of course.
 
@@ -523,7 +519,7 @@ Configuration sub-directories
          CONFIG_WINDOWS_CYGWIN=y                 : Using Cygwin
 
        System Type:
-         CONFIG_ARMV7M_TOOLCHAIN_CODESOURCERYW=y : CodeSourcery for Windows
+         CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y     : GNU EABI toolchain for Windows
 
     4. To enable SLCD support:
 

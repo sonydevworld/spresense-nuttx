@@ -32,61 +32,14 @@ GNU Toolchain Options
   The NuttX make system has been modified to support the following different
   toolchain options.
 
-  1. The CodeSourcery GNU toolchain,
-  2. The devkitARM GNU toolchain,
-  3. Raisonance GNU toolchain,
-  4. The NuttX buildroot Toolchain (see below), or
-  5. Any generic arm-none-eabi GNU toolchain.
+  1. The NuttX buildroot Toolchain (see below), or
+  2. Any generic arm-none-eabi GNU toolchain.
 
-  All testing has been conducted using the NuttX buildroot toolchain.  However,
-  the make system is setup to default to use the devkitARM toolchain.  To use
-  the CodeSourcery, devkitARM or Raisonance GNU toolchain, you simply need to
-  add one of the following configuration options to your .config (or defconfig)
-  file:
+  All testing has been conducted using the NuttX buildroot toolchain.  To use
+  a different toolchain, you simply need to modify the configuration.  As an
+  example:
 
-    CONFIG_ARM_TOOLCHAIN_CODESOURCERYW=y  : CodeSourcery under Windows
-    CONFIG_ARM_TOOLCHAIN_CODESOURCERYL=y  : CodeSourcery under Linux
-    CONFIG_ARM_TOOLCHAIN_DEVKITARM=y      : devkitARM under Windows
-    CONFIG_ARM_TOOLCHAIN_BUILDROOT=y      : NuttX buildroot under Linux or Cygwin (default)
     CONFIG_ARM_TOOLCHAIN_GNU_EABIL : Generic arm-none-eabi toolchain
-
-  You may also have to modify the PATH environment variable if your make cannot
-  find the tools.
-
-  The toolchain may also be set using the kconfig-mconf utility (make menuconfig) or by
-  passing CONFIG_ARM_TOOLCHAIN=<toolchain> to make, where <toolchain> is one
-  of CODESOURCERYW, CODESOURCERYL, DEVKITARM, BUILDROOT or GNU_EABI as described
-  above.
-
-  NOTE: the CodeSourcery (for Windows), devkitARM, and Raisonance toolchains are
-  Windows native toolchains.  The CodeSourcey (for Linux) and NuttX buildroot
-  toolchains are Cygwin and/or Linux native toolchains. There are several limitations
-  to using a Windows based toolchain in a Cygwin environment.  The three biggest are:
-
-  1. The Windows toolchain cannot follow Cygwin paths.  Path conversions are
-     performed automatically in the Cygwin makefiles using the 'cygpath' utility
-     but you might easily find some new path problems.  If so, check out 'cygpath -w'
-
-  2. Windows toolchains cannot follow Cygwin symbolic links.  Many symbolic links
-     are used in Nuttx (e.g., include/arch).  The make system works around these
-     problems for the Windows tools by copying directories instead of linking them.
-     But this can also cause some confusion for you:  For example, you may edit
-     a file in a "linked" directory and find that your changes had no effect.
-     That is because you are building the copy of the file in the "fake" symbolic
-     directory.  If you use a Windows toolchain, you should get in the habit of
-     making like this:
-
-       make clean_context all
-
-     An alias in your .bashrc file might make that less painful.
-
-  NOTE 1: The CodeSourcery toolchain (2009q1) does not work with default optimization
-  level of -Os (See Make.defs).  It will work with -O0, -O1, or -O2, but not with
-  -Os.
-
-  NOTE 2: The devkitARM toolchain includes a version of MSYS make.  Make sure that
-  the paths to Cygwin's /bin and /usr/bin directories appear BEFORE the devkitARM
-  path or will get the wrong version of make.
 
   Generic arm-none-eabi GNU Toolchain
   -----------------------------------
@@ -95,12 +48,6 @@ GNU Toolchain Options
 
     GCC ARM Embedded
       https://developer.arm.com/open-source/gnu-toolchain/gnu-rm
-
-    Summon ARM Toolchain
-      https://github.com/esden/summon-arm-toolchain
-
-    Yagarto
-      http://www.yagarto.de
 
   Others exist for various Linux distributions, MacPorts, etc.  Any version
   based on GCC 4.6.3 or later should work.
@@ -127,7 +74,7 @@ IDEs
   2) Start the NuttX build at least one time from the Cygwin command line
      before trying to create your project.  This is necessary to create
      certain auto-generated files and directories that will be needed.
-  3) Set up include pathes:  You will need include/, arch/arm/src/lpc31xx,
+  3) Set up include paths:  You will need include/, arch/arm/src/lpc31xx,
      arch/arm/src/common, arch/arm/src/arm, and sched/.
   4) All assembly files need to have the definition option -D __ASSEMBLY__
      on the command line.
@@ -148,7 +95,7 @@ NuttX buildroot Toolchain
   Bitbucket download site (https://bitbucket.org/nuttx/buildroot/downloads/).
   This GNU toolchain builds and executes in the Linux or Cygwin environment.
 
-  1. You must have already configured Nuttx in <some-dir>/nuttx.
+  1. You must have already configured NuttX in <some-dir>/nuttx.
 
      tools/configure.sh ea3131:<sub-dir>
 
@@ -223,9 +170,9 @@ Image Format
        retrieving revision 1.2
        diff -r1.2 lpchdr.c
        264c264
-       <   g_hdr.imageType       = 0x0000000b;
+       <   g_hdr.imagetype       = 0x0000000b;
        ---
-       >   g_hdr.imageType       = 0x0000000a;
+       >   g_hdr.imagetype       = 0x0000000a;
 
 Image Download to ISRAM
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -258,7 +205,7 @@ Using OpenOCD and GDB
 
     - possibly the value of OPENOCD_PATH
     - If you are working under Linux you will need to change any
-      occurances of `cygpath -w blablabla` to just blablabla
+      occurrences of `cygpath -w blablabla` to just blablabla
 
   Then you should be able to start the OpenOCD daemon like:
 
@@ -608,12 +555,12 @@ Common Configuration Notes
      b. Execute 'make menuconfig' in nuttx/ in order to start the
         reconfiguration process.
 
-  3. By default, all configurations assume the CodeSourcery toolchain
+  3. By default, all configurations assume the ARM EABI toolchain
      under Cygwin with Windows.  This is easily reconfigured, however:
 
         CONFIG_HOST_WINDOWS=y
         CONFIG_WINDOWS_CYGWIN=y
-        CONFIG_ARM_TOOLCHAIN_CODESOURCERYW=y
+        CONFIG_ARM_TOOLCHAIN_GNU_EABIW=y
 
 Configuration Sub-Directories
 -----------------------------
@@ -637,7 +584,7 @@ Configuration Sub-Directories
   pgnsh
 
     This is the same configuration as nsh, but with On-Demand
-    paging enabled.  See http://www.nuttx.org/Documentation/NuttXDemandPaging.html.
+    paging enabled.  See https://nuttx.apache.org/docs/latest/components/paging.html.
     This configuration is an experiment for the purposes of test
     and debug.  At present, this does not produce functioning,
     usable system

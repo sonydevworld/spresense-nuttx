@@ -6,16 +6,14 @@
 config NFS
 	bool "NFS client file system"
 	default n
-	depends on NET_UDP && NET_IPv4 && !DISABLE_MOUNTPOINT
-	select FS_READABLE
-	select FS_WRITABLE
+	depends on !DISABLE_MOUNTPOINT
 	---help---
 		Enable network file system (NFS) client file system
 
 #if NFS
 
 config NFS_STATISTICS
-	bool "NFS Statics"
+	bool "NFS Statistics"
 	default n
 	depends on NFS
 	---help---

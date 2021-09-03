@@ -1,39 +1,20 @@
 /****************************************************************************
  * drivers/timers/mcp794xx.c
  *
- *   Copyright (C) 2019 Abdelatif Guettouche. All rights reserved.
- *   Author: Abdelatif Guettouche <abdelatif.guettouche@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * This file is a part of NuttX:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -64,6 +45,7 @@
 #define MCP794XX_OSCRUN_READ_RETRY  5  /* How many time to read OSCRUN status */
 
 /* Configuration ************************************************************/
+
 /* This RTC implementation supports only date/time RTC hardware */
 
 #ifndef CONFIG_RTC_DATETIME
@@ -141,11 +123,9 @@ static void rtc_dumptime(FAR struct tm *tp, FAR const char *msg)
   rtcinfo("  tm_mday: %08x\n", tp->tm_mday);
   rtcinfo("   tm_mon: %08x\n", tp->tm_mon);
   rtcinfo("  tm_year: %08x\n", tp->tm_year);
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
   rtcinfo("  tm_wday: %08x\n", tp->tm_wday);
   rtcinfo("  tm_yday: %08x\n", tp->tm_yday);
   rtcinfo(" tm_isdst: %08x\n", tp->tm_isdst);
-#endif
 }
 #else
 #  define rtc_dumptime(tp, msg)
@@ -279,12 +259,9 @@ int up_rtc_getdatetime(FAR struct tm *tp)
       tp->tm_min  = 0;
       tp->tm_hour = 0;
 
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
       /* Jan 1, 1970 was a Thursday */
 
       tp->tm_wday = 4;
-#endif
-
       tp->tm_mday = 1;
       tp->tm_mon  = 0;
       tp->tm_year = 70;
@@ -344,6 +321,7 @@ int up_rtc_getdatetime(FAR struct tm *tp)
          (seconds & MCP794XX_RTCSEC_BCDMASK));
 
   /* Format the return time */
+
   /* Return seconds (0-59) */
 
   tp->tm_sec = rtc_bcd2bin(buffer[0] & MCP794XX_RTCSEC_BCDMASK);
@@ -356,11 +334,9 @@ int up_rtc_getdatetime(FAR struct tm *tp)
 
   tp->tm_hour = rtc_bcd2bin(buffer[2] & MCP794XX_RTCHOUR_BCDMASK);
 
- #if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
   /* Return the day of the week (0-6) */
 
   tp->tm_wday = (rtc_bcd2bin(buffer[3]) & MCP794XX_RTCWKDAY_BCDMASK) - 1;
-#endif
 
   /* Return the day of the month (1-31) */
 
@@ -431,19 +407,11 @@ int up_rtc_settime(FAR const struct timespec *tp)
       newtime++;
     }
 
- #ifdef CONFIG_LIBC_LOCALTIME
-   if (localtime_r(&newtime, &newtm) == NULL)
-     {
-       rtcerr("ERROR: localtime_r failed\n");
-       return -EINVAL;
-     }
-#else
-   if (gmtime_r(&newtime, &newtm) == NULL)
-     {
-       rtcerr("ERROR: gmtime_r failed\n");
-       return -EINVAL;
-     }
-#endif
+  if (localtime_r(&newtime, &newtm) == NULL)
+    {
+      rtcerr("ERROR: localtime_r failed\n");
+      return -EINVAL;
+    }
 
   rtc_dumptime(&newtm, "New time");
 
@@ -501,6 +469,7 @@ int up_rtc_settime(FAR const struct timespec *tp)
   while ((wkday & MCP794XX_RTCWKDAY_OSCRUN) != 0 && retries > 0);
 
   /* Construct the message */
+
   /* Write starting with the seconds register */
 
   buffer[0] = MCP794XX_REG_RTCSEC;
@@ -519,11 +488,7 @@ int up_rtc_settime(FAR const struct timespec *tp)
 
   /* Save the day of the week (1-7) and enable VBAT. */
 
-#if defined(CONFIG_LIBC_LOCALTIME) || defined(CONFIG_TIME_EXTENDED)
   buffer[4] = rtc_bin2bcd(newtm.tm_wday + 1) | MCP794XX_RTCWKDAY_VBATEN;
-#else
-  buffer[4] = 1 | MCP794XX_RTCWKDAY_VBATEN;
-#endif
 
   /* Save the day of the month (1-31) */
 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/misoc/src/common/serial.h
+ * arch/misoc/src/common/misoc.h
  *
  *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -58,20 +58,10 @@
 #define putreg32(v,a)         (*(volatile uint32_t *)(a) = (v))
 
 /****************************************************************************
- * Public Functions
+ * Public Functions Prototypes
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
-
-/****************************************************************************
- * Name: misoc_timer_initialize
- *
- * Description:
- *   Initialize and start the system timer.
- *
- ****************************************************************************/
-
-void misoc_timer_initialize(void);
 
 /****************************************************************************
  * Name: flush_cpu_dcache
