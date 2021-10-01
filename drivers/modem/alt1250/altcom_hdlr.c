@@ -2316,6 +2316,11 @@ static int32_t actpdn_pkt_compose(FAR void **arg,
     (FAR struct apicmd_cmddat_activatepdn_s *)pktbuf;
 
   out->apntype = htonl(apn->apn_type);
+  if (apn->ip_type == LTE_IPTYPE_NON && altver == ALTCOM_VER1)
+    {
+      return -ENOTSUP;
+    }
+
   out->iptype  = apn->ip_type;
   out->authtype  = apn->auth_type;
 
