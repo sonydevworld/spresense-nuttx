@@ -4395,6 +4395,44 @@ static int32_t repnet_pkt_parse(FAR uint8_t *pktbuf,
                      &netinfo->pdn_stat[i]);
             }
         }
+
+      /* parse DNS address if exists */
+
+      if (pktsz == (sizeof(struct apicmd_cmddat_rep_netinfo_s)))
+        {
+          *ndnsaddrs = 0;
+
+          /* parse IPv4 DNS address */
+
+          if (*(uint32_t *)in->dnsaddrv4 != 0)
+            {
+              FAR struct sockaddr_in *v4addr =
+                (FAR struct sockaddr_in *)&dnsaddrs[0];
+
+              v4addr->sin_family = AF_INET;
+              v4addr->sin_port = 0;
+              memcpy(&v4addr->sin_addr, in->dnsaddrv4,
+                sizeof(v4addr->sin_addr));
+              (*ndnsaddrs)++;
+            }
+
+          /* parse IPv6 DNS address */
+
+          if (!((*(uint32_t *)&in->dnsaddrv6[0] == 0) &&
+               (*(uint32_t *)&in->dnsaddrv6[4] == 0) &&
+               (*(uint32_t *)&in->dnsaddrv6[8] == 0) &&
+               (*(uint32_t *)&in->dnsaddrv6[12] == 0)))
+            {
+              FAR struct sockaddr_in6 *v6addr =
+                (FAR struct sockaddr_in6 *)&dnsaddrs[*ndnsaddrs];
+
+              v6addr->sin6_family = AF_INET6;
+              v6addr->sin6_port = 0;
+              memcpy(&v6addr->sin6_addr, in->dnsaddrv6,
+                sizeof(v6addr->sin6_addr));
+              (*ndnsaddrs)++;
+            }
+        }
     }
   else if (altver == ALTCOM_VER4)
     {
