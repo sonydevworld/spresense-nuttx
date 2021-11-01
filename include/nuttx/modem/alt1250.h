@@ -288,6 +288,7 @@ struct alt1250_lower_s
 {
   FAR struct spi_dev_s * (*poweron)(void);
   void (*poweroff)(void);
+  void (*reset)(void);
   void (*irqattach)(xcpt_t handler);
   void (*irqenable)(bool enable);
   bool (*get_sready)(void);

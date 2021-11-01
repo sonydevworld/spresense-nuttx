@@ -88,6 +88,16 @@ void board_alt1250_poweron(void);
 
 void board_alt1250_poweroff(void);
 
+/****************************************************************************
+ * Name: board_alt1250_reset
+ *
+ * Description:
+ *   Reset the Altair modem device on the board.
+ *
+ ****************************************************************************/
+
+void board_alt1250_reset(void);
+
 #endif
 
 #undef EXTERN
