@@ -1272,7 +1272,7 @@ static void getce_parse_response(FAR struct apicmd_cmddat_getceres_s *resp,
 static void getver_parse_response(FAR struct apicmd_cmddat_getverres_s *resp,
                                   FAR lte_version_t *version)
 {
-  memset(version, 0, sizeof(version));
+  memset(version, 0, sizeof(*version));
   strncpy(version->bb_product,
           (FAR const char *)resp->bb_product, LTE_VER_BB_PRODUCT_LEN - 1);
   strncpy(version->np_package,
@@ -3455,9 +3455,10 @@ static int32_t injectimage_pkt_compose(FAR void **arg,
                           const size_t pktsz, FAR uint16_t *altcid)
 {
   int32_t size = 0;
-  uint32_t len;
-  FAR struct ltefw_injectdata_s *inject_data =
-    (FAR struct ltefw_injectdata_s *)arg[0];
+
+  FAR uint8_t *sending_data = (uint8_t *)arg[0];
+  int len = *(int *)arg[1];
+  bool mode = *(bool *)arg[2];
 
   if (altver == ALTCOM_VER1)
     {
@@ -3465,11 +3466,14 @@ static int32_t injectimage_pkt_compose(FAR void **arg,
        (FAR struct apicmd_cmddat_fw_injectdeltaimg_s *)pktbuf;
 
       *altcid = APICMDID_FW_INJECTDELTAIMG;
-      len = (inject_data->data_len > APICMD_FW_INJECTDATA_MAXLEN) ?
-        APICMD_FW_INJECTDATA_MAXLEN : inject_data->data_len;
+
+      len = (len > APICMD_FW_INJECTDATA_MAXLEN) ?
+        APICMD_FW_INJECTDATA_MAXLEN : len;
+
       out->data_len = htonl(len);
-      out->inject_mode = inject_data->inject_mode;
-      memcpy(out->data, inject_data->data, len);
+      out->inject_mode = mode ? LTEFW_INJECTION_MODE_NEW
+        : LTEFW_INJECTION_MODE_APPEND;
+      memcpy(out->data, sending_data, len);
       size = sizeof(struct apicmd_cmddat_fw_injectdeltaimg_s);
     }
   else if (altver == ALTCOM_VER4)
@@ -3478,11 +3482,13 @@ static int32_t injectimage_pkt_compose(FAR void **arg,
        (FAR struct apicmd_cmddat_fw_injectdeltaimg_v4_s *)pktbuf;
 
       *altcid = APICMDID_FW_INJECTDELTAIMG_V4;
-      len = (inject_data->data_len > APICMD_FW_INJECTDATA_MAXLEN_V4) ?
-        APICMD_FW_INJECTDATA_MAXLEN_V4 : inject_data->data_len;
+      len = (len > APICMD_FW_INJECTDATA_MAXLEN_V4) ?
+        APICMD_FW_INJECTDATA_MAXLEN_V4 : len;
+
       out->data_len = htonl(len);
-      out->inject_mode = inject_data->inject_mode;
-      memcpy(out->data, inject_data->data, len);
+      out->inject_mode = mode ? LTEFW_INJECTION_MODE_NEW
+        : LTEFW_INJECTION_MODE_APPEND;
+      memcpy(out->data, sending_data, len);
       size = sizeof(struct apicmd_cmddat_fw_injectdeltaimg_v4_s) - 1 + len;
     }
   else
@@ -4944,23 +4950,19 @@ static int32_t fwcommon_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen)
 {
-  FAR int32_t *ret = (FAR int32_t *)arg[0];
-  FAR uint16_t *fwret = (FAR uint16_t *)arg[1];
+  int32_t result_cmd;
+  int16_t injection_retcode;
 
   FAR struct apicmd_cmddat_fw_deltaupcommres_s *in =
     (FAR struct apicmd_cmddat_fw_deltaupcommres_s *)pktbuf;
 
-  *ret = ntohl(in->api_result);
-  if (*ret < 0)
-    {
-      /* All internal errors on the LTE modem side are treated as -EPROTO. */
+  /* Negative value in result_cmd means an error is occured */
+  /* Zero indicates command successed or size of injected data */
 
-      *ret = -EPROTO;
-    }
+  result_cmd = ntohl(in->api_result);
+  injection_retcode = ntohs(in->ltefw_result);
 
-  *fwret = ntohs(in->ltefw_result);
-
-  return 0;
+  return (injection_retcode != 0) ? -injection_retcode : result_cmd;
 }
 
 /****************************************************************************
