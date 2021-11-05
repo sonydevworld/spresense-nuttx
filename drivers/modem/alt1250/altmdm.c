@@ -405,38 +405,29 @@ static void usec2timespec(useconds_t usec, FAR struct timespec *timespec)
   timespec->tv_nsec = (usec - (sec * 1000000)) * 1000;
 }
 
-static void process_before_poweroff(void)
-{
-  uint32_t allevt = (uint32_t)(-1);
-
-  set_vp(VP_NO_RESET);
-  altmdm_timer_restart(g_altmdm_dev.txsus_timer, 0, 0);
-
-  /* Cancel tx request. */
-
-  tx_done(TX_CANCEL);
-
-  /* clear event without EVENT_POWERON */
-
-  altmdm_event_clear(&g_altmdm_dev.event, (allevt & ~(EVENT_POWERON)));
-  g_altmdm_dev.lower->irqenable(false);
-  g_altmdm_dev.lower->set_wakeup(false);
-  g_altmdm_dev.lower->set_mready(false);
-}
-
 /****************************************************************************
  * force reset function
  ****************************************************************************/
 
 static void force_reset(void)
 {
+  struct timespec interval;
+
   if (is_vp_valid())
     {
       set_reset_reason(LTE_RESTART_MODEM_INITIATED);
     }
 
-  process_before_poweroff();
-  g_altmdm_dev.lower->reset();
+  /* Turn the modem power off and on. */
+
+  next_state_poweroff(ALTMDM_STATE_IDLEWTO);
+
+  usec2timespec(RESET_INTERVAL, &interval);
+  nxsig_nanosleep(&interval, NULL);
+
+  g_altmdm_dev.spidev = g_altmdm_dev.lower->poweron();
+  g_altmdm_dev.lower->set_mready(false);
+  g_altmdm_dev.lower->set_wakeup(false);
   g_altmdm_dev.lower->irqenable(true);
 }
 
@@ -466,7 +457,21 @@ static altmdm_state_t process_state_common(uint32_t event,
 
 static int next_state_poweroff(altmdm_state_t state)
 {
-  process_before_poweroff();
+  uint32_t allevt = (uint32_t)(-1);
+
+  set_vp(VP_NO_RESET);
+  altmdm_timer_restart(g_altmdm_dev.txsus_timer, 0, 0);
+
+  /* Cancel tx request. */
+
+  tx_done(TX_CANCEL);
+
+  /* clear event without EVENT_POWERON */
+
+  altmdm_event_clear(&g_altmdm_dev.event, (allevt & ~(EVENT_POWERON)));
+  g_altmdm_dev.lower->irqenable(false);
+  g_altmdm_dev.lower->set_wakeup(false);
+  g_altmdm_dev.lower->set_mready(false);
   g_altmdm_dev.lower->poweroff();
 
   return 0;
