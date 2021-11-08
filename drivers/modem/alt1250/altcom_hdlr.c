@@ -1337,7 +1337,7 @@ static void getsiminfo_parse_response(
     {
       if (LTE_SIMINFO_ICCID_LEN < resp->iccid_len)
         {
-          resp->imsi_len = LTE_SIMINFO_ICCID_LEN;
+          resp->iccid_len = LTE_SIMINFO_ICCID_LEN;
         }
 
       siminfo->iccid_len = resp->iccid_len;
