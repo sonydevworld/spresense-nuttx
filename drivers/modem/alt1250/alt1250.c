@@ -664,6 +664,9 @@ static int ioctl_send(FAR struct alt1250_dev_s *dev,
         {
           ret = handler(req->inparam, req->inparamlen, altver, payload,
             ALTCOM_PAYLOAD_SIZE_MAX, &cid);
+
+          ret = (ret > ALTCOM_PAYLOAD_SIZE_MAX) ? -ENOSPC : ret;
+
           if (ret >= 0)
             {
               tid = altcom_make_header(
