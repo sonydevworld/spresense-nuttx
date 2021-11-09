@@ -79,7 +79,6 @@
 
 static FAR struct spi_dev_s *alt1250_poweron(void);
 static void alt1250_poweroff(void);
-static void alt1250_reset(void);
 static void alt1250_irqattach(xcpt_t handler);
 static void alt1250_irqenable(bool enable);
 static bool alt1250_get_sready(void);
@@ -95,7 +94,6 @@ static const struct alt1250_lower_s g_alt1250_lower =
 {
   .poweron      = alt1250_poweron,
   .poweroff     = alt1250_poweroff,
-  .reset        = alt1250_reset,
   .irqattach    = alt1250_irqattach,
   .irqenable    = alt1250_irqenable,
   .get_sready   = alt1250_get_sready,
@@ -290,21 +288,6 @@ static void alt1250_poweroff(void)
   /* power off Altair modem device */
 
   board_alt1250_poweroff();
-}
-
-/****************************************************************************
- * Name: alt1250_reset
- *
- * Description:
- *   Reset the Altair modem device on the board.
- *
- ****************************************************************************/
-
-static void alt1250_reset(void)
-{
-  /* Reset Altair modem device */
-
-  board_alt1250_reset();
 }
 
 /****************************************************************************

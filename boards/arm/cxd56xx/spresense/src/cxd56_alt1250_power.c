@@ -34,16 +34,8 @@
 #include <nuttx/spi/spi.h>
 #include <nuttx/modem/alt1250.h>
 #include <arch/board/board.h>
-#include <nuttx/signal.h>
 #include "cxd56_gpio.h"
 #include "cxd56_pinconfig.h"
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#define POWERON_INTERVAL_NSEC (100 * 1000 * 1000)
-#define POWEROFF_INTERVAL_NSEC (100 * 1000)
 
 /****************************************************************************
  * Public Functions
@@ -59,19 +51,15 @@
 
 void board_alt1250_poweron(void)
 {
-  struct timespec interval =
-    {
-      0, POWERON_INTERVAL_NSEC
-    };
-
   /* Power on altair modem device */
 
-  board_power_control(POWER_LTE, true);
-
-  nxsig_nanosleep(&interval, NULL);
-
+  cxd56_gpio_config(ALT1250_SHUTDOWN, false);
   cxd56_gpio_write(ALT1250_SHUTDOWN, true);
+
+  cxd56_gpio_config(ALT1250_LTE_POWER_BUTTON, false);
   cxd56_gpio_write(ALT1250_LTE_POWER_BUTTON, true);
+
+  board_power_control(POWER_LTE, true);
 }
 
 /****************************************************************************
@@ -84,48 +72,14 @@ void board_alt1250_poweron(void)
 
 void board_alt1250_poweroff(void)
 {
-  struct timespec interval =
-    {
-      0, POWEROFF_INTERVAL_NSEC
-    };
-
   /* Power off Altair modem device */
 
-  cxd56_gpio_write(ALT1250_LTE_POWER_BUTTON, false);
-  cxd56_gpio_write(ALT1250_SHUTDOWN, false);
-
-  nxsig_nanosleep(&interval, NULL);
+  cxd56_gpio_write(ALT1250_SHUTDOWN, true);
 
   board_power_control(POWER_LTE, false);
 
-  /* Output disable */
-
-  cxd56_gpio_config(ALT1250_LTE_POWER_BUTTON, false);
-  cxd56_gpio_config(ALT1250_SHUTDOWN, false);
-}
-
-/****************************************************************************
- * Name: board_alt1250_reset
- *
- * Description:
- *   Reset the Altair modem device on the board.
- *
- ****************************************************************************/
-
-void board_alt1250_reset(void)
-{
-  struct timespec interval =
-    {
-      0, POWEROFF_INTERVAL_NSEC
-    };
-
-  /* Reset Altair modem device */
-
   cxd56_gpio_write(ALT1250_SHUTDOWN, false);
-
-  nxsig_nanosleep(&interval, NULL);
-
-  cxd56_gpio_write(ALT1250_SHUTDOWN, true);
+  cxd56_gpio_write(ALT1250_LTE_POWER_BUTTON, false);
 }
 
 #endif
