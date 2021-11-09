@@ -879,14 +879,11 @@ static void altcom_recvthread(FAR void *arg)
 
                           /* Perform parse handler */
 
-                          ret = handler(payload, get_payload_len(
-                            (FAR struct altcom_cmdhdr_s *)g_recvbuff),
+                          container->result = handler(payload,
+                            get_payload_len(
+                              (FAR struct altcom_cmdhdr_s *)g_recvbuff),
                             altver, container->outparam,
                             container->outparamlen);
-                          if (ret < 0)
-                            {
-                              container->result = ret;
-                            }
                         }
                       else
                         {
