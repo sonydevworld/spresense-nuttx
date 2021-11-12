@@ -246,6 +246,9 @@
 #define APICMD_FW_INJECTDATA_MAXLEN    (4096)
 #define APICMD_FW_INJECTDATA_MAXLEN_V4 (3000)
 
+#define APICMD_IPV4_LEN (4)
+#define APICMD_IPV6_LEN (16)
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -829,6 +832,8 @@ begin_packed_struct struct apicmd_cmddat_set_repnetinfores_s
 begin_packed_struct struct apicmd_cmddat_rep_netinfo_s
 {
   struct apicmd_netinfo_s netinfo;
+  uint8_t dnsaddrv4[APICMD_IPV4_LEN];
+  uint8_t dnsaddrv6[APICMD_IPV6_LEN];
 } end_packed_struct;
 
 begin_packed_struct struct apicmd_cmddat_rep_netinfo_v4_s
