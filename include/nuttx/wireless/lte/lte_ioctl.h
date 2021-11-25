@@ -56,6 +56,8 @@
 #define _CMDGRP_POWER(nr)            (_CMDGRP_SHIFT(3) | (nr))
 #define _CMDGRP_FWUPDATE(nr)         (_CMDGRP_SHIFT(4) | (nr))
 #define LTE_CMDOPT_ASYNC_BIT         (0x1 << (_CMDOPT_LSB))
+#define LTE_IS_ASYNC_CMD(cid)        ((cid) & LTE_CMDOPT_ASYNC_BIT)
+#define LTE_PURE_CMDID(cid)          ((cid) & ~LTE_CMDOPT_ASYNC_BIT)
 #define LTE_ISCMDGRP_NORMAL(cmd)     ((cmd & _CMDGRP_MASK) == _CMDGRP_NORMAL(0))
 #define LTE_ISCMDGRP_EVENT(cmd)      ((cmd & _CMDGRP_MASK) == _CMDGRP_EVENT(0))
 #define LTE_ISCMDGRP_NOMDM(cmd)      ((cmd & _CMDGRP_MASK) == _CMDGRP_NOMDM(0))
