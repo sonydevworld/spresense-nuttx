@@ -146,6 +146,11 @@ config VIDEO_ISX012
         default n
         select I2C
 
+config VIDEO_ISX019
+	bool "ISX019 Image sensor"
+	default n
+	select I2C
+
 config VIDEO_OV2640
 	bool "OV2640 camera chip"
 	default n
