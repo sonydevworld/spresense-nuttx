@@ -217,6 +217,7 @@ static bool is_movie_needed(uint8_t fmt, uint8_t fps);
 
 static int isx012_init(void);
 static int isx012_uninit(void);
+static const char *isx012_get_driver_name(void);
 static int isx012_validate_frame_setting(imgsensor_stream_type_t type,
                                          uint8_t nr_datafmt,
                                          FAR imgsensor_format_t *datafmts,
@@ -616,6 +617,7 @@ static struct imgsensor_ops_s g_isx012_ops =
 {
   .init                   = isx012_init,
   .uninit                 = isx012_uninit,
+  .get_driver_name        = isx012_get_driver_name,
   .validate_frame_setting = isx012_validate_frame_setting,
   .start_capture          = isx012_start_capture,
   .stop_capture           = isx012_stop_capture,
@@ -1288,6 +1290,11 @@ static int isx012_uninit(void)
   priv->state    = STATE_ISX012_POWEROFF;
 
   return ret;
+}
+
+static const char *isx012_get_driver_name(void)
+{
+  return "ISX012";
 }
 
 static int8_t isx012_get_maximum_fps(uint8_t nr_fmt,
