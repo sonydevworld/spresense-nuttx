@@ -226,7 +226,7 @@ const struct audio_bca_reg_s g_bca_reg[BCA_REG_MAX_ENTRY] =
   {0x11fc,  0,  8, 0x00000064},  /* Mclk_Mon_thresh (0x64)            */
   {0x1730,  0, 32, 0x00000000},  /* AHB MASTER MIC MASK (0x00)        */
   {0x1f30,  0, 32, 0x00000000},  /* AHB MASTER I2S1 MASK (0x00)       */
-  {0x2730,  0, 32, 0x00000000},  /* AHB MASTER I2S2 MASK (0x00)       */
+  {0x2730,  0, 32, 0x00000000}   /* AHB MASTER I2S2 MASK (0x00)       */
 };
 
 /****************************************************************************
@@ -360,89 +360,89 @@ void enable_mic_in_fmt16(uint8_t mic_num)
       write_bca_reg(mic_ch_sell[i], TRANS_CH_NO_SELECT);
     }
 
-  write_bca_reg(BCA_CLK_EN_AHBMASTER_MIC_EN, 1);
-  write_bca_reg(BCA_MIC_IN_START_ADR,      0x00000000);
-  write_bca_reg(BCA_MIC_IN_SAMPLE_NO,      0);
+  write_bca_reg(BCA_CLK_EN_AHBMASTER_MIC_EN,  1);
+  write_bca_reg(BCA_MIC_IN_START_ADR,         0x00000000);
+  write_bca_reg(BCA_MIC_IN_SAMPLE_NO,         0);
 }
 
 void enable_i2s1_in_fmt24(void)
 {
-  write_bca_reg(BCA_I2S1_IN_BITWT,          0);
-  write_bca_reg(BCA_I2S1_IN_CH2_SEL,        I2S_IN_SEL_SRC1R);
-  write_bca_reg(BCA_I2S1_IN_CH1_SEL,        I2S_IN_SEL_SRC1L);
+  write_bca_reg(BCA_I2S1_IN_BITWT,            0);
+  write_bca_reg(BCA_I2S1_IN_CH2_SEL,          I2S_IN_SEL_SRC1R);
+  write_bca_reg(BCA_I2S1_IN_CH1_SEL,          I2S_IN_SEL_SRC1L);
   write_bca_reg(BCA_CLK_EN_AHBMASTER_I2S1_EN, 1);
-  write_bca_reg(BCA_I2S1_IN_START_ADR,      0x00000000);
-  write_bca_reg(BCA_I2S1_IN_SAMPLE_NO,      0);
+  write_bca_reg(BCA_I2S1_IN_START_ADR,        0x00000000);
+  write_bca_reg(BCA_I2S1_IN_SAMPLE_NO,        0);
 }
 
 void enable_i2s1_in_fmt16(void)
 {
-  write_bca_reg(BCA_I2S1_IN_BITWT,          1);
-  write_bca_reg(BCA_I2S1_IN_CH2_SEL,        I2S_IN_SEL_UNUSE);
-  write_bca_reg(BCA_I2S1_IN_CH1_SEL,        I2S_IN_SEL_SRC1L);
+  write_bca_reg(BCA_I2S1_IN_BITWT,            1);
+  write_bca_reg(BCA_I2S1_IN_CH2_SEL,          I2S_IN_SEL_UNUSE);
+  write_bca_reg(BCA_I2S1_IN_CH1_SEL,          I2S_IN_SEL_SRC1L);
   write_bca_reg(BCA_CLK_EN_AHBMASTER_I2S1_EN, 1);
-  write_bca_reg(BCA_I2S1_IN_START_ADR,      0x00000000);
-  write_bca_reg(BCA_I2S1_IN_SAMPLE_NO,      0);
+  write_bca_reg(BCA_I2S1_IN_START_ADR,        0x00000000);
+  write_bca_reg(BCA_I2S1_IN_SAMPLE_NO,        0);
 }
 
 void enable_i2s2_in_fmt24(void)
 {
-  write_bca_reg(BCA_I2S2_IN_BITWT,          0);
-  write_bca_reg(BCA_I2S2_IN_CH2_SEL,        I2S_IN_SEL_SRC1R);
-  write_bca_reg(BCA_I2S2_IN_CH1_SEL,        I2S_IN_SEL_SRC1L);
+  write_bca_reg(BCA_I2S2_IN_BITWT,            0);
+  write_bca_reg(BCA_I2S2_IN_CH2_SEL,          I2S_IN_SEL_SRC1R);
+  write_bca_reg(BCA_I2S2_IN_CH1_SEL,          I2S_IN_SEL_SRC1L);
   write_bca_reg(BCA_CLK_EN_AHBMASTER_I2S2_EN, 1);
-  write_bca_reg(BCA_I2S2_IN_START_ADR,      0x00000000);
-  write_bca_reg(BCA_I2S2_IN_SAMPLE_NO,      0);
+  write_bca_reg(BCA_I2S2_IN_START_ADR,        0x00000000);
+  write_bca_reg(BCA_I2S2_IN_SAMPLE_NO,        0);
 }
 
 void enable_i2s2_in_fmt16(void)
 {
-  write_bca_reg(BCA_I2S2_IN_BITWT,          0);
-  write_bca_reg(BCA_I2S2_IN_CH2_SEL,        I2S_IN_SEL_UNUSE);
-  write_bca_reg(BCA_I2S2_IN_CH1_SEL,        I2S_IN_SEL_SRC1L);
+  write_bca_reg(BCA_I2S2_IN_BITWT,            0);
+  write_bca_reg(BCA_I2S2_IN_CH2_SEL,          I2S_IN_SEL_UNUSE);
+  write_bca_reg(BCA_I2S2_IN_CH1_SEL,          I2S_IN_SEL_SRC1L);
   write_bca_reg(BCA_CLK_EN_AHBMASTER_I2S2_EN, 1);
-  write_bca_reg(BCA_I2S2_IN_START_ADR,      0x00000000);
-  write_bca_reg(BCA_I2S2_IN_SAMPLE_NO,      0);
+  write_bca_reg(BCA_I2S2_IN_START_ADR,        0x00000000);
+  write_bca_reg(BCA_I2S2_IN_SAMPLE_NO,        0);
 }
 
 void enable_i2s1_out_fmt24(void)
 {
-  write_bca_reg(BCA_I2S1_OUT_SD1_L_SEL,     I2S_OUT_SEL_SD1L);
-  write_bca_reg(BCA_I2S1_OUT_SD1_R_SEL,     I2S_OUT_SEL_SD1R);
-  write_bca_reg(BCA_I2S1_OUT_BITWT,         0);
+  write_bca_reg(BCA_I2S1_OUT_SD1_L_SEL,       I2S_OUT_SEL_SD1L);
+  write_bca_reg(BCA_I2S1_OUT_SD1_R_SEL,       I2S_OUT_SEL_SD1R);
+  write_bca_reg(BCA_I2S1_OUT_BITWT,           0);
   write_bca_reg(BCA_CLK_EN_AHBMASTER_I2S1_EN, 1);
-  write_bca_reg(BCA_I2S1_OUT_START_ADR,     0x00000000);
-  write_bca_reg(BCA_I2S2_OUT_SAMPLE_NO,     0);
+  write_bca_reg(BCA_I2S1_OUT_START_ADR,       0x00000000);
+  write_bca_reg(BCA_I2S2_OUT_SAMPLE_NO,       0);
 }
 
 void enable_i2s1_out_fmt16(void)
 {
-  write_bca_reg(BCA_I2S1_OUT_SD1_L_SEL,     I2S_OUT_SEL_SD1L);
-  write_bca_reg(BCA_I2S1_OUT_SD1_R_SEL,     I2S_OUT_SEL_SD1R);
-  write_bca_reg(BCA_I2S1_OUT_BITWT,         1);
+  write_bca_reg(BCA_I2S1_OUT_SD1_L_SEL,       I2S_OUT_SEL_SD1L);
+  write_bca_reg(BCA_I2S1_OUT_SD1_R_SEL,       I2S_OUT_SEL_SD1R);
+  write_bca_reg(BCA_I2S1_OUT_BITWT,           1);
   write_bca_reg(BCA_CLK_EN_AHBMASTER_I2S1_EN, 1);
-  write_bca_reg(BCA_I2S1_OUT_START_ADR,     0x00000000);
-  write_bca_reg(BCA_I2S2_OUT_SAMPLE_NO,     0);
+  write_bca_reg(BCA_I2S1_OUT_START_ADR,       0x00000000);
+  write_bca_reg(BCA_I2S2_OUT_SAMPLE_NO,       0);
 }
 
 void enable_i2s2_out_fmt24(void)
 {
-  write_bca_reg(BCA_I2S2_OUT_SD1_L_SEL,     I2S_OUT_SEL_SD1L);
-  write_bca_reg(BCA_I2S2_OUT_SD1_R_SEL,     I2S_OUT_SEL_SD1R);
-  write_bca_reg(BCA_I2S2_OUT_BITWT,         0);
+  write_bca_reg(BCA_I2S2_OUT_SD1_L_SEL,       I2S_OUT_SEL_SD1L);
+  write_bca_reg(BCA_I2S2_OUT_SD1_R_SEL,       I2S_OUT_SEL_SD1R);
+  write_bca_reg(BCA_I2S2_OUT_BITWT,           0);
   write_bca_reg(BCA_CLK_EN_AHBMASTER_I2S2_EN, 1);
-  write_bca_reg(BCA_I2S2_OUT_START_ADR,     0x00000000);
-  write_bca_reg(BCA_I2S2_OUT_SAMPLE_NO,     0);
+  write_bca_reg(BCA_I2S2_OUT_START_ADR,       0x00000000);
+  write_bca_reg(BCA_I2S2_OUT_SAMPLE_NO,       0);
 }
 
 void enable_i2s2_out_fmt16(void)
 {
-  write_bca_reg(BCA_I2S2_OUT_SD1_L_SEL,     I2S_OUT_SEL_SD1L);
-  write_bca_reg(BCA_I2S2_OUT_SD1_R_SEL,     I2S_OUT_SEL_SD1R);
-  write_bca_reg(BCA_I2S2_OUT_BITWT,         1);
+  write_bca_reg(BCA_I2S2_OUT_SD1_L_SEL,       I2S_OUT_SEL_SD1L);
+  write_bca_reg(BCA_I2S2_OUT_SD1_R_SEL,       I2S_OUT_SEL_SD1R);
+  write_bca_reg(BCA_I2S2_OUT_BITWT,           1);
   write_bca_reg(BCA_CLK_EN_AHBMASTER_I2S2_EN, 1);
-  write_bca_reg(BCA_I2S2_OUT_START_ADR,     0x00000000);
-  write_bca_reg(BCA_I2S2_OUT_SAMPLE_NO,     0);
+  write_bca_reg(BCA_I2S2_OUT_START_ADR,       0x00000000);
+  write_bca_reg(BCA_I2S2_OUT_SAMPLE_NO,       0);
 }
 
 /****************************************************************************
@@ -714,16 +714,19 @@ bool cxd56_audio_bca_reg_is_dma_fifo_empty(cxd56_audio_dma_t handle)
       case CXD56_AUDIO_DMAC_MIC:
         reg_id = BCA_MIC_IN_RTD_TRG;
         break;
- 
+
       case CXD56_AUDIO_DMAC_I2S0_UP:
-      case CXD56_AUDIO_DMAC_I2S0_DOWN:
         reg_id = BCA_I2S1_IN_RTD_TRG;
         break;
 
-      case CXD56_AUDIO_DMAC_I2S1_DOWN:
+      case CXD56_AUDIO_DMAC_I2S0_DOWN:
+        reg_id = BCA_I2S1_OUT_RTD_TRG;
+        break;
+
+      case CXD56_AUDIO_DMAC_I2S1_UP:
         reg_id = BCA_I2S2_IN_RTD_TRG;
         break;
- 
+
       default:
         reg_id = BCA_I2S2_OUT_RTD_TRG;
         break;
@@ -985,12 +988,15 @@ void cxd56_audio_bca_reg_set_start_addr(cxd56_audio_dma_t handle,
         break;
 
       case CXD56_AUDIO_DMAC_I2S0_UP:
+        reg_id = BCA_I2S1_IN_START_ADR;
+        break;
+
       case CXD56_AUDIO_DMAC_I2S0_DOWN:
         reg_id = BCA_I2S1_OUT_START_ADR;
         break;
 
       case CXD56_AUDIO_DMAC_I2S1_UP:
-        reg_id = BCA_I2S2_OUT_START_ADR;
+        reg_id = BCA_I2S2_IN_START_ADR;
         break;
 
       default:
@@ -1013,12 +1019,15 @@ void cxd56_audio_bca_reg_set_sample_no(cxd56_audio_dma_t handle,
         break;
 
       case CXD56_AUDIO_DMAC_I2S0_UP:
+        reg_id = BCA_I2S1_IN_SAMPLE_NO;
+        break;
+
       case CXD56_AUDIO_DMAC_I2S0_DOWN:
         reg_id = BCA_I2S1_OUT_SAMPLE_NO;
         break;
 
       case CXD56_AUDIO_DMAC_I2S1_UP:
-        reg_id = BCA_I2S2_OUT_SAMPLE_NO;
+        reg_id = BCA_I2S2_IN_SAMPLE_NO;
         break;
 
       default:
@@ -1212,7 +1221,7 @@ void cxd56_audio_bca_reg_mask_smp_int(cxd56_audio_dma_t handle)
         break;
 
       default:
-        reg_id = BCA_I2S1_INT_MASK_SMP_I2S;
+        reg_id = BCA_I2S2_INT_MASK_SMP_I2S;
         break;
     }
 

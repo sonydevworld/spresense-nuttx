@@ -856,7 +856,7 @@ static CXD56_AUDIO_ECODE set_srcin_sel(AC_REG_ID ac_reg_id,
         val = SRCIN_SEL_CODECDSP_MIX;
         break;
 
-      desfault:
+      default:
         return CXD56_AUDIO_ECODE_REG_AC_SEL_INV;
     }
 
