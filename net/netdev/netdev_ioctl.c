@@ -1577,6 +1577,9 @@ ssize_t net_ioctl_arglen(int cmd)
       case SIOCSMIIREG:
         return sizeof(struct mii_ioctl_data_s);
 
+      case SIOCDENYINETSOCK:
+        return sizeof(uint8_t);
+
       default:
 #ifdef CONFIG_NETDEV_IOCTL
 #  ifdef CONFIG_NETDEV_WIRELESS_IOCTL

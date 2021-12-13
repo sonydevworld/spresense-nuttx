@@ -115,6 +115,10 @@
 #define SIOCGCANBITRATE  _SIOC(0x002C)  /* Get bitrate from a CAN controller */
 #define SIOCSCANBITRATE  _SIOC(0x002D)  /* Set bitrate of a CAN controller */
 
+/* Network socket control ****************************************************/
+
+#define SIOCDENYINETSOCK _SIOC(0x0030) /* Deny network socket. */
+
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/
