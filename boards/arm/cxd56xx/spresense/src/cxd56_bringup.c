@@ -372,14 +372,6 @@ int cxd56_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_VIDEO_ISX012
-  ret = isx012_initialize();
-  if (ret < 0)
-    {
-      _err("ERROR: Failed to initialize ISX012 board. %d\n", errno);
-    }
-#endif /* CONFIG_VIDEO_ISX012 */
-
 #ifdef CONFIG_VIDEO_ISX019
   ret = isx019_initialize();
   if (ret < 0)
@@ -387,6 +379,14 @@ int cxd56_bringup(void)
       _err("ERROR: Failed to initialize ISX019 board. %d\n", errno);
     }
 #endif /* CONFIG_VIDEO_ISX019 */
+
+#ifdef CONFIG_VIDEO_ISX012
+  ret = isx012_initialize();
+  if (ret < 0)
+    {
+      _err("ERROR: Failed to initialize ISX012 board. %d\n", errno);
+    }
+#endif /* CONFIG_VIDEO_ISX012 */
 
 #ifdef CONFIG_CXD56_CISIF
   ret = cxd56_cisif_initialize();

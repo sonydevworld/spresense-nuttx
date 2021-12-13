@@ -23,7 +23,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
+#include <sys/time.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -116,6 +116,13 @@
 #define INDEX_POST     (1)
 #define INDEX_SENSPOST (2)
 #define INDEX_IO       (3)
+
+/* Timer value for power on control */
+
+#define ISX019_ACCESSIBLE_WAIT_SEC    (0)
+#define ISX019_ACCESSIBLE_WAIT_USEC   (200000)
+#define FPGA_ACCESSIBLE_WAIT_SEC      (1)
+#define FPGA_ACCESSIBLE_WAIT_USEC     (0)
 
 /****************************************************************************
  * Private Types
@@ -471,47 +478,96 @@ static int set_drive_mode(void)
   return ret;
 }
 
-static void get_chipid(uint8_t *id)
+static bool try_repeat(int sec, int usec, int (* trial_func)(void))
 {
-  int i;
-  uint16_t offset = CHIP_ID;
+  int ret;
+  struct timeval start;
+  struct timeval now;
+  struct timeval delta;
+  struct timeval wait;
 
-  DEBUGASSERT(id);
+  wait.tv_sec = sec;
+  wait.tv_usec = usec;
 
-  for (i = 0; i < CHIP_ID_LEN; i++)
+  gettimeofday(&start, NULL);
+  while (1)
     {
-      isx019_i2c_read(CAT_OTP, offset++, &id[i], 1);
-    }
+      ret = trial_func();
+      if (ret != -ENODEV)
+        {
+          break;
+        }
+      else
+        {
+          gettimeofday(&now, NULL);
+          timersub(&now, &start, &delta);
+          if (timercmp(&delta, &wait, >))
+            {
+              break;
+            }
+        }
+    };
+
+  return (ret == OK) ? true : false;
+}
+
+static int try_isx019_i2c(void)
+{
+  uint8_t buf;
+  return isx019_i2c_read(CAT_SYSCOM, DEVSTS, &buf, 1);
+}
+
+static int try_fpga_i2c(void)
+{
+  uint8_t buf;
+  return fpga_i2c_read(FPGA_VERSION, &buf, 1);
+}
+
+static void power_on(void)
+{
+  g_isx019_private.i2c = board_isx019_initialize();
+  board_isx019_power_on();
+  board_isx019_release_reset();
+}
+
+static void power_off(void)
+{
+  board_isx019_set_reset();
+  board_isx019_power_off();
+  board_isx019_uninitialize(g_isx019_private.i2c);
 }
 
 static bool isx019_is_available(void)
 {
-  bool ret = false;
-  uint8_t id[CHIP_ID_LEN];
-  uint8_t exp_id[CHIP_ID_LEN] =
+  bool ret;
+
+  power_on();
+
+  /* Try to access via I2C
+   * about both ISX019 image sensor and FPGA.
+   */
+
+  ret = false;
+  if (try_repeat(ISX019_ACCESSIBLE_WAIT_SEC,
+                ISX019_ACCESSIBLE_WAIT_USEC,
+                try_isx019_i2c))
     {
-      0x70, 0x01, 0x81, 0x31, 0x03, 0x00, 0x00, 0x0e, 0x5c, 0x01, 0x00
-    };
-
-  isx019_init();
-
-  get_chipid(id);
-
-  if (memcmp(id, exp_id, CHIP_ID_LEN) == 0)
-    {
-      ret = true;
+      if (try_repeat(FPGA_ACCESSIBLE_WAIT_SEC,
+                     FPGA_ACCESSIBLE_WAIT_USEC,
+                     try_fpga_i2c))
+        {
+          ret = true;
+        }
     }
 
-  isx019_uninit();
+  power_off();
 
   return ret;
 }
 
 static int isx019_init(void)
 {
-  g_isx019_private.i2c = board_isx019_initialize();
-  board_isx019_power_on();
-  board_isx019_release_reset();
+  power_on();
   set_drive_mode();
   fpga_init();
   return OK;
@@ -519,9 +575,7 @@ static int isx019_init(void)
 
 static int isx019_uninit(void)
 {
-  board_isx019_set_reset();
-  board_isx019_power_off();
-  board_isx019_uninitialize(g_isx019_private.i2c);
+  power_off();
   return OK;
 }
 
