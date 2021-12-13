@@ -110,6 +110,13 @@
 #define OFFSET_3APARAMETER_AE_SHTTIME (4)
 #define OFFSET_3APARAMETER_AE_GAIN    (8)
 
+/* Index of array for drive mode setting */
+
+#define INDEX_SENS     (0)
+#define INDEX_POST     (1)
+#define INDEX_SENSPOST (2)
+#define INDEX_IO       (3)
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -444,18 +451,19 @@ static int set_drive_mode(void)
 {
   int ret;
   uint8_t buf;
+  uint8_t drv[] =
+    {
+#ifdef CONFIG_VIDEO_ISX019_DOL2
+      DOL2_30FPS_SENS, DOL2_30FPS_POST, DOL2_30FPS_SENSPOST, DOL2_30FPS_IO
+#else
+      DOL3_30FPS_SENS, DOL3_30FPS_POST, DOL3_30FPS_SENSPOST, DOL3_30FPS_IO
+#endif
+    };
 
-  buf = DOL3_30FPS_SENS;
-  isx019_i2c_write(CAT_CONFIG, MODE_SENSSEL,      &buf, 1);
-
-  buf = DOL3_30FPS_POST;
-  isx019_i2c_write(CAT_CONFIG, MODE_POSTSEL,      &buf, 1);
-
-  buf = DOL3_30FPS_SENSPOST;
-  isx019_i2c_write(CAT_CONFIG, MODE_SENSPOST_SEL, &buf, 1);
-
-  buf = DOL3_30FPS_IO;
-  isx019_i2c_write(CAT_CONFIG, MODE_IOSEL,        &buf, 1);
+  isx019_i2c_write(CAT_CONFIG, MODE_SENSSEL,      &drv[INDEX_SENS], 1);
+  isx019_i2c_write(CAT_CONFIG, MODE_POSTSEL,      &drv[INDEX_POST], 1);
+  isx019_i2c_write(CAT_CONFIG, MODE_SENSPOST_SEL, &drv[INDEX_SENSPOST], 1);
+  isx019_i2c_write(CAT_CONFIG, MODE_IOSEL,        &drv[INDEX_IO], 1);
 
   buf = AEWDMODE_NORMAL;
   ret = isx019_i2c_write(CAT_AEWD, AEWDMODE, &buf, 1);
