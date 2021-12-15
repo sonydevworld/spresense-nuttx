@@ -222,6 +222,12 @@
 #define APICMDID_TLS_CONFIG_VERIFY_CALLBACK    (0x0129)
 #define APICMDID_TLS_CONFIG_VERIFY_CALLBACK_V4 (0x0161)
 
+#define APICMDID_SMS_INIT               (0x0330)
+#define APICMDID_SMS_FIN                (0x0331)
+#define APICMDID_SMS_SEND               (0x0332)
+#define APICMDID_SMS_REPORT_RECV        (0x0333)
+#define APICMDID_SMS_DELETE             (0x0334)
+
 #define ALTCOM_CMDID_ERRIND      (0xFFFF)
 
 #define ALTCOM_CMDID_REPLY_BIT (0x8000)
