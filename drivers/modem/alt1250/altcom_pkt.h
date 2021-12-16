@@ -181,6 +181,11 @@ static inline uint16_t convert_cid2v1(uint16_t cid)
       return cid;
     }
 
+  if ((cid >= APICMDID_SMS_INIT) && (cid <= APICMDID_SMS_DELETE))
+    {
+      return cid;
+    }
+
   if ((cid >= APICMDID_GET_VERSION_V4) && (cid <= APICMDID_SET_PSM_V4))
     {
       return (cid + 1);

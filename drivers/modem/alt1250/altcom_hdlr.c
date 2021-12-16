@@ -33,10 +33,12 @@
 #include <nuttx/wireless/lte/lte.h>
 #include <netinet/tcp.h>
 #include <nuttx/net/netconfig.h>
+#include <nuttx/net/sms.h>
 
 #include "altcom_pkt.h"
 #include "altcom_cmd.h"
 #include "altcom_cmd_sock.h"
+#include "altcom_cmd_sms.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -347,6 +349,21 @@ static int32_t execupdate_pkt_compose(FAR void **arg,
 static int32_t getupdateres_pkt_compose(FAR void **arg,
                           size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
                           const size_t pktsz, FAR uint16_t *altcid);
+static int32_t smsinit_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t smsfin_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t smssend_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t smsdelete_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t smsreportrecv_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
 
 static int32_t errinfo_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
@@ -486,6 +503,15 @@ static int32_t sendatcmd_pkt_parse(FAR uint8_t *pktbuf,
 static int32_t fwcommon_pkt_parse(FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen);
+static int32_t smscommon_pkt_parse(FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen);
+static int32_t smssend_pkt_parse(FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen);
+static int32_t smsreportrecv_pkt_parse(FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen);
 
 /****************************************************************************
  * Private Data
@@ -552,6 +578,11 @@ static compose_inst_t g_composehdlrs[] =
   CTABLE_CONTENT(GETIMAGELEN, getimagelen),
   CTABLE_CONTENT(EXEUPDATE, execupdate),
   CTABLE_CONTENT(GETUPDATERES, getupdateres),
+  CTABLE_CONTENT(SMS_INIT, smsinit),
+  CTABLE_CONTENT(SMS_FIN,  smsfin),
+  CTABLE_CONTENT(SMS_SEND, smssend),
+  CTABLE_CONTENT(SMS_DELETE, smsdelete),
+  CTABLE_CONTENT(SMS_REPORT_RECV, smsreportrecv),
 };
 
 static parse_inst_t g_parsehdlrs[] =
@@ -613,6 +644,11 @@ static parse_inst_t g_parsehdlrs[] =
   PTABLE_CONTENT(FW_GETDELTAIMGLEN, fwcommon),
   PTABLE_CONTENT(FW_EXECDELTAUPDATE, fwcommon),
   PTABLE_CONTENT(FW_GETUPDATERESULT, fwcommon),
+  PTABLE_CONTENT(SMS_INIT, smscommon),
+  PTABLE_CONTENT(SMS_FIN, smscommon),
+  PTABLE_CONTENT(SMS_SEND, smssend),
+  PTABLE_CONTENT(SMS_DELETE, smscommon),
+  PTABLE_CONTENT(SMS_REPORT_RECV, smsreportrecv),
 };
 
 /****************************************************************************
@@ -3601,6 +3637,145 @@ static int32_t select_pkt_compose(FAR void **arg,
   return size;
 }
 
+static int32_t smsinit_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  FAR struct apicmd_sms_init_req_s *out =
+    (FAR struct apicmd_sms_init_req_s *)pktbuf;
+
+  *altcid = APICMDID_SMS_INIT;
+
+  out->types = ALTCOM_SMS_MSG_TYPE_SEND | ALTCOM_SMS_MSG_TYPE_RECV |
+               ALTCOM_SMS_MSG_TYPE_DELIVER_REPORT;
+  out->storage_use = 1; /* always use storage */
+
+  return sizeof(struct apicmd_sms_init_req_s);
+}
+
+static int32_t smsfin_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  *altcid = APICMDID_SMS_FIN;
+
+  return 0;
+}
+
+static int32_t smssend_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  int32_t size = 0;
+  int i;
+  FAR struct apicmd_sms_send_req_s *out =
+    (FAR struct apicmd_sms_send_req_s *)pktbuf;
+  FAR struct sms_send_msg_s *msg = (FAR struct sms_send_msg_s *)arg[0];
+  uint16_t msglen = *((FAR uint16_t *)arg[1]);
+  bool en_status_report = *((FAR bool *)arg[2]);
+  FAR struct sms_sc_addr_s *scaddr = (FAR struct sms_sc_addr_s *)arg[3];
+  uint8_t chset = *((FAR uint8_t *)arg[4]);
+  FAR uint8_t *dest_toa = (FAR uint8_t *)arg[5];
+
+  if (msglen > pktsz)
+    {
+      return -ENOBUFS;
+    }
+
+  if ((msg->header.destaddrlen % 2) || (msg->header.datalen % 2) ||
+      (msg->header.destaddrlen > (SMS_MAX_ADDRLEN * 2)) ||
+      (msg->header.datalen > (SMS_MAX_DATALEN * 2)))
+    {
+      /* destaddrlen and datalen must be even numbers */
+
+      return -EINVAL;
+    }
+
+  out->sc_addr.toa = scaddr->toa;
+  out->sc_addr.length = scaddr->addrlen;
+
+  /* Swap sc address */
+
+  for (i = 0; i < (scaddr->addrlen / 2); i++)
+    {
+      out->sc_addr.address[i] = htons(scaddr->addr[i]);
+    }
+
+  out->valid_indicator = ALTCOM_SMS_MSG_VALID_UD;
+  out->valid_indicator |= en_status_report ? ALTCOM_SMS_MSG_VALID_SRR : 0;
+
+  out->dest_addr.toa = (dest_toa == NULL) ? 0 : *dest_toa;
+  out->dest_addr.length = msg->header.destaddrlen;
+
+  /* Swap destination address */
+
+  for (i = 0; i < (msg->header.destaddrlen / 2); i++)
+    {
+      out->dest_addr.address[i] = htons(msg->header.destaddr[i]);
+    }
+
+  switch (chset)
+    {
+      case SMS_CHSET_UCS2:
+        chset = ALTCOM_SMS_CHSET_UCS2;
+        break;
+      case SMS_CHSET_GSM7:
+        chset = ALTCOM_SMS_CHSET_GSM7;
+        break;
+      case SMS_CHSET_BINARY:
+        chset = ALTCOM_SMS_CHSET_BINARY;
+        break;
+      default:
+        return -EINVAL;
+    }
+
+  out->userdata.chset = ALTCOM_SMS_CHSET_UCS2;
+  out->userdata.data_len = htons(msg->header.datalen);
+
+  /* Swap data */
+
+  for (i = 0; i < (msg->header.datalen / 2); i++)
+    {
+      out->user_data[i] = htons(msg->data[i]);
+    }
+
+  *altcid = APICMDID_SMS_SEND;
+
+  size = sizeof(struct apicmd_sms_send_req_s) + msg->header.datalen;
+
+  return size;
+}
+
+static int32_t smsdelete_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  FAR struct apicmd_sms_delete_s *out =
+    (FAR struct apicmd_sms_delete_s *)pktbuf;
+  uint16_t msg_index = *(FAR uint16_t *)arg[0];
+
+  *altcid = APICMDID_SMS_DELETE;
+
+  out->index = htons(msg_index);
+  out->types = 0;
+
+  return sizeof(struct apicmd_sms_delete_s);
+}
+
+static int32_t smsreportrecv_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  FAR struct apicmd_sms_res_s *out =
+    (FAR struct apicmd_sms_res_s *)pktbuf;
+
+  *altcid = APICMDID_SMS_REPORT_RECV | ALTCOM_CMDID_REPLY_BIT;
+
+  out->result = htonl(0); /* always success */
+
+  return sizeof(struct apicmd_sms_res_s);
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -4961,13 +5136,145 @@ static int32_t fwcommon_pkt_parse(FAR uint8_t *pktbuf,
   FAR struct apicmd_cmddat_fw_deltaupcommres_s *in =
     (FAR struct apicmd_cmddat_fw_deltaupcommres_s *)pktbuf;
 
-  /* Negative value in result_cmd means an error is occured */
-  /* Zero indicates command successed or size of injected data */
+  /* Negative value in result_cmd means an error is occured.
+   * Zero indicates command successed or size of injected data
+   */
 
   result_cmd = ntohl(in->api_result);
   injection_retcode = ntohs(in->ltefw_result);
 
   return (injection_retcode != 0) ? -injection_retcode : result_cmd;
+}
+
+static int32_t smscommon_pkt_parse(FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen)
+{
+  FAR struct apicmd_sms_res_s *in =
+    (FAR struct apicmd_sms_res_s *)pktbuf;
+
+  return ntohl(in->result);
+}
+
+static int32_t smssend_pkt_parse(FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen)
+{
+  FAR struct apicmd_sms_sendres_s *in =
+    (FAR struct apicmd_sms_sendres_s *)pktbuf;
+  FAR struct sms_refids_s *refid = (FAR struct sms_refids_s *)arg[0];
+  uint16_t msglen = *((FAR uint16_t *)arg[1]);
+  int32_t sendresult = ntohl(in->result);
+
+  if (sendresult >= 0)
+    {
+      refid->nrefid = in->mr_num;
+      memcpy(refid->refid, in->mr_list, sizeof(refid->refid));
+    }
+
+  return (sendresult < 0) ? sendresult : msglen;
+}
+
+static int32_t smsreportrecv_pkt_parse(FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen)
+{
+  int i;
+  FAR struct apicmd_sms_reprecv_s *in =
+    (FAR struct apicmd_sms_reprecv_s *)pktbuf;
+  FAR uint16_t *msg_index = (FAR uint16_t *)arg[0];
+  FAR uint16_t *msg_sz = (FAR uint16_t *)arg[1];
+  FAR uint8_t *maxnum = (FAR uint8_t *)arg[2];
+  FAR uint8_t *seqnum = (FAR uint8_t *)arg[3];
+      FAR struct sms_recv_msg_header_s *msgheader =
+        (FAR struct sms_recv_msg_header_s *)arg[4];
+
+  *msg_index = ntohs(in->index);
+  *maxnum = 0;
+  *seqnum = 0;
+
+  if (in->msg.type == ALTCOM_SMS_MSG_TYPE_RECV)
+    {
+      FAR struct sms_deliver_msg_s *deliver =
+        (FAR struct sms_deliver_msg_s *)arg[4];
+
+      *msg_sz = sizeof(struct sms_deliver_msg_s) +
+        ntohs(in->msg.u.recv.userdata.data_len);
+
+      if (in->msg.u.recv.valid_indicator & ALTCOM_SMS_MSG_VALID_CONCAT_HDR)
+        {
+          *maxnum = in->msg.u.recv.concat_hdr.max_num;
+          *seqnum = in->msg.u.recv.concat_hdr.seq_num;
+        }
+
+      msgheader->msgtype = SMS_MSG_TYPE_DELIVER;
+      memcpy(&msgheader->send_time, &in->msg.u.recv.sc_time,
+             sizeof(msgheader->send_time));
+      msgheader->srcaddrlen = in->msg.u.recv.src_addr.length;
+      if (msgheader->srcaddrlen > SMS_MAX_ADDRLEN * 2)
+        {
+          m_err("Unexpected src addrlen: %u\n", msgheader->srcaddrlen);
+          return -EINVAL;
+        }
+
+      /* Swap source address */
+
+      for (i = 0; i < (msgheader->srcaddrlen / 2); i++)
+        {
+          msgheader->srcaddr[i] = ntohs(in->msg.u.recv.src_addr.address[i]);
+        }
+
+      msgheader->datalen = ntohs(in->msg.u.recv.userdata.data_len);
+      if (msgheader->datalen > (SMS_MAX_DATALEN * 2))
+        {
+          m_err("Unexpected datalen: %u\n", msgheader->datalen);
+          return -EINVAL;
+        }
+
+      /* Swap data */
+
+      for (i = 0; i < (msgheader->datalen / 2); i++)
+        {
+          deliver->data[i] = ntohs(in->msg.u.recv.user_data[i]);
+        }
+
+      m_info("[recv msg] msg size: %u\n", *msg_sz);
+      m_info("           maxnum: %u, seqnum: %u\n", *maxnum, *seqnum);
+      m_info("           msgtype: %u\n", msgheader->msgtype);
+      m_info("           srcaddrlen: %u\n", msgheader->srcaddrlen);
+      m_info("           datalen: %u\n", msgheader->datalen);
+    }
+  else if (in->msg.type == ALTCOM_SMS_MSG_TYPE_DELIVER_REPORT)
+    {
+      FAR struct sms_status_report_msg_s *report =
+        (FAR struct sms_status_report_msg_s *)arg[4];
+
+      *msg_sz = sizeof(struct sms_status_report_msg_s);
+
+      msgheader->msgtype = SMS_MSG_TYPE_STATUS_REPORT;
+      memcpy(&msgheader->send_time, &in->msg.u.delivery_report.sc_time,
+             sizeof(msgheader->send_time));
+      msgheader->srcaddrlen = 0;
+      memset(msgheader->srcaddr, 0, sizeof(msgheader->srcaddr));
+      msgheader->datalen = sizeof(struct sms_status_report_s);
+      report->status_report.refid = in->msg.u.delivery_report.ref_id;
+      report->status_report.status = in->msg.u.delivery_report.status;
+      memcpy(&report->status_report.discharge_time,
+             &in->msg.u.delivery_report.discharge_time,
+             sizeof(report->status_report.discharge_time));
+
+      m_info("[staus report] msg size: %u\n", *msg_sz);
+      m_info("           msgtype: %u\n", msgheader->msgtype);
+      m_info("           datalen: %u\n", msgheader->datalen);
+      m_info("           refid: %u\n", report->status_report.refid);
+      m_info("           status: %u\n", report->status_report.status);
+    }
+  else
+    {
+      return -EINVAL;
+    }
+
+  return 0;
 }
 
 /****************************************************************************

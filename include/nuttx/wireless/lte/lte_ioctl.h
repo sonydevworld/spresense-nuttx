@@ -25,7 +25,10 @@
  * Included Files
  ****************************************************************************/
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <nuttx/wireless/wireless.h>
+#include <nuttx/net/sms.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -33,7 +36,7 @@
 
 /* LTE network device IOCTL commands. */
 
-#if !defined(WL_NLTECMDS) || WL_NLTECMDS != 1
+#if !defined(WL_NLTECMDS) || WL_NLTECMDS != 4
 #  error Incorrect setting for number of LTE IOCTL commands
 #endif
 
@@ -42,6 +45,27 @@
  */
 
 #define SIOCLTECMD            _WLIOC(WL_LTEFIRST + 0)
+
+/* SIOCSMSENSTREP
+ *   Description:   Enable or disable the function to confirm whether or not
+ *                  the SMS has been delivered to the destination device.
+ */
+
+#define SIOCSMSENSTREP        _WLIOC(WL_LTEFIRST + 1)
+
+/* SIOCSMSGREFID
+ *   Description:   Obtain the ID associated with the submitted SMS.
+ *                  If the submitted SMS is a concatenated SMS, multiple IDs
+ *                  will be obtained; otherwise, a single ID will be obtained.
+ */
+
+#define SIOCSMSGREFID         _WLIOC(WL_LTEFIRST + 2)
+
+/* SIOCSMSSSCA
+ *   Description:   Set the service center address of the destination.
+ */
+
+#define SIOCSMSSSCA           _WLIOC(WL_LTEFIRST + 3)
 
 /* for cmdid */
 
@@ -135,6 +159,12 @@
 #define LTE_CMDID_SHUTDOWN                       _CMDGRP_NORMAL(0x60)
 #define LTE_CMDID_SOCKET                         _CMDGRP_NORMAL(0x61)
 #define LTE_CMDID_SETSOCKOPT                     _CMDGRP_NORMAL(0x62)
+
+#define LTE_CMDID_SMS_INIT                       _CMDGRP_NORMAL(0x65)
+#define LTE_CMDID_SMS_FIN                        _CMDGRP_NORMAL(0x66)
+#define LTE_CMDID_SMS_SEND                       _CMDGRP_NORMAL(0x67)
+#define LTE_CMDID_SMS_DELETE                     _CMDGRP_NORMAL(0x68)
+#define LTE_CMDID_SMS_REPORT_RECV                _CMDGRP_EVENT(0x69)
 
 #define LTE_CMDID_TLS_SSL_INIT                   _CMDGRP_NORMAL(0x80)
 #define LTE_CMDID_TLS_SSL_FREE                   _CMDGRP_NORMAL(0x81)
@@ -267,6 +297,27 @@ struct lte_evtctx_in_s
 struct lte_evtctx_out_s
 {
   lte_evthndl_t handle;
+};
+
+/* for IOCTL related SMS */
+
+struct lte_smsreq_s
+{
+  union
+    {
+      /* Using for SIOCSMSENSTREP command */
+
+      bool enable;
+
+      /* Using for SIOCSMSGREFID command */
+
+      struct sms_refids_s refid;
+
+      /* Using for SIOCSMSSSCA command */
+
+      struct sms_sc_addr_s scaddr;
+
+    } smsru;
 };
 
 #endif /* __INCLUDE_NUTTX_WIRELESS_LTE_LTE_IOCTL_H */

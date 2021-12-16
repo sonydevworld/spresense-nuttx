@@ -179,7 +179,7 @@
 /* Reserved for LTE network devices  */
 
 #define WL_LTEFIRST           (WL_PKTRADIOFIRST + WL_NPKTRADIOCMDS)
-#define WL_NLTECMDS           (1)
+#define WL_NLTECMDS           (4)
 #define WL_ISLTECMD(cmd)      (_WLIOCVALID(cmd) && \
                                _IOC_NR(cmd) >= WL_LTEFIRST && \
                                _IOC_NR(cmd) < (WL_LTEFIRST + WL_NLTECMDS))
