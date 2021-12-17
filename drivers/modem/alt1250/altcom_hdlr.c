@@ -1548,6 +1548,10 @@ static void altstorage2sockaddr(
       inaddr_to->sin_port   = inaddr_from->sin_port;
       memcpy(&inaddr_to->sin_addr, &inaddr_from->sin_addr,
         sizeof(struct in_addr));
+
+      /* LwIP does not use this member, so it should be set to 0 */
+
+      memset(inaddr_to->sin_zero, 0, sizeof(inaddr_to->sin_zero));
     }
   else if (from->ss_family == ALTCOM_AF_INET6)
     {
@@ -1558,6 +1562,11 @@ static void altstorage2sockaddr(
       in6addr_to->sin6_port   = in6addr_from->sin6_port;
       memcpy(&in6addr_to->sin6_addr, &in6addr_from->sin6_addr,
         sizeof(struct in6_addr));
+
+      /* LwIP does not use thease members, so it should be set to 0 */
+
+      in6addr_to->sin6_flowinfo = 0;
+      in6addr_to->sin6_scope_id = 0;
     }
 }
 
