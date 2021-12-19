@@ -128,9 +128,38 @@
  * Private Types
  ****************************************************************************/
 
+struct isx019_default_value_s
+{
+  int32_t brightness;
+  int32_t contrast;
+  int32_t saturation;
+  int32_t hue;
+  int32_t awb;
+  int32_t gamma;
+  int32_t ev;
+  int32_t hflip_video;
+  int32_t vflip_video;
+  int32_t hflip_still;
+  int32_t vflip_still;
+  int32_t sharpness;
+  int32_t ae;
+  int32_t exptime;
+  int32_t wbmode;
+  int32_t hdr;
+  int32_t iso;
+  int32_t iso_auto;
+  int32_t meter;
+  int32_t threealock;
+  int32_t threeastatus;
+  int32_t jpgquality;
+};
+
+typedef struct isx019_default_value_s isx019_default_value_t;
+
 struct isx019_dev_s
 {
   FAR struct i2c_master_s *i2c;
+  isx019_default_value_t  default_value;
   imgsensor_stream_type_t stream;
   imgsensor_white_balance_t wb_mode;
   uint8_t flip_video;
@@ -565,11 +594,47 @@ static bool isx019_is_available(void)
   return ret;
 }
 
+static int32_t get_value32(uint32_t id)
+{
+  imgsensor_value_t val;
+  isx019_get_value(id, 0, &val);
+  return val.value32;
+}
+
+static void store_default_value(void)
+{
+  isx019_default_value_t *def = &g_isx019_private.default_value;
+
+  def->brightness   = get_value32(IMGSENSOR_ID_BRIGHTNESS);
+  def->contrast     = get_value32(IMGSENSOR_ID_CONTRAST);
+  def->saturation   = get_value32(IMGSENSOR_ID_SATURATION);
+  def->hue          = get_value32(IMGSENSOR_ID_HUE);
+  def->awb          = get_value32(IMGSENSOR_ID_AUTO_WHITE_BALANCE);
+  def->gamma        = get_value32(IMGSENSOR_ID_GAMMA);
+  def->ev           = get_value32(IMGSENSOR_ID_EXPOSURE);
+  def->hflip_video  = get_value32(IMGSENSOR_ID_HFLIP_VIDEO);
+  def->vflip_video  = get_value32(IMGSENSOR_ID_VFLIP_VIDEO);
+  def->hflip_still  = get_value32(IMGSENSOR_ID_HFLIP_STILL);
+  def->vflip_still  = get_value32(IMGSENSOR_ID_VFLIP_STILL);
+  def->sharpness    = get_value32(IMGSENSOR_ID_SHARPNESS);
+  def->ae           = get_value32(IMGSENSOR_ID_EXPOSURE_AUTO);
+  def->exptime      = get_value32(IMGSENSOR_ID_EXPOSURE_ABSOLUTE);
+  def->wbmode       = get_value32(IMGSENSOR_ID_AUTO_N_PRESET_WB);
+  def->hdr          = get_value32(IMGSENSOR_ID_WIDE_DYNAMIC_RANGE);
+  def->iso          = get_value32(IMGSENSOR_ID_ISO_SENSITIVITY);
+  def->iso_auto     = get_value32(IMGSENSOR_ID_ISO_SENSITIVITY_AUTO);
+  def->meter        = get_value32(IMGSENSOR_ID_EXPOSURE_METERING);
+  def->threealock   = get_value32(IMGSENSOR_ID_3A_LOCK);
+  def->threeastatus = get_value32(IMGSENSOR_ID_3A_STATUS);
+  def->jpgquality   = get_value32(IMGSENSOR_ID_JPEG_QUALITY);
+}
+
 static int isx019_init(void)
 {
   power_on();
   set_drive_mode();
   fpga_init();
+  store_default_value();
   return OK;
 }
 
@@ -893,6 +958,7 @@ static int isx019_get_supported_value
              (uint32_t id, FAR imgsensor_supported_value_t *val)
 {
   int ret = OK;
+  struct isx019_default_value_s *def = &g_isx019_private.default_value;
 
   DEBUGASSERT(val);
 
@@ -901,115 +967,115 @@ static int isx019_get_supported_value
       case IMGSENSOR_ID_BRIGHTNESS:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_BRIGHTNESS, MAX_BRIGHTNESS,
-                                STEP_BRIGHTNESS, DEFAULT_BRIGHTNESS);
+                                STEP_BRIGHTNESS, def->brightness);
         break;
 
       case IMGSENSOR_ID_CONTRAST:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_CONTRAST, MAX_CONTRAST,
-                                STEP_CONTRAST, DEFAULT_CONTRAST);
+                                STEP_CONTRAST, def->contrast);
         break;
 
       case IMGSENSOR_ID_SATURATION:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_SATURATION, MAX_SATURATION,
-                                STEP_SATURATION, DEFAULT_SATURATION);
+                                STEP_SATURATION, def->saturation);
         break;
 
       case IMGSENSOR_ID_HUE:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_HUE, MAX_HUE,
-                                STEP_HUE, DEFAULT_HUE);
+                                STEP_HUE, def->hue);
         break;
 
       case IMGSENSOR_ID_AUTO_WHITE_BALANCE:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_AWB, MAX_AWB,
-                                STEP_AWB, DEFAULT_AWB);
+                                STEP_AWB, def->awb);
         break;
 
       case IMGSENSOR_ID_EXPOSURE:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_EXPOSURE, MAX_EXPOSURE,
-                                STEP_EXPOSURE, DEFAULT_EXPOSURE);
+                                STEP_EXPOSURE, def->ev);
         break;
 
       case IMGSENSOR_ID_HFLIP_VIDEO:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_HFLIP, MAX_HFLIP,
-                                STEP_HFLIP, DEFAULT_HFLIP);
+                                STEP_HFLIP, def->hflip_video);
         break;
 
       case IMGSENSOR_ID_VFLIP_VIDEO:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_VFLIP, MAX_VFLIP,
-                                STEP_VFLIP, DEFAULT_VFLIP);
+                                STEP_VFLIP, def->vflip_video);
         break;
 
       case IMGSENSOR_ID_HFLIP_STILL:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_HFLIP, MAX_HFLIP,
-                                STEP_HFLIP, DEFAULT_HFLIP);
+                                STEP_HFLIP, def->hflip_still);
         break;
 
       case IMGSENSOR_ID_VFLIP_STILL:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_VFLIP, MAX_VFLIP,
-                                STEP_VFLIP, DEFAULT_VFLIP);
+                                STEP_VFLIP, def->hflip_still);
         break;
 
       case IMGSENSOR_ID_SHARPNESS:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_SHARPNESS, MAX_SHARPNESS,
-                                STEP_SHARPNESS, DEFAULT_SHARPNESS);
+                                STEP_SHARPNESS, def->sharpness);
         break;
 
       case IMGSENSOR_ID_EXPOSURE_AUTO:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_AE, MAX_AE,
-                                STEP_AE, DEFAULT_AE);
+                                STEP_AE, def->ae);
         break;
 
       case IMGSENSOR_ID_EXPOSURE_ABSOLUTE:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_EXPOSURETIME, MAX_EXPOSURETIME,
-                                STEP_EXPOSURETIME, DEFAULT_EXPOSURETIME);
+                                STEP_EXPOSURETIME, def->exptime);
         break;
 
       case IMGSENSOR_ID_AUTO_N_PRESET_WB:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_WBMODE, MAX_WBMODE,
-                                STEP_WBMODE, DEFAULT_WBMODE);
+                                STEP_WBMODE, def->wbmode);
         break;
 
       case IMGSENSOR_ID_WIDE_DYNAMIC_RANGE:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_HDR, MAX_HDR,
-                                STEP_HDR, DEFAULT_HDR);
+                                STEP_HDR, def->hdr);
         break;
 
       case IMGSENSOR_ID_ISO_SENSITIVITY:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_ISO, MAX_ISO,
-                                STEP_ISO, DEFAULT_ISO);
+                                STEP_ISO, def->iso);
         break;
 
       case IMGSENSOR_ID_ISO_SENSITIVITY_AUTO:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_AUTOISO, MAX_AUTOISO,
-                                STEP_AUTOISO, DEFAULT_AUTOISO);
+                                STEP_AUTOISO, def->iso_auto);
         break;
 
       case IMGSENSOR_ID_EXPOSURE_METERING:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_METER, MAX_METER,
-                                STEP_METER, DEFAULT_METER);
+                                STEP_METER, def->meter);
         break;
 
       case IMGSENSOR_ID_3A_LOCK:
         val->type = IMGSENSOR_CTRL_TYPE_BITMASK;
         SET_RANGE(val->u.range, MIN_3ALOCK, MAX_3ALOCK,
-                                STEP_3ALOCK, DEFAULT_3ALOCK);
+                                STEP_3ALOCK, def->threealock);
         break;
 
       case IMGSENSOR_ID_3A_PARAMETER:
@@ -1021,13 +1087,13 @@ static int isx019_get_supported_value
       case IMGSENSOR_ID_3A_STATUS:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_3ASTATUS, MAX_3ASTATUS,
-                                STEP_3ASTATUS, DEFAULT_3ASTATUS);
+                                STEP_3ASTATUS, def->threeastatus);
         break;
 
       case IMGSENSOR_ID_JPEG_QUALITY:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_JPGQUALITY, MAX_JPGQUALITY,
-                                STEP_JPGQUALITY, DEFAULT_JPGQUALITY);
+                                STEP_JPGQUALITY, def->jpgquality);
         break;
 
       default:

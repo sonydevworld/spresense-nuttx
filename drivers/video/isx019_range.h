@@ -28,112 +28,90 @@
 #define MIN_BRIGHTNESS        (-128)
 #define MAX_BRIGHTNESS        (127)
 #define STEP_BRIGHTNESS       (1)
-#define DEFAULT_BRIGHTNESS    (0)
 
 #define MIN_CONTRAST          (0)
 #define MAX_CONTRAST          (255)
 #define STEP_CONTRAST         (1)
-#define DEFAULT_CONTRAST      (128)
 
 #define MIN_SATURATION        (0)
 #define MAX_SATURATION        (255)
 #define STEP_SATURATION       (1)
-#define DEFAULT_SATURATION    (128)
 
 #define MIN_HUE               (-128)
 #define MAX_HUE               (127)
 #define STEP_HUE              (1)
-#define DEFAULT_HUE           (0)
 
 #define MIN_AWB               (0)     
 #define MAX_AWB               (255)   
 #define STEP_AWB              (1)     
-#define DEFAULT_AWB           (1)
 
 #define MIN_EXPOSURE          (-6)     
 #define MAX_EXPOSURE          (6)   
 #define STEP_EXPOSURE         (1)     
-#define DEFAULT_EXPOSURE      (0)
 
 #define MIN_HFLIP             (0)     
 #define MAX_HFLIP             (1)   
 #define STEP_HFLIP            (1)     
-#define DEFAULT_HFLIP         (0)
 
 #define MIN_VFLIP        (0)     
 #define MAX_VFLIP        (1)   
 #define STEP_VFLIP       (1)     
-#define DEFAULT_VFLIP    (0)
 
 #define MIN_SHARPNESS        (0)     
 #define MAX_SHARPNESS        (255)   
 #define STEP_SHARPNESS       (1)     
-#define DEFAULT_SHARPNESS    (64)
 
 #define MIN_AE        (0)     
 #define MAX_AE        (1)   
 #define STEP_AE       (1)     
-#define DEFAULT_AE    (0)
 
 #define MIN_EXPOSURETIME        (0)     
 #define MAX_EXPOSURETIME        (102000)   
 #define STEP_EXPOSURETIME       (1)     
-#define DEFAULT_EXPOSURETIME    (0)
 
 #define MIN_WBMODE        (0)     
 #define MAX_WBMODE        (7)   
 #define STEP_WBMODE       (1)     
-#define DEFAULT_WBMODE    (0)
 
 #define MIN_HDR           (0)     
 #define MAX_HDR           (1)   
 #define STEP_HDR          (1)     
-#define DEFAULT_HDR       (0)
 
 #define MIN_METER        (0)     
 #define MAX_METER        (3)   
 #define STEP_METER       (1)     
-#define DEFAULT_METER    (0)
 
 #define MIN_PAN        (-32)     
 #define MAX_PAN        (32)   
 #define STEP_PAN       (1)     
-#define DEFAULT_PAN    (0)
 
 #define MIN_TILT        (-32)     
 #define MAX_TILT        (32)   
 #define STEP_TILT       (1)     
-#define DEFAULT_TILT    (0)
 
 #define MIN_ISO        (0)     
 #define MAX_ISO        (255)   
 #define STEP_ISO       (1)     
-#define DEFAULT_ISO    (0)
 
 #define MIN_AUTOISO        (0)     
 #define MAX_AUTOISO        (1)   
 #define STEP_AUTOISO       (1)     
-#define DEFAULT_AUTOISO    (0)
 
 #define MIN_3ALOCK        (0)     
 #define MAX_3ALOCK        (3)   
 #define STEP_3ALOCK       (1)     
-#define DEFAULT_3ALOCK    (0)
 
 #define NRELEM_3APARAM     (9)
 #define MIN_3APARAM        (0)     
 #define MAX_3APARAM        (255)   
 #define STEP_3APARAM       (1)     
-#define DEFAULT_3APARAM    (0)
 
 #define MIN_3ASTATUS        (0)     
 #define MAX_3ASTATUS        (3)   
 #define STEP_3ASTATUS       (1)     
-#define DEFAULT_3ASTATUS    (0)
 
 #define MIN_JPGQUALITY        (10)     
 #define MAX_JPGQUALITY        (100)   
 #define STEP_JPGQUALITY       (10)     
-#define DEFAULT_JPGQUALITY    (80)
 
 #endif /* __DRIVERS_VIDEO_ISX019_RANGE_H */
