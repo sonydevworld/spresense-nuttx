@@ -89,9 +89,9 @@
 #define MAX_TILT        (32)   
 #define STEP_TILT       (1)     
 
-#define MIN_ISO        (0)     
-#define MAX_ISO        (255)   
-#define STEP_ISO       (1)     
+#define MIN_ISO        (1)
+#define MAX_ISO        (__INT_MAX__)
+#define STEP_ISO       (1)
 
 #define MIN_AUTOISO        (0)     
 #define MAX_AUTOISO        (1)   

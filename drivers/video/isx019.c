@@ -29,12 +29,11 @@
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
-
 #include <nuttx/i2c/i2c_master.h>
 #include <arch/board/board.h>
-
 #include <nuttx/video/isx019.h>
 #include <nuttx/video/imgsensor.h>
+#include <math.h>
 
 #include "isx019_reg.h"
 #include "isx019_range.h"
@@ -164,6 +163,7 @@ struct isx019_dev_s
   imgsensor_white_balance_t wb_mode;
   uint8_t flip_video;
   uint8_t flip_still;
+  int32_t iso;
 };
 
 typedef struct isx019_dev_s isx019_dev_t;
@@ -1469,6 +1469,67 @@ static int set_3aparameter(imgsensor_value_t val)
   return OK;
 }
 
+static uint16_t calc_gain(double iso)
+{
+  double gain;
+
+  gain = 1 + 10 * log(iso) / M_LN10;
+
+  /* In the above formula, the unit of gain is dB.
+   * Because the register has the 0.1dB unit,
+   * return 10 times dB value.
+   */
+
+  return (uint16_t)(gain * 10);
+}
+
+static int set_iso(imgsensor_value_t val)
+{
+  uint16_t gain;
+
+  /* ISX019 has not ISO sensitivity register but gain register.
+   * So, calculate gain from ISO sensitivity.
+   */
+
+  gain = calc_gain(val.value32 / 1000);
+  isx019_i2c_write(CAT_CATAE, GAIN_PRIMODE, (uint8_t *)&gain, 2);
+
+  g_isx019_private.iso = val.value32;
+  return OK;
+}
+
+static int set_iso_auto(imgsensor_value_t val)
+{
+  uint16_t gain;
+
+  if (val.value32 == IMGSENSOR_ISO_SENSITIVITY_AUTO)
+    {
+      gain = 0;
+      g_isx019_private.iso = 0;
+    }
+  else /* IMGSENSOR_ISO_SENSITIVITY_MANUAL */
+    {
+      isx019_i2c_read(CAT_CATAE, GAIN_PRIMODE, (uint8_t *)&gain, 2);
+
+      if (gain == 0)
+        {
+          /* gain = 0 means auto adjustment mode.
+           * In such a case, apply current auto adjustment value
+           * as manual setting.
+           * Note : auto adjustment value register has the unit 0.3dB.
+           *        So, convert the unit to 0.1dB.
+           */
+
+          isx019_i2c_read(CAT_AECOM, GAIN_LEVEL, (uint8_t *)&gain, 2);
+          gain *= 3;
+        }
+
+      g_isx019_private.iso = val.value32;
+    }
+
+  return isx019_i2c_write(CAT_CATAE, GAIN_PRIMODE, (uint8_t *)&gain, 2);
+}
+
 static setvalue_t set_value_func(uint32_t id)
 {
   setvalue_t func = NULL;
@@ -1501,6 +1562,14 @@ static setvalue_t set_value_func(uint32_t id)
 
       case IMGSENSOR_ID_AUTO_N_PRESET_WB:
         func = set_wbmode;
+        break;
+
+      case IMGSENSOR_ID_ISO_SENSITIVITY:
+        func = set_iso;
+        break;
+
+      case IMGSENSOR_ID_ISO_SENSITIVITY_AUTO:
+        func = set_iso_auto;
         break;
 
       case IMGSENSOR_ID_EXPOSURE_METERING:
@@ -1735,6 +1804,76 @@ static int get_3astatus(imgsensor_value_t *val)
   return OK;
 }
 
+static double calc_iso(double gain)
+{
+  int k;
+  double z;
+  double r;
+
+  /* ISO sensitivity = 10^((gain - 1) / 10)
+   * So, replace z = (gain - 1) / 10 and
+   * calculate 10^z.
+   */
+
+  /*  Devide z into integer and other parts.
+   *  z =  log10(E) (k * ln2 + r)
+   *  (k : integer, r < 0.5 * ln2)
+   *
+   * Then, 10^z = (2^k) * e^r (r < 0.5 * ln2)
+   */
+
+  z = (gain - 1) / 10;
+
+  k = z * M_LN10 / M_LN2;
+  r = z * M_LN10 - k * M_LN2;
+
+  return (1 << k) * exp(r);
+}
+
+static int get_iso(imgsensor_value_t *val)
+{
+  uint16_t gain;
+
+  if (val == NULL)
+    {
+      return -EINVAL;
+    }
+
+  if (g_isx019_private.iso == 0)
+    {
+      /* iso = 0 means auto adjustment mode.
+       * In such a case, get gain from auto adjustment value register,
+       * which has the unit 0.3dB, and convert the gain to ISO.
+       */
+
+      isx019_i2c_read(CAT_AECOM, GAIN_LEVEL, (uint8_t *)&gain, 2);
+      gain *= 3;
+      val->value32 = calc_iso((double)gain / 10) * 1000;
+    }
+  else
+    {
+      val->value32 = g_isx019_private.iso;
+    }
+
+  return OK;
+}
+
+static int get_iso_auto(imgsensor_value_t *val)
+{
+  uint16_t gain;
+
+  if (val == NULL)
+    {
+      return -EINVAL;
+    }
+
+  isx019_i2c_read(CAT_CATAE, GAIN_PRIMODE, (uint8_t *)&gain, 2);
+
+  val->value32 = (gain == 0) ? IMGSENSOR_ISO_SENSITIVITY_AUTO
+                             : IMGSENSOR_ISO_SENSITIVITY_MANUAL;
+  return OK;
+}
+
 static getvalue_t get_value_func(uint32_t id)
 {
   getvalue_t func = NULL;
@@ -1767,6 +1906,14 @@ static getvalue_t get_value_func(uint32_t id)
 
       case IMGSENSOR_ID_AUTO_N_PRESET_WB:
         func = get_wbmode;
+        break;
+
+      case IMGSENSOR_ID_ISO_SENSITIVITY:
+        func = get_iso;
+        break;
+
+      case IMGSENSOR_ID_ISO_SENSITIVITY_AUTO:
+        func = get_iso_auto;
         break;
 
       case IMGSENSOR_ID_EXPOSURE_METERING:
