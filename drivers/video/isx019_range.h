@@ -41,6 +41,10 @@
 #define MAX_HUE               (127)
 #define STEP_HUE              (1)
 
+#define MIN_GAMMA             (0)
+#define MAX_GAMMA             (INT_MAX)
+#define STEP_GAMMA            (1)
+
 #define MIN_AWB               (0)     
 #define MAX_AWB               (255)   
 #define STEP_AWB              (1)     
@@ -90,7 +94,7 @@
 #define STEP_TILT       (1)     
 
 #define MIN_ISO        (1)
-#define MAX_ISO        (__INT_MAX__)
+#define MAX_ISO        (INT_MAX)
 #define STEP_ISO       (1)
 
 #define MIN_AUTOISO        (0)     
