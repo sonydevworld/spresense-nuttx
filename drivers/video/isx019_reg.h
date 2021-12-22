@@ -90,6 +90,7 @@
 #define FPGA_CLIP_NON         (0x00)
 #define FPGA_CLIP_1280_720    (0x01)
 #define FPGA_CLIP_640_360     (0x02)
+#define FPGA_CLIP_UNIT        (8)
 
 #define FPGA_DQT_READ (0<<6)
 #define FPGA_DQT_WRITE (1<<6)

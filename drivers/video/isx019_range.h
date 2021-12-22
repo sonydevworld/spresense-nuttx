@@ -118,4 +118,9 @@
 #define MAX_JPGQUALITY        (100)   
 #define STEP_JPGQUALITY       (10)     
 
+#define NRELEM_CLIP           IMGSENSOR_CLIP_NELEM
+#define MIN_CLIP              (0)
+#define MAX_CLIP              (1280)
+#define STEP_CLIP             (8)
+
 #endif /* __DRIVERS_VIDEO_ISX019_RANGE_H */
