@@ -3527,9 +3527,9 @@ static int32_t sendatcmd_pkt_compose(FAR void **arg,
 {
   int32_t size = 0;
   FAR const char *cmd = (FAR const char *)arg[0];
-  FAR int *cmdlen = (FAR int *)arg[1];
+  int cmdlen = (int)arg[1];
 
-  size = *cmdlen - ATCMD_HEADER_LEN;
+  size = cmdlen - ATCMD_HEADER_LEN;
   memcpy(pktbuf, cmd + ATCMD_HEADER_LEN, size);
   pktbuf[size - ATCMD_FOOTER_LEN] = '\0';
 
@@ -5215,10 +5215,10 @@ static int32_t sendatcmd_pkt_parse(FAR struct alt1250_dev_s *dev,
                           size_t arglen, FAR uint64_t *bitmap)
 {
   FAR char *respbuff = (FAR char *)arg[0];
-  FAR int *respbufflen = (FAR int *)arg[1];
+  FAR int respbufflen = (int)arg[1];
   FAR int *resplen = (FAR int *)arg[2];
 
-  if (*respbufflen < pktsz)
+  if (respbufflen < pktsz)
     {
       return -ENOBUFS;
     }
