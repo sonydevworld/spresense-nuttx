@@ -32,6 +32,7 @@
 #include <semaphore.h>
 #include <debug.h>
 #include <nuttx/irq.h>
+#include <pthread.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -236,12 +237,6 @@
  * Public Types
  ****************************************************************************/
 
-typedef int32_t (*compose_handler_t)(FAR void **arg, size_t arglen,
-  uint8_t altver, FAR uint8_t *pktbuf, const size_t pktsz,
-  FAR uint16_t *altcid);
-typedef int32_t (*parse_handler_t)(FAR uint8_t *pktbuf, size_t pktsz,
-  uint8_t altver, FAR void **arg, size_t arglen);
-
 struct alt_power_s
 {
   uint32_t cmdid;
@@ -307,6 +302,40 @@ struct altcom_fd_set_s
 };
 
 typedef struct altcom_fd_set_s altcom_fd_set;
+
+struct alt_queue_s
+{
+  sq_queue_t queue;
+  sem_t lock;
+};
+
+struct alt1250_dev_s
+{
+  FAR struct spi_dev_s *spi;
+  FAR const struct alt1250_lower_s *lower;
+  sem_t refslock;
+  uint8_t crefs;
+  struct alt_queue_s waitlist;
+  struct alt_queue_s replylist;
+  uint64_t evtbitmap;
+  sem_t evtmaplock;
+  sem_t pfdlock;
+  FAR struct pollfd *pfd;
+  pthread_t recvthread;
+  FAR struct alt_evtbuffer_s *evtbuff;
+  uint32_t discardcnt;
+  sem_t senddisablelock;
+  bool senddisable;
+  FAR alt_container_t *select_container;
+  struct alt_evtbuf_inst_s select_inst;
+};
+
+typedef int32_t (*compose_handler_t)(FAR void **arg, size_t arglen,
+  uint8_t altver, FAR uint8_t *pktbuf, const size_t pktsz,
+  FAR uint16_t *altcid);
+typedef int32_t (*parse_handler_t)(FAR struct alt1250_dev_s *dev,
+  FAR uint8_t *pktbuf, size_t pktsz, uint8_t altver, FAR void **arg,
+  size_t arglen, FAR uint64_t *bitmap);
 
 /****************************************************************************
  * Public Function Prototypes
