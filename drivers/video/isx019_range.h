@@ -46,7 +46,7 @@
 #define STEP_GAMMA            (1)
 
 #define MIN_AWB               (0)     
-#define MAX_AWB               (255)   
+#define MAX_AWB               (1)
 #define STEP_AWB              (1)     
 
 #define MIN_EXPOSURE          (-6)     
