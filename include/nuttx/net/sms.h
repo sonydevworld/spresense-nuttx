@@ -86,7 +86,7 @@ struct sms_timestamp_s
   unsigned char hour;   /* Hours (0-23) */
   unsigned char min;    /* Minutes (0-59) */
   unsigned char sec;    /* Seconds (0-59) */
-  char tz;              /* Time zone (-24-24) */
+  signed char tz;       /* Time zone (-24-24) */
 };
 
 /* This is the data structure used when sending SMS */
