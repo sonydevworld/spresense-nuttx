@@ -159,6 +159,16 @@ struct isx019_default_value_s
 
 typedef struct isx019_default_value_s isx019_default_value_t;
 
+struct isx019_rect_s
+{
+  int32_t left;
+  int32_t top;
+  uint32_t width;
+  uint32_t height;
+};
+
+typedef struct isx019_rect_s isx019_rect_t;
+
 struct isx019_dev_s
 {
   FAR struct i2c_master_s *i2c;
@@ -167,6 +177,8 @@ struct isx019_dev_s
   imgsensor_white_balance_t wb_mode;
   uint8_t flip_video;
   uint8_t flip_still;
+  isx019_rect_t clip_video;
+  isx019_rect_t clip_still;
   int32_t iso;
   double  gamma;
   int32_t jpg_quality;
@@ -1248,21 +1260,90 @@ static int activate_flip(imgsensor_stream_type_t type)
   return isx019_i2c_write(CAT_CONFIG, REVERSE, &flip, 1);
 }
 
-static int set_clip(uint16_t h)
+static int activate_clip(imgsensor_stream_type_t type,
+                         uint16_t w,
+                         uint16_t h)
 {
+  isx019_rect_t *clip;
   uint8_t size;
   uint8_t top;
   uint8_t left = 0;
 
-  if (h == 720)
+  clip = (type == IMGSENSOR_STREAM_TYPE_VIDEO) ?
+         &g_isx019_private.clip_video : &g_isx019_private.clip_still;
+
+  switch (w)
     {
-      size = FPGA_CLIP_1280_720;
-      top  = 15;
-    }
-  else
-    {
-      size = FPGA_CLIP_640_360;
-      top = 7;
+      case 1280:
+        if (clip->width == 640) /* In this case, c_h == 360 */
+          {
+            size = FPGA_CLIP_640_360;
+            top  = clip->top / FPGA_CLIP_UNIT;
+            left = clip->left / FPGA_CLIP_UNIT;
+
+            if (h == 720)
+              {
+                /* Shift (960 - 720) / 2 lines */
+
+                top  += 120 / FPGA_CLIP_UNIT;
+              }
+          }
+        else if (clip->width == 1280)
+          {
+            /* In this case, clip->height == 720 */
+
+            size = FPGA_CLIP_1280_720;
+            top  = clip->top / FPGA_CLIP_UNIT;
+            left = clip->left / FPGA_CLIP_UNIT;
+          }
+        else /* no clip */
+          {
+            if (h == 720)
+              {
+                size = FPGA_CLIP_1280_720;
+
+                /* Shift (960 - 720) / 2 lines */
+
+                top = 120 / FPGA_CLIP_UNIT;
+              }
+            else
+              {
+                size = FPGA_CLIP_NON;
+                top  = 0;
+                left = 0;
+              }
+          }
+
+        break;
+
+      default: /* 640 */
+        if (clip->width == 640)
+          {
+            /* In this case, clip->height == 360 */
+
+            size = FPGA_CLIP_640_360;
+            top  = clip->top / FPGA_CLIP_UNIT;
+            left = clip->left / FPGA_CLIP_UNIT;
+          }
+        else /* no clip */
+          {
+            if (h == 360)
+              {
+                size = FPGA_CLIP_640_360;
+
+                /* Shift (480 - 360) / 2 lines */
+
+                top  = 60 / FPGA_CLIP_UNIT;
+              }
+            else
+              {
+                size = FPGA_CLIP_NON;
+                top  = 0;
+                left = 0;
+              }
+          }
+
+        break;
     }
 
   fpga_i2c_write(FPGA_CLIP_SIZE, &size, 1);
@@ -1325,22 +1406,16 @@ static int isx019_start_capture(imgsensor_stream_type_t type,
    {
      case 1280:
        regval |= FPGA_SCALE_1280_960;
-
-       if (fmt[IMGSENSOR_FMT_MAIN].height < 960)
-         {
-           set_clip(fmt[IMGSENSOR_FMT_MAIN].height);
-         }
-
+       activate_clip(type,
+                     fmt[IMGSENSOR_FMT_MAIN].width,
+                     fmt[IMGSENSOR_FMT_MAIN].height);
        break;
 
      case 640:
        regval |= FPGA_SCALE_640_480;
-
-       if (fmt[IMGSENSOR_FMT_MAIN].height < 480)
-         {
-           set_clip(fmt[IMGSENSOR_FMT_MAIN].height);
-         }
-
+       activate_clip(type,
+                     fmt[IMGSENSOR_FMT_MAIN].width,
+                     fmt[IMGSENSOR_FMT_MAIN].height);
        break;
 
      case 320:
@@ -1568,6 +1643,13 @@ static int isx019_get_supported_value
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_JPGQUALITY, MAX_JPGQUALITY,
                                 STEP_JPGQUALITY, def->jpgquality);
+        break;
+
+      case IMGSENSOR_ID_CLIP_VIDEO:
+      case IMGSENSOR_ID_CLIP_STILL:
+        val->type = IMGSENSOR_CTRL_TYPE_U32;
+        SET_ELEMS(val->u.elems, NRELEM_CLIP, MIN_CLIP, MAX_CLIP,
+                                STEP_CLIP);
         break;
 
       default:
@@ -2157,6 +2239,57 @@ static int set_jpg_quality(imgsensor_value_t val)
   return OK;
 }
 
+static bool validate_clip_setting(uint32_t *clip)
+{
+  bool ret = false;
+  uint32_t w;
+  uint32_t h;
+
+  DEBUGASSERT(clip);
+
+  w = clip[IMGSENSOR_CLIP_INDEX_WIDTH];
+  h = clip[IMGSENSOR_CLIP_INDEX_HEIGHT];
+
+  if (((w == 1280) && (h == 720)) ||
+      ((w ==  640) && (h == 360)) ||
+      ((w ==  0) && (h == 0)))
+    {
+      ret = true;
+    }
+
+  return ret;
+}
+
+static int set_clip(uint32_t *val, isx019_rect_t *target)
+{
+  if (val == NULL)
+    {
+      return -EINVAL;
+    }
+
+  if (!validate_clip_setting(val))
+    {
+      return -EINVAL;
+    }
+
+  target->left   = (int32_t)val[IMGSENSOR_CLIP_INDEX_LEFT];
+  target->top    = (int32_t)val[IMGSENSOR_CLIP_INDEX_TOP];
+  target->width  = val[IMGSENSOR_CLIP_INDEX_WIDTH];
+  target->height = val[IMGSENSOR_CLIP_INDEX_HEIGHT];
+
+  return OK;
+}
+
+static int set_clip_video(imgsensor_value_t val)
+{
+  return set_clip(val.p_u32, &g_isx019_private.clip_video);
+}
+
+static int set_clip_still(imgsensor_value_t val)
+{
+  return set_clip(val.p_u32, &g_isx019_private.clip_still);
+}
+
 static setvalue_t set_value_func(uint32_t id)
 {
   setvalue_t func = NULL;
@@ -2217,6 +2350,14 @@ static setvalue_t set_value_func(uint32_t id)
 
       case IMGSENSOR_ID_JPEG_QUALITY:
         func = set_jpg_quality;
+        break;
+
+      case IMGSENSOR_ID_CLIP_VIDEO:
+        func = set_clip_video;
+        break;
+
+      case IMGSENSOR_ID_CLIP_STILL:
+        func = set_clip_still;
         break;
 
       default:
