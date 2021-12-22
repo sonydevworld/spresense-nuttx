@@ -292,7 +292,17 @@
 
 /* For CAT_PICTGAMMA */
 
-#define GAM_KNOT          (0x0000)
+#define GAM_KNOT_C0       (0x0000)
+#define GAM_KNOT_C8       (0x0010)
+#define GAM_KNOT_C9       (0x0012)
+#define GAM_KNOT_C10      (0x0014)
+#define GAM_KNOT_C11      (0x0016)
+#define NR_GAM_KNOT_LOWINPUT (9)
+#define NR_GAM_KNOT_HIGHINPUT (16)
+
+#define GAM_LOWINPUT_INTERVAL (double)(32.0 / 4096.0)
+#define GAM_HIGHINPUT_INTERVAL (double)(256.0 / 4096.0)
+#define GAM_OUTPUT_SCALE (255)
 
 /* Definition for ISX019 register setting value */
 

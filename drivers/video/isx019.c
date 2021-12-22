@@ -164,6 +164,7 @@ struct isx019_dev_s
   uint8_t flip_video;
   uint8_t flip_still;
   int32_t iso;
+  double  gamma;
 };
 
 typedef struct isx019_dev_s isx019_dev_t;
@@ -994,6 +995,12 @@ static int isx019_get_supported_value
                                 STEP_AWB, def->awb);
         break;
 
+      case IMGSENSOR_ID_GAMMA:
+        val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
+        SET_RANGE(val->u.range, MIN_GAMMA, MAX_GAMMA,
+                                STEP_GAMMA, def->gamma);
+        break;
+
       case IMGSENSOR_ID_EXPOSURE:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_EXPOSURE, MAX_EXPOSURE,
@@ -1530,12 +1537,81 @@ static int set_iso_auto(imgsensor_value_t val)
   return isx019_i2c_write(CAT_CATAE, GAIN_PRIMODE, (uint8_t *)&gain, 2);
 }
 
+static uint16_t calc_gamma_regval(double in, double gamma)
+{
+  double out;
+
+  /* 1) Calculate the normalized result.
+   *    formula :  output = input^gamma
+   * 2) Perform scaling for ISX019 register.
+   * 3) Change the format from the floating-point number type
+   *    to the fixed-point number type according to the register.
+   */
+
+  out = pow(in, gamma);
+  out *= GAM_OUTPUT_SCALE;
+
+  return ((uint8_t)out) << 2;
+}
+
+static int set_gamma(imgsensor_value_t val)
+{
+  int i;
+  uint16_t regval;
+  uint16_t offset;
+  double gamma;
+
+  gamma = (double)val.value32 / 1000;
+
+  /* ISX019 gamma adjustment feature is constructed by
+   * registers for low-input and registers for high-input.
+   */
+
+  offset = GAM_KNOT_C0;
+
+  for (i = 0; i < NR_GAM_KNOT_LOWINPUT; i++)
+    {
+      regval = calc_gamma_regval((double)i * GAM_LOWINPUT_INTERVAL, gamma);
+      isx019_i2c_write(CAT_PICTGAMMA, offset, (uint8_t *)&regval, 2);
+      offset += 2;
+    }
+
+  offset = GAM_KNOT_C11;
+
+  for (i = 0; i < NR_GAM_KNOT_HIGHINPUT; i++)
+    {
+      regval = calc_gamma_regval
+               ((double)(i + 1) * GAM_HIGHINPUT_INTERVAL, gamma);
+      isx019_i2c_write(CAT_PICTGAMMA, offset, (uint8_t *)&regval, 2);
+      offset += 2;
+    }
+
+  /* Special register setting.
+   * GAM_KNOT_C9 and GAM_KNOT_C10 need to be set
+   * to be continuous.
+   * So, this driver set GAM_KNOT_C10 = GAM_KNOT_C8,
+   * GAM_KNOT_C9 = GAM_KNOT_C11.
+   */
+
+  isx019_i2c_read(CAT_PICTGAMMA,  GAM_KNOT_C8, (uint8_t *)&regval, 2);
+  isx019_i2c_write(CAT_PICTGAMMA, GAM_KNOT_C10, (uint8_t *)&regval, 2);
+  isx019_i2c_read(CAT_PICTGAMMA,  GAM_KNOT_C11, (uint8_t *)&regval, 2);
+  isx019_i2c_write(CAT_PICTGAMMA, GAM_KNOT_C9, (uint8_t *)&regval, 2);
+
+  g_isx019_private.gamma = val.value32;
+  return OK;
+}
+
 static setvalue_t set_value_func(uint32_t id)
 {
   setvalue_t func = NULL;
 
   switch (id)
     {
+      case IMGSENSOR_ID_GAMMA:
+        func = set_gamma;
+        break;
+
       case IMGSENSOR_ID_HFLIP_VIDEO:
         func = set_hflip_video;
         break;
@@ -1874,12 +1950,28 @@ static int get_iso_auto(imgsensor_value_t *val)
   return OK;
 }
 
+static int get_gamma(imgsensor_value_t *val)
+{
+  if (val == NULL)
+    {
+      return -EINVAL;
+    }
+
+  val->value32 = g_isx019_private.gamma;
+
+  return OK;
+}
+
 static getvalue_t get_value_func(uint32_t id)
 {
   getvalue_t func = NULL;
 
   switch (id)
     {
+      case IMGSENSOR_ID_GAMMA:
+        func = get_gamma;
+        break;
+
       case IMGSENSOR_ID_HFLIP_VIDEO:
         func = get_hflip_video;
         break;
