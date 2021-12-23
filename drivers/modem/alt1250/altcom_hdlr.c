@@ -35,10 +35,12 @@
 #include <nuttx/net/netconfig.h>
 #include <nuttx/net/sms.h>
 
+#include "alt1250.h"
 #include "altcom_pkt.h"
 #include "altcom_cmd.h"
 #include "altcom_cmd_sock.h"
 #include "altcom_cmd_sms.h"
+#include "altcom_lwm2m_hdlr.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -561,6 +563,10 @@ static int32_t smsreportrecv_pkt_parse(FAR struct alt1250_dev_s *dev,
                           FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen, FAR uint64_t *bitmap);
+static int32_t urc_event_pkt_parse(FAR struct alt1250_dev_s *dev,
+                          FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen, FAR uint64_t *bitmap);
 
 /****************************************************************************
  * Private Data
@@ -698,6 +704,7 @@ static parse_inst_t g_parsehdlrs[] =
   PTABLE_CONTENT(SMS_SEND, smssend),
   PTABLE_CONTENT(SMS_DELETE, smscommon),
   PTABLE_CONTENT(SMS_REPORT_RECV, smsreportrecv),
+  PTABLE_CONTENT(URC_EVENT, urc_event),
 };
 
 /****************************************************************************
@@ -5386,6 +5393,34 @@ static int32_t smsreportrecv_pkt_parse(FAR struct alt1250_dev_s *dev,
     }
 
   return 0;
+}
+
+static int32_t urc_event_pkt_parse(FAR struct alt1250_dev_s *dev,
+                          FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen, FAR uint64_t *bitmap)
+{
+  int32_t ret = -ENOTSUP;
+  uint32_t lcmdid = 0;
+  alt_evtbuf_inst_t *inst;
+  lwm2mstub_hndl_t lwm2m_urc_handler;
+
+  if (altver == ALTCOM_VER4)
+    {
+      pktbuf[pktsz] = '\0';
+      m_info("===== URC =====\n%s"
+             "===============\n", pktbuf);
+      lwm2m_urc_handler = lwm2mstub_get_handler(&pktbuf, &pktsz, &lcmdid);
+      *bitmap = get_event_lapibuffer(dev, lcmdid, &inst);
+
+      if (*bitmap != 0ULL)
+        {
+          ret = lwm2m_urc_handler(pktbuf, pktsz,
+                                       inst->outparam, inst->outparamlen);
+        }
+    }
+
+  return ret;
 }
 
 /****************************************************************************

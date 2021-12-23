@@ -24,6 +24,7 @@ ifeq ($(CONFIG_MODEM_ALT1250),y)
 CSRCS += alt1250.c
 CSRCS += altcom_pkt.c
 CSRCS += altcom_hdlr.c
+CSRCS += altcom_lwm2m_hdlr.c
 CSRCS += altmdm.c
 CSRCS += altmdm_event.c
 CSRCS += altmdm_spi.c

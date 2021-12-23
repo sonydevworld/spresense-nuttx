@@ -271,6 +271,28 @@
 #define LTE_CMDID_TLS_RSA_FREE                   _CMDGRP_NORMAL(0xe6)
 #define LTE_CMDID_TLS_RSA_GEN_KEY                _CMDGRP_NORMAL(0xe7)
 
+/* for LwM2M stub */
+
+#define LTE_CMDID_LWM2M_URC_DUMMY                _CMDGRP_EVENT(0x0101)
+#define LTE_CMDID_LWM2M_READ_EVT                 _CMDGRP_EVENT(0x0102)
+#define LTE_CMDID_LWM2M_WRITE_EVT                _CMDGRP_EVENT(0x0103)
+#define LTE_CMDID_LWM2M_EXEC_EVT                 _CMDGRP_EVENT(0x0104)
+#define LTE_CMDID_LWM2M_OVSTART_EVT              _CMDGRP_EVENT(0x0105)
+#define LTE_CMDID_LWM2M_OVSTOP_EVT               _CMDGRP_EVENT(0x0106)
+#define LTE_CMDID_LWM2M_SERVEROP_EVT             _CMDGRP_EVENT(0x0107)
+#define LTE_CMDID_LWM2M_FWUP_EVT                 _CMDGRP_EVENT(0x0108)
+
+#define LTE_CMDID_LWM2M_COMMIT_SETTING           _CMDGRP_NOMDM(0x0109)
+
+#define IS_LWM2M_EVENT(cid) (\
+  ((cid) == LTE_CMDID_LWM2M_READ_EVT) ||  \
+  ((cid) == LTE_CMDID_LWM2M_WRITE_EVT) || \
+  ((cid) == LTE_CMDID_LWM2M_EXEC_EVT) ||  \
+  ((cid) == LTE_CMDID_LWM2M_OVSTART_EVT) || \
+  ((cid) == LTE_CMDID_LWM2M_OVSTOP_EVT) ||  \
+  ((cid) == LTE_CMDID_LWM2M_SERVEROP_EVT) ||  \
+  ((cid) == LTE_CMDID_LWM2M_FWUP_EVT) )
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
