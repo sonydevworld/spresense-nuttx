@@ -152,6 +152,7 @@
 #define APICMDID_GET_RAT                (0x00A0)
 #define APICMDID_SET_RAT                (0x00A1)
 #define APICMDID_SEND_ATCMD             (0x00B0)
+#define APICMDID_URC_EVENT              (0x00B2)
 
 #define APICMDID_GET_VERSION_V4         (0x000B)
 #define APICMDID_GET_PHONENO_V4         (0x000C)
@@ -195,6 +196,7 @@
 #define APICMDID_GET_RAT_V4             (0x00A0)
 #define APICMDID_SET_RAT_V4             (0x00A1)
 #define APICMDID_SEND_ATCMD_V4          (0x0030)
+#define APICMDID_URC_EVENT_V4           (0x0032)
 #define APICMDID_FW_INJECTDELTAIMG_V4   (0x0270)
 #define APICMDID_FW_GETDELTAIMGLEN_V4   (0x0271)
 #define APICMDID_FW_EXECDELTAUPDATE_V4  (0x0272)

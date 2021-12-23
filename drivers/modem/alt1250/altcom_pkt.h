@@ -242,6 +242,11 @@ static inline uint16_t convert_cid2v1(uint16_t cid)
       return APICMDID_SEND_ATCMD;
     }
 
+  if (cid == APICMDID_URC_EVENT_V4)
+    {
+      return APICMDID_URC_EVENT;
+    }
+
   if ((cid >= APICMDID_FW_INJECTDELTAIMG_V4) &&
       (cid <= APICMDID_FW_GETUPDATERESULT_V4))
     {

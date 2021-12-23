@@ -28,6 +28,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <nuttx/wireless/lte/lte_lwm2m.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
