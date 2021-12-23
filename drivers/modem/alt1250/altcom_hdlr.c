@@ -1949,6 +1949,10 @@ static int32_t enterpin_pkt_compose(FAR void **arg,
       strncpy((FAR char *)out->newpincode,
               new_pincode, sizeof(out->newpincode));
     }
+  else
+    {
+      out->newpincodeuse = APICMD_ENTERPIN_NEWPINCODE_UNUSE;
+    }
 
   size = sizeof(struct apicmd_cmddat_enterpin_s);
 
