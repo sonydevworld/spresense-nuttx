@@ -181,6 +181,11 @@ static inline uint16_t convert_cid2v1(uint16_t cid)
       return cid;
     }
 
+  if ((cid >= APICMDID_SMS_INIT) && (cid <= APICMDID_SMS_DELETE))
+    {
+      return cid;
+    }
+
   if ((cid >= APICMDID_GET_VERSION_V4) && (cid <= APICMDID_SET_PSM_V4))
     {
       return (cid + 1);
@@ -235,6 +240,11 @@ static inline uint16_t convert_cid2v1(uint16_t cid)
   if (cid == APICMDID_SEND_ATCMD_V4)
     {
       return APICMDID_SEND_ATCMD;
+    }
+
+  if (cid == APICMDID_URC_EVENT_V4)
+    {
+      return APICMDID_URC_EVENT;
     }
 
   if ((cid >= APICMDID_FW_INJECTDELTAIMG_V4) &&

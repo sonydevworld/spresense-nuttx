@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/cxd56xx/common/src/cxd56_i2cdev.c
+ * include/nuttx/video/isx019.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,53 +18,33 @@
  *
  ****************************************************************************/
 
+#ifndef __INCLUDE_NUTTX_VIDEO_ISX019_H
+#define __INCLUDE_NUTTX_VIDEO_ISX019_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <stdio.h>
-#include <debug.h>
-#include <errno.h>
-
-#include "cxd56_i2c.h"
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: board_i2cdev_initialize
- *
- * Description:
- *   Initialize and register i2c driver for the specified i2c port
- *
- ****************************************************************************/
-
-int board_i2cdev_initialize(int port)
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
 {
-  int ret;
-  FAR struct i2c_master_s *i2c;
+#else
+#define EXTERN extern
+#endif
 
-  _info("Initializing /dev/i2c%d..\n", port);
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
 
-  /* Initialize i2c device */
+int isx019_initialize(void);
+int isx019_uninitialize(void);
 
-  i2c = cxd56_i2cbus_initialize(port);
-  if (!i2c)
-    {
-      _err("ERROR: Failed to initialize i2c%d.\n", port);
-      return -ENODEV;
-    }
-
-  ret = i2c_register(i2c, port);
-  if (ret < 0)
-    {
-      _err("ERROR: Failed to register i2c%d: %d\n", port, ret);
-    }
-
-  cxd56_i2cbus_uninitialize(i2c);
-
-  return ret;
+#undef EXTERN
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* __INCLUDE_NUTTX_VIDEO_ISX019_H */

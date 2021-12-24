@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/cxd56xx/common/src/cxd56_i2cdev.c
+ * boards/arm/cxd56xx/common/src/cxd56_usbdevserialstr.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -25,46 +25,28 @@
 #include <nuttx/config.h>
 
 #include <stdio.h>
-#include <debug.h>
-#include <errno.h>
 
-#include "cxd56_i2c.h"
+#include "cxd56_uid.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: board_i2cdev_initialize
- *
- * Description:
- *   Initialize and register i2c driver for the specified i2c port
- *
- ****************************************************************************/
+#ifdef CONFIG_BOARD_USBDEV_SERIALSTR
 
-int board_i2cdev_initialize(int port)
+static char g_serialstr[CONFIG_BOARDCTL_UNIQUEID_SIZE * 2 + 1];
+
+FAR const char *board_usbdev_serialstr(void)
 {
-  int ret;
-  FAR struct i2c_master_s *i2c;
+  uint8_t uid[CONFIG_BOARDCTL_UNIQUEID_SIZE];
 
-  _info("Initializing /dev/i2c%d..\n", port);
+  cxd56_get_uniqueid(uid);
 
-  /* Initialize i2c device */
+  snprintf(g_serialstr, CONFIG_BOARDCTL_UNIQUEID_SIZE * 2 + 1,
+           "%02X%02X%02X%02X%02X",
+           uid[0], uid[1], uid[2], uid[3], uid[4]);
 
-  i2c = cxd56_i2cbus_initialize(port);
-  if (!i2c)
-    {
-      _err("ERROR: Failed to initialize i2c%d.\n", port);
-      return -ENODEV;
-    }
-
-  ret = i2c_register(i2c, port);
-  if (ret < 0)
-    {
-      _err("ERROR: Failed to register i2c%d: %d\n", port, ret);
-    }
-
-  cxd56_i2cbus_uninitialize(i2c);
-
-  return ret;
+  return g_serialstr;
 }
+
+#endif

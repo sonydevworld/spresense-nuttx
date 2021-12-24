@@ -32,6 +32,7 @@
 #include <semaphore.h>
 #include <debug.h>
 #include <nuttx/irq.h>
+#include <pthread.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -151,6 +152,7 @@
 #define APICMDID_GET_RAT                (0x00A0)
 #define APICMDID_SET_RAT                (0x00A1)
 #define APICMDID_SEND_ATCMD             (0x00B0)
+#define APICMDID_URC_EVENT              (0x00B2)
 
 #define APICMDID_GET_VERSION_V4         (0x000B)
 #define APICMDID_GET_PHONENO_V4         (0x000C)
@@ -194,6 +196,7 @@
 #define APICMDID_GET_RAT_V4             (0x00A0)
 #define APICMDID_SET_RAT_V4             (0x00A1)
 #define APICMDID_SEND_ATCMD_V4          (0x0030)
+#define APICMDID_URC_EVENT_V4           (0x0032)
 #define APICMDID_FW_INJECTDELTAIMG_V4   (0x0270)
 #define APICMDID_FW_GETDELTAIMGLEN_V4   (0x0271)
 #define APICMDID_FW_EXECDELTAUPDATE_V4  (0x0272)
@@ -222,6 +225,12 @@
 #define APICMDID_TLS_CONFIG_VERIFY_CALLBACK    (0x0129)
 #define APICMDID_TLS_CONFIG_VERIFY_CALLBACK_V4 (0x0161)
 
+#define APICMDID_SMS_INIT               (0x0330)
+#define APICMDID_SMS_FIN                (0x0331)
+#define APICMDID_SMS_SEND               (0x0332)
+#define APICMDID_SMS_REPORT_RECV        (0x0333)
+#define APICMDID_SMS_DELETE             (0x0334)
+
 #define ALTCOM_CMDID_ERRIND      (0xFFFF)
 
 #define ALTCOM_CMDID_REPLY_BIT (0x8000)
@@ -229,12 +238,6 @@
 /****************************************************************************
  * Public Types
  ****************************************************************************/
-
-typedef int32_t (*compose_handler_t)(FAR void **arg, size_t arglen,
-  uint8_t altver, FAR uint8_t *pktbuf, const size_t pktsz,
-  FAR uint16_t *altcid);
-typedef int32_t (*parse_handler_t)(FAR uint8_t *pktbuf, size_t pktsz,
-  uint8_t altver, FAR void **arg, size_t arglen);
 
 struct alt_power_s
 {
@@ -301,6 +304,40 @@ struct altcom_fd_set_s
 };
 
 typedef struct altcom_fd_set_s altcom_fd_set;
+
+struct alt_queue_s
+{
+  sq_queue_t queue;
+  sem_t lock;
+};
+
+struct alt1250_dev_s
+{
+  FAR struct spi_dev_s *spi;
+  FAR const struct alt1250_lower_s *lower;
+  sem_t refslock;
+  uint8_t crefs;
+  struct alt_queue_s waitlist;
+  struct alt_queue_s replylist;
+  uint64_t evtbitmap;
+  sem_t evtmaplock;
+  sem_t pfdlock;
+  FAR struct pollfd *pfd;
+  pthread_t recvthread;
+  FAR struct alt_evtbuffer_s *evtbuff;
+  uint32_t discardcnt;
+  sem_t senddisablelock;
+  bool senddisable;
+  FAR alt_container_t *select_container;
+  struct alt_evtbuf_inst_s select_inst;
+};
+
+typedef int32_t (*compose_handler_t)(FAR void **arg, size_t arglen,
+  uint8_t altver, FAR uint8_t *pktbuf, const size_t pktsz,
+  FAR uint16_t *altcid);
+typedef int32_t (*parse_handler_t)(FAR struct alt1250_dev_s *dev,
+  FAR uint8_t *pktbuf, size_t pktsz, uint8_t altver, FAR void **arg,
+  size_t arglen, FAR uint64_t *bitmap);
 
 /****************************************************************************
  * Public Function Prototypes

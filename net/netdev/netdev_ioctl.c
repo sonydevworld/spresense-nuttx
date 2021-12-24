@@ -1577,6 +1577,9 @@ ssize_t net_ioctl_arglen(int cmd)
       case SIOCSMIIREG:
         return sizeof(struct mii_ioctl_data_s);
 
+      case SIOCDENYINETSOCK:
+        return sizeof(uint8_t);
+
       default:
 #ifdef CONFIG_NETDEV_IOCTL
 #  ifdef CONFIG_NETDEV_WIRELESS_IOCTL
@@ -1610,7 +1613,14 @@ ssize_t net_ioctl_arglen(int cmd)
 #  ifdef CONFIG_NETDEV_MODEM_LTE_IOCTL
         if (WL_ISLTECMD(cmd))
           {
-            return sizeof(struct lte_ioctl_data_s);
+            switch (cmd)
+              {
+                case SIOCLTECMD:
+                  return sizeof(struct lte_ioctl_data_s);
+
+                default:
+                  return sizeof(struct lte_smsreq_s);
+              }
           }
 #  endif
 #endif

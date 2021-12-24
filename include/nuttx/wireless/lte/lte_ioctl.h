@@ -25,7 +25,10 @@
  * Included Files
  ****************************************************************************/
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <nuttx/wireless/wireless.h>
+#include <nuttx/net/sms.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -33,7 +36,7 @@
 
 /* LTE network device IOCTL commands. */
 
-#if !defined(WL_NLTECMDS) || WL_NLTECMDS != 1
+#if !defined(WL_NLTECMDS) || WL_NLTECMDS != 4
 #  error Incorrect setting for number of LTE IOCTL commands
 #endif
 
@@ -42,6 +45,27 @@
  */
 
 #define SIOCLTECMD            _WLIOC(WL_LTEFIRST + 0)
+
+/* SIOCSMSENSTREP
+ *   Description:   Enable or disable the function to confirm whether or not
+ *                  the SMS has been delivered to the destination device.
+ */
+
+#define SIOCSMSENSTREP        _WLIOC(WL_LTEFIRST + 1)
+
+/* SIOCSMSGREFID
+ *   Description:   Obtain the ID associated with the submitted SMS.
+ *                  If the submitted SMS is a concatenated SMS, multiple IDs
+ *                  will be obtained; otherwise, a single ID will be obtained.
+ */
+
+#define SIOCSMSGREFID         _WLIOC(WL_LTEFIRST + 2)
+
+/* SIOCSMSSSCA
+ *   Description:   Set the service center address of the destination.
+ */
+
+#define SIOCSMSSSCA           _WLIOC(WL_LTEFIRST + 3)
 
 /* for cmdid */
 
@@ -56,6 +80,8 @@
 #define _CMDGRP_POWER(nr)            (_CMDGRP_SHIFT(3) | (nr))
 #define _CMDGRP_FWUPDATE(nr)         (_CMDGRP_SHIFT(4) | (nr))
 #define LTE_CMDOPT_ASYNC_BIT         (0x1 << (_CMDOPT_LSB))
+#define LTE_IS_ASYNC_CMD(cid)        ((cid) & LTE_CMDOPT_ASYNC_BIT)
+#define LTE_PURE_CMDID(cid)          ((cid) & ~LTE_CMDOPT_ASYNC_BIT)
 #define LTE_ISCMDGRP_NORMAL(cmd)     ((cmd & _CMDGRP_MASK) == _CMDGRP_NORMAL(0))
 #define LTE_ISCMDGRP_EVENT(cmd)      ((cmd & _CMDGRP_MASK) == _CMDGRP_EVENT(0))
 #define LTE_ISCMDGRP_NOMDM(cmd)      ((cmd & _CMDGRP_MASK) == _CMDGRP_NOMDM(0))
@@ -133,6 +159,12 @@
 #define LTE_CMDID_SHUTDOWN                       _CMDGRP_NORMAL(0x60)
 #define LTE_CMDID_SOCKET                         _CMDGRP_NORMAL(0x61)
 #define LTE_CMDID_SETSOCKOPT                     _CMDGRP_NORMAL(0x62)
+
+#define LTE_CMDID_SMS_INIT                       _CMDGRP_NORMAL(0x65)
+#define LTE_CMDID_SMS_FIN                        _CMDGRP_NORMAL(0x66)
+#define LTE_CMDID_SMS_SEND                       _CMDGRP_NORMAL(0x67)
+#define LTE_CMDID_SMS_DELETE                     _CMDGRP_NORMAL(0x68)
+#define LTE_CMDID_SMS_REPORT_RECV                _CMDGRP_EVENT(0x69)
 
 #define LTE_CMDID_TLS_SSL_INIT                   _CMDGRP_NORMAL(0x80)
 #define LTE_CMDID_TLS_SSL_FREE                   _CMDGRP_NORMAL(0x81)
@@ -239,6 +271,28 @@
 #define LTE_CMDID_TLS_RSA_FREE                   _CMDGRP_NORMAL(0xe6)
 #define LTE_CMDID_TLS_RSA_GEN_KEY                _CMDGRP_NORMAL(0xe7)
 
+/* for LwM2M stub */
+
+#define LTE_CMDID_LWM2M_URC_DUMMY                _CMDGRP_EVENT(0x0101)
+#define LTE_CMDID_LWM2M_READ_EVT                 _CMDGRP_EVENT(0x0102)
+#define LTE_CMDID_LWM2M_WRITE_EVT                _CMDGRP_EVENT(0x0103)
+#define LTE_CMDID_LWM2M_EXEC_EVT                 _CMDGRP_EVENT(0x0104)
+#define LTE_CMDID_LWM2M_OVSTART_EVT              _CMDGRP_EVENT(0x0105)
+#define LTE_CMDID_LWM2M_OVSTOP_EVT               _CMDGRP_EVENT(0x0106)
+#define LTE_CMDID_LWM2M_SERVEROP_EVT             _CMDGRP_EVENT(0x0107)
+#define LTE_CMDID_LWM2M_FWUP_EVT                 _CMDGRP_EVENT(0x0108)
+
+#define LTE_CMDID_LWM2M_COMMIT_SETTING           _CMDGRP_NOMDM(0x0109)
+
+#define IS_LWM2M_EVENT(cid) (\
+  ((cid) == LTE_CMDID_LWM2M_READ_EVT) ||  \
+  ((cid) == LTE_CMDID_LWM2M_WRITE_EVT) || \
+  ((cid) == LTE_CMDID_LWM2M_EXEC_EVT) ||  \
+  ((cid) == LTE_CMDID_LWM2M_OVSTART_EVT) || \
+  ((cid) == LTE_CMDID_LWM2M_OVSTOP_EVT) ||  \
+  ((cid) == LTE_CMDID_LWM2M_SERVEROP_EVT) ||  \
+  ((cid) == LTE_CMDID_LWM2M_FWUP_EVT) )
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -265,6 +319,27 @@ struct lte_evtctx_in_s
 struct lte_evtctx_out_s
 {
   lte_evthndl_t handle;
+};
+
+/* for IOCTL related SMS */
+
+struct lte_smsreq_s
+{
+  union
+    {
+      /* Using for SIOCSMSENSTREP command */
+
+      bool enable;
+
+      /* Using for SIOCSMSGREFID command */
+
+      struct sms_refids_s refid;
+
+      /* Using for SIOCSMSSSCA command */
+
+      struct sms_sc_addr_s scaddr;
+
+    } smsru;
 };
 
 #endif /* __INCLUDE_NUTTX_WIRELESS_LTE_LTE_IOCTL_H */

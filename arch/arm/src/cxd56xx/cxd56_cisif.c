@@ -38,6 +38,7 @@
 #include <nuttx/video/imgdata.h>
 #include "arm_arch.h"
 
+#include "cxd56_pinconfig.h"
 #include "cxd56_clock.h"
 #include "hardware/cxd56_cisif.h"
 
@@ -773,6 +774,8 @@ static int cxd56_cisif_init(void)
       return -EPERM;
     }
 
+  CXD56_PIN_CONFIGS(PINCONFS_IS);
+
   /* enable CISIF clock */
 
   cxd56_img_cisif_clock_enable();
@@ -825,6 +828,8 @@ static int cxd56_cisif_uninit(void)
   /* disable CISIF clock */
 
   cxd56_img_cisif_clock_disable();
+
+  CXD56_PIN_CONFIGS(PINCONFS_IS_GPIO);
 
   g_state = STATE_STANDBY;
   return OK;
