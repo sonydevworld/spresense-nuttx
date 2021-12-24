@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/cxd56xx/common/src/cxd56_isx012.c
+ * boards/arm/cxd56xx/common/src/cxd56_isx019.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -47,22 +47,16 @@
 #ifndef IMAGER_RST
 #  error "IMAGER_RST must be defined in board.h !!"
 #endif
-#ifndef IMAGER_SLEEP
-#  error "IMAGER_SLEEP must be defined in board.h !!"
-#endif
 
-#define STANDBY_TIME                (600*1000) /* TODO: (max100ms/30fps)*/
-#define DEVICE_STARTUP_TIME           (6*1000) /* ms */
-#define SLEEP_CANCEL_TIME            (13*1000) /* ms */
 #define POWER_CHECK_TIME             (1*1000)  /* ms */
 
-#define POWER_CHECK_RETRY           (10)
+#define POWER_CHECK_RETRY            (10)
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-int board_isx012_power_on(void)
+int board_isx019_power_on(void)
 {
   int ret;
   int i;
@@ -91,7 +85,7 @@ int board_isx012_power_on(void)
   return ret;
 }
 
-int board_isx012_power_off(void)
+int board_isx019_power_off(void)
 {
   int ret;
   int i;
@@ -118,78 +112,45 @@ int board_isx012_power_off(void)
   return ret;
 }
 
-void board_isx012_set_reset(void)
+void board_isx019_set_reset(void)
 {
   cxd56_gpio_write(IMAGER_RST, false);
 }
 
-void board_isx012_release_reset(void)
+void board_isx019_release_reset(void)
 {
   cxd56_gpio_write(IMAGER_RST, true);
 }
 
-void board_isx012_set_sleep(int kind)
+struct i2c_master_s *board_isx019_initialize(void)
 {
-  cxd56_gpio_write(IMAGER_SLEEP, false);
-  if (kind == 0)
-    {
-      /* PowerON -> sleep */
+  _info("Initializing ISX019...\n");
 
-      nxsig_usleep(DEVICE_STARTUP_TIME);
-    }
-  else
-    {
-      /* active -> sleep */
-
-      nxsig_usleep(STANDBY_TIME);
-    }
-}
-
-void board_isx012_release_sleep(void)
-{
-  cxd56_gpio_write(IMAGER_SLEEP, true);
-  nxsig_usleep(SLEEP_CANCEL_TIME);
-}
-
-int isx012_register(FAR struct i2c_master_s *i2c);
-int isx012_unregister(void);
-
-struct i2c_master_s *board_isx012_initialize(void)
-{
-  _info("Initializing ISX012...\n");
-
-#ifdef IMAGER_ALERT
-  cxd56_gpio_config(IMAGER_ALERT, true);
-#endif
-  cxd56_gpio_config(IMAGER_SLEEP, false);
   cxd56_gpio_config(IMAGER_RST, false);
-  board_isx012_set_reset();
-  cxd56_gpio_write(IMAGER_SLEEP, false);
-
-  CXD56_PIN_CONFIGS(PINCONFS_IS);
+  board_isx019_set_reset();
 
   /* Initialize i2c device */
 
   return cxd56_i2cbus_initialize(IMAGER_I2C);
 }
 
-int board_isx012_uninitialize(struct i2c_master_s *i2c)
+int board_isx019_uninitialize(struct i2c_master_s *i2c)
 {
   int ret;
 
-  _info("Uninitializing ISX012...\n");
+  _info("Uninitializing ISX019...\n");
 
   /* Initialize i2c device */
 
-  ret = isx012_uninitialize();
+  ret = isx019_uninitialize();
   if (ret < 0)
     {
-      _err("Failed to uninitialize ISX012.\n");
+      _err("Failed to uninitialize ISX019.\n");
     }
 
   if (!i2c)
     {
-      _err("Error uninitialize ISX012.\n");
+      _err("Error uninitialize ISX019.\n");
       return -ENODEV;
     }
   else

@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/cxd56xx/common/src/cxd56_i2cdev.c
+ * drivers/modem/alt1250/alt1250.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,53 +18,24 @@
  *
  ****************************************************************************/
 
+#ifndef __DRIVERS_MODEM_ALT1250_ALT1250_H__
+#define __DRIVERS_MODEM_ALT1250_ALT1250_H__
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/wireless/lte/lte_ioctl.h>
 
-#include <stdio.h>
-#include <debug.h>
-#include <errno.h>
-
-#include "cxd56_i2c.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
-/****************************************************************************
- * Name: board_i2cdev_initialize
- *
- * Description:
- *   Initialize and register i2c driver for the specified i2c port
- *
- ****************************************************************************/
+uint64_t get_event_lapibuffer(FAR struct alt1250_dev_s *dev,
+  uint32_t lapicmdid, alt_evtbuf_inst_t **inst);
 
-int board_i2cdev_initialize(int port)
-{
-  int ret;
-  FAR struct i2c_master_s *i2c;
-
-  _info("Initializing /dev/i2c%d..\n", port);
-
-  /* Initialize i2c device */
-
-  i2c = cxd56_i2cbus_initialize(port);
-  if (!i2c)
-    {
-      _err("ERROR: Failed to initialize i2c%d.\n", port);
-      return -ENODEV;
-    }
-
-  ret = i2c_register(i2c, port);
-  if (ret < 0)
-    {
-      _err("ERROR: Failed to register i2c%d: %d\n", port, ret);
-    }
-
-  cxd56_i2cbus_uninitialize(i2c);
-
-  return ret;
-}
+#endif  /* __DRIVERS_MODEM_ALT1250_ALT1250_H__ */

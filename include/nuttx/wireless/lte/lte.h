@@ -36,6 +36,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <nuttx/wireless/lte/lte_lwm2m.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -121,6 +123,9 @@
 #define LTE_IPTYPE_V4         (0) /**< Internet protocol type: IPv4 */
 #define LTE_IPTYPE_V6         (1) /**< Internet protocol type: IPv6 */
 #define LTE_IPTYPE_V4V6       (2) /**< Internet protocol type: IPv4/v6 */
+#define LTE_IPTYPE_NON        (3) /**< Internet protocol type:
+                                   * Non-IP Data Delivery
+                                   */
 
 /** Internet protocol type: IP 
  *  @deprecated Use @ref LTE_IPTYPE_V4 instead. */
@@ -1109,9 +1114,11 @@ typedef struct lte_apn_setting
   char   *apn;
 
   /** Type of IP for APN. Definition is as below.
-   *  - @ref LTE_APN_IPTYPE_IP
-   *  - @ref LTE_APN_IPTYPE_IPV6
-   *  - @ref LTE_APN_IPTYPE_IPV4V6 */
+   *  - @ref LTE_IPTYPE_V4
+   *  - @ref LTE_IPTYPE_V6
+   *  - @ref LTE_IPTYPE_V4V6
+   *  - @ref LTE_IPTYPE_NON
+   */
 
   uint8_t  ip_type;
 

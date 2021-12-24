@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/cxd56xx/common/src/cxd56_i2cdev.c
+ * drivers/modem/alt1250/altcom_lwm2m_hdlr.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,53 +18,30 @@
  *
  ****************************************************************************/
 
+#ifndef __DRIVERS_MODEM_ALT1250_ALTCOM_LWM2M_HDLR_H__
+#define __DRIVERS_MODEM_ALT1250_ALTCOM_LWM2M_HDLR_H__
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <stdio.h>
-#include <debug.h>
-#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-#include "cxd56_i2c.h"
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+typedef int32_t (*lwm2mstub_hndl_t)(FAR uint8_t *, size_t,
+                          FAR void **, size_t);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: board_i2cdev_initialize
- *
- * Description:
- *   Initialize and register i2c driver for the specified i2c port
- *
- ****************************************************************************/
+lwm2mstub_hndl_t lwm2mstub_get_handler(FAR uint8_t **pktbuf, size_t *pktsz,
+                                      uint32_t *lcmdid);
 
-int board_i2cdev_initialize(int port)
-{
-  int ret;
-  FAR struct i2c_master_s *i2c;
-
-  _info("Initializing /dev/i2c%d..\n", port);
-
-  /* Initialize i2c device */
-
-  i2c = cxd56_i2cbus_initialize(port);
-  if (!i2c)
-    {
-      _err("ERROR: Failed to initialize i2c%d.\n", port);
-      return -ENODEV;
-    }
-
-  ret = i2c_register(i2c, port);
-  if (ret < 0)
-    {
-      _err("ERROR: Failed to register i2c%d: %d\n", port, ret);
-    }
-
-  cxd56_i2cbus_uninitialize(i2c);
-
-  return ret;
-}
+#endif  /* __DRIVERS_MODEM_ALT1250_ALTCOM_LWM2M_HDLR_H__ */

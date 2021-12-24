@@ -29,6 +29,7 @@
 #include <poll.h>
 #include <errno.h>
 #include <nuttx/wireless/lte/lte_ioctl.h>
+#include <nuttx/modem/alt1250.h>
 #include <assert.h>
 
 #include "altcom_pkt.h"
@@ -43,37 +44,6 @@
 #define WRITE_NG 1
 
 #define rel_evtbufinst(inst, dev) unlock_evtbufinst(inst, dev)
-
-/****************************************************************************
- * Private Types
- ****************************************************************************/
-
-struct alt_queue_s
-{
-  sq_queue_t queue;
-  sem_t lock;
-};
-
-struct alt1250_dev_s
-{
-  FAR struct spi_dev_s *spi;
-  FAR const struct alt1250_lower_s *lower;
-  sem_t refslock;
-  uint8_t crefs;
-  struct alt_queue_s waitlist;
-  struct alt_queue_s replylist;
-  uint64_t evtbitmap;
-  sem_t evtmaplock;
-  sem_t pfdlock;
-  FAR struct pollfd *pfd;
-  pthread_t recvthread;
-  struct alt_evtbuffer_s *evtbuff;
-  uint32_t discardcnt;
-  sem_t senddisablelock;
-  bool senddisable;
-  FAR alt_container_t *select_container;
-  struct alt_evtbuf_inst_s select_inst;
-};
 
 /****************************************************************************
  * Private Function Prototypes
@@ -283,6 +253,8 @@ static void write_evtbitmap(FAR struct alt1250_dev_s *dev,
       dev->evtbitmap = ALT1250_EVTBIT_RESET;
     }
 
+  m_info("write bitmap: 0x%llx\n", bitmap);
+
   nxsem_post(&dev->evtmaplock);
 }
 
@@ -398,10 +370,12 @@ static void unlock_evtbufinst(FAR alt_evtbuf_inst_t *inst,
  ****************************************************************************/
 
 static FAR alt_evtbuf_inst_t *search_evtbufinst(uint16_t cid,
-  FAR unsigned int *idx, FAR struct alt1250_dev_s *dev)
+  FAR uint64_t *bitmap, FAR struct alt1250_dev_s *dev)
 {
   FAR alt_evtbuf_inst_t *ret = NULL;
   unsigned int i;
+
+  *bitmap = 0ULL;
 
   for (i = 0; i < dev->evtbuff->ninst; i++)
     {
@@ -409,7 +383,7 @@ static FAR alt_evtbuf_inst_t *search_evtbufinst(uint16_t cid,
 
       if (ret->altcid == cid)
         {
-          *idx = i;
+          *bitmap = 1ULL << i;
           return ret;
         }
     }
@@ -418,15 +392,11 @@ static FAR alt_evtbuf_inst_t *search_evtbufinst(uint16_t cid,
 }
 
 /****************************************************************************
- * Name: get_evtbuffinst
+ * Name: cid_to_searchable
  ****************************************************************************/
 
-static FAR alt_evtbuf_inst_t *get_evtbuffinst(
-  FAR struct alt1250_dev_s *dev, uint16_t cid, uint8_t altver)
+static uint16_t cid_to_searchable(uint16_t cid, uint8_t altver)
 {
-  FAR alt_evtbuf_inst_t *inst = NULL;
-  FAR alt_evtbuf_inst_t *ret = NULL;
-  unsigned int i;
   uint16_t cidv1;
 
   cid &= ~ALTCOM_CMDID_REPLY_BIT;
@@ -443,6 +413,38 @@ static FAR alt_evtbuf_inst_t *get_evtbuffinst(
           cid = cidv1;
         }
     }
+
+  return cid;
+}
+
+/****************************************************************************
+ * Name: get_bitmap
+ ****************************************************************************/
+
+static uint64_t get_bitmap(FAR struct alt1250_dev_s *dev, uint16_t cid,
+  uint8_t altver)
+{
+  uint64_t bitmap = 0ULL;
+
+  cid = cid_to_searchable(cid, altver);
+
+  search_evtbufinst(cid, &bitmap, dev);
+
+  return bitmap;
+}
+
+/****************************************************************************
+ * Name: get_evtbuffinst_withlock
+ ****************************************************************************/
+
+static FAR alt_evtbuf_inst_t *get_evtbuffinst_withlock(
+  FAR struct alt1250_dev_s *dev, uint16_t cid, uint8_t altver,
+  FAR uint64_t *bitmap)
+{
+  FAR alt_evtbuf_inst_t *inst = NULL;
+  FAR alt_evtbuf_inst_t *ret = NULL;
+
+  cid = cid_to_searchable(cid, altver);
 
   if (cid == APICMDID_SOCK_SELECT)
     {
@@ -453,21 +455,18 @@ static FAR alt_evtbuf_inst_t *get_evtbuffinst(
       ret->outparam = dev->select_container->outparam;
       ret->outparamlen = dev->select_container->outparamlen;
 
-      if (search_evtbufinst(cid, &i, dev))
-        {
-          dev->evtbitmap |= (1ULL << i);
-        }
+      search_evtbufinst(cid, bitmap, dev);
     }
   else
     {
-      ret = search_evtbufinst(cid, &i, dev);
-      if (ret)
+      inst = search_evtbufinst(cid, bitmap, dev);
+      if (inst)
         {
-          lock_evtbuffinst(ret, dev);
+          lock_evtbuffinst(inst, dev);
 
-          if (ret->stat == ALTEVTBUF_ST_WRITABLE)
+          if (inst->stat == ALTEVTBUF_ST_WRITABLE)
             {
-              dev->evtbitmap |= (1ULL << i);
+              ret = inst;
             }
           else
             {
@@ -477,51 +476,6 @@ static FAR alt_evtbuf_inst_t *get_evtbuffinst(
     }
 
   return ret;
-}
-
-/****************************************************************************
- * Name: get_evtbuffidx
- ****************************************************************************/
-
-static int get_evtbuffidx(FAR struct alt1250_dev_s *dev, uint16_t cid,
-  uint8_t altver)
-{
-  int i;
-  int idx = -1;
-  uint16_t cidv1;
-
-  cid &= ~ALTCOM_CMDID_REPLY_BIT;
-  if (altver == ALTCOM_VER4)
-    {
-      /* Change the command ID to Version 1
-       * Even if it cannot be converted, try to search the table
-       * using the original command ID.
-       */
-
-      cidv1 = convert_cid2v1(cid);
-      if (cidv1 != APICMDID_UNKNOWN)
-        {
-          cid = cidv1;
-        }
-    }
-
-  if (dev->evtbuff)
-    {
-      for (i = 0; i < dev->evtbuff->ninst; i++)
-        {
-          if (dev->evtbuff->inst[i].altcid == cid)
-            {
-              idx = i;
-            }
-        }
-    }
-
-  if (idx == -1)
-    {
-      m_warn("event buffer index is not found. cid: 0x%04x\n", cid);
-    }
-
-  return idx;
 }
 
 /****************************************************************************
@@ -792,7 +746,7 @@ static void altcom_recvthread(FAR void *arg)
   uint16_t tid;
   uint8_t altver;
   parse_handler_t handler;
-  int idx = -1;
+  uint64_t bitmap = 0ULL;
 
   m_info("recv thread start\n");
 
@@ -880,13 +834,15 @@ static void altcom_recvthread(FAR void *arg)
                         {
                           m_info("handler and container is found\n");
 
+                          bitmap = get_bitmap(dev, cid, altver);
+
                           /* Perform parse handler */
 
-                          container->result = handler(payload,
+                          container->result = handler(dev, payload,
                             get_payload_len(
                               (FAR struct altcom_cmdhdr_s *)g_recvbuff),
                             altver, container->outparam,
-                            container->outparamlen);
+                            container->outparamlen, &bitmap);
                         }
                       else
                         {
@@ -894,16 +850,33 @@ static void altcom_recvthread(FAR void *arg)
 
                           m_warn("container is not found\n");
 
-                          inst = get_evtbuffinst(dev, cid, altver);
+                          /* If the state of the instance is NotWritable,
+                           * instanse will be returned as NULL.
+                           */
+
+                          inst = get_evtbuffinst_withlock(dev, cid, altver,
+                                                          &bitmap);
                           if (inst)
                             {
                               /* Perform parse handler */
 
-                              handler(payload, get_payload_len(
+                              ret = handler(dev, payload, get_payload_len(
                                 (FAR struct altcom_cmdhdr_s *)g_recvbuff),
-                                altver, inst->outparam, inst->outparamlen);
+                                altver, inst->outparam, inst->outparamlen,
+                                &bitmap);
 
-                              rel_evtbufinst(inst, dev);
+                              unlock_evtbufinst(inst, dev);
+
+                              if (ret >= 0)
+                                {
+                                  write_evtbitmap(dev, bitmap);
+                                }
+                              else
+                                {
+                                  /* Discard the event packet */
+
+                                  is_discard = true;
+                                }
                             }
                           else
                             {
@@ -930,17 +903,16 @@ static void altcom_recvthread(FAR void *arg)
 
               if (container)
                 {
-                  write_evtbitmapwithlist(dev, ALT1250_EVTBIT_REPLY,
-                    container);
-
                   if (container->cmdid & LTE_CMDOPT_ASYNC_BIT)
                     {
-                      idx = get_evtbuffidx(dev, cid, altver);
-                      if (idx != -1)
-                        {
-                          write_evtbitmap(dev, 1ULL << idx);
-                        }
+                      bitmap |= ALT1250_EVTBIT_REPLY;
                     }
+                  else
+                    {
+                      bitmap = ALT1250_EVTBIT_REPLY;
+                    }
+
+                  write_evtbitmapwithlist(dev, bitmap, container);
                 }
 
               if (is_discard)
@@ -1303,4 +1275,33 @@ FAR void *alt1250_register(FAR const char *devpath,
     }
 
   return (FAR void *)priv;
+}
+
+uint64_t get_event_lapibuffer(FAR struct alt1250_dev_s *dev,
+  uint32_t lapicmdid, alt_evtbuf_inst_t **inst)
+{
+  FAR alt_evtbuf_inst_t *evtinst = NULL;
+  unsigned int i;
+  uint64_t ret = 0ULL;
+
+  for (i = 0; i < dev->evtbuff->ninst; i++)
+    {
+      evtinst = &dev->evtbuff->inst[i];
+
+      if (evtinst->cmdid == lapicmdid)
+        {
+          nxsem_wait_uninterruptible(&evtinst->stat_lock);
+
+          if (evtinst->stat == ALTEVTBUF_ST_WRITABLE)
+            {
+              *inst = evtinst;
+              ret = 1ULL << i;
+            }
+
+          nxsem_post(&evtinst->stat_lock);
+          break;
+        }
+    }
+
+  return ret;
 }

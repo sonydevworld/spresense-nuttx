@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/cxd56xx/spresense/include/cxd56_isx012.h
+ * boards/arm/cxd56xx/spresense/include/cxd56_isx019.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,17 +18,16 @@
  *
  ****************************************************************************/
 
-#ifndef __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_ISX012_H
-#define __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_ISX012_H
+#ifndef __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_ISX019_H
+#define __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_ISX019_H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <nuttx/video/isx012.h>
+#include <nuttx/video/isx019.h>
 #include <nuttx/video/video.h>
-#include <nuttx/i2c/i2c_master.h>
 
 /****************************************************************************
  * Public Types
@@ -54,84 +53,64 @@ extern "C"
  ****************************************************************************/
 
 /****************************************************************************
- * Name: board_isx012_power_on
+ * Name: board_isx019_power_on
  *
  * Description:
- *   Power on ISX012
+ *   Power on ISX019
  *
  ****************************************************************************/
 
-int board_isx012_power_on(void);
+int board_isx019_power_on(void);
 
 /****************************************************************************
- * Name: board_isx012_power_off
+ * Name: board_isx019_power_off
  *
  * Description:
- *   Power off ISX012
+ *   Power off ISX019
  *
  ****************************************************************************/
 
-int board_isx012_power_off(void);
+int board_isx019_power_off(void);
 
 /****************************************************************************
- * Name: board_isx012_set_reset
+ * Name: board_isx019_set_reset
  *
  * Description:
- *   Set reset ISX012
+ *   Set reset ISX019
  *
  ****************************************************************************/
 
-void board_isx012_set_reset(void);
+void board_isx019_set_reset(void);
 
 /****************************************************************************
- * Name: board_isx012_release_reset
+ * Name: board_isx019_release_reset
  *
  * Description:
- *   Release reset ISX012
+ *   Release reset ISX019
  *
  ****************************************************************************/
 
-void board_isx012_release_reset(void);
+void board_isx019_release_reset(void);
 
 /****************************************************************************
- * Name: board_isx012_set_sleep
+ * Name: board_isx019_initialize
  *
  * Description:
- *   Set sleep ISX012
+ *   Initialize ISX019 i2c driver and register the ISX019 device.
  *
  ****************************************************************************/
 
-void board_isx012_set_sleep(int kind);
+struct i2c_master_s *board_isx019_initialize(void);
 
 /****************************************************************************
- * Name: board_isx012_release_sleep
+ * Name: board_isx019_uninitialize
  *
  * Description:
- *   Release sleep ISX012
+ *   Uninitialize ISX019 i2c driver and register the ISX019 device.
  *
  ****************************************************************************/
 
-void board_isx012_release_sleep(void);
-
-/****************************************************************************
- * Name: board_isx012_initialize
- *
- * Description:
- *   Initialize ISX012 i2c driver and register the ISX012 device.
- *
- ****************************************************************************/
-
-struct i2c_master_s *board_isx012_initialize(void);
-
-/****************************************************************************
- * Name: board_isx012_uninitialize
- *
- * Description:
- *   Uninitialize ISX012 i2c driver and register the ISX012 device.
- *
- ****************************************************************************/
-
-int board_isx012_uninitialize(struct i2c_master_s *i2c);
+int board_isx019_uninitialize(struct i2c_master_s *i2c);
 
 #undef EXTERN
 #if defined(__cplusplus)
@@ -139,4 +118,4 @@ int board_isx012_uninitialize(struct i2c_master_s *i2c);
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif /* __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_ISX012_H */
+#endif /* __BOARDS_ARM_CXD56XX_SPRESENSE_INCLUDE_CXD56_ISX019_H */
