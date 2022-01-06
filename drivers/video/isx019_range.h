@@ -114,9 +114,9 @@
 #define MAX_3ASTATUS        (3)   
 #define STEP_3ASTATUS       (1)     
 
-#define MIN_JPGQUALITY        (10)     
-#define MAX_JPGQUALITY        (100)   
-#define STEP_JPGQUALITY       (10)     
+#define MIN_JPGQUALITY        (1)
+#define MAX_JPGQUALITY        (100)
+#define STEP_JPGQUALITY       (1)
 
 #define NRELEM_CLIP           IMGSENSOR_CLIP_NELEM
 #define MIN_CLIP              (0)
