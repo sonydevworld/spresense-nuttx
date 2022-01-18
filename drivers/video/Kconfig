@@ -150,6 +150,16 @@ config VIDEO_ISX012
         default n
         select I2C
 
+if VIDEO_ISX012
+
+config VIDEO_ISX012_REGDEBUG
+	bool "Enable to read registers of ISX012 for test"
+	default n
+	---help---
+		Enable to read registers of ISX012 for test.
+
+endif
+
 config VIDEO_ISX019
 	bool "ISX019 Image sensor"
 	default n
