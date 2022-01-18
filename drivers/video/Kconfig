@@ -201,6 +201,12 @@ config VIDEO_ISX019_NAME_WITH_VERSION
 		This FPGA has a version number for the circuit.
 		This option enables to report FPGA version with driver name.
 
+config VIDEO_ISX019_REGDEBUG
+	bool "Enable to read registers of ISX019 for test"
+	default n
+	---help---
+		Enable to read registers of ISX019 for test.
+
 endif
 
 config VIDEO_OV2640
