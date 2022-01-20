@@ -1126,7 +1126,17 @@ static int isx019_uninit(void)
 
 static const char *isx019_get_driver_name(void)
 {
+#ifdef CONFIG_VIDEO_ISX019_NAME_WITH_FPGAVER
+  static char name[16];
+  uint8_t buf;
+
+  fpga_i2c_read(FPGA_VERSION, &buf, 1);
+  snprintf(name, sizeof(name), "ISX019 v%02d", buf);
+
+  return name;
+#else
   return "ISX019";
+#endif
 }
 
 static int validate_format(int nr_fmt, FAR imgsensor_format_t *fmt)
