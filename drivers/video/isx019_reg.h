@@ -187,6 +187,7 @@
 
 /* Category of ISX019 register */
 
+#define CAT_VERSION       (0x00)
 #define CAT_CONFIG        (0x01)
 #define CAT_SYSCOM        (0x06)
 #define CAT_OTP           (0x08)
@@ -205,6 +206,10 @@
 #define CAT_PICTGAMMA     (0x41)
 
 /* Offset of ISX019 register */
+
+/* For CAT_VERSION */
+
+#define ROM_VERSION       (0x0000)
 
 /* For CAT_CONFIG */
 
