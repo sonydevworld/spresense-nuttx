@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <debug.h>
 #include <nuttx/i2c/i2c_master.h>
+#include <nuttx/signal.h>
 #include <arch/board/board.h>
 #include <nuttx/video/isx019.h>
 #include <nuttx/video/imgsensor.h>
@@ -41,6 +42,11 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+/* Wait time on power on sequence. */
+
+#define TRANSITION_TIME_TO_STARTUP   (120 * 1000) /* unit : usec */
+#define TRANSITION_TIME_TO_STREAMING (30 * 1000)  /* unit : usec */
 
 /* For get_supported_value() I/F */
 
@@ -976,10 +982,13 @@ static int set_drive_mode(void)
 #endif
     };
 
+  nxsig_usleep(TRANSITION_TIME_TO_STARTUP);
+
   isx019_i2c_write(CAT_CONFIG, MODE_SENSSEL,      &drv[INDEX_SENS], 1);
   isx019_i2c_write(CAT_CONFIG, MODE_POSTSEL,      &drv[INDEX_POST], 1);
   isx019_i2c_write(CAT_CONFIG, MODE_SENSPOST_SEL, &drv[INDEX_SENSPOST], 1);
-  isx019_i2c_write(CAT_CONFIG, MODE_IOSEL,        &drv[INDEX_IO], 1);
+
+  nxsig_usleep(TRANSITION_TIME_TO_STREAMING);
 
   buf = AEWDMODE_NORMAL;
   ret = isx019_i2c_write(CAT_AEWD, AEWDMODE, &buf, 1);
