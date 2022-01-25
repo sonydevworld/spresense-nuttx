@@ -2163,6 +2163,16 @@ static void search_dqt_data(int32_t quality,
   *c_head = NULL;
   *c_calc = NULL;
 
+  /* Search approximate DQT data from a table by rounding quality. */
+
+  quality = ((quality + 5) / 10) * 10;
+  if (quality == 0)
+    {
+      /* Set the minimum value of quality to 10. */
+
+      quality = 10;
+    }
+
   for (i = 0; i < NR_JPGSETTING_TBL; i++)
     {
       if (quality == jpg->quality)
