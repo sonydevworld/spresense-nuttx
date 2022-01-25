@@ -172,13 +172,13 @@ config VIDEO_ISX019_DOL2
 
 endchoice
 
-config VIDEO_ISX019_NAME_WITH_FPGAVER
-	bool "ISX019 Image sensor name is with FPGA version number"
+config VIDEO_ISX019_NAME_WITH_VERSION
+	bool "ISX019 Image sensor name with version number"
 	default n
 	---help---
 		ISX019 Camera board has FPGA for encoding JPEG image.
 		This FPGA has a version number for the circuit.
-		This option enables to report FPGA number with Driver name.
+		This option enables to report FPGA version with driver name.
 
 endif
 
