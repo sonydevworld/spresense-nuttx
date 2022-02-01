@@ -124,7 +124,16 @@ void board_isx019_release_reset(void)
 
 struct i2c_master_s *board_isx019_initialize(void)
 {
+  int     retry = 50;
+
   _info("Initializing ISX019...\n");
+
+  while (!g_rtc_enabled && 0 < retry--)
+    {
+      /* ISX019 requires stable RTC */
+
+      nxsig_usleep(100 * 1000);
+    }
 
   cxd56_gpio_config(IMAGER_RST, false);
   board_isx019_set_reset();
