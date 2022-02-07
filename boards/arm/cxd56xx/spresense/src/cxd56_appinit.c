@@ -92,6 +92,8 @@ int board_app_initialize(uintptr_t arg)
  *
  ****************************************************************************/
 
+/* TODO: Need to consider for ASMP */
+#if 0
 #ifdef CONFIG_BOARD_LATE_INITIALIZE
 void board_late_initialize(void)
 {
@@ -101,4 +103,5 @@ void board_late_initialize(void)
 
   cxd56_bringup();
 }
+#endif
 #endif
