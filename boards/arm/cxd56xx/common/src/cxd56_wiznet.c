@@ -48,6 +48,7 @@
 #include <nuttx/board.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/net/wiznet.h>
+#include <nuttx/spinlock.h>
 
 #include <arch/board/board.h>
 #include <arch/board/cxd56_wiznet.h>
