@@ -40,6 +40,7 @@
 #include "altcom_cmd.h"
 #include "altcom_cmd_sock.h"
 #include "altcom_cmd_sms.h"
+#include "altcom_cmd_log.h"
 #include "altcom_lwm2m_hdlr.h"
 
 /****************************************************************************
@@ -48,6 +49,10 @@
 
 #ifndef ARRAY_SZ
 #  define ARRAY_SZ(array) (sizeof(array)/sizeof(array[0]))
+#endif
+
+#ifndef MIN
+#  define MIN(a,b)  (((a) < (b)) ? (a) : (b))
 #endif
 
 #define ALTCOM_GETEDRX_TYPE_UE         0
@@ -366,6 +371,12 @@ static int32_t smsdelete_pkt_compose(FAR void **arg,
 static int32_t smsreportrecv_pkt_compose(FAR void **arg,
                           size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
                           const size_t pktsz, FAR uint16_t *altcid);
+static int32_t logsave_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t loglist_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
 
 static int32_t errinfo_pkt_parse(FAR struct alt1250_dev_s *dev,
                           FAR uint8_t *pktbuf,
@@ -567,6 +578,14 @@ static int32_t urc_event_pkt_parse(FAR struct alt1250_dev_s *dev,
                           FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen, FAR uint64_t *bitmap);
+static int32_t logsave_pkt_parse(FAR struct alt1250_dev_s *dev,
+                          FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen, FAR uint64_t *bitmap);
+static int32_t loglist_pkt_parse(FAR struct alt1250_dev_s *dev,
+                          FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen, FAR uint64_t *bitmap);
 
 /****************************************************************************
  * Private Data
@@ -638,6 +657,8 @@ static compose_inst_t g_composehdlrs[] =
   CTABLE_CONTENT(SMS_SEND, smssend),
   CTABLE_CONTENT(SMS_DELETE, smsdelete),
   CTABLE_CONTENT(SMS_REPORT_RECV, smsreportrecv),
+  CTABLE_CONTENT(SAVE_LOG, logsave),
+  CTABLE_CONTENT(GET_LOGLIST, loglist),
 };
 
 static parse_inst_t g_parsehdlrs[] =
@@ -705,6 +726,8 @@ static parse_inst_t g_parsehdlrs[] =
   PTABLE_CONTENT(SMS_DELETE, smscommon),
   PTABLE_CONTENT(SMS_REPORT_RECV, smsreportrecv),
   PTABLE_CONTENT(URC_EVENT, urc_event),
+  PTABLE_CONTENT(CLOGS, logsave),
+  PTABLE_CONTENT(LOGLIST, loglist),
 };
 
 /****************************************************************************
@@ -1751,6 +1774,35 @@ static int get_so_setmode(uint16_t level, uint16_t option)
     }
 
   return setmode;
+}
+
+static int copy_logfilename(FAR char *filename, size_t fnamelen,
+                            FAR char *path)
+{
+  int ret = OK;
+  size_t pathlen = strnlen(path, ALTCOM_PATH_LEN_MAX);
+
+  if ((ALTCOM_PATH_LEN_MAX > pathlen) &&
+      (strncmp(path, ALTCOM_LOGSPATH, strlen(ALTCOM_LOGSPATH)) == 0))
+    {
+      path += strlen(ALTCOM_LOGSPATH);
+      pathlen -= strlen(ALTCOM_LOGSPATH);
+
+      if (pathlen <= fnamelen)
+        {
+          strncpy(filename, path, fnamelen);
+        }
+      else
+        {
+          ret = -ENOBUFS;
+        }
+    }
+  else
+    {
+      ret = -EILSEQ;
+    }
+
+  return ret;
 }
 
 static int32_t getver_pkt_compose(FAR void **arg,
@@ -3845,6 +3897,61 @@ static int32_t smsreportrecv_pkt_compose(FAR void **arg,
   return sizeof(struct apicmd_sms_res_s);
 }
 
+static int32_t logsave_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  FAR struct apicmd_cmddat_clogs_s *out =
+    (FAR struct apicmd_cmddat_clogs_s *)pktbuf;
+  size_t len = *(FAR size_t *)arg[0];
+  int32_t size = sizeof(struct apicmd_cmddat_clogs_s);
+
+  out->pathlen = len + strlen(ALTCOM_LOGSPATH);
+
+  if (altver == ALTCOM_VER1)
+    {
+      *altcid = APICMDID_CLOGS;
+    }
+  else if (altver == ALTCOM_VER4)
+    {
+      *altcid = APICMDID_CLOGS_V4;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
+static int32_t loglist_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  FAR struct apicmddbg_getloglist_s *out =
+    (FAR struct apicmddbg_getloglist_s *)pktbuf;
+  size_t len = (size_t)arg[0];
+  int32_t size = sizeof(struct apicmddbg_getloglist_s);
+
+  out->listsize = LTE_LOG_LIST_SIZE;
+  out->pathlen = len + strlen(ALTCOM_LOGSPATH);
+
+  if (altver == ALTCOM_VER1)
+    {
+      *altcid = APICMDID_LOGLIST;
+    }
+  else if (altver == ALTCOM_VER4)
+    {
+      *altcid = APICMDID_LOGLIST_V4;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -5418,6 +5525,79 @@ static int32_t urc_event_pkt_parse(FAR struct alt1250_dev_s *dev,
           ret = lwm2m_urc_handler(pktbuf, pktsz,
                                        inst->outparam, inst->outparamlen);
         }
+    }
+
+  return ret;
+}
+
+static int32_t logsave_pkt_parse(FAR struct alt1250_dev_s *dev,
+                          FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen, FAR uint64_t *bitmap)
+{
+  FAR struct apicmd_cmddat_clogsres_s *out =
+    (FAR struct apicmd_cmddat_clogsres_s *)pktbuf;
+  FAR char *fname = (FAR char *)arg[0];
+  size_t fnamelen = *(FAR size_t *)arg[1];
+
+  int32_t ret = ntohl(out->altcom_result);
+
+  if ((ret == 0) && (fname != NULL))
+    {
+      if (ALTCOM_PATH_LEN_MAX > out->pathlen)
+        {
+          ret = copy_logfilename(fname, fnamelen, out->path);
+        }
+      else
+        {
+          ret = -EILSEQ;
+        }
+    }
+
+  return ret;
+}
+
+static int32_t loglist_pkt_parse(FAR struct alt1250_dev_s *dev,
+                          FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen, FAR uint64_t *bitmap)
+{
+  FAR struct apicmddbg_getloglistres_s *out =
+    (FAR struct apicmddbg_getloglistres_s *)pktbuf;
+  FAR char *list = (FAR char *)arg[0];
+  size_t nlists = (size_t)arg[1];
+  size_t fnamelen = (size_t)arg[2];
+  int32_t ret = ntohl(out->altcom_result);
+  int i;
+
+  if (fnamelen != LTE_LOG_NAME_LEN)
+    {
+      return -ENOBUFS;
+    }
+
+  if (ret == 0)
+    {
+      if ((out->listsize > LTE_LOG_LIST_SIZE) ||
+          ((out->listsize != 0) && (ALTCOM_PATH_LEN_MAX < out->pathlen)))
+        {
+          return -EILSEQ;
+        }
+
+      for (i = 0; i < MIN(nlists, out->listsize); i++)
+        {
+          ret = copy_logfilename(&list[i * fnamelen], fnamelen,
+                                 &out->list[i * out->pathlen]);
+          if (ret != OK)
+            {
+              break;
+            }
+        }
+
+      ret = (i == MIN(nlists, out->listsize)) ? i : ret;
+    }
+  else if (ret == -EPROTO)
+    {
+      ret = 0;
     }
 
   return ret;

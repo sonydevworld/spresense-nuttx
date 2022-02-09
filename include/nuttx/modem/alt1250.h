@@ -145,6 +145,8 @@
 #define APICMDID_FW_GETDELTAIMGLEN      (0x1041)
 #define APICMDID_FW_EXECDELTAUPDATE     (0x1042)
 #define APICMDID_FW_GETUPDATERESULT     (0x1043)
+#define APICMDID_CLOGS                  (0x1023)
+#define APICMDID_LOGLIST                (0x1024)
 
 /* dummy ID because not support V1 */
 
@@ -201,6 +203,8 @@
 #define APICMDID_FW_GETDELTAIMGLEN_V4   (0x0271)
 #define APICMDID_FW_EXECDELTAUPDATE_V4  (0x0272)
 #define APICMDID_FW_GETUPDATERESULT_V4  (0x0273)
+#define APICMDID_CLOGS_V4               (0x0300)
+#define APICMDID_LOGLIST_V4             (0x0301)
 
 #define APICMDID_SOCK_ACCEPT            (0x0080)
 #define APICMDID_SOCK_BIND              (0x0081)
