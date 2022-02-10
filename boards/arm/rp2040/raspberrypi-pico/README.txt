@@ -13,6 +13,10 @@ Currently only the following devices are suppored.
   - I2C
   - SPI
   - DMAC
+  - USB device
+    - MSC, CDC/ACM serial and these composite device are supported.
+    - CDC/ACM serial device can be used for the console.
+  - PIO (RP2040 Programmable I/O)
   - Flash ROM Boot
   - SRAM Boot
     - If Pico SDK is available, nuttx.uf2 file which can be used in
@@ -21,6 +25,8 @@ Currently only the following devices are suppored.
   - INA219 sensor / module (don't forget to define I2C0 GPIOs at "I2C0 GPIO pin assign" in Board Selection menu)
   - Pico Display Pack (ST7789 LCD)
     - RGB leds and buttons are not supported yet.
+  - Pico Audio Pack (PCM5100A I2S DAC)
+    - I2S interface is realized by PIO.
 
   Not supported:
   - All other devices
@@ -53,6 +59,10 @@ Installation
 5. To access the console, GPIO 0 and 1 pins must be connected to the
    device such as USB-serial converter.
 
+   `usbnsh` configuration provides the console access by USB CDC/ACM serial
+   devcice.  The console is available by using a terminal software on the USB
+   host.
+
 Defconfigs
 ==========
 
@@ -73,7 +83,15 @@ Defconfigs
            VCC ----- 3V3 OUT        (Pin 36)
            SDA ----- GP4 (I2C0 SDA) (Pin 6)
            SCL ----- GP5 (I2C0 SCL) (Pin 7)
-
+           
+- lcd1602 
+    LCD 1602 Segment LCD Disaply (I2C)
+    Connection:
+    PCF8574 BackPack Raspberry Pi Pico
+           GND ----- GND            (Pin 3 or 38 or ...)
+           VCC ----- 5V Vbus        (Pin 40)
+           SDA ----- GP4 (I2C0 SDA) (Pin 6)
+           SCL ----- GP5 (I2C0 SCL) (Pin 7)
 - spisd
     SD card support (SPI connection)
     Connection:
@@ -87,6 +105,19 @@ Defconfigs
        DAT0/DO ----- GP16 (SPI0 RX)  (Pin 21)
        DAT1          (NC)
     * Card hot swapping is not supported.
+
+- st7735
+    st7735 SPI LCD support      
+    Connection:
+      st7735         Raspberry Pi Pico
+           GND ----- GND             (Pin 3 or 38 or ...)
+           VCC ----- 5V Vbus         (Pin 40)
+           SDA ----- GP15 (SPI1 TX)  (Pin 20)
+           SCK ----- GP14 (SPI1 SCK) (Pin 19)
+            CS ----- GP13 (SPI1 CSn) (Pin 17)
+       AO(D/C) ----- GP12 (SPI1 RX)  (Pin 16)
+            BL ----- GP11            (Pin 15)
+         RESET ----- GP10            (Pin 14)  
 
 - enc28j60
     ENC28J60 SPI ethernet controller support
@@ -109,6 +140,25 @@ Defconfigs
     See the following page for connection:
       https://shop.pimoroni.com/products/pico-display-pack
 
+- audiopack
+    Pico Audio Pack support
+    See the following page for connection:
+      https://shop.pimoroni.com/products/pico-audio-pack
+    SD card interface is also enabled.
+
+- usbnsh
+    USB CDC/ACM serial console with NuttShell
+
+- usbmsc
+    USB MSC and CDC/ACM support
+    `msconn` and `sercon` commands enable the MSC and CDC/ACM devices.
+    The MSC support provides the interface to the SD card with SPI,
+    so the SD card slot connection like spisd configuraion is requied.
+
+- composite
+    USB composite device (MSC + CDC/ACM) support
+    `conn` command enables the composite device.
+
 License exceptions
 ==================
 
@@ -119,6 +169,11 @@ So, the files are licensed under 3-Clause BSD same as Pico SDK.
 - arch/arm/src/rp2040/rp2040_pll.c
 - arch/arm/src/rp2040/rp2040_xosc.c
   - These are created by referring the Pico SDK clock initialization.
+
+- arch/arm/src/rp2040/rp2040_pio.c
+- arch/arm/src/rp2040/rp2040_pio.h
+- arch/arm/src/rp2040/rp2040_pio_instructions.h
+  - These provide the similar APIs to Pico SDK's hardware_pio APIs.
 
 - arch/arm/src/rp2040/hardware/*.h
   - These are generated from rp2040.svd originally provided in Pico SDK.

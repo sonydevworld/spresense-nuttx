@@ -32,10 +32,16 @@ ifeq ($(CONFIG_ARCH_BUTTONS),y)
 CSRCS +=  stm32_buttons.c
 endif
 
+ifeq ($(CONFIG_LCD_ILI9225),y)
+CSRCS +=  stm32_ili9225.c
+endif
+
+ifneq ($(CONFIG_STM32_FOC),y)
 ifeq ($(CONFIG_ADC),y)
 CSRCS += stm32_adc.c
 ifeq ($(CONFIG_INPUT_AJOYSTICK),y)
 CSRCS += stm32_ajoystick.c
+endif
 endif
 endif
 
@@ -43,8 +49,24 @@ ifeq ($(CONFIG_CAN),y)
 CSRCS += stm32_can.c
 endif
 
-ifeq ($(CONFIG_LIB_BOARDCTL),y)
+ifeq ($(CONFIG_STM32_PWM),y)
+CSRCS += stm32_pwm.c
+endif
+
+ifeq ($(CONFIG_DEV_GPIO),y)
+CSRCS += stm32_gpio.c
+endif
+
+ifeq ($(CONFIG_DAC),y)
+CSRCS += stm32_dac.c
+endif
+
+ifeq ($(CONFIG_BOARDCTL),y)
 CSRCS += stm32_appinit.c
+endif
+
+ifeq ($(CONFIG_BOARD_STM32_IHM08M1),y)
+CSRCS += stm32_foc_ihm08m1.c
 endif
 
 DEPPATH += --dep-path board

@@ -28,9 +28,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include <nuttx/arch.h>
 #include <nuttx/syslog/syslog.h>
-#include <nuttx/compiler.h>
 
 #include "syslog.h"
 
@@ -40,70 +38,16 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#undef HAVE_LOWPUTC
-#if defined(CONFIG_ARCH_LOWPUTC)
-#  define HAVE_LOWPUTC 1
-#endif
-
 #define OPEN_FLAGS (O_WRONLY)
 #define OPEN_MODE  (S_IROTH | S_IRGRP | S_IRUSR | S_IWUSR)
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-
-/* SYSLOG channel methods */
-
-static int syslog_console_force(FAR struct syslog_channel_s *channel,
-                                int ch);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-/* This structure describes the channel's operations. */
-
-static const struct syslog_channel_ops_s g_syslog_ops =
-{
-  syslog_dev_putc,
-  syslog_console_force,
-  syslog_dev_flush,
-#ifdef CONFIG_SYSLOG_WRITE
-  syslog_dev_write,
-#endif
-};
-
 /* Handle to the SYSLOG channel */
 
 FAR static struct syslog_channel_s *g_syslog_console_channel;
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: syslog_console_force
- *
- * Description:
- *   A dummy FORCE method
- *
- ****************************************************************************/
-
-static int syslog_console_force(FAR struct syslog_channel_s *channel,
-                                int ch)
-{
-  UNUSED(channel);
-
-#ifdef HAVE_LOWPUTC
-  return up_putc(ch);
-#endif
-
-  return ch;
-}
 
 /****************************************************************************
  * Public Functions
@@ -131,12 +75,11 @@ static int syslog_console_force(FAR struct syslog_channel_s *channel,
  *   None
  *
  * Returned Value:
- *   Zero (OK) is returned on success; a negated errno value is returned on
- *   any failure.
+ *   A pointer to the new SYSLOG channel; NULL is returned on any failure.
  *
  ****************************************************************************/
 
-int syslog_console_channel(void)
+FAR struct syslog_channel_s *syslog_console_channel(void)
 {
   /* Initialize the character driver interface */
 
@@ -144,16 +87,18 @@ int syslog_console_channel(void)
                                                    OPEN_FLAGS, OPEN_MODE);
   if (g_syslog_console_channel == NULL)
     {
-      return -ENOMEM;
+      return NULL;
     }
-
-  /* Register the channel operations */
-
-  g_syslog_console_channel->sc_ops = &g_syslog_ops;
 
   /* Use the character driver as the SYSLOG channel */
 
-  return syslog_channel(g_syslog_console_channel);
+  if (syslog_channel(g_syslog_console_channel) != OK)
+    {
+      syslog_dev_uninitialize(g_syslog_console_channel);
+      g_syslog_console_channel = NULL;
+    }
+
+  return g_syslog_console_channel;
 }
 
 #endif /* CONFIG_SYSLOG_CONSOLE */

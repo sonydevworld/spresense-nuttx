@@ -44,6 +44,11 @@
 #include <nuttx/config.h>
 
 #include <arch/irq.h>
+
+#ifdef CONFIG_SMP
+#  include "chip.h"
+#endif
+
 #include "exc_return.h"
 
 /****************************************************************************
@@ -52,6 +57,26 @@
 
 	.globl		exception_common
 	.file		"arm_exception.S"
+
+/****************************************************************************
+ * Macro Definitions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: setintstack
+ *
+ * Description:
+ *   Set the current stack pointer to the  "top" the interrupt stack.  Single CPU
+ *   case.  Must be provided by MCU-specific logic in the SMP case.
+ *
+ ****************************************************************************/
+
+#if !defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 3
+	.macro	setintstack, tmp1, tmp2
+	ldr		\tmp1, =g_intstacktop
+	mov		sp, \tmp1
+	.endm
+#endif
 
 /****************************************************************************
  * .text
@@ -142,8 +167,7 @@ exception_common:
 	 */
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
-	ldr		r7, =g_intstackbase			/* R7=Base of the interrupt stack */
-	mov		sp, r7					/* Set the new stack point */
+	setintstack     r7, r6					/* SP = IRQ stack top */
 	push		{r1}					/* Save the MSP on the interrupt stack */
 	bl		arm_doirq				/* R0=IRQ, R1=register save area on stack */
 	pop		{r1}					/* Recover R1=main stack pointer */
@@ -248,7 +272,7 @@ exception_common:
 	.size	exception_common, .-exception_common
 
 /****************************************************************************
- *  Name: g_intstackalloc/g_intstackbase
+ *  Name: g_intstackalloc/g_intstacktop
  *
  * Description:
  *   Shouldn't happen
@@ -258,11 +282,11 @@ exception_common:
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
 	.bss
 	.global	g_intstackalloc
-	.global	g_intstackbase
+	.global	g_intstacktop
 	.balign	4
 g_intstackalloc:
 	.skip	(CONFIG_ARCH_INTERRUPTSTACK & ~3)
-g_intstackbase:
+g_intstacktop:
 	.size	g_intstackalloc, .-g_intstackalloc
 #endif
 

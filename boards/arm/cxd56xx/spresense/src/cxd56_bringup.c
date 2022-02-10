@@ -186,7 +186,7 @@ static void timer_initialize(void)
  *   CONFIG_BOARD_LATE_INITIALIZE=y :
  *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
+ *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_BOARDCTL=y :
  *     Called from the NSH library
  *
  ****************************************************************************/
@@ -397,7 +397,7 @@ int cxd56_bringup(void)
       ret = ERROR;
     }
 #endif /* CONFIG_CXD56_CISIF */
-#endif
+#endif /* CONFIG_CXD56_CAMERA_LATE_INITIALIZE */
 
 #if defined(CONFIG_CXD56_SDIO)
   /* In order to prevent Hi-Z from being input to the SD Card controller,

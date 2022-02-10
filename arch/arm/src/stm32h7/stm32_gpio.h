@@ -292,7 +292,7 @@ int stm32_configgpio(uint32_t cfgset);
  *   whether it was previously selected as alternative function
  *   (GPIO_ALT|GPIO_CNF_AFPP|...).
  *
- *   This is a safety function and prevents hardware from schocks, as
+ *   This is a safety function and prevents hardware from shocks, as
  *   unexpected write to the Timer Channel Output GPIO to fixed '1' or '0'
  *   while it should operate in PWM mode could produce excessive on-board
  *   currents and trigger over-current/alarm function.
@@ -324,6 +324,33 @@ void stm32_gpiowrite(uint32_t pinset, bool value);
  ****************************************************************************/
 
 bool stm32_gpioread(uint32_t pinset);
+
+/****************************************************************************
+ * Name: stm32_iocompensation
+ *
+ * Description:
+ *   Enable I/O compensation.
+ *
+ *   By default the I/O compensation cell is not used. However when the I/O
+ *   output buffer speed is configured in 50 MHz or 100 MHz mode, it is
+ *   recommended to use the compensation cell for slew rate control on I/O
+ *   tf(IO)out)/tr(IO)out commutation to reduce the I/O noise on power
+ *   supply.
+ *
+ *   The I/O compensation cell can be used only when the supply voltage
+ *   ranges from 2.4 to 3.6 V.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_STM32H7_SYSCFG_IOCOMPENSATION
+void stm32_iocompensation(void);
+#endif
 
 /****************************************************************************
  * Name: stm32_gpiosetevent

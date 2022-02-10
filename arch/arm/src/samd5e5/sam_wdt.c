@@ -1,10 +1,6 @@
 /****************************************************************************
  * arch/arm/src/samd5e5/sam_wdt.c
  *
- *   Copyright 2020 Falker Automacao Agricola LTDA.
- *   Author: Leomar Mateus Radke <leomar@falker.com.br>
- *   Author: Ricardo Wartchow <wartchow@gmail.com>
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -32,6 +28,7 @@
 #include <sys/types.h>
 
 #include <stdint.h>
+#include <assert.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -419,7 +416,7 @@ static int sam_settimeout(FAR struct watchdog_lowerhalf_s *lower,
     putreg8(timeout_period, SAM_WDT_CONFIG);
 
   priv->reload = timeout_period;
-  wdinfo("fwdt=%d reload=%d timout=%d\n",
+  wdinfo("fwdt=%d reload=%d timeout=%d\n",
          WDT_FCLK, timeout_period, priv->timeout);
   leave_critical_section(flags);
 

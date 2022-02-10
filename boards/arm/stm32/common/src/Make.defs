@@ -78,6 +78,10 @@ ifeq ($(CONFIG_SENSORS_QENCODER),y)
   CSRCS += stm32_qencoder.c
 endif
 
+ifeq ($(CONFIG_SENSORS_HALL3PHASE),y)
+  CSRCS += board_hall3ph.c
+endif
+
 ifeq ($(CONFIG_SENSORS_INA219),y)
   CSRCS += stm32_ina219.c
 endif
@@ -120,6 +124,10 @@ endif
 
 ifeq ($(CONFIG_BOARD_STM32_IHM08M1),y)
   CSRCS += stm32_ihm08m1.c
+endif
+
+ifeq ($(CONFIG_BOARD_STM32_IHM16M1),y)
+  CSRCS += stm32_ihm16m1.c
 endif
 
 DEPPATH += --dep-path src

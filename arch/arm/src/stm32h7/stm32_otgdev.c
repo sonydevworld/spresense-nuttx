@@ -25,10 +25,12 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -52,8 +54,10 @@
 #if defined(CONFIG_USBDEV) && (defined(CONFIG_STM32H7_OTGFS) || \
     defined(CONFIG_STM32H7_OTGHS))
 
-#ifdef CONFIG_STM32H7_OTGHS
-#  warning OTG HS not tested for STM32H7 !
+#if (STM32_RCC_D2CCIP2R_USBSRC == RCC_D2CCIP2R_USBSEL_HSI48) && \
+    !defined(CONFIG_STM32H7_HSI48)
+#  error board.h selected HSI48 as USB clock source, but HSI48 is not \
+         enabled. Enable STM32H7_HSI48
 #endif
 
 /****************************************************************************
@@ -903,7 +907,7 @@ static uint32_t stm32_getreg(uint32_t addr)
         {
           /* Yes.. then show how many times the value repeated */
 
-          uinfo("[repeats %d more times]\n", count - 3);
+          uinfo("[repeats %" PRId32 " more times]\n", count - 3);
         }
 
       /* Save the new address, value, and count */
@@ -915,7 +919,7 @@ static uint32_t stm32_getreg(uint32_t addr)
 
   /* Show the register value read */
 
-  uinfo("%08x->%08x\n", addr, val);
+  uinfo("%08" PRIx32 "->%08" PRIx32 "\n", addr, val);
   return val;
 }
 #endif
@@ -933,7 +937,7 @@ static void stm32_putreg(uint32_t val, uint32_t addr)
 {
   /* Show the register value being written */
 
-  uinfo("%08x<-%08x\n", addr, val);
+  uinfo("%08" PRIx32 "->%08" PRIx32 "\n", addr, val);
 
   /* Write the value */
 
@@ -1287,8 +1291,8 @@ static void stm32_epin_request(FAR struct stm32_usbdev_s *priv,
       return;
     }
 
-  uinfo("EP%d req=%p: len=%d xfrd=%d zlp=%d\n",
-          privep->epphy, privreq, privreq->req.len,
+  uinfo("EP%"  PRId8 " req=%p: len=%" PRId16 " xfrd=%"  PRId16" zlp=%"
+        PRId8 "\n", privep->epphy, privreq, privreq->req.len,
           privreq->req.xfrd, privep->zlp);
 
   /* Check for a special case:  If we are just starting a request (xfrd==0)
@@ -2076,6 +2080,8 @@ static void stm32_usbreset(struct stm32_usbdev_s *priv)
       /* Reset IN endpoint status */
 
       privep->stalled = false;
+      privep->active  = false;
+      privep->zlp     = false;
 
       /* Return read requests to the class implementation */
 
@@ -2085,6 +2091,8 @@ static void stm32_usbreset(struct stm32_usbdev_s *priv)
       /* Reset endpoint status */
 
       privep->stalled = false;
+      privep->active  = false;
+      privep->zlp     = false;
     }
 
   stm32_putreg(0xffffffff, STM32_OTG_DAINT);
@@ -2729,7 +2737,7 @@ static inline void stm32_epout_interrupt(FAR struct stm32_usbdev_s *priv)
           if ((daint & 1) != 0)
             {
               regval = stm32_getreg(STM32_OTG_DOEPINT(epno));
-              uerr("DOEPINT(%d) = %08x\n", epno, regval);
+              uerr("DOEPINT(%d) = %08" PRIx32 "\n", epno, regval);
               stm32_putreg(0xff, STM32_OTG_DOEPINT(epno));
             }
 
@@ -2968,7 +2976,7 @@ static inline void stm32_epin_interrupt(FAR struct stm32_usbdev_s *priv)
         {
           if ((daint & 1) != 0)
             {
-              uerr("DIEPINT(%d) = %08x\n",
+              uerr("DIEPINT(%d) = %08" PRIx32 "\n",
                      epno, stm32_getreg(STM32_OTG_DIEPINT(epno)));
               stm32_putreg(0xff, STM32_OTG_DIEPINT(epno));
             }
@@ -3955,6 +3963,8 @@ static int stm32_epout_configure(FAR struct stm32_ep_s *privep,
       privep->ep.maxpacket = maxpacket;
       privep->eptype       = eptype;
       privep->stalled      = false;
+      privep->active       = false;
+      privep->zlp          = false;
     }
 
   /* Enable the interrupt for this endpoint */
@@ -4026,6 +4036,8 @@ static int stm32_epin_configure(FAR struct stm32_ep_s *privep,
       privep->ep.maxpacket = maxpacket;
       privep->eptype       = eptype;
       privep->stalled      = false;
+      privep->active       = false;
+      privep->zlp          = false;
     }
 
   /* Enable the interrupt for this endpoint */
@@ -5248,7 +5260,7 @@ static void stm32_hwinitialize(FAR struct stm32_usbdev_s *priv)
 
   stm32_putreg(OTG_GAHBCFG_TXFELVL, STM32_OTG_GAHBCFG);
 
-#if defined(CONFIG_STM32H7_OTGFS)
+#if defined(CONFIG_STM32H7_OTGFS) || defined (CONFIG_STM32H7_OTGHS_NO_ULPI)
   /* Full speed serial transceiver select */
 
   regval  = stm32_getreg(STM32_OTG_GUSBCFG);
@@ -5469,7 +5481,7 @@ static void stm32_hwinitialize(FAR struct stm32_usbdev_s *priv)
   regval &=  OTG_GINT_RESERVED;
   stm32_putreg(regval | OTG_GINT_RC_W1, STM32_OTG_GINTSTS);
 
-#if defined(CONFIG_STM32H7_OTGHS) && !defined(BOARD_ENABLE_USBOTG_HSULPI)
+#if defined(CONFIG_STM32H7_OTGHS) && defined(CONFIG_STM32H7_OTGHS_NO_ULPI)
   /* Disable the ULPI Clock enable in RCC AHB1 Register.  This must
    * be done because if both the ULPI and the FS PHY clock enable bits
    * are set at the same time, the ARM never awakens from WFI due to
@@ -5583,7 +5595,11 @@ void arm_usbinitialize(void)
 
   stm32_configgpio(GPIO_OTG_DM);
   stm32_configgpio(GPIO_OTG_DP);
-  stm32_configgpio(GPIO_OTG_ID);    /* Only needed for OTG */
+
+  /* Only needed for OTG */
+#  ifndef CONFIG_OTG_ID_GPIO_DISABLE
+  stm32_configgpio(GPIO_OTG_ID);
+#  endif
 
   /* SOF output pin configuration is configurable. */
 
@@ -5606,7 +5622,7 @@ void arm_usbinitialize(void)
   ret = irq_attach(STM32_IRQ_OTG, stm32_usbinterrupt, NULL);
   if (ret < 0)
     {
-      uerr("irq_attach failed\n", ret);
+      uerr("ERROR: irq_attach failed: %d\n", ret);
       goto errout;
     }
 

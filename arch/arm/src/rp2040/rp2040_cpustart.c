@@ -171,14 +171,14 @@ static void core1_boot(void)
  * Name: up_cpu_start
  *
  * Description:
- *   In an SMP configution, only one CPU is initially active (CPU 0). System
- *   initialization occurs on that single thread. At the completion of the
- *   initialization of the OS, just before beginning normal multitasking,
+ *   In an SMP configuration, only one CPU is initially active (CPU 0).
+ *   System initialization occurs on that single thread. At the completion of
+ *   the initialization of the OS, just before beginning normal multitasking,
  *   the additional CPUs would be started by calling this function.
  *
- *   Each CPU is provided the entry point to is IDLE task when started.  A
+ *   Each CPU is provided the entry point to its IDLE task when started.  A
  *   TCB for each CPU's IDLE task has been initialized and placed in the
- *   CPU's g_assignedtasks[cpu] list.  Not stack has been allocated or
+ *   CPU's g_assignedtasks[cpu] list.  No stack has been allocated or
  *   initialized.
  *
  *   The OS initialization logic calls this function repeatedly until each
@@ -186,8 +186,8 @@ static void core1_boot(void)
  *
  * Input Parameters:
  *   cpu - The index of the CPU being started.  This will be a numeric
- *         value in the range of from one to (CONFIG_SMP_NCPUS-1).  (CPU
- *         0 is already active)
+ *         value in the range of one to (CONFIG_SMP_NCPUS-1).
+ *         (CPU 0 is already active)
  *
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
@@ -222,7 +222,8 @@ int up_cpu_start(int cpu)
   core1_boot_msg[0] = 0;
   core1_boot_msg[1] = 1;
   core1_boot_msg[2] = getreg32(ARMV6M_SYSCON_VECTAB);
-  core1_boot_msg[3] = (uint32_t)tcb->adj_stack_ptr;
+  core1_boot_msg[3] = (uint32_t)tcb->stack_base_ptr +
+                                tcb->adj_stack_size;
   core1_boot_msg[4] = (uint32_t)core1_boot;
 
   do

@@ -1,39 +1,20 @@
 /****************************************************************************
  * arch/arm/src/stm32/stm32_adc.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
- *   Copyright (C) 2015 Omni Hoverboards Inc. All rights reserved.
- *   Authors: Gregory Nutt <gnutt@nuttx.org>
- *            Diego Sanchez <dsanchez@nx-engineering.com>
- *            Paul Alexander Patience <paul-a.patience@polymtl.ca>
- *            Mateusz Szafoni <raiden00@railab.me>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -101,7 +82,7 @@
 
 /* Supported ADC modes:
  *   - SW triggering with/without DMA transfer
- *   - TIM triggering with/without DMA tranfer
+ *   - TIM triggering with/without DMA transfer
  *   - external triggering with/without DMA transfer
  *
  * (tested with ADC example app from NuttX apps repo).
@@ -141,9 +122,15 @@
 #    define RCC_RSTR_ADC123RST RCC_APB2RSTR_ADCRST
 #  endif
 #elif defined(HAVE_IP_ADC_V2)
-#  define STM32_RCC_RSTR       STM32_RCC_AHBRSTR
-#  define RCC_RSTR_ADC12RST    RCC_AHBRSTR_ADC12RST
-#  define RCC_RSTR_ADC34RST    RCC_AHBRSTR_ADC34RST
+#  ifdef STM32_RCC_AHB2RSTR_OFFSET
+#    define STM32_RCC_RSTR       STM32_RCC_AHB2RSTR
+#    define RCC_RSTR_ADC12RST    RCC_AHB2RSTR_ADC12RST
+#    define RCC_RSTR_ADC34RST    RCC_AHB2RSTR_ADC345RST
+#  else
+#    define STM32_RCC_RSTR       STM32_RCC_AHBRSTR
+#    define RCC_RSTR_ADC12RST    RCC_AHBRSTR_ADC12RST
+#    define RCC_RSTR_ADC34RST    RCC_AHBRSTR_ADC34RST
+#  endif
 #endif
 
 /* ADC Channels/DMA *********************************************************/
@@ -196,6 +183,31 @@
 #    define ADC_SMPR_DEFAULT    ADC_SMPR_601p5
 #  endif
 #  define ADC_SMPR1_DEFAULT   ((ADC_SMPR_DEFAULT << ADC_SMPR1_SMP1_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP2_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP3_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP4_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP5_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP6_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP7_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP8_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP9_SHIFT))
+#  define ADC_SMPR2_DEFAULT   ((ADC_SMPR_DEFAULT << ADC_SMPR2_SMP10_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP11_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP12_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP13_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP14_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP15_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP16_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP17_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP18_SHIFT))
+#elif defined(CONFIG_STM32_STM32G4XXX)
+#  if defined(ADC_HAVE_DMA) || (CONFIG_STM32_ADC_MAX_SAMPLES == 1)
+#    define ADC_SMPR_DEFAULT    ADC_SMPR_47p5
+#  else /* Slow down sampling frequency */
+#    define ADC_SMPR_DEFAULT    ADC_SMPR_640p5
+#  endif
+#  define ADC_SMPR1_DEFAULT   ((ADC_SMPR_DEFAULT << ADC_SMPR1_SMP0_SHIFT) | \
+                               (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP1_SHIFT) | \
                                (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP2_SHIFT) | \
                                (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP3_SHIFT) | \
                                (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP4_SHIFT) | \
@@ -289,7 +301,8 @@
 #if defined(CONFIG_STM32_STM32F10XX)
 #  define ADC_CHANNELS_NUMBER 18
 #elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F30XX) || \
-      defined(CONFIG_STM32_STM32F33XX) || defined(CONFIG_STM32_STM32F4XXX)
+      defined(CONFIG_STM32_STM32F33XX) || defined(CONFIG_STM32_STM32F4XXX) || \
+      defined(CONFIG_STM32_STM32G4XXX)
 #  define ADC_CHANNELS_NUMBER 19
 #elif defined(CONFIG_STM32_STM32L15XX)
 #  define ADC_CHANNELS_NUMBER 32
@@ -371,8 +384,8 @@
 #ifdef HAVE_ADC_CMN_DATA
 struct adccmn_data_s
 {
-  uint8_t initialized; /* How many ADC instances are currently in use */
-  sem_t   lock;        /* Exclusive access to common ADC data */
+  uint8_t refcount; /* How many ADC instances are currently in use */
+  sem_t   lock;     /* Exclusive access to common ADC data */
 };
 #endif
 
@@ -694,7 +707,7 @@ static const struct stm32_adc_ops_s g_adc_llops =
 
 struct adccmn_data_s g_adc123_cmn =
 {
-  .initialized = 0
+  .refcount = 0
 };
 
 #  elif defined(HAVE_IP_ADC_V2)
@@ -708,7 +721,7 @@ struct adccmn_data_s g_adc123_cmn =
 
 struct adccmn_data_s g_adc12_cmn =
 {
-  .initialized = 0
+  .refcount = 0
 };
 
 #    endif
@@ -718,7 +731,7 @@ struct adccmn_data_s g_adc12_cmn =
 
 struct adccmn_data_s g_adc34_cmn =
 {
-  .initialized = 0
+  .refcount = 0
 };
 
 #    endif
@@ -1769,7 +1782,7 @@ static void adc_inj_startconv(FAR struct stm32_dev_s *priv, bool enable)
         }
     }
 }
-#elif defined(HAVE_IP_ADC_V1) && !defined(HAVE_BASIC_ADC)
+#elif defined(HAVE_IP_ADC_V1)
 static void adc_inj_startconv(FAR struct stm32_dev_s *priv, bool enable)
 {
   ainfo("inj enable: %d\n", enable ? 1 : 0);
@@ -1787,8 +1800,6 @@ static void adc_inj_startconv(FAR struct stm32_dev_s *priv, bool enable)
       adc_modifyreg(priv, STM32_ADC_CR2_OFFSET, ADC_CR2_JSWSTART, 0);
     }
 }
-#else  /* ADV IPv1 BASIC */
-#  error TODO
 #endif
 
 #endif /* ADC_HAVE_INJECTED */
@@ -2833,7 +2844,7 @@ static void adc_reset(FAR struct adc_dev_s *dev)
       goto out;
     }
 
-  if (priv->cmn->initialized == 0)
+  if (priv->cmn->refcount == 0)
 #endif
     {
       /* Enable ADC reset state */
@@ -2964,7 +2975,7 @@ static int adc_setup(FAR struct adc_dev_s *dev)
       return ret;
     }
 
-  if (priv->cmn->initialized == 0)
+  if (priv->cmn->refcount == 0)
 #endif
     {
       /* Enable the ADC interrupt */
@@ -2976,7 +2987,7 @@ static int adc_setup(FAR struct adc_dev_s *dev)
     }
 
 #ifdef HAVE_ADC_CMN_DATA
-  priv->cmn->initialized += 1;
+  priv->cmn->refcount += 1;
   adccmn_lock(priv, false);
 #endif
 
@@ -3032,7 +3043,7 @@ static void adc_shutdown(FAR struct adc_dev_s *dev)
       return;
     }
 
-  if (priv->cmn->initialized <= 1)
+  if (priv->cmn->refcount <= 1)
 #endif
     {
 #ifndef CONFIG_STM32_ADC_NOIRQ
@@ -3066,9 +3077,9 @@ static void adc_shutdown(FAR struct adc_dev_s *dev)
 #ifdef HAVE_ADC_CMN_DATA
   /* Decrease instances counter */
 
-  if (priv->cmn->initialized > 0)
+  if (priv->cmn->refcount > 0)
     {
-      priv->cmn->initialized -= 1;
+      priv->cmn->refcount -= 1;
     }
 
   adccmn_lock(priv, false);
@@ -3840,6 +3851,14 @@ static int adc_ioctl(FAR struct adc_dev_s *dev, int cmd, unsigned long arg)
 
           break;
         }
+
+      case ANIOC_GET_NCHANNELS:
+        {
+          /* Return the number of configured channels */
+
+          ret = priv->rnchannels;
+        }
+        break;
 
       case IO_TRIGGER_REG:
         {
