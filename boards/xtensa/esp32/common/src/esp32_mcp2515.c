@@ -24,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <debug.h>
@@ -162,6 +163,8 @@ static int mcp2515_attach(FAR struct mcp2515_config_s *state,
       syslog(LOG_ERR, "ERROR: gpint_attach() failed: %d\n", ret);
       return ret;
     }
+
+  esp32_gpioirqenable(irq, FALLING);
 
   leave_critical_section(flags);
 

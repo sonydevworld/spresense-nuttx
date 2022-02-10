@@ -22,6 +22,8 @@
  * Included Files
  ****************************************************************************/
 
+#include <assert.h>
+#include <debug.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -32,6 +34,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/config.h>
 #include <nuttx/irq.h>
+#include <nuttx/spinlock.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/mqueue.h>
 

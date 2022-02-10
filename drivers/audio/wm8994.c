@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
+#include <assert.h>
 #include <errno.h>
 #include <fixedmath.h>
 #include <queue.h>
@@ -48,7 +49,6 @@
 #include <nuttx/audio/i2s.h>
 #include <nuttx/audio/audio.h>
 #include <nuttx/audio/wm8994.h>
-#include <nuttx/lib/math.h>
 
 #include "wm8994.h"
 

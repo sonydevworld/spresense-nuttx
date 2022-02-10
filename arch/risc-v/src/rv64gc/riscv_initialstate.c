@@ -63,8 +63,17 @@ void up_initial_state(struct tcb_s *tcb)
     {
       tcb->stack_alloc_ptr = (void *)(g_idle_topstack -
                                       CONFIG_IDLETHREAD_STACKSIZE);
-      tcb->adj_stack_ptr   = (void *)g_idle_topstack;
+      tcb->stack_base_ptr  = tcb->stack_alloc_ptr;
       tcb->adj_stack_size  = CONFIG_IDLETHREAD_STACKSIZE;
+
+#ifdef CONFIG_STACK_COLORATION
+      /* If stack debug is enabled, then fill the stack with a
+       * recognizable value that we can use later to test for high
+       * water marks.
+       */
+
+      riscv_stack_color(tcb->stack_alloc_ptr, 0);
+#endif /* CONFIG_STACK_COLORATION */
     }
 
   /* Initialize the initial exception register context structure */
@@ -77,7 +86,8 @@ void up_initial_state(struct tcb_s *tcb)
    * only the start function would do that and we have control over that one
    */
 
-  xcp->regs[REG_SP]      = (uintptr_t)tcb->adj_stack_ptr;
+  xcp->regs[REG_SP]      = (uintptr_t)tcb->stack_base_ptr +
+                                      tcb->adj_stack_size;
 
   /* Save the task entry point */
 

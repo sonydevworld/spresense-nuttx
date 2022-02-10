@@ -94,10 +94,6 @@ FAR struct syslog_channel_s *syslog_dev_initialize(FAR const char *devpath,
  * Input Parameters:
  *   channel    - Handle to syslog channel to be used.
  *
- * Returned Value:
- *   Zero (OK) is returned on success; a negated errno value is returned on
- *   any failure.
- *
  * Assumptions:
  *   The caller has already switched the SYSLOG source to some safe channel
  *   (the default channel).
@@ -125,13 +121,12 @@ void syslog_dev_uninitialize(FAR struct syslog_channel_s *channel);
  *   None
  *
  * Returned Value:
- *   Zero (OK) is returned on success; a negated errno value is returned on
- *   any failure.
+ *   A pointer to the new SYSLOG channel; NULL is returned on any failure.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_SYSLOG_CHAR
-int syslog_dev_channel(void);
+FAR struct syslog_channel_s *syslog_dev_channel(void);
 #endif
 
 /****************************************************************************
@@ -156,13 +151,12 @@ int syslog_dev_channel(void);
  *   None
  *
  * Returned Value:
- *   Zero (OK) is returned on success; a negated errno value is returned on
- *   any failure.
+ *   A pointer to the new SYSLOG channel; NULL is returned on any failure.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_SYSLOG_CONSOLE
-int syslog_console_channel(void);
+FAR struct syslog_channel_s *syslog_console_channel(void);
 #endif
 
 /****************************************************************************
@@ -283,62 +277,6 @@ ssize_t syslog_write(FAR const char *buffer, size_t buflen);
  ****************************************************************************/
 
 int syslog_force(int ch);
-
-/****************************************************************************
- * Name: syslog_dev_write
- *
- * Description:
- *   This is the low-level, multiple byte, system logging interface provided
- *   for the character driver interface.
- *
- * Input Parameters:
- *   channel    - Handle to syslog channel to be used.
- *   buffer     - The buffer containing the data to be output.
- *   buflen     - The number of bytes in the buffer.
- *
- * Returned Value:
- *   On success, the character is echoed back to the caller. A negated errno
- *   value is returned on any failure.
- *
- ****************************************************************************/
-
-ssize_t syslog_dev_write(FAR struct syslog_channel_s *channel,
-                         FAR const char *buffer, size_t buflen);
-
-/****************************************************************************
- * Name: syslog_dev_putc
- *
- * Description:
- *   This is the low-level system logging interface provided for the
- *   character driver interface.
- *
- * Input Parameters:
- *   channel    - Handle to syslog channel to be used.
- *   ch         - The character to add to the SYSLOG (must be positive).
- *
- * Returned Value:
- *   On success, the character is echoed back to the caller.  A negated
- *   errno value is returned on any failure.
- *
- ****************************************************************************/
-
-int syslog_dev_putc(FAR struct syslog_channel_s *channel, int ch);
-
-/****************************************************************************
- * Name: syslog_dev_flush
- *
- * Description:
- *   Flush any buffer data in the file system to media.
- *
- * Input Parameters:
- *   channel    - Handle to syslog channel to be used.
- *
- * Returned Value:
- *   Zero (OK) on success; a negated errno value is returned on any failure.
- *
- ****************************************************************************/
-
-int syslog_dev_flush(FAR struct syslog_channel_s *channel);
 
 #undef EXTERN
 #ifdef __cplusplus

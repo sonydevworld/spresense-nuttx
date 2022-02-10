@@ -57,9 +57,23 @@ void up_initial_state(struct tcb_s *tcb)
 
   if (tcb->pid == 0)
     {
-      tcb->stack_alloc_ptr = (void *)CONFIG_STACK_BASE;
-      tcb->adj_stack_ptr   = (void *)(CONFIG_STACK_BASE +
-                                      CONFIG_IDLETHREAD_STACKSIZE);
+      char *stack_ptr = (char *)CONFIG_STACK_BASE;
+#ifdef CONFIG_STACK_COLORATION
+      char *stack_end = (char *)up_getsp();
+
+      /* If stack debug is enabled, then fill the stack with a
+       * recognizable value that we can use later to test for high
+       * water marks.
+       */
+
+      while (stack_ptr < stack_end)
+        {
+          *--stack_end = 0xaa;
+        }
+#endif /* CONFIG_STACK_COLORATION */
+
+      tcb->stack_alloc_ptr = stack_ptr;
+      tcb->stack_base_ptr  = stack_ptr;
       tcb->adj_stack_size  = CONFIG_IDLETHREAD_STACKSIZE;
     }
 
@@ -69,6 +83,7 @@ void up_initial_state(struct tcb_s *tcb)
 #ifndef CONFIG_SUPPRESS_INTERRUPTS
   xcp->regs[XCPT_I]  = Z180_PV_FLAG; /* Parity flag will enable interrupts */
 #endif
-  xcp->regs[XCPT_SP] = (chipreg_t)tcb->adj_stack_ptr;
+  xcp->regs[XCPT_SP] = (chipreg_t)tcb->stack_base_ptr +
+                                  tcb->adj_stack_size;
   xcp->regs[XCPT_PC] = (chipreg_t)tcb->start;
 }

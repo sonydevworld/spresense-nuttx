@@ -43,8 +43,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define IDLE_STACK ((uint32_t)&_ebss+CONFIG_IDLETHREAD_STACKSIZE-4)
-#define HEAP_BASE  ((uint32_t)&_ebss+CONFIG_IDLETHREAD_STACKSIZE)
+#define IDLE_STACK ((uint32_t)&_ebss+CONFIG_IDLETHREAD_STACKSIZE)
 
 /****************************************************************************
  * Public Data
@@ -89,6 +88,10 @@ void __start(void)
 #endif
   uint32_t *dest;
   int i;
+
+  /* Set MSP to the top of the IDLE stack */
+
+  __asm__ __volatile__ ("\tmsr msp, %0\n" :: "r" (g_idle_topstack));
 
   if (up_cpu_index() != 0)
     {
@@ -166,6 +169,7 @@ void __start(void)
 
   showprogress('\r');
   showprogress('\n');
+
   nx_start();
 
   /* Shouldn't get here */

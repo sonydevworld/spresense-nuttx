@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <sched.h>
+#include <assert.h>
 #include <debug.h>
 
 #include <nuttx/kmalloc.h>
@@ -76,8 +77,8 @@
  *   - adj_stack_size: Stack size after adjustment for hardware, processor,
  *     etc.  This value is retained only for debug purposes.
  *   - stack_alloc_ptr: Pointer to allocated stack
- *   - adj_stack_ptr: Adjusted stack_alloc_ptr for HW.  The initial value of
- *     the stack pointer.
+ *   - stack_base_ptr: Adjusted stack base pointer after the TLS Data and
+ *     Arguments has been removed from the stack allocation.
  *
  * Input Parameters:
  *   - tcb: The TCB of new task
@@ -101,12 +102,8 @@
  *
  ****************************************************************************/
 
-int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
+int up_create_stack(struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
 {
-  /* Add the size of the TLS information structure */
-
-  stack_size += sizeof(struct tls_info_s);
-
 #ifdef CONFIG_TLS_ALIGNED
   /* The allocated stack size must not exceed the maximum possible for the
    * TLS feature.
@@ -146,16 +143,14 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
 
       if (ttype == TCB_FLAG_TTYPE_KERNEL)
         {
-          tcb->stack_alloc_ptr =
-            (uint32_t *)kmm_memalign(TLS_STACK_ALIGN, stack_size);
+          tcb->stack_alloc_ptr = kmm_memalign(TLS_STACK_ALIGN, stack_size);
         }
       else
 #endif
         {
           /* Use the user-space allocator if this is a task or pthread */
 
-          tcb->stack_alloc_ptr =
-            (uint32_t *)kumm_memalign(TLS_STACK_ALIGN, stack_size);
+          tcb->stack_alloc_ptr = kumm_memalign(TLS_STACK_ALIGN, stack_size);
         }
 
 #else /* CONFIG_TLS_ALIGNED */
@@ -164,14 +159,14 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
 
       if (ttype == TCB_FLAG_TTYPE_KERNEL)
         {
-          tcb->stack_alloc_ptr = (uint32_t *)kmm_malloc(stack_size);
+          tcb->stack_alloc_ptr = kmm_malloc(stack_size);
         }
       else
 #endif
         {
           /* Use the user-space allocator if this is a task or pthread */
 
-          tcb->stack_alloc_ptr = (uint32_t *)kumm_malloc(stack_size);
+          tcb->stack_alloc_ptr = kumm_malloc(stack_size);
         }
 #endif /* CONFIG_TLS_ALIGNED */
 
@@ -189,37 +184,28 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
 
   if (tcb->stack_alloc_ptr)
     {
-#if defined(CONFIG_STACK_COLORATION)
-      uintptr_t stack_base;
-#endif
-      size_t top_of_stack;
+      uintptr_t top_of_stack;
       size_t size_of_stack;
 
-      /* RISCV uses a push-down stack:  the stack grows toward lower
-       * addresses in memory.  The stack pointer register points to the
-       * lowest, valid working address (the "top" of the stack).  Items on
-       * the stack are referenced as positive word offsets from sp.
+      /* RISC-V uses a push-down stack: the stack grows toward lower
+       * addresses in memory. The stack pointer register points to the
+       * lowest, valid working address (the "top" of the stack). Items on
+       * the stack are referenced as positive word offsets from SP.
        */
 
-      top_of_stack = (uintptr_t)tcb->stack_alloc_ptr + stack_size - 4;
+      top_of_stack = (uintptr_t)tcb->stack_alloc_ptr + stack_size;
 
-      /* The RISC-V stack must be aligned at word (4 byte) boundaries; for
-       * floating point use, the stack must be aligned to 8-byte addresses.
-       * If necessary top_of_stack must be rounded down to the next
-       * boundary to meet these alignment requirements.
+      /* The RISC-V stack must be aligned at 128-bit (16-byte) boundaries.
+       * If necessary top_of_stack must be rounded down to the next boundary.
        */
 
       top_of_stack = STACK_ALIGN_DOWN(top_of_stack);
-      size_of_stack = top_of_stack - (uintptr_t)tcb->stack_alloc_ptr + 4;
+      size_of_stack = top_of_stack - (uintptr_t)tcb->stack_alloc_ptr;
 
       /* Save the adjusted stack values in the struct tcb_s */
 
-      tcb->adj_stack_ptr  = (FAR uint32_t *)top_of_stack;
+      tcb->stack_base_ptr = tcb->stack_alloc_ptr;
       tcb->adj_stack_size = size_of_stack;
-
-      /* Initialize the TLS data structure */
-
-      memset(tcb->stack_alloc_ptr, 0, sizeof(struct tls_info_s));
 
 #ifdef CONFIG_STACK_COLORATION
       /* If stack debug is enabled, then fill the stack with a
@@ -227,13 +213,10 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
        * water marks.
        */
 
-      stack_base = (uintptr_t)tcb->stack_alloc_ptr +
-                   sizeof(struct tls_info_s);
-      stack_size = tcb->adj_stack_size -
-                   sizeof(struct tls_info_s);
-      riscv_stack_color((FAR void *)stack_base, stack_size);
+      riscv_stack_color(tcb->stack_base_ptr, tcb->adj_stack_size);
 
 #endif /* CONFIG_STACK_COLORATION */
+      tcb->flags |= TCB_FLAG_FREE_STACK;
 
       board_autoled_on(LED_STACKCREATED);
       return OK;
@@ -251,12 +234,13 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
  ****************************************************************************/
 
 #ifdef CONFIG_STACK_COLORATION
-void riscv_stack_color(FAR void *stackbase, size_t nbytes)
+void riscv_stack_color(void *stackbase, size_t nbytes)
 {
   /* Take extra care that we do not write outsize the stack boundaries */
 
   uint32_t *stkptr = (uint32_t *)(((uintptr_t)stackbase + 3) & ~3);
-  uintptr_t stkend = (((uintptr_t)stackbase + nbytes) & ~3);
+  uintptr_t stkend = nbytes ? (((uintptr_t)stackbase + nbytes) & ~3):
+                     up_getsp(); /* 0: colorize the running stack */
   size_t    nwords = (stkend - (uintptr_t)stackbase) >> 2;
 
   /* Set the entire stack to the coloration value */
