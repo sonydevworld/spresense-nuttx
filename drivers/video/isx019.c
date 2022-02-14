@@ -971,8 +971,6 @@ static void fpga_init(void)
 
 static int set_drive_mode(void)
 {
-  int ret;
-  uint8_t buf;
   uint8_t drv[] =
     {
 #ifdef CONFIG_VIDEO_ISX019_DOL2
@@ -990,10 +988,7 @@ static int set_drive_mode(void)
 
   nxsig_usleep(TRANSITION_TIME_TO_STREAMING);
 
-  buf = AEWDMODE_NORMAL;
-  ret = isx019_i2c_write(CAT_AEWD, AEWDMODE, &buf, 1);
-
-  return ret;
+  return OK;
 }
 
 static bool try_repeat(int sec, int usec, int (* trial_func)(void))
