@@ -78,7 +78,7 @@
 #define STEP_WBMODE       (1)     
 
 #define MIN_HDR           (0)     
-#define MAX_HDR           (1)   
+#define MAX_HDR           (2)
 #define STEP_HDR          (1)     
 
 #define MIN_METER        (0)     
