@@ -138,6 +138,15 @@
 
 #define ISX019_STANDARD_MASTER_CLOCK (27000000)
 
+/* Vivid colors setting */
+
+#define VIVID_COLORS_SATURATION (0xf0)
+#define VIVID_COLORS_SHARPNESS  (0x20)
+
+/* Black white colors setting */
+
+#define BW_COLORS_SATURATION (0x00)
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -195,6 +204,7 @@ struct isx019_dev_s
   int32_t iso;
   double  gamma;
   int32_t jpg_quality;
+  imgsensor_colorfx_t colorfx;
 };
 
 typedef struct isx019_dev_s isx019_dev_t;
@@ -723,6 +733,15 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
 
 #define NR_JPGSETTING_TBL \
         (sizeof(g_isx019_jpg_quality) / sizeof(isx019_fpga_jpg_quality_t))
+
+int32_t g_isx019_colorfx[] =
+{
+  IMGSENSOR_COLORFX_NONE,
+  IMGSENSOR_COLORFX_BW,
+  IMGSENSOR_COLORFX_VIVID,
+};
+
+#define NR_COLORFX (sizeof(g_isx019_colorfx) / sizeof(int32_t))
 
 /****************************************************************************
  * Private Functions
@@ -1663,6 +1682,14 @@ static int isx019_get_supported_value
                                 STEP_SHARPNESS, def->sharpness);
         break;
 
+      case IMGSENSOR_ID_COLORFX:
+        val->type = IMGSENSOR_CTRL_TYPE_INTEGER_MENU;
+        SET_DISCRETE(val->u.discrete,
+                     NR_COLORFX,
+                     g_isx019_colorfx,
+                     IMGSENSOR_COLORFX_NONE);
+        break;
+
       case IMGSENSOR_ID_EXPOSURE_AUTO:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_AE, MAX_AE,
@@ -1925,6 +1952,60 @@ static int set_vflip_still(imgsensor_value_t val)
     }
 
   return OK;
+}
+
+static int set_colorfx(imgsensor_value_t val)
+{
+  int ret = -EINVAL;
+  isx019_default_value_t *def = &g_isx019_private.default_value;
+  int32_t sat;
+  int32_t sharp;
+
+  /* ISX019 realize color effects by adjusting saturation and sharpness. */
+
+  switch (val.value32)
+    {
+      case IMGSENSOR_COLORFX_NONE:
+
+        sat   = def->saturation;
+        sharp = def->sharpness;
+        break;
+
+      case IMGSENSOR_COLORFX_BW:
+
+        sat   = BW_COLORS_SATURATION;
+        sharp = def->sharpness;
+        break;
+
+      case IMGSENSOR_COLORFX_VIVID:
+
+        sat   = VIVID_COLORS_SATURATION;
+        sharp = VIVID_COLORS_SHARPNESS;
+        break;
+
+      default:
+
+        /* It may not come here because the value has already been validated
+         * in validate_value().
+         */
+
+        break;
+    }
+
+  ret = isx019_i2c_write(CAT_PICTTUNE, UISATURATION, (uint8_t *)&sat, 1);
+  if (ret == OK)
+    {
+      ret = isx019_i2c_write(CAT_PICTTUNE,
+                             UISHARPNESS,
+                             (uint8_t *)&sharp,
+                             1);
+      if (ret == OK)
+        {
+          g_isx019_private.colorfx = val.value32;
+        }
+    }
+
+  return ret;
 }
 
 static int set_ae(imgsensor_value_t val)
@@ -2425,6 +2506,10 @@ static setvalue_t set_value_func(uint32_t id)
         func = set_vflip_still;
         break;
 
+      case IMGSENSOR_ID_COLORFX:
+        func = set_colorfx;
+        break;
+
       case IMGSENSOR_ID_EXPOSURE_AUTO:
         func = set_ae;
         break;
@@ -2524,6 +2609,17 @@ static int get_vflip_still(imgsensor_value_t *val)
     }
 
   val->value32 = get_flip(&g_isx019_private.flip_still, V_REVERSE);
+  return OK;
+}
+
+static int get_colorfx(imgsensor_value_t *val)
+{
+  if (val == NULL)
+    {
+      return -EINVAL;
+    }
+
+  val->value32 = g_isx019_private.colorfx;
   return OK;
 }
 
@@ -2797,6 +2893,10 @@ static getvalue_t get_value_func(uint32_t id)
 
       case IMGSENSOR_ID_VFLIP_STILL:
         func = get_vflip_still;
+        break;
+
+      case IMGSENSOR_ID_COLORFX:
+        func = get_colorfx;
         break;
 
       case IMGSENSOR_ID_EXPOSURE_AUTO:
