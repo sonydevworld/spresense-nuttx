@@ -23,6 +23,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/compiler.h>
 
 #include <nuttx/board.h>
 
@@ -92,10 +93,8 @@ int board_app_initialize(uintptr_t arg)
  *
  ****************************************************************************/
 
-/* TODO: Need to consider for ASMP */
-#if 0
 #ifdef CONFIG_BOARD_LATE_INITIALIZE
-void board_late_initialize(void)
+void weak_function board_late_initialize(void)
 {
   /* Perform board bring-up here instead of from the
    * board_app_initialize().
@@ -103,5 +102,4 @@ void board_late_initialize(void)
 
   cxd56_bringup();
 }
-#endif
 #endif
