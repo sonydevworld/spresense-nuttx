@@ -1703,7 +1703,7 @@ static int32_t convert_hue_reg2is(int32_t val)
 
 static int32_t convert_hdr_is2reg(int32_t val)
 {
-  int32_t ret;
+  int32_t ret = AEWDMODE_AUTO;
 
   switch (val)
     {
@@ -1712,11 +1712,18 @@ static int32_t convert_hdr_is2reg(int32_t val)
         break;
 
       case 1:
+        ret = AEWDMODE_AUTO;
+        break;
+
+      case 2:
         ret = AEWDMODE_HDR;
         break;
 
-      default: /* 2 */
-        ret = AEWDMODE_AUTO;
+      default:
+        /* It may not come here because the value has already been validated
+         * in validate_value().
+         */
+
         break;
     }
 
@@ -1733,11 +1740,11 @@ static int32_t convert_hdr_reg2is(int32_t val)
         ret = 0;
         break;
 
-      case AEWDMODE_HDR:
+      case AEWDMODE_AUTO:
         ret = 1;
         break;
 
-      default: /* AEWDMODE_AUTO */
+      default: /* AEWDMODE_HDR */
         ret = 2;
         break;
     }
