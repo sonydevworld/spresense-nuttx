@@ -254,6 +254,7 @@ static int isx019_get_value
              (uint32_t id, uint32_t size, FAR imgsensor_value_t *value);
 static int isx019_set_value
              (uint32_t id, uint32_t size, imgsensor_value_t value);
+static int initialize_jpg_quality(void);
 
 /****************************************************************************
  * Private Data
@@ -1118,6 +1119,7 @@ static int isx019_init(void)
   power_on();
   set_drive_mode();
   fpga_init();
+  initialize_jpg_quality();
   store_default_value();
   return OK;
 }
@@ -2270,6 +2272,14 @@ static int set_jpg_quality(imgsensor_value_t val)
 
   g_isx019_private.jpg_quality = val.value32;
   return OK;
+}
+
+static int initialize_jpg_quality(void)
+{
+  imgsensor_value_t val;
+
+  val.value32 = CONFIG_VIDEO_ISX019_INITIAL_JPEG_QUALITY;
+  return set_jpg_quality(val);
 }
 
 static bool validate_clip_setting(uint32_t *clip)
