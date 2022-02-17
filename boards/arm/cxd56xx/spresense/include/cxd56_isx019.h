@@ -112,6 +112,16 @@ struct i2c_master_s *board_isx019_initialize(void);
 
 int board_isx019_uninitialize(struct i2c_master_s *i2c);
 
+/****************************************************************************
+ * Name: board_isx019_get_master_clock
+ *
+ * Description:
+ *   Get ISX019 master clock.
+ *
+ ****************************************************************************/
+
+uint32_t board_isx019_get_master_clock(void);
+
 #undef EXTERN
 #if defined(__cplusplus)
 }
