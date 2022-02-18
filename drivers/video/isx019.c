@@ -2472,16 +2472,7 @@ static int get_exptime(imgsensor_value_t *val)
 {
   uint32_t regval;
 
-  isx019_i2c_read(CAT_CATAE, SHT_PRIMODE, (uint8_t *)&regval, 4);
-
-  if (regval == 0)
-    {
-      /* register value = 0 means auto.
-       * Then, Current value is gotten from auto adjusted value register.
-       */
-
-      isx019_i2c_read(CAT_AESOUT, SHT_TIME, (uint8_t *)&regval, 4);
-    }
+  isx019_i2c_read(CAT_AESOUT, SHT_TIME, (uint8_t *)&regval, 4);
 
   /* Convert unit.
    *   image sensor I/F : 100usec
