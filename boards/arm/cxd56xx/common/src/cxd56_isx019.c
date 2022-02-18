@@ -35,6 +35,7 @@
 #include "cxd56_gpio.h"
 #include "cxd56_pinconfig.h"
 #include "cxd56_i2c.h"
+#include "cxd56_clock.h"
 
 #include <arch/board/board.h>
 
@@ -174,3 +175,9 @@ int board_isx019_uninitialize(struct i2c_master_s *i2c)
 
   return ret;
 }
+
+uint32_t board_isx019_get_master_clock(void)
+{
+  return cxd56_get_xosc_clock();
+}
+

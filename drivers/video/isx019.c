@@ -133,6 +133,10 @@
 
 #define JPEG_DQT_ARRAY_SIZE (64)
 
+/* ISX019 standard master clock */
+
+#define ISX019_STANDARD_MASTER_CLOCK (27000000)
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -178,6 +182,7 @@ typedef struct isx019_rect_s isx019_rect_t;
 struct isx019_dev_s
 {
   FAR struct i2c_master_s *i2c;
+  float clock_ratio;
   isx019_default_value_t  default_value;
   imgsensor_stream_type_t stream;
   imgsensor_white_balance_t wb_mode;
@@ -1116,11 +1121,17 @@ static void store_default_value(void)
 
 static int isx019_init(void)
 {
+  uint32_t clk;
+
   power_on();
   set_drive_mode();
   fpga_init();
   initialize_jpg_quality();
   store_default_value();
+  clk = board_isx019_get_master_clock();
+  g_isx019_private.clock_ratio
+    = (float)clk / ISX019_STANDARD_MASTER_CLOCK;
+
   return OK;
 }
 
@@ -1881,12 +1892,12 @@ static int set_exptime(imgsensor_value_t val)
 {
   uint32_t regval;
 
-  /* Convert unit.
+  /* Take into account the master clock and convert unit.
    *   image sensor I/F : 100usec
    *   register         :   1usec
    */
 
-  regval = val.value32 * 100;
+  regval = val.value32 * 100 * g_isx019_private.clock_ratio;
 
   return isx019_i2c_write(CAT_CATAE, SHT_PRIMODE, (uint8_t *)&regval, 4);
 }
@@ -2484,12 +2495,12 @@ static int get_exptime(imgsensor_value_t *val)
 
   isx019_i2c_read(CAT_AESOUT, SHT_TIME, (uint8_t *)&regval, 4);
 
-  /* Convert unit.
-   *   image sensor I/F : 100usec
-   *   register         :   1usec
+  /* Round up to the nearest 100usec for eliminating errors in reverting to
+   * application value because this driver converts application value to
+   * value that takes into account the clock ratio and unit difference.
    */
 
-  val->value32 = regval / 100;
+  val->value32 = ((regval / g_isx019_private.clock_ratio) + 99) / 100;
 
   return OK;
 }
