@@ -24,6 +24,7 @@
 
 #include <nuttx/config.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -377,6 +378,23 @@ static int32_t logsave_pkt_compose(FAR void **arg,
 static int32_t loglist_pkt_compose(FAR void **arg,
                           size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
                           const size_t pktsz, FAR uint16_t *altcid);
+#ifdef CONFIG_MODEM_ALT1250_LOG_ACCESS
+static int32_t logopen_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t logclose_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t logread_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t loglseek_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+static int32_t logremove_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid);
+#endif /* CONFIG_MODEM_ALT1250_LOG_ACCESS */
 
 static int32_t errinfo_pkt_parse(FAR struct alt1250_dev_s *dev,
                           FAR uint8_t *pktbuf,
@@ -586,6 +604,16 @@ static int32_t loglist_pkt_parse(FAR struct alt1250_dev_s *dev,
                           FAR uint8_t *pktbuf,
                           size_t pktsz, uint8_t altver, FAR void **arg,
                           size_t arglen, FAR uint64_t *bitmap);
+#ifdef CONFIG_MODEM_ALT1250_LOG_ACCESS
+static int32_t logcommon_pkt_parse(FAR struct alt1250_dev_s *dev,
+                          FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen, FAR uint64_t *bitmap);
+static int32_t logread_pkt_parse(FAR struct alt1250_dev_s *dev,
+                          FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen, FAR uint64_t *bitmap);
+#endif /* CONFIG_MODEM_ALT1250_LOG_ACCESS */
 
 /****************************************************************************
  * Private Data
@@ -659,6 +687,13 @@ static compose_inst_t g_composehdlrs[] =
   CTABLE_CONTENT(SMS_REPORT_RECV, smsreportrecv),
   CTABLE_CONTENT(SAVE_LOG, logsave),
   CTABLE_CONTENT(GET_LOGLIST, loglist),
+#ifdef CONFIG_MODEM_ALT1250_LOG_ACCESS
+  CTABLE_CONTENT(LOGOPEN, logopen),
+  CTABLE_CONTENT(LOGCLOSE, logclose),
+  CTABLE_CONTENT(LOGREAD, logread),
+  CTABLE_CONTENT(LOGLSEEK, loglseek),
+  CTABLE_CONTENT(LOGREMOVE, logremove),
+#endif /* CONFIG_MODEM_ALT1250_LOG_ACCESS */
 };
 
 static parse_inst_t g_parsehdlrs[] =
@@ -728,6 +763,13 @@ static parse_inst_t g_parsehdlrs[] =
   PTABLE_CONTENT(URC_EVENT, urc_event),
   PTABLE_CONTENT(CLOGS, logsave),
   PTABLE_CONTENT(LOGLIST, loglist),
+#ifdef CONFIG_MODEM_ALT1250_LOG_ACCESS
+  PTABLE_CONTENT(LOGOPEN, logcommon),
+  PTABLE_CONTENT(LOGCLOSE, logcommon),
+  PTABLE_CONTENT(LOGREAD, logread),
+  PTABLE_CONTENT(LOGLSEEK, logcommon),
+  PTABLE_CONTENT(LOGREMOVE, logcommon),
+#endif /* CONFIG_MODEM_ALT1250_LOG_ACCESS */
 };
 
 /****************************************************************************
@@ -1804,6 +1846,24 @@ static int copy_logfilename(FAR char *filename, size_t fnamelen,
 
   return ret;
 }
+
+#ifdef CONFIG_MODEM_ALT1250_LOG_ACCESS
+
+static int create_logpath(FAR char *filename, FAR char *path)
+{
+  if (strlen(filename) + strlen(ALTCOM_LOGSPATH) >=
+      ALTCOM_LOG_ACCESS_PATH_LEN_MAX)
+    {
+      return -ENAMETOOLONG;
+    }
+
+  snprintf(path, ALTCOM_LOG_ACCESS_PATH_LEN_MAX, "%s%s", ALTCOM_LOGSPATH,
+           filename);
+
+  return OK;
+}
+
+#endif /* CONFIG_MODEM_ALT1250_LOG_ACCESS */
 
 static int32_t getver_pkt_compose(FAR void **arg,
                           size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
@@ -3952,6 +4012,179 @@ static int32_t loglist_pkt_compose(FAR void **arg,
   return size;
 }
 
+#ifdef CONFIG_MODEM_ALT1250_LOG_ACCESS
+
+static int32_t logopen_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  FAR struct apicmd_logopen_s *out = (FAR struct apicmd_logopen_s *)pktbuf;
+  FAR char *filename = (FAR char *)arg[0];
+  int32_t size = sizeof(struct apicmd_logopen_s);
+  int ret;
+
+  ret = create_logpath(filename, out->path);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  out->flags = htonl(ALTCOM_LOG_OPEN_FLAGS);
+  out->mode = htonl(0);
+
+  if (altver == ALTCOM_VER1)
+    {
+      *altcid = APICMDID_LOGOPEN;
+    }
+  else if (altver == ALTCOM_VER4)
+    {
+      *altcid = APICMDID_LOGOPEN_V4;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
+static int32_t logclose_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  FAR struct apicmd_logclose_s *out = (FAR struct apicmd_logclose_s *)pktbuf;
+  int fd = (int)arg[0];
+  int32_t size = sizeof(struct apicmd_logclose_s);
+
+  out->fd = htonl(fd);
+
+  if (altver == ALTCOM_VER1)
+    {
+      *altcid = APICMDID_LOGCLOSE;
+    }
+  else if (altver == ALTCOM_VER4)
+    {
+      *altcid = APICMDID_LOGCLOSE_V4;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
+static int32_t logread_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  FAR struct apicmd_logread_s *out = (FAR struct apicmd_logread_s *)pktbuf;
+  int fd = (int)arg[0];
+  size_t rlen = (size_t)arg[1];
+  int32_t size = sizeof(struct apicmd_logread_s);
+
+  out->fd = htonl(fd);
+  out->readlen = (rlen > ALTCOM_LOG_READ_LEN_MAX) ?
+                  htonl(ALTCOM_LOG_READ_LEN_MAX) : htonl(rlen);
+
+  if (altver == ALTCOM_VER1)
+    {
+      *altcid = APICMDID_LOGREAD;
+    }
+  else if (altver == ALTCOM_VER4)
+    {
+      *altcid = APICMDID_LOGREAD_V4;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
+static int32_t loglseek_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  FAR struct apicmd_loglseek_s *out = (FAR struct apicmd_loglseek_s *)pktbuf;
+  int fd = (int)arg[0];
+  off_t offset = *(FAR off_t *)arg[1];
+  int whence = (int)arg[2];
+  int32_t size = sizeof(struct apicmd_loglseek_s);
+
+  switch (whence)
+    {
+      case SEEK_SET:
+        out->whence = htonl(ALTCOM_LOG_SEEK_SET);
+        break;
+
+       case SEEK_CUR:
+        out->whence = htonl(ALTCOM_LOG_SEEK_CUR);
+        break;
+
+      case SEEK_END:
+        out->whence = htonl(ALTCOM_LOG_SEEK_END);
+        break;
+
+      default:
+        return -EINVAL;
+        break;
+    }
+
+  out->fd = htonl(fd);
+  out->offset = htonl(offset);
+
+  if (altver == ALTCOM_VER1)
+    {
+      *altcid = APICMDID_LOGLSEEK;
+    }
+  else if (altver == ALTCOM_VER4)
+    {
+      *altcid = APICMDID_LOGLSEEK_V4;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
+static int32_t logremove_pkt_compose(FAR void **arg,
+                          size_t arglen, uint8_t altver, FAR uint8_t *pktbuf,
+                          const size_t pktsz, FAR uint16_t *altcid)
+{
+  FAR struct apicmd_logremove_s *out =
+    (FAR struct apicmd_logremove_s *)pktbuf;
+  FAR char *filename = (FAR char *)arg[0];
+  int32_t size = sizeof(struct apicmd_logremove_s);
+  int ret;
+
+  ret = create_logpath(filename, out->path);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  if (altver == ALTCOM_VER1)
+    {
+      *altcid = APICMDID_LOGREMOVE;
+    }
+  else if (altver == ALTCOM_VER4)
+    {
+      *altcid = APICMDID_LOGREMOVE_V4;
+    }
+  else
+    {
+      size = -ENOSYS;
+    }
+
+  return size;
+}
+
+#endif /* CONFIG_MODEM_ALT1250_LOG_ACCESS */
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -5602,6 +5835,47 @@ static int32_t loglist_pkt_parse(FAR struct alt1250_dev_s *dev,
 
   return ret;
 }
+
+#ifdef CONFIG_MODEM_ALT1250_LOG_ACCESS
+
+static int32_t logcommon_pkt_parse(FAR struct alt1250_dev_s *dev,
+                          FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen, FAR uint64_t *bitmap)
+{
+  FAR struct apicmd_logcommonres_s *out =
+    (FAR struct apicmd_logcommonres_s *)pktbuf;
+
+  return ntohl(out->altcom_result);
+}
+
+static int32_t logread_pkt_parse(FAR struct alt1250_dev_s *dev,
+                          FAR uint8_t *pktbuf,
+                          size_t pktsz, uint8_t altver, FAR void **arg,
+                          size_t arglen, FAR uint64_t *bitmap)
+{
+  FAR struct apicmd_logreadres_s *out =
+    (FAR struct apicmd_logreadres_s *)pktbuf;
+  FAR void *buf = arg[0];
+  size_t len = (size_t)arg[1];
+  int32_t ret = ntohl(out->altcom_result);
+
+  if (ret > 0)
+    {
+      if (ret <= len)
+        {
+          memcpy(buf, out->readdata, ret);
+        }
+      else
+        {
+          ret = -EILSEQ;
+        }
+    }
+
+  return ret;
+}
+
+#endif /* CONFIG_MODEM_ALT1250_LOG_ACCESS */
 
 /****************************************************************************
  * Public Functions

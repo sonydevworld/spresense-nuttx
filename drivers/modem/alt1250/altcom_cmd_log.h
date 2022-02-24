@@ -40,6 +40,12 @@
 #define ALTCOM_LOGSPATH "logs/"
 #define ALTCOM_PATH_LEN_MAX (LTE_LOG_NAME_LEN + 5)
 #define ALTCOM_LIST_LEN_MAX (LTE_LOG_LIST_SIZE * ALTCOM_PATH_LEN_MAX)
+#define ALTCOM_LOG_ACCESS_PATH_LEN_MAX (256)
+#define ALTCOM_LOG_READ_LEN_MAX (2000)
+#define ALTCOM_LOG_OPEN_FLAGS (0x1)
+#define ALTCOM_LOG_SEEK_SET (0)
+#define ALTCOM_LOG_SEEK_CUR (1)
+#define ALTCOM_LOG_SEEK_END (2)
 
 /****************************************************************************
  * Public Types
@@ -69,6 +75,49 @@ begin_packed_struct struct apicmddbg_getloglistres_s
   uint8_t listsize;
   uint8_t pathlen;
   char list[ALTCOM_LIST_LEN_MAX];
+} end_packed_struct;
+
+begin_packed_struct struct apicmd_logopen_s
+{
+  char path[ALTCOM_LOG_ACCESS_PATH_LEN_MAX];
+  int32_t flags;
+  int32_t mode;
+} end_packed_struct;
+
+begin_packed_struct struct apicmd_logcommonres_s
+{
+  int32_t altcom_result;
+  int32_t unused;
+} end_packed_struct;
+
+begin_packed_struct struct apicmd_logclose_s
+{
+  int32_t fd;
+} end_packed_struct;
+
+begin_packed_struct struct apicmd_logread_s
+{
+  int32_t fd;
+  int32_t readlen;
+} end_packed_struct;
+
+begin_packed_struct struct apicmd_logreadres_s
+{
+  int32_t altcom_result;
+  int32_t unused;
+  char readdata[ALTCOM_LOG_READ_LEN_MAX];
+} end_packed_struct;
+
+begin_packed_struct struct apicmd_logremove_s
+{
+  char path[ALTCOM_LOG_ACCESS_PATH_LEN_MAX];
+} end_packed_struct;
+
+begin_packed_struct struct apicmd_loglseek_s
+{
+  int32_t fd;
+  int32_t offset;
+  int32_t whence;
 } end_packed_struct;
 
 #endif  /* __DRIVERS_MODEM_ALT1250_ALTCOM_CMD_LOG_H__ */
