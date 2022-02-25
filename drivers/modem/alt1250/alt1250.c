@@ -551,10 +551,10 @@ parse_handler_t get_parsehdlr(uint16_t altcid, uint8_t altver)
 }
 
 /****************************************************************************
- * Name: ioctl_power
+ * Name: alt1250_power_control
  ****************************************************************************/
 
-static int ioctl_power(FAR struct alt1250_dev_s *dev,
+static int alt1250_power_control(FAR struct alt1250_dev_s *dev,
   FAR struct alt_power_s *req)
 {
   int ret = OK;
@@ -586,10 +586,10 @@ static int ioctl_power(FAR struct alt1250_dev_s *dev,
 }
 
 /****************************************************************************
- * Name: ioctl_send
+ * Name: make_altcomcmd_and_send
  ****************************************************************************/
 
-static int ioctl_send(FAR struct alt1250_dev_s *dev,
+static int make_altcomcmd_and_send(FAR struct alt1250_dev_s *dev,
   FAR alt_container_t *req)
 {
   int ret = OK;
@@ -1149,7 +1149,11 @@ static int alt1250_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         {
           FAR struct alt_power_s *req = (FAR struct alt_power_s *)arg;
 
-          ret = ioctl_power(dev, req);
+          /* Performs power control or power consumption control
+           * of the modem.
+           */
+
+          ret = alt1250_power_control(dev, req);
         }
         break;
 
@@ -1157,7 +1161,7 @@ static int alt1250_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         {
           FAR alt_container_t *req = (FAR alt_container_t *)arg;
 
-          ret = ioctl_send(dev, req);
+          ret = make_altcomcmd_and_send(dev, req);
         }
         break;
 
