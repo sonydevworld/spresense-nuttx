@@ -35,6 +35,7 @@
 #include <nuttx/video/isx019.h>
 #include <nuttx/video/imgsensor.h>
 #include <math.h>
+#include <nuttx/semaphore.h>
 
 #include "isx019_reg.h"
 #include "isx019_range.h"
@@ -181,6 +182,7 @@ typedef struct isx019_rect_s isx019_rect_t;
 
 struct isx019_dev_s
 {
+  sem_t i2c_lock;
   FAR struct i2c_master_s *i2c;
   float clock_ratio;
   isx019_default_value_t  default_value;
@@ -260,6 +262,10 @@ static int isx019_get_value
 static int isx019_set_value
              (uint32_t id, uint32_t size, imgsensor_value_t value);
 static int initialize_jpg_quality(void);
+static int send_read_cmd(struct i2c_config_s *config,
+                         uint8_t cat,
+                         uint16_t addr,
+                         uint8_t size);
 
 /****************************************************************************
  * Private Data
@@ -722,12 +728,33 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
  * Private Functions
  ****************************************************************************/
 
+static void i2c_lock(void)
+{
+  nxsem_wait_uninterruptible(&g_isx019_private.i2c_lock);
+}
+
+static void i2c_unlock(void)
+{
+  nxsem_post(&g_isx019_private.i2c_lock);
+}
+
 static int fpga_i2c_write(uint8_t addr, uint8_t *data, uint8_t size)
 {
   struct i2c_config_s config;
   static uint8_t buf[FPGA_I2C_REGSIZE_MAX + FPGA_I2C_REGADDR_LEN];
+  int ret;
 
   DEBUGASSERT(size <= FPGA_I2C_REGSIZE_MAX);
+
+  config.frequency = ISX019_I2C_FREQUENCY;
+  config.address   = ISX019_I2C_SLVADDR;
+  config.addrlen   = ISX019_I2C_SLVADDR_LEN;
+
+  i2c_lock();
+
+  /* ISX019 requires that send read command to ISX019 before FPGA access. */
+
+  send_read_cmd(&config, CAT_VERSION, ROM_VERSION, 1);
 
   config.frequency = FPGA_I2C_FREQUENCY;
   config.address   = FPGA_I2C_SLVADDR;
@@ -735,10 +762,13 @@ static int fpga_i2c_write(uint8_t addr, uint8_t *data, uint8_t size)
 
   buf[FPGA_I2C_OFFSET_ADDR] = addr;
   memcpy(&buf[FPGA_I2C_OFFSET_WRITEDATA], data, size);
-  return i2c_write(g_isx019_private.i2c,
-                   &config,
-                   buf,
-                   size + FPGA_I2C_REGADDR_LEN);
+  ret = i2c_write(g_isx019_private.i2c,
+                  &config,
+                  buf,
+                  size + FPGA_I2C_REGADDR_LEN);
+  i2c_unlock();
+
+  return ret;
 }
 
 static int fpga_i2c_read(uint8_t addr, uint8_t *data, uint8_t size)
@@ -748,6 +778,16 @@ static int fpga_i2c_read(uint8_t addr, uint8_t *data, uint8_t size)
 
   DEBUGASSERT(size <= FPGA_I2C_REGSIZE_MAX);
 
+  config.frequency = ISX019_I2C_FREQUENCY;
+  config.address   = ISX019_I2C_SLVADDR;
+  config.addrlen   = ISX019_I2C_SLVADDR_LEN;
+
+  i2c_lock();
+
+  /* ISX019 requires that send read command to ISX019 before FPGA access. */
+
+  send_read_cmd(&config, CAT_VERSION, ROM_VERSION, 1);
+
   config.frequency = FPGA_I2C_FREQUENCY;
   config.address   = FPGA_I2C_SLVADDR;
   config.addrlen   = FPGA_I2C_SLVADDR_LEN;
@@ -756,12 +796,14 @@ static int fpga_i2c_read(uint8_t addr, uint8_t *data, uint8_t size)
                   &config,
                   &addr,
                   FPGA_I2C_REGADDR_LEN);
-  if (ret < 0)
+  if (ret >= 0)
     {
-      return ret;
+      ret = i2c_read(g_isx019_private.i2c, &config, data, size);
     }
 
-  return i2c_read(g_isx019_private.i2c, &config, data, size);
+  i2c_unlock();
+
+  return ret;
 }
 
 static void fpga_activate_setting(void)
@@ -903,12 +945,15 @@ int isx019_i2c_write(uint8_t cat, uint16_t addr, uint8_t *data, uint8_t size)
   config.address   = ISX019_I2C_SLVADDR;
   config.addrlen   = ISX019_I2C_SLVADDR_LEN;
 
+  i2c_lock();
+
   ret = send_write_cmd(&config, cat, addr, data, size);
   if (ret == OK)
     {
       ret = recv_write_response(&config);
     }
 
+  i2c_unlock();
   return ret;
 }
 
@@ -952,11 +997,15 @@ int isx019_i2c_read(uint8_t cat, uint16_t addr, uint8_t *data, uint8_t size)
   config.address   = ISX019_I2C_SLVADDR;
   config.addrlen   = ISX019_I2C_SLVADDR_LEN;
 
+  i2c_lock();
+
   ret = send_read_cmd(&config, cat, addr, size);
   if (ret == OK)
     {
       ret = recv_read_response(&config, data, size);
     }
+
+  i2c_unlock();
 
   return ret;
 }
@@ -3005,11 +3054,13 @@ static int isx019_set_value(uint32_t id,
 int isx019_initialize(void)
 {
   imgsensor_register(&g_isx019_ops);
+  nxsem_init(&g_isx019_private.i2c_lock, 0, 1);
   return OK;
 }
 
 int isx019_uninitialize()
 {
+  nxsem_destroy(&g_isx019_private.i2c_lock);
   return OK;
 }
 
