@@ -268,6 +268,13 @@ static inline uint16_t convert_cid2v1(uint16_t cid)
       return APICMDID_LOGLIST;
     }
 
+#ifdef CONFIG_MODEM_ALT1250_LOG_ACCESS
+  if ((cid >= APICMDID_LOGOPEN_V4) && (cid <= APICMDID_LOGLSEEK_V4))
+    {
+      return cid + (APICMDID_LOGOPEN - APICMDID_LOGOPEN_V4);
+    }
+#endif /* CONFIG_MODEM_ALT1250_LOG_ACCESS */
+
   return APICMDID_UNKNOWN;
 }
 

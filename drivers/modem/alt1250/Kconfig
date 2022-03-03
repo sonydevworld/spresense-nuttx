@@ -18,6 +18,12 @@ config MODEM_ALT1250_ADDITIONAL_FUNC
 	bool
 	default n
 
+config MODEM_ALT1250_LOG_ACCESS
+	bool "Enable modem log access"
+	default n
+	---help---
+		Enables the feature to access the modem logs.
+
 config MODEM_ALT1250_DEBUG
 	bool "Enable debug mode for ALT1250 modem driver"
 	default n

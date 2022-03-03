@@ -144,6 +144,11 @@
 #define LTE_CMDID_FACTORY_RESET                  _CMDGRP_EXTEND(0x33)
 #define LTE_CMDID_SAVE_LOG                       _CMDGRP_NORMAL(0x34)
 #define LTE_CMDID_GET_LOGLIST                    _CMDGRP_NORMAL(0x35)
+#define LTE_CMDID_LOGOPEN                        _CMDGRP_NORMAL(0x36)
+#define LTE_CMDID_LOGCLOSE                       _CMDGRP_NORMAL(0x37)
+#define LTE_CMDID_LOGREAD                        _CMDGRP_NORMAL(0x38)
+#define LTE_CMDID_LOGLSEEK                       _CMDGRP_NORMAL(0x39)
+#define LTE_CMDID_LOGREMOVE                      _CMDGRP_NORMAL(0x3a)
 
 #define LTE_CMDID_ACCEPT                         _CMDGRP_NORMAL(0x50)
 #define LTE_CMDID_BIND                           _CMDGRP_NORMAL(0x51)
