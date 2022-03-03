@@ -139,6 +139,15 @@ struct i2c_master_s *board_isx019_initialize(void)
   cxd56_gpio_config(IMAGER_RST, false);
   board_isx019_set_reset();
 
+  /* To avoid IS_DATA0 and IS_DATA7 being Hi-Z state during FPGA config,
+   * output these pins to LOW.
+   */
+
+  cxd56_gpio_config(PIN_IS_DATA0, false);
+  cxd56_gpio_config(PIN_IS_DATA7, false);
+  cxd56_gpio_write(PIN_IS_DATA0, false);
+  cxd56_gpio_write(PIN_IS_DATA7, false);
+
   /* Initialize i2c device */
 
   return cxd56_i2cbus_initialize(IMAGER_I2C);
@@ -150,7 +159,14 @@ int board_isx019_uninitialize(struct i2c_master_s *i2c)
 
   _info("Uninitializing ISX019...\n");
 
-  /* Initialize i2c device */
+  /* Restore IS_DATA0 and IS_DATA7 to Hi-Z state */
+
+  cxd56_gpio_config(PIN_IS_DATA0, false);
+  cxd56_gpio_config(PIN_IS_DATA7, false);
+  cxd56_gpio_write_hiz(PIN_IS_DATA0);
+  cxd56_gpio_write_hiz(PIN_IS_DATA7);
+
+  /* Uninitialize i2c device */
 
   ret = isx019_uninitialize();
   if (ret < 0)
