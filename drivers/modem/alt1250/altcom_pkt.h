@@ -258,6 +258,16 @@ static inline uint16_t convert_cid2v1(uint16_t cid)
       return APICMDID_TLS_CONFIG_VERIFY_CALLBACK;
     }
 
+  if (cid == APICMDID_CLOGS_V4)
+    {
+      return APICMDID_CLOGS;
+    }
+
+  if (cid == APICMDID_LOGLIST_V4)
+    {
+      return APICMDID_LOGLIST;
+    }
+
   return APICMDID_UNKNOWN;
 }
 

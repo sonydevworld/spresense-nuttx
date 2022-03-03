@@ -142,6 +142,8 @@
 #define LTE_CMDID_EXEUPDATE                      _CMDGRP_FWUPDATE(0x31)
 #define LTE_CMDID_GETUPDATERES                   _CMDGRP_NORMAL(0x32)
 #define LTE_CMDID_FACTORY_RESET                  _CMDGRP_EXTEND(0x33)
+#define LTE_CMDID_SAVE_LOG                       _CMDGRP_NORMAL(0x34)
+#define LTE_CMDID_GET_LOGLIST                    _CMDGRP_NORMAL(0x35)
 
 #define LTE_CMDID_ACCEPT                         _CMDGRP_NORMAL(0x50)
 #define LTE_CMDID_BIND                           _CMDGRP_NORMAL(0x51)

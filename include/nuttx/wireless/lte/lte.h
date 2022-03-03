@@ -682,6 +682,14 @@
 
 #define LTEFW_RESULT_DELTAUPDATE_NORESULT          (-11)
 
+/* Length of LTE modem log file name */
+
+#define LTE_LOG_NAME_LEN  32
+
+/* Number of LTE modem logs saved */
+
+#define LTE_LOG_LIST_SIZE 3
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
