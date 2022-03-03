@@ -79,6 +79,7 @@
 #define _CMDGRP_NOMDM(nr)            (_CMDGRP_SHIFT(2) | (nr))
 #define _CMDGRP_POWER(nr)            (_CMDGRP_SHIFT(3) | (nr))
 #define _CMDGRP_FWUPDATE(nr)         (_CMDGRP_SHIFT(4) | (nr))
+#define _CMDGRP_EXTEND(nr)           (_CMDGRP_SHIFT(5) | (nr))
 #define LTE_CMDOPT_ASYNC_BIT         (0x1 << (_CMDOPT_LSB))
 #define LTE_IS_ASYNC_CMD(cid)        ((cid) & LTE_CMDOPT_ASYNC_BIT)
 #define LTE_PURE_CMDID(cid)          ((cid) & ~LTE_CMDOPT_ASYNC_BIT)
@@ -87,6 +88,7 @@
 #define LTE_ISCMDGRP_NOMDM(cmd)      ((cmd & _CMDGRP_MASK) == _CMDGRP_NOMDM(0))
 #define LTE_ISCMDGRP_POWER(cmd)      ((cmd & _CMDGRP_MASK) == _CMDGRP_POWER(0))
 #define LTE_ISCMDGRP_FWUPDATE(cmd)   ((cmd & _CMDGRP_MASK) == _CMDGRP_FWUPDATE(0))
+#define LTE_ISCMDGRP_EXTEND(cmd)     ((cmd & _CMDGRP_MASK) == _CMDGRP_EXTEND(0))
 
 #define LTE_CMDID_POWERON                        _CMDGRP_POWER(0x00)
 #define LTE_CMDID_POWEROFF                       _CMDGRP_POWER(0x01)
@@ -139,6 +141,7 @@
 #define LTE_CMDID_GETIMAGELEN                    _CMDGRP_FWUPDATE(0x30)
 #define LTE_CMDID_EXEUPDATE                      _CMDGRP_FWUPDATE(0x31)
 #define LTE_CMDID_GETUPDATERES                   _CMDGRP_NORMAL(0x32)
+#define LTE_CMDID_FACTORY_RESET                  _CMDGRP_EXTEND(0x33)
 
 #define LTE_CMDID_ACCEPT                         _CMDGRP_NORMAL(0x50)
 #define LTE_CMDID_BIND                           _CMDGRP_NORMAL(0x51)
