@@ -934,7 +934,10 @@ static int send_write_cmd(struct i2c_config_s *config,
   return i2c_write(g_isx019_private.i2c, config, buf, len);
 }
 
-int isx019_i2c_write(uint8_t cat, uint16_t addr, uint8_t *data, uint8_t size)
+static int isx019_i2c_write(uint8_t cat,
+                            uint16_t addr,
+                            uint8_t *data,
+                            uint8_t size)
 {
   int ret;
   struct i2c_config_s config;
@@ -986,7 +989,10 @@ static int send_read_cmd(struct i2c_config_s *config,
   return ret;
 }
 
-int isx019_i2c_read(uint8_t cat, uint16_t addr, uint8_t *data, uint8_t size)
+static int isx019_i2c_read(uint8_t  cat,
+                           uint16_t addr,
+                           uint8_t  *data,
+                           uint8_t  size)
 {
   int ret;
   struct i2c_config_s config;
@@ -3064,3 +3070,23 @@ int isx019_uninitialize()
   return OK;
 }
 
+#ifdef CONFIG_VIDEO_ISX019_REGDEBUG
+int isx019_read_register(uint8_t  cat,
+                         uint16_t addr,
+                         uint8_t  *buf,
+                         uint8_t  size)
+{
+  int ret = -EINVAL;
+
+  if (cat == 0xff)
+    {
+      ret = fpga_i2c_read((uint8_t)addr, buf, size);
+    }
+  else
+    {
+      ret = isx019_i2c_read(cat, addr, buf, size);
+    }
+
+  return ret;
+}
+#endif
