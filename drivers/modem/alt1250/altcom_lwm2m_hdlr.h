@@ -38,7 +38,7 @@ typedef int32_t (*lwm2mstub_hndl_t)(FAR uint8_t *, size_t,
                           FAR void **, size_t);
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 lwm2mstub_hndl_t lwm2mstub_get_handler(FAR uint8_t **pktbuf, size_t *pktsz,

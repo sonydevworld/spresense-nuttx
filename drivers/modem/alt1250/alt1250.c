@@ -782,7 +782,7 @@ static void altcom_recvthread(FAR void *arg)
             {
               /* Forced reset of modem due to packet format error detected */
 
-              m_err("Forced modem reset due to parse failure\n");
+              m_err("[altcom] Forced modem reset due to parse failure\n");
 
               altmdm_reset();
             }
