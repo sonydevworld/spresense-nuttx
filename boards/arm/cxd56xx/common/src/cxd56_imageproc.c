@@ -204,6 +204,7 @@ struct aligned_data(16) ge2d_abcmd_s
  * Private Data
  ****************************************************************************/
 
+static bool g_imageprocinitialized = false;
 static sem_t g_rotwait;
 static sem_t g_rotexc;
 static sem_t g_geexc;
@@ -403,22 +404,27 @@ static void *set_halt_cmd(void *cmdbuf)
   return (void *)((uintptr_t) cmdbuf + 16);
 }
 
-static void imageproc_convert_(int      is_yuv2rgb,
-                               uint8_t * ibuf,
-                               uint32_t hsize,
-                               uint32_t vsize)
+static int imageproc_convert_(int      is_yuv2rgb,
+                              uint8_t * ibuf,
+                              uint32_t hsize,
+                              uint32_t vsize)
 {
   int ret;
 
+  if (!g_imageprocinitialized)
+    {
+      return -EPERM;
+    }
+
   if ((hsize & 1) || (vsize & 1))
     {
-      return;
+      return -EINVAL;
     }
 
   ret = ip_semtake(&g_rotexc);
   if (ret)
     {
-      return;
+      return ret;
     }
 
   /* Image processing hardware want to be set horizontal/vertical size
@@ -448,6 +454,8 @@ static void imageproc_convert_(int      is_yuv2rgb,
   ip_semtake(&g_rotwait);
 
   ip_semgive(&g_rotexc);
+
+  return 0;
 }
 
 static void get_rect_info(imageproc_imginfo_t *imginfo,
@@ -527,6 +535,13 @@ static void *get_blendarea(imageproc_imginfo_t *imginfo, int offset)
 
 void imageproc_initialize(void)
 {
+  if (g_imageprocinitialized)
+    {
+      return;
+    }
+
+  g_imageprocinitialized = true;
+
   nxsem_init(&g_rotexc, 0, 1);
   nxsem_init(&g_rotwait, 0, 0);
   nxsem_init(&g_geexc, 0, 1);
@@ -547,6 +562,11 @@ void imageproc_initialize(void)
 
 void imageproc_finalize(void)
 {
+  if (!g_imageprocinitialized)
+    {
+      return;
+    }
+
   up_disable_irq(CXD56_IRQ_ROT);
   irq_detach(CXD56_IRQ_ROT);
 
@@ -561,20 +581,22 @@ void imageproc_finalize(void)
   nxsem_destroy(&g_rotexc);
   nxsem_destroy(&g_geexc);
   nxsem_destroy(&g_abexc);
+
+  g_imageprocinitialized = false;
 }
 
-void imageproc_convert_yuv2rgb(uint8_t * ibuf,
-                               uint32_t hsize,
-                               uint32_t vsize)
+int imageproc_convert_yuv2rgb(uint8_t * ibuf,
+                              uint32_t hsize,
+                              uint32_t vsize)
 {
-  imageproc_convert_(1, ibuf, hsize, vsize);
+  return imageproc_convert_(1, ibuf, hsize, vsize);
 }
 
-void imageproc_convert_rgb2yuv(uint8_t * ibuf,
-                               uint32_t hsize,
-                               uint32_t vsize)
+int imageproc_convert_rgb2yuv(uint8_t * ibuf,
+                              uint32_t hsize,
+                              uint32_t vsize)
 {
-  imageproc_convert_(0, ibuf, hsize, vsize);
+  return imageproc_convert_(0, ibuf, hsize, vsize);
 }
 
 void imageproc_convert_yuv2gray(uint8_t * ibuf, uint8_t * obuf, size_t hsize,
