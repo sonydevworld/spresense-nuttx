@@ -2652,7 +2652,7 @@ static int32_t setrepnet_pkt_compose(FAR void **arg,
   FAR struct apicmd_cmddat_set_repnetinfo_s *out =
     (FAR struct apicmd_cmddat_set_repnetinfo_s *)pktbuf;
 
-  out->report = (callback == NULL);
+  out->report = APICMD_REPNETINFO_REPORT_ENABLE;
 
   size = sizeof(struct apicmd_cmddat_set_repnetinfo_s);
 
