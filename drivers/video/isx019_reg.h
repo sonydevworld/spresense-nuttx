@@ -77,10 +77,11 @@
 #define FPGA_SCALE_320_240    (2<<4)
 #define FPGA_SCALE_160_120    (3<<4)
 
-#define FPGA_FPS_1_1 (0x00)
-#define FPGA_FPS_1_2 (0x01)
-#define FPGA_FPS_1_3 (0x02)
-#define FPGA_FPS_1_4 (0x03)
+#define FPGA_FPS_BITS (0x03)
+#define FPGA_FPS_1_1  (0x00)
+#define FPGA_FPS_1_2  (0x01)
+#define FPGA_FPS_1_3  (0x02)
+#define FPGA_FPS_1_4  (0x03)
 
 #define FPGA_THUMBNAIL_SCALE_1_1 (0<<4)
 #define FPGA_THUMBNAIL_SCALE_1_2 (1<<4)
@@ -260,6 +261,7 @@
 /* For CAT_AESOUT */
 
 #define SHT_TIME          (0x01cc)
+#define V_TIME            (0x01d0)
 
 /* For CAT_CATAWB */
 
