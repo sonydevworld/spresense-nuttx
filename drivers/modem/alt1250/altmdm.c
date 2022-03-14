@@ -1005,6 +1005,7 @@ static altmdm_state_t process_state_hdrsreq(uint32_t event,
         }
       else
         {
+          m_err("Forced modem reset due to header sreq timeout\n");
           state = ALTMDM_STATE_FORCERST;
         }
     }
@@ -1030,6 +1031,7 @@ static altmdm_state_t process_state_hdrtrx(uint32_t event,
         }
       else
         {
+          m_err("Forced modem reset due to header validation error\n");
           state = ALTMDM_STATE_FORCERST;
         }
     }
@@ -1099,6 +1101,7 @@ static altmdm_state_t process_state_bodysreq(uint32_t event,
         }
       else
         {
+          m_err("Forced modem reset due to body sreq timeout\n");
           state = ALTMDM_STATE_FORCERST;
         }
     }

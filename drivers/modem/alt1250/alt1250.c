@@ -79,7 +79,7 @@ static const struct file_operations g_alt1250fops =
   alt1250_ioctl, /* ioctl */
   alt1250_poll,  /* poll */
 };
-static uint8_t g_recvbuff[ALTCOM_PKT_SIZE_MAX];
+static uint8_t g_recvbuff[ALTCOM_RX_PKT_SIZE_MAX];
 static uint8_t g_sendbuff[ALTCOM_PKT_SIZE_MAX];
 
 /****************************************************************************
@@ -747,6 +747,7 @@ static void altcom_recvthread(FAR void *arg)
   uint8_t altver;
   parse_handler_t handler;
   uint64_t bitmap = 0ULL;
+  int recvedlen = 0;
 
   m_info("recv thread start\n");
 
@@ -754,7 +755,8 @@ static void altcom_recvthread(FAR void *arg)
 
   while (is_running)
     {
-      ret = altmdm_read(g_recvbuff, ALTCOM_PKT_SIZE_MAX);
+      ret = altmdm_read(g_recvbuff + recvedlen,
+                        ALTCOM_RX_PKT_SIZE_MAX - recvedlen);
 
       /* Normal packet received */
 
@@ -762,7 +764,21 @@ static void altcom_recvthread(FAR void *arg)
         {
           m_info("read packet %d bytes\n", ret);
 
-          if (altcom_is_pkt_ok(g_recvbuff, ret) < 0)
+          recvedlen += ret;
+
+          ret = altcom_is_pkt_ok(g_recvbuff, recvedlen);
+          if (ret > 0)
+            {
+              /* Cases in which fragmented packets are received.
+               * Therefore, the receive process is performed again.
+               */
+
+              m_info("This is fragmented packet received. remain len: %d\n",
+                     ret);
+              continue;
+            }
+
+          if (ret < 0)
             {
               /* Forced reset of modem due to packet format error detected */
 
@@ -970,6 +986,8 @@ static void altcom_recvthread(FAR void *arg)
                 break;
             }
         }
+
+      recvedlen = 0;
     }
 
   m_info("recv thread end\n");

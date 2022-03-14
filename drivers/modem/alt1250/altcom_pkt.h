@@ -48,6 +48,8 @@
 #define ALTCOM_PKT_SIZE_MAX        (ALTCOM_PAYLOAD_SIZE_MAX \
                                     + sizeof(struct altcom_cmdhdr_s) \
                                     + sizeof(struct altcom_cmdfooter_s))
+#define ALTCOM_RX_PKT_SIZE_MAX     (ALTCOM_PAYLOAD_SIZE_MAX_V4 \
+                                    + sizeof(struct altcom_cmdhdr_s))
 
 #define LTE_RESULT_OK     (0)      /**< Result code on success */
 #define LTE_RESULT_ERROR  (1)      /**< Result code on failure */
