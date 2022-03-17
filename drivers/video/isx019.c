@@ -753,6 +753,18 @@ int32_t g_isx019_colorfx[] =
 
 #define NR_COLORFX (sizeof(g_isx019_colorfx) / sizeof(int32_t))
 
+int32_t g_isx019_wbmode[] =
+{
+  IMGSENSOR_WHITE_BALANCE_AUTO,
+  IMGSENSOR_WHITE_BALANCE_INCANDESCENT,
+  IMGSENSOR_WHITE_BALANCE_FLUORESCENT,
+  IMGSENSOR_WHITE_BALANCE_DAYLIGHT,
+  IMGSENSOR_WHITE_BALANCE_CLOUDY,
+  IMGSENSOR_WHITE_BALANCE_SHADE,
+};
+
+#define NR_WBMODE (sizeof(g_isx019_wbmode) / sizeof(int32_t))
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -1808,9 +1820,11 @@ static int isx019_get_supported_value
         break;
 
       case IMGSENSOR_ID_AUTO_N_PRESET_WB:
-        val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
-        SET_RANGE(val->u.range, MIN_WBMODE, MAX_WBMODE,
-                                STEP_WBMODE, def->wbmode);
+        val->type = IMGSENSOR_CTRL_TYPE_INTEGER_MENU;
+        SET_DISCRETE(val->u.discrete,
+                     NR_WBMODE,
+                     g_isx019_wbmode,
+                     IMGSENSOR_WHITE_BALANCE_AUTO);
         break;
 
       case IMGSENSOR_ID_WIDE_DYNAMIC_RANGE:
