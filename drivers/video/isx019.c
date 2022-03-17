@@ -2919,7 +2919,7 @@ static double calc_iso(double gain)
 
 static int get_iso(imgsensor_value_t *val)
 {
-  uint16_t gain;
+  uint8_t buf = 0;
 
   if (val == NULL)
     {
@@ -2933,9 +2933,8 @@ static int get_iso(imgsensor_value_t *val)
        * which has the unit 0.3dB, and convert the gain to ISO.
        */
 
-      isx019_i2c_read(CAT_AECOM, GAIN_LEVEL, (uint8_t *)&gain, 2);
-      gain *= 3;
-      val->value32 = calc_iso((double)gain / 10) * 1000;
+      isx019_i2c_read(CAT_AECOM, GAIN_LEVEL, &buf, 1);
+      val->value32 = calc_iso((double)buf * 0.3) * 1000;
     }
   else
     {
