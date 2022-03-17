@@ -49,9 +49,10 @@
 #  error "IMAGER_RST must be defined in board.h !!"
 #endif
 
-#define POWER_CHECK_TIME             (1*1000)  /* ms */
+#define POWER_CHECK_TIME            (1 * 1000)   /* ms */
+#define POWER_OFF_TIME              (50 * 1000)  /* ms */
 
-#define POWER_CHECK_RETRY            (10)
+#define POWER_CHECK_RETRY           (10)
 
 /****************************************************************************
  * Public Functions
@@ -97,6 +98,10 @@ int board_isx019_power_off(void)
       _err("ERROR: Failed to power off ImageSensor. %d\n", ret);
       return -ENODEV;
     }
+
+  /* Need to wait for power-off to be reflected */
+
+  nxsig_usleep(POWER_OFF_TIME);
 
   ret = -ETIMEDOUT;
   for (i = 0; i < POWER_CHECK_RETRY; i++)
