@@ -191,6 +191,7 @@ typedef struct isx019_rect_s isx019_rect_t;
 
 struct isx019_dev_s
 {
+  sem_t fpga_lock;
   sem_t i2c_lock;
   FAR struct i2c_master_s *i2c;
   float clock_ratio;
@@ -755,6 +756,16 @@ static void i2c_lock(void)
 static void i2c_unlock(void)
 {
   nxsem_post(&g_isx019_private.i2c_lock);
+}
+
+static void fpga_lock(void)
+{
+  nxsem_wait_uninterruptible(&g_isx019_private.fpga_lock);
+}
+
+static void fpga_unlock(void)
+{
+  nxsem_post(&g_isx019_private.fpga_lock);
 }
 
 static int fpga_i2c_write(uint8_t addr, uint8_t *data, uint8_t size)
@@ -1476,6 +1487,8 @@ static int isx019_start_capture(imgsensor_stream_type_t type,
       return ret;
     }
 
+  fpga_lock();
+
   /* Update FORMAT_AND_SCALE register of FPGA */
 
   switch (fmt[IMGSENSOR_FMT_MAIN].pixelformat)
@@ -1584,7 +1597,7 @@ static int isx019_start_capture(imgsensor_stream_type_t type,
   fpga_i2c_write(FPGA_DATA_OUTPUT, &regval, 1);
 
   fpga_activate_setting();
-
+  fpga_unlock();
   g_isx019_private.stream = type;
 
   return OK;
@@ -1595,8 +1608,10 @@ static int isx019_stop_capture(imgsensor_stream_type_t type)
   uint8_t regval;
 
   regval = FPGA_DATA_OUTPUT_STOP;
+  fpga_lock();
   fpga_i2c_write(FPGA_DATA_OUTPUT, &regval, 1);
   fpga_activate_setting();
+  fpga_unlock();
   return OK;
 }
 
@@ -2389,8 +2404,6 @@ int set_dqt(uint8_t component, uint8_t target, uint8_t *buf)
       fpga_i2c_write(data, &buf[i], 1);
     }
 
-  fpga_activate_setting();
-
   return OK;
 }
 
@@ -2412,10 +2425,24 @@ static int set_jpg_quality(imgsensor_value_t val)
       return -EINVAL;
     }
 
+  fpga_lock();
+
+  /* Update DQT data and activate them. */
+
   set_dqt(FPGA_DQT_LUMA,   FPGA_DQT_DATA, y_head);
   set_dqt(FPGA_DQT_CHROMA, FPGA_DQT_DATA, c_head);
   set_dqt(FPGA_DQT_LUMA,   FPGA_DQT_CALC_DATA, y_calc);
   set_dqt(FPGA_DQT_CHROMA, FPGA_DQT_CALC_DATA, c_calc);
+  fpga_activate_setting();
+
+  /* Update non-active side in preparation for other activation trigger. */
+
+  set_dqt(FPGA_DQT_LUMA,   FPGA_DQT_DATA, y_head);
+  set_dqt(FPGA_DQT_CHROMA, FPGA_DQT_DATA, c_head);
+  set_dqt(FPGA_DQT_LUMA,   FPGA_DQT_CALC_DATA, y_calc);
+  set_dqt(FPGA_DQT_CHROMA, FPGA_DQT_CALC_DATA, c_calc);
+
+  fpga_unlock();
 
   g_isx019_private.jpg_quality = val.value32;
   return OK;
@@ -3161,12 +3188,14 @@ int isx019_initialize(void)
 {
   imgsensor_register(&g_isx019_ops);
   nxsem_init(&g_isx019_private.i2c_lock, 0, 1);
+  nxsem_init(&g_isx019_private.fpga_lock, 0, 1);
   return OK;
 }
 
 int isx019_uninitialize()
 {
   nxsem_destroy(&g_isx019_private.i2c_lock);
+  nxsem_destroy(&g_isx019_private.fpga_lock);
   return OK;
 }
 
