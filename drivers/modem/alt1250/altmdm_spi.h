@@ -53,9 +53,12 @@
 
 typedef struct altmdm_spipkt_s
 {
-  uint32_t header;
-  void *buffer;
-  int buff_size;
+  uint32_t header; /* Buffer for SPI protocol headers to be exchanged with
+                    * the ALT1250. */
+  void *buffer;    /* Buffer for SPI protocol body to be exchanged with
+                    * the ALT1250. */
+  int buff_size;   /* Buffer size of the SPI protocol body. Maximum size
+                    * is ALTSPI_MAX_PKTSIZE. */
 } altmdm_spipkt_t;
 
 /****************************************************************************
@@ -112,18 +115,164 @@ static inline int is_buffer_full(FAR altmdm_spipkt_t *pkt)
  * Public Function Prototypes
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: altmdm_spipkt_init
+ *
+ * Description:
+ *   Initialize SPI packet structure.
+ *
+ * Input Parameters:
+ *   pkt         - Pointer to SPI packet structure.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
 void altmdm_spipkt_init(FAR altmdm_spipkt_t *pkt);
+
+/****************************************************************************
+ * Name: altmdm_set_spipkt_rxbuffer
+ *
+ * Description:
+ *   Sets parameters of the SPI packet structure for reception.
+ *
+ * Input Parameters:
+ *   pkt         - Pointer to SPI packet structure for reception.
+ *   buf         - Buffer for SPI protocol body reception.
+ *   sz          - Buffer size for SPI protocol body reception.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
 void altmdm_set_spipkt_rxbuffer(FAR altmdm_spipkt_t *pkt, FAR void *buf,
   uint16_t sz);
+
+/****************************************************************************
+ * Name: altmdm_set_spipkt_txbuffer
+ *
+ * Description:
+ *   Set the parameters of the SPI packet structure for sending.
+ *
+ * Input Parameters:
+ *   pkt         - Pointer to SPI packet structure for sending.
+ *   buf         - Buffer for SPI protocol body sending.
+ *   sz          - Buffer size for SPI protocol body sending.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
 void altmdm_set_spipkt_txbuffer(FAR altmdm_spipkt_t *pkt, FAR void *buf,
   uint16_t sz);
+
+/****************************************************************************
+ * Name: altmdm_overwrite_body_size
+ *
+ * Description:
+ *   Overwrites the body size of the SPI packet structure.
+ *
+ * Input Parameters:
+ *   pkt         - Pointer to SPI packet structure.
+ *   sz          - Buffer size for SPI protocol body sending.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
 void altmdm_overwrite_body_size(FAR altmdm_spipkt_t *pkt, uint16_t sz);
+
+/****************************************************************************
+ * Name: altmdm_set_sleeppkt
+ *
+ * Description:
+ *   Set sleep packet parameters to SPI packet structure.
+ *
+ * Input Parameters:
+ *   pkt         - Pointer to SPI packet structure.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
 void altmdm_set_sleeppkt(FAR altmdm_spipkt_t *pkt);
+
+/****************************************************************************
+ * Name: altmdm_is_valid_spipkt_header
+ *
+ * Description:
+ *   Checks if the header received from ALT1250 is valid.
+ *
+ * Input Parameters:
+ *   pkt         - Pointer to SPI packet structure for reception.
+ *
+ * Returned Value:
+ *   Returns true if the header is valid, false otherwise.
+ *
+ ****************************************************************************/
+
 bool altmdm_is_valid_spipkt_header(FAR altmdm_spipkt_t *pkt);
+
+/****************************************************************************
+ * Name: altmdm_is_sleeppkt_ok
+ *
+ * Description:
+ *   Checks if the sleep packet received from ALT1250 is OK.
+ *
+ * Input Parameters:
+ *   pkt         - Pointer to SPI packet structure for reception.
+ *
+ * Returned Value:
+ *   Returns true if the contents of the sleep packet are OK,
+ *   false otherwise.
+ *
+ ****************************************************************************/
+
 bool altmdm_is_sleeppkt_ok(FAR altmdm_spipkt_t *pkt);
+
+/****************************************************************************
+ * Name: altmdm_do_hdr_transaction
+ *
+ * Description:
+ *   Initiates a transaction for the SPI protocol header.
+ *
+ * Input Parameters:
+ *   spidev      - An SPI instance that communicates with the ALT1250.
+ *   lower       - An instance of the lower interface.
+ *   tx_pkt      - Pointer to SPI packet structure for sending.
+ *   rx_pkt      - Pointer to SPI packet structure for reception.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
 void altmdm_do_hdr_transaction(FAR struct spi_dev_s *spidev,
   FAR const struct alt1250_lower_s *lower, FAR altmdm_spipkt_t *tx_pkt,
   FAR altmdm_spipkt_t *rx_pkt);
+
+/****************************************************************************
+ * Name: altmdm_do_body_transaction
+ *
+ * Description:
+ *   Initiates a transaction for the SPI protocol body.
+ *
+ * Input Parameters:
+ *   spidev      - An SPI instance that communicates with the ALT1250.
+ *   lower       - An instance of the lower interface.
+ *   tx_pkt      - Pointer to SPI packet structure for sending.
+ *   rx_pkt      - Pointer to SPI packet structure for reception.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
 void altmdm_do_body_transaction(FAR struct spi_dev_s *spidev,
   FAR const struct alt1250_lower_s *lower, FAR altmdm_spipkt_t *tx_pkt,
   FAR altmdm_spipkt_t *rx_pkt);

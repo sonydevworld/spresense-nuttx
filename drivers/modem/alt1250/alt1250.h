@@ -35,6 +35,24 @@
  * Public Function Prototypes
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: get_event_lapibuffer
+ *
+ * Description:
+ *   Gets the buffer used in the LAPI event.
+ *
+ * Input Parameters:
+ *   dev         - An device instance of the ALT11250 driver.
+ *   lapicmdid   - ID of the LAPI command.
+ *   inst        - A pointer to an instance of the LAPI event buffer.
+ *
+ * Returned Value:
+ *   Returns a bitmap indicating the location of the LAPI event buffer.
+ *   If the buffer associated with the specified lapicmdid does not exist,
+ *   NULL is returned.
+ *
+ ****************************************************************************/
+
 uint64_t get_event_lapibuffer(FAR struct alt1250_dev_s *dev,
   uint32_t lapicmdid, alt_evtbuf_inst_t **inst);
 
