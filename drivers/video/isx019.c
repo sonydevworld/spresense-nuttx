@@ -1260,6 +1260,16 @@ static int validate_format(int nr_fmt, FAR imgsensor_format_t *fmt)
   uint16_t sub_w;
   uint16_t sub_h;
 
+  if ((nr_fmt < 1) || (nr_fmt > 2))
+    {
+      return -EINVAL;
+    }
+
+  if (fmt == NULL)
+    {
+      return -EINVAL;
+    }
+
   main_w = fmt[IMGSENSOR_FMT_MAIN].width;
   main_h = fmt[IMGSENSOR_FMT_MAIN].height;
 
@@ -1303,6 +1313,11 @@ static int validate_frameinterval(FAR imgsensor_interval_t *interval)
 {
   int ret = -EINVAL;
 
+  if (interval == NULL)
+    {
+      return -EINVAL;
+    }
+
   /* Avoid multiplication overflow */
 
   if ((interval->denominator * 2) / 2 != interval->denominator)
@@ -1341,35 +1356,13 @@ static int isx019_validate_frame_setting(imgsensor_stream_type_t type,
 {
   int ret = OK;
 
-  if ((fmt == NULL) ||
-      (interval == NULL))
-    {
-      return -EINVAL;
-    }
-
-  if ((nr_fmt < 1) || (nr_fmt > 2))
-    {
-      return -EINVAL;
-    }
-
   ret = validate_format(nr_fmt, fmt);
-  ret = validate_frameinterval(interval);
-
-  switch ((interval->denominator * 2) / interval->numerator)
+  if (ret != OK)
     {
-      case 60:  /* 30FPS  */
-      case 30:  /* 15FPS  */
-      case 20:  /* 10FPS  */
-      case 10:  /* 7.5FPS */
-        ret = OK;
-        break;
-
-      default:  /* otherwise  */
-        ret = -EINVAL;
-        break;
+      return ret;
     }
 
-  return ret;
+  return validate_frameinterval(interval);
 }
 
 static int activate_flip(imgsensor_stream_type_t type)
