@@ -350,6 +350,14 @@ static int wiznet_ioctl_recv(FAR struct wiznet_dev_s *dev,
       msg->result = ret;
       ret = OK;
 
+      /* Set the address family */
+
+      if (SOCK_STREAM != msg->type)
+        {
+          addr->sin_family = AF_INET;
+          addr->sin_port = htons(addr->sin_port);
+        }
+
       wiznet_reset_interrupt(dev, msg->sockfd);
     }
   else
