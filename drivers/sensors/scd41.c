@@ -508,9 +508,8 @@ static int scd41_read_values(FAR struct scd41_dev_s *priv, FAR float *temp,
           return ret;
         }
 
-      add_sensor_randomness(((data[0].crc ^ data[1].crc) << 0) ^
-                            ((data[2].crc ^ data[3].crc) << 8) ^
-                            ((data[4].crc ^ data[5].crc) << 16));
+      add_sensor_randomness((data[0].crc << 16) ^ (data[1].crc << 8) ^
+                            data[2].crc);
 
       priv->co2 = (float)scd41_data_word2uint16(data + 0);
       uint16_t tval = scd41_data_word2uint16(data + 1);
