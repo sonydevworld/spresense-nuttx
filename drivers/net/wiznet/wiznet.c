@@ -350,6 +350,14 @@ static int wiznet_ioctl_recv(FAR struct wiznet_dev_s *dev,
       msg->result = ret;
       ret = OK;
 
+      /* Set the address family */
+
+      if (SOCK_STREAM != msg->type)
+        {
+          addr->sin_family = AF_INET;
+          addr->sin_port = htons(addr->sin_port);
+        }
+
       wiznet_reset_interrupt(dev, msg->sockfd);
     }
   else
@@ -460,11 +468,11 @@ static int wiznet_ioctl_ifreq(FAR struct wiznet_dev_s *dev,
     {
       case SIOCGIFHWADDR:
       case SIOCGIFADDR:
-      case SIOCGIFBRDADDR:
+      case SIOCGIFDSTADDR:
       case SIOCGIFNETMASK:
       case SIOCSIFHWADDR:
       case SIOCSIFADDR:
-      case SIOCSIFBRDADDR:
+      case SIOCSIFDSTADDR:
       case SIOCSIFNETMASK:
         wiznet_get_net(dev, &netinfo);
         break;
@@ -487,8 +495,8 @@ static int wiznet_ioctl_ifreq(FAR struct wiznet_dev_s *dev,
                 (uint8_t *)&netinfo.ip, 4);
         break;
 
-      case SIOCGIFBRDADDR:
-        addr = (struct sockaddr_in *)&msg->ifr.ifr_broadaddr;
+      case SIOCGIFDSTADDR:
+        addr = (struct sockaddr_in *)&msg->ifr.ifr_dstaddr;
         memmove((uint8_t *)&addr->sin_addr.s_addr,
                 (uint8_t *)&netinfo.gw, 4);
         break;
@@ -513,9 +521,9 @@ static int wiznet_ioctl_ifreq(FAR struct wiznet_dev_s *dev,
         wiznet_set_net(dev, &netinfo);
         break;
 
-      case SIOCSIFBRDADDR:
+      case SIOCSIFDSTADDR:
         netinfo.dhcp = false;
-        addr = (struct sockaddr_in *)&msg->ifr.ifr_broadaddr;
+        addr = (struct sockaddr_in *)&msg->ifr.ifr_dstaddr;
         memmove((uint8_t *)&netinfo.gw,
                 (uint8_t *)&addr->sin_addr.s_addr, 4);
         wiznet_set_net(dev, &netinfo);
