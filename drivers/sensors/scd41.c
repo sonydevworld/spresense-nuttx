@@ -814,7 +814,7 @@ static int scd41_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case SNIOC_SET_TEMP_OFFSET:
         {
-          if (arg < 0 && arg > UINT16_MAX)
+          if (arg > UINT16_MAX)
             {
               ret = -EINVAL;
               break;
@@ -832,7 +832,7 @@ static int scd41_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case SNIOC_SET_PRESSURE_COMP:
         {
-          if (arg < 0 && arg > UINT16_MAX)
+          if (arg > UINT16_MAX)
             {
               ret = -EINVAL;
               break;
@@ -849,7 +849,7 @@ static int scd41_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case SNIOC_SET_ALTITUDE_COMP:
         {
-          if (arg < 0 && arg > UINT16_MAX)
+          if (arg > UINT16_MAX)
             {
               ret = -EINVAL;
               break;
@@ -866,7 +866,7 @@ static int scd41_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case SNIOC_SET_FRC:
         {
-          if (arg < 0 && arg > UINT16_MAX)
+          if (arg > UINT16_MAX)
             {
               ret = -EINVAL;
               break;
