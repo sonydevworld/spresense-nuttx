@@ -60,6 +60,7 @@
 #include "cxd56_kx022.h"
 #include "cxd56_lt1pa01.h"
 #include "cxd56_rpr0521rs.h"
+#include "cxd56_scd41.h"
 #include "cxd56_sensors.h"
 
 #ifdef CONFIG_VIDEO_ISX012
