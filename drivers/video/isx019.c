@@ -1321,7 +1321,7 @@ static int validate_frameinterval(FAR imgsensor_interval_t *interval)
 
   /* Avoid multiplication overflow */
 
-  if ((interval->denominator * 2) / 2 != interval->denominator)
+  if ((interval->denominator * 10) / 10 != interval->denominator)
     {
       return -EINVAL;
     }
@@ -1333,12 +1333,12 @@ static int validate_frameinterval(FAR imgsensor_interval_t *interval)
       return -EINVAL;
     }
 
-  switch ((interval->denominator * 2) / interval->numerator)
+  switch ((interval->denominator * 10) / interval->numerator)
     {
-      case 60:  /* 30FPS  */
-      case 30:  /* 15FPS  */
-      case 20:  /* 10FPS  */
-      case 10:  /* 7.5FPS */
+      case 300:  /* 30FPS  */
+      case 150:  /* 15FPS  */
+      case 100:  /* 10FPS  */
+      case 75:   /* 7.5FPS */
         ret = OK;
         break;
 
@@ -1574,22 +1574,30 @@ static int isx019_start_capture(imgsensor_stream_type_t type,
         }
     }
 
-  switch ((interval->denominator * 2) / interval->numerator)
+  switch ((interval->denominator * 10) / interval->numerator)
     {
-      case 60:  /* 30FPS */
+      case 300:  /* 30FPS */
         regval |= FPGA_FPS_1_1;
         break;
 
-      case 30:  /* 15FPS */
+      case 150:  /* 15FPS */
         regval |= FPGA_FPS_1_2;
         break;
 
-      case 20:  /* 10FPS */
+      case 100:  /* 10FPS */
         regval |= FPGA_FPS_1_3;
         break;
 
-      default:  /* 7.5FPS */
+      case 75:   /* 7.5FPS */
         regval |= FPGA_FPS_1_4;
+        break;
+
+      default:   /* otherwise */
+
+        /* It may not come here because the value has already been validated
+         * in validate_frameinterval().
+         */
+
         break;
     }
 
