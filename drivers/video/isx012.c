@@ -2046,10 +2046,12 @@ static int isx012_get_value(uint32_t id,
         break;
 
       case IMGSENSOR_ID_ISO_SENSITIVITY:
-        readvalue = isx012_getreg(priv, ISX012_REG_ISO, ISX012_SIZE_ISO);
+        readvalue = isx012_getreg(priv,
+                                  ISX012_REG_ISOAUTOVALUE,
+                                  ISX012_SIZE_ISOAUTOVALUE);
 
         ret = -EINVAL;
-        for (cnt = 0; cnt < ARRAY_NENTRIES(g_isx012_presetwb_regval); cnt++)
+        for (cnt = 0; cnt < ARRAY_NENTRIES(g_isx012_iso_regval); cnt++)
           {
             if (g_isx012_iso_regval[cnt] == readvalue)
               {
