@@ -2333,6 +2333,7 @@ static int set_iso(imgsensor_value_t val)
 
 static int set_iso_auto(imgsensor_value_t val)
 {
+  uint8_t  buf;
   uint16_t gain;
 
   if (val.value32 == IMGSENSOR_ISO_SENSITIVITY_AUTO)
@@ -2353,8 +2354,8 @@ static int set_iso_auto(imgsensor_value_t val)
            *        So, convert the unit to 0.1dB.
            */
 
-          isx019_i2c_read(CAT_AECOM, GAIN_LEVEL, (uint8_t *)&gain, 2);
-          gain *= 3;
+          isx019_i2c_read(CAT_AECOM, GAIN_LEVEL, &buf, 1);
+          gain = buf * 3;
         }
 
       g_isx019_private.iso = val.value32;
