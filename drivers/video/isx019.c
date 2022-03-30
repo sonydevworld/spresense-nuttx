@@ -1901,6 +1901,16 @@ static int32_t convert_hue_reg2is(int32_t val)
   return (val * 128) / 90;
 }
 
+static int32_t convert_awb_is2reg(int32_t val)
+{
+  return (val == 1) ? 0 : 2;
+}
+
+static int32_t convert_awb_reg2is(int32_t val)
+{
+  return (val == 0) ? 1 : 0;
+}
+
 static int32_t convert_hdr_is2reg(int32_t val)
 {
   int32_t ret = AEWDMODE_AUTO;
@@ -1983,7 +1993,7 @@ static convert_t get_reginfo(uint32_t id, bool is_set, isx019_reginfo_t *reg)
 
       case IMGSENSOR_ID_AUTO_WHITE_BALANCE:
         SET_REGINFO(reg, CAT_CATAWB, AWBMODE, 1);
-        cvrt = is_set ? convert_hue_is2reg : convert_hue_reg2is;
+        cvrt = is_set ? convert_awb_is2reg : convert_awb_reg2is;
         break;
 
       case IMGSENSOR_ID_EXPOSURE:
