@@ -88,7 +88,8 @@
                                   COMPARE_FRAMESIZE((w), (h),  640, 480) || \
                                   COMPARE_FRAMESIZE((w), (h),  640, 360) || \
                                   COMPARE_FRAMESIZE((w), (h),  480, 360) || \
-                                  COMPARE_FRAMESIZE((w), (h),  320, 240))
+                                  COMPARE_FRAMESIZE((w), (h),  320, 240) || \
+                                  COMPARE_FRAMESIZE((w), (h),  160, 120))
 
 #define VALIDATE_THUMNAIL_SIZE(m, s) (((s) != 0) && \
                                       ((m) % (s) == 0) && \
