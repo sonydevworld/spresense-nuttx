@@ -69,7 +69,7 @@
 #define MAX_AE        (1)   
 #define STEP_AE       (1)     
 
-#define MIN_EXPOSURETIME        (0)     
+#define MIN_EXPOSURETIME        (1)
 #define MAX_EXPOSURETIME        (102000)   
 #define STEP_EXPOSURETIME       (1)     
 
