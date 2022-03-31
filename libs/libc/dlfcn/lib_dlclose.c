@@ -25,6 +25,8 @@
 #include <nuttx/config.h>
 
 #include <dlfcn.h>
+#include <assert.h>
+#include <debug.h>
 #include <errno.h>
 
 #include <nuttx/module.h>
@@ -112,17 +114,30 @@ static inline int dlremove(FAR void *handle)
 
   /* Release resources held by the module */
 
-  if (modp->alloc != NULL)
+  if (modp->textalloc != NULL)
     {
       /* Free the module memory */
 
-      lib_free((FAR void *)modp->alloc);
+      lib_free((FAR void *)modp->textalloc);
 
       /* Nullify so that the memory cannot be freed again */
 
-      modp->alloc = NULL;
+      modp->textalloc = NULL;
 #if defined(CONFIG_FS_PROCFS) && !defined(CONFIG_FS_PROCFS_EXCLUDE_MODULE)
       modp->textsize  = 0;
+#endif
+    }
+
+  if (modp->dataalloc != NULL)
+    {
+      /* Free the module memory */
+
+      lib_free((FAR void *)modp->dataalloc);
+
+      /* Nullify so that the memory cannot be freed again */
+
+      modp->dataalloc = NULL;
+#if defined(CONFIG_FS_PROCFS) && !defined(CONFIG_FS_PROCFS_EXCLUDE_MODULE)
       modp->datasize  = 0;
 #endif
     }

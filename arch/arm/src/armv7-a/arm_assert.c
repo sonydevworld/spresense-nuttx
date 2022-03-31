@@ -75,11 +75,11 @@ static uint32_t s_last_regs[XCPTCONTEXT_REGS];
  ****************************************************************************/
 
 #ifdef CONFIG_ARCH_STACKDUMP
-static void up_stackdump(uint32_t sp, uint32_t stack_base)
+static void up_stackdump(uint32_t sp, uint32_t stack_top)
 {
-  uint32_t stack ;
+  uint32_t stack;
 
-  for (stack = sp & ~0x1f; stack < stack_base; stack += 32)
+  for (stack = sp & ~0x1f; stack < stack_top; stack += 32)
     {
       uint32_t *ptr = (uint32_t *)stack;
       _alert("%08x: %08x %08x %08x %08x %08x %08x %08x %08x\n",
@@ -88,43 +88,7 @@ static void up_stackdump(uint32_t sp, uint32_t stack_base)
     }
 }
 #else
-#  define up_stackdump(sp,stack_base)
-#endif
-
-/****************************************************************************
- * Name: up_taskdump
- ****************************************************************************/
-
-#ifdef CONFIG_STACK_COLORATION
-static void up_taskdump(FAR struct tcb_s *tcb, FAR void *arg)
-{
-  /* Dump interesting properties of this task */
-
-#if CONFIG_TASK_NAME_SIZE > 0
-  _alert("%s: PID=%d Stack Used=%lu of %lu\n",
-        tcb->name, tcb->pid, (unsigned long)up_check_tcbstack(tcb),
-        (unsigned long)tcb->adj_stack_size);
-#else
-  _alert("PID: %d Stack Used=%lu of %lu\n",
-        tcb->pid, (unsigned long)up_check_tcbstack(tcb),
-        (unsigned long)tcb->adj_stack_size);
-#endif
-}
-#endif
-
-/****************************************************************************
- * Name: up_showtasks
- ****************************************************************************/
-
-#ifdef CONFIG_STACK_COLORATION
-static inline void up_showtasks(void)
-{
-  /* Dump interesting properties of each task in the crash environment */
-
-  nxsched_foreach(up_taskdump, NULL);
-}
-#else
-#  define up_showtasks()
+#  define up_stackdump(sp,stack_top)
 #endif
 
 /****************************************************************************
@@ -132,9 +96,8 @@ static inline void up_showtasks(void)
  ****************************************************************************/
 
 #ifdef CONFIG_ARCH_STACKDUMP
-static inline void up_registerdump(void)
+static inline void up_registerdump(FAR volatile uint32_t *regs)
 {
-  volatile uint32_t *regs = CURRENT_REGS;
   int reg;
 
   /* Are user registers available from interrupt processing? */
@@ -160,7 +123,60 @@ static inline void up_registerdump(void)
   _alert("CPSR: %08x\n", regs[REG_CPSR]);
 }
 #else
-# define up_registerdump()
+# define up_registerdump(regs)
+#endif
+
+/****************************************************************************
+ * Name: up_taskdump
+ ****************************************************************************/
+
+#if defined(CONFIG_STACK_COLORATION) || defined(CONFIG_SCHED_BACKTRACE)
+static void up_taskdump(FAR struct tcb_s *tcb, FAR void *arg)
+{
+  /* Dump interesting properties of this task */
+
+  _alert(
+#if CONFIG_TASK_NAME_SIZE > 0
+         "%s: "
+#endif
+         "PID=%d "
+#ifdef CONFIG_STACK_COLORATION
+         "Stack Used=%lu of %lu\n",
+#else
+         "Stack=%lu\n",
+#endif
+#if CONFIG_TASK_NAME_SIZE > 0
+        tcb->name,
+#endif
+        tcb->pid,
+#ifdef CONFIG_STACK_COLORATION
+        (unsigned long)up_check_tcbstack(tcb),
+#endif
+        (unsigned long)tcb->adj_stack_size);
+
+  /* Show back trace */
+
+#ifdef CONFIG_SCHED_BACKTRACE
+  sched_dumpstack(tcb->pid);
+#endif
+
+  /* Dump the registers */
+
+  up_registerdump(tcb->xcp.regs);
+}
+
+/****************************************************************************
+ * Name: up_showtasks
+ ****************************************************************************/
+
+static inline void up_showtasks(void)
+{
+  /* Dump interesting properties of each task in the crash environment */
+
+  nxsched_foreach(up_taskdump, NULL);
+}
+#else
+#  define up_showtasks()
 #endif
 
 /****************************************************************************
@@ -195,7 +211,7 @@ static int assert_tracecallback(FAR struct usbtrace_s *trace, FAR void *arg)
 static void up_dumpstate(void)
 {
   struct tcb_s *rtcb = running_task();
-  uint32_t sp   = arm_getsp();
+  uint32_t sp = up_getsp();
   uint32_t ustackbase;
   uint32_t ustacksize;
 #if CONFIG_ARCH_INTERRUPTSTACK > 7
@@ -206,13 +222,19 @@ static void up_dumpstate(void)
   uint32_t kstackbase = 0;
 #endif
 
+  /* Show back trace */
+
+#ifdef CONFIG_SCHED_BACKTRACE
+  sched_dumpstack(rtcb->pid);
+#endif
+
   /* Dump the CPU registers (if available) */
 
-  up_registerdump();
+  up_registerdump(CURRENT_REGS);
 
   /* Get the limits on the user stack memory */
 
-  ustackbase = (uint32_t)rtcb->adj_stack_ptr;
+  ustackbase = (uint32_t)rtcb->stack_base_ptr;
   ustacksize = (uint32_t)rtcb->adj_stack_size;
 
   _alert("Current sp: %08x\n", sp);
@@ -221,9 +243,9 @@ static void up_dumpstate(void)
   /* Get the limits on the interrupt stack memory */
 
 #ifdef CONFIG_SMP
-  istackbase = (uint32_t)arm_intstack_base();
+  istackbase = (uint32_t)arm_intstack_alloc();
 #else
-  istackbase = (uint32_t)&g_intstackbase;
+  istackbase = (uint32_t)&g_intstackalloc;
 #endif
   istacksize = (CONFIG_ARCH_INTERRUPTSTACK & ~7);
 
@@ -251,8 +273,7 @@ static void up_dumpstate(void)
 
   if (rtcb->xcp.kstack)
     {
-      kstackbase = (uint32_t)rtcb->xcp.kstack +
-                   CONFIG_ARCH_KERNEL_STACKSIZE;
+      kstackbase = (uint32_t)rtcb->xcp.kstack;
 
       _alert("Kernel stack:\n");
       _alert("  base: %08x\n", kstackbase);
@@ -263,17 +284,17 @@ static void up_dumpstate(void)
 #if CONFIG_ARCH_INTERRUPTSTACK > 7
   /* Does the current stack pointer lie within the interrupt stack? */
 
-  if (sp > istackbase - istacksize && sp < istackbase)
+  if (sp >= istackbase && sp < istackbase + istacksize)
     {
       /* Yes.. dump the interrupt stack */
 
       _alert("Interrupt Stack\n", sp);
-      up_stackdump(sp, istackbase);
+      up_stackdump(sp, istackbase + istacksize);
     }
   else if (CURRENT_REGS)
     {
       _alert("ERROR: Stack pointer is not within the interrupt stack\n");
-      up_stackdump(istackbase - istacksize, istackbase);
+      up_stackdump(istackbase, istackbase + istacksize);
     }
 #endif
 
@@ -292,10 +313,10 @@ static void up_dumpstate(void)
    * stack memory.
    */
 
-  if (sp > ustackbase - ustacksize && sp < ustackbase)
+  if (sp >= ustackbase && sp < ustackbase + ustacksize)
     {
       _alert("User Stack\n", sp);
-      up_stackdump(sp, ustackbase);
+      up_stackdump(sp, ustackbase + ustacksize);
     }
 
 #ifdef CONFIG_ARCH_KERNEL_STACK
@@ -303,18 +324,19 @@ static void up_dumpstate(void)
    * kernel stack memory.
    */
 
-  else if (sp >= (uint32_t)rtcb->xcp.kstack && sp < kstackbase)
+  else if (sp >= kstackbase &&
+           sp < kstackbase + CONFIG_ARCH_KERNEL_STACKSIZE)
     {
       _alert("Kernel Stack\n", sp);
-      up_stackdump(sp, kstackbase);
+      up_stackdump(sp, kstackbase + CONFIG_ARCH_KERNEL_STACKSIZE);
     }
 #endif
   else
     {
       _alert("ERROR: Stack pointer is not within the allocated stack\n");
-      up_stackdump(ustackbase - ustacksize, ustackbase);
+      up_stackdump(ustackbase, ustackbase + ustacksize);
 #ifdef CONFIG_ARCH_KERNEL_STACK
-      up_stackdump((uint32_t)rtcb->xcp.kstack, kstackbase);
+      up_stackdump(kstackbase, kstackbase + CONFIG_ARCH_KERNEL_STACKSIZE);
 #endif
     }
 
@@ -395,10 +417,6 @@ static void _up_assert(void)
 
 void up_assert(const char *filename, int lineno)
 {
-#if CONFIG_TASK_NAME_SIZE > 0 && defined(CONFIG_DEBUG_ALERT)
-  struct tcb_s *rtcb = running_task();
-#endif
-
   board_autoled_on(LED_ASSERTION);
 
   /* Flush any buffered SYSLOG data (prior to the assertion) */
@@ -408,18 +426,18 @@ void up_assert(const char *filename, int lineno)
 #ifdef CONFIG_SMP
 #if CONFIG_TASK_NAME_SIZE > 0
   _alert("Assertion failed CPU%d at file:%s line: %d task: %s\n",
-        up_cpu_index(), filename, lineno, rtcb->name);
+         up_cpu_index(), filename, lineno, running_task()->name);
 #else
   _alert("Assertion failed CPU%d at file:%s line: %d\n",
-        up_cpu_index(), filename, lineno);
+         up_cpu_index(), filename, lineno);
 #endif
 #else
 #if CONFIG_TASK_NAME_SIZE > 0
   _alert("Assertion failed at file:%s line: %d task: %s\n",
-        filename, lineno, rtcb->name);
+         filename, lineno, running_task()->name);
 #else
   _alert("Assertion failed at file:%s line: %d\n",
-        filename, lineno);
+         filename, lineno);
 #endif
 #endif
 
@@ -430,7 +448,7 @@ void up_assert(const char *filename, int lineno)
   syslog_flush();
 
 #ifdef CONFIG_BOARD_CRASHDUMP
-  board_crashdump(arm_getsp(), running_task(), filename, lineno);
+  board_crashdump(up_getsp(), running_task(), filename, lineno);
 #endif
 
   _up_assert();

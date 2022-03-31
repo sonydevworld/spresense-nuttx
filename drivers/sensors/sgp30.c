@@ -44,6 +44,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
+#include <assert.h>
 #include <errno.h>
 #include <time.h>
 #include <debug.h>
@@ -912,7 +913,7 @@ static int sgp30_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         {
           /* Input is absolute humidity in unit "mg/m^3". */
 
-          if (arg < 0 || arg >= 256000)
+          if (arg >= 256000)
             {
               ret = -EINVAL;
               break;

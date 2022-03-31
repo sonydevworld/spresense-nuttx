@@ -55,7 +55,12 @@
 #undef  _POSIX_MAPPED_FILES
 #undef  _POSIX_SHARED_MEMORY_OBJECTS
 #define _POSIX_PRIORITY_SCHEDULING 1
-#define _POSIX_TIMERS 1
+#ifndef CONFIG_DISABLE_POSIX_TIMERS
+#  define _POSIX_TIMERS 1
+#endif
+#if !defined(CONFIG_DISABLE_MQUEUE) && !defined(CONFIG_DISABLE_PTHREAD)
+#  define _POSIX_TIMEOUTS 1
+#endif
 #undef  _POSIX_MEMLOCK
 #undef  _POSIX_MEMLOCK_RANGE
 #undef  _POSIX_FSYNC
@@ -262,10 +267,19 @@
 
 /* Accessor functions associated with getopt(). */
 
-#define optarg  (*(getoptargp()))
-#define opterr  (*(getopterrp()))
-#define optind  (*(getoptindp()))
-#define optopt  (*(getoptoptp()))
+#define optarg                           (*(getoptargp()))
+#define opterr                           (*(getopterrp()))
+#define optind                           (*(getoptindp()))
+#define optopt                           (*(getoptoptp()))
+
+#if defined(CONFIG_FS_LARGEFILE) && defined(CONFIG_HAVE_LONG_LONG)
+#  define lseek64                        lseek
+#  define pread64                        pread
+#  define pwrite64                       pwrite
+#  define truncate64                     truncate
+#  define ftruncate64                    ftruncate
+#  define lockf64                        lockf
+#endif
 
 /****************************************************************************
  * Public Data
@@ -296,6 +310,8 @@ void    _exit(int status) noreturn_function;
 unsigned int sleep(unsigned int seconds);
 int     usleep(useconds_t usec);
 int     pause(void);
+int     nice(int inc);
+
 int     daemon(int nochdir, int noclose);
 
 /* File descriptor operations */
@@ -310,11 +326,15 @@ ssize_t write(int fd, FAR const void *buf, size_t nbytes);
 ssize_t pread(int fd, FAR void *buf, size_t nbytes, off_t offset);
 ssize_t pwrite(int fd, FAR const void *buf, size_t nbytes, off_t offset);
 int     ftruncate(int fd, off_t length);
+int     fchown(int fd, uid_t owner, gid_t group);
 
 #ifdef CONFIG_SERIAL_TERMIOS
 /* Check if a file descriptor corresponds to a terminal I/O file */
 
 int     isatty(int fd);
+
+FAR char *ttyname(int fd);
+int       ttyname_r(int fd, FAR char *buf, size_t buflen);
 #endif
 
 /* Memory management */
@@ -346,6 +366,8 @@ int     unlink(FAR const char *pathname);
 int     truncate(FAR const char *path, off_t length);
 int     symlink(FAR const char *path1, FAR const char *path2);
 ssize_t readlink(FAR const char *path, FAR char *buf, size_t bufsize);
+int     chown(FAR const char *path, uid_t owner, gid_t group);
+int     lchown(FAR const char *path, uid_t owner, gid_t group);
 
 /* Execution of programs from files */
 

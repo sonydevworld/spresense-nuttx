@@ -41,7 +41,12 @@ extern "C"
 
 int isx019_initialize(void);
 int isx019_uninitialize(void);
-
+#ifdef CONFIG_VIDEO_ISX019_REGDEBUG
+int isx019_read_register(uint8_t  cat,
+                         uint16_t addr,
+                         uint8_t  *buf,
+                         uint8_t  size);
+#endif
 #undef EXTERN
 #ifdef __cplusplus
 }

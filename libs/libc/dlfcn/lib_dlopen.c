@@ -29,6 +29,7 @@
 #include <libgen.h>
 #include <dlfcn.h>
 #include <assert.h>
+#include <debug.h>
 #include <errno.h>
 
 #include <nuttx/envpath.h>
@@ -208,7 +209,8 @@ static inline FAR void *dlinsert(FAR const char *filename)
 
   /* Save the load information */
 
-  modp->alloc       = (FAR void *)loadinfo.textalloc;
+  modp->textalloc       = (FAR void *)loadinfo.textalloc;
+  modp->dataalloc       = (FAR void *)loadinfo.datastart;
 #if defined(CONFIG_FS_PROCFS) && !defined(CONFIG_FS_PROCFS_EXCLUDE_MODULE)
   modp->textsize    = loadinfo.textsize;
   modp->datasize    = loadinfo.datasize;
@@ -408,7 +410,7 @@ FAR void *dlopen(FAR const char *file, int mode)
 {
   FAR void *handle = NULL;
 
-#ifdef CONFIG_LIB_ENVPATH
+#ifdef CONFIG_LIBC_ENVPATH
   if (file[0] != '/')
     {
       FAR const char *relpath;

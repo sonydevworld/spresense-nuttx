@@ -26,6 +26,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 #include <debug.h>
 #include <errno.h>
 
@@ -926,6 +927,14 @@ static int cxd56_adc_ioctl(FAR struct file *filep, int cmd,
           {
             ret = seq_ioctl(priv->seq, 0, cmd, arg);
           }
+        break;
+
+      case ANIOC_GET_NCHANNELS:
+        {
+          /* Return the number of configured channels */
+
+          ret = 1;
+        }
         break;
 
       default:

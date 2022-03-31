@@ -140,6 +140,7 @@ int stm32_configgpio(uint32_t cfgset)
   uintptr_t base;
   uint32_t regval;
   uint32_t setting;
+  uint32_t alt_setting;
   unsigned int regoffset;
   unsigned int port;
   unsigned int pin;
@@ -201,6 +202,50 @@ int stm32_configgpio(uint32_t cfgset)
 
   flags = enter_critical_section();
 
+  /* Determine the alternate function (Only alternate function pins) */
+
+  if (pinmode == GPIO_MODER_ALT)
+    {
+      setting = (cfgset & GPIO_AF_MASK) >> GPIO_AF_SHIFT;
+    }
+  else
+    {
+      setting = 0;
+    }
+
+  if (pinmode == GPIO_MODER_ALT)
+    {
+      alt_setting = (cfgset & GPIO_AF_MASK) >> GPIO_AF_SHIFT;
+    }
+  else
+    {
+      alt_setting = 0;
+    }
+
+  /* Set the alternate function (Only alternate function pins)
+   * This is done before configuring the Outputs on a change to
+   * an Alternate function.
+   */
+
+  if (alt_setting != 0)
+    {
+      if (pin < 8)
+        {
+          regoffset = STM32_GPIO_AFRL_OFFSET;
+          pos       = pin;
+        }
+      else
+        {
+          regoffset = STM32_GPIO_AFRH_OFFSET;
+          pos       = pin - 8;
+        }
+
+      regval  = getreg32(base + regoffset);
+      regval &= ~GPIO_AFR_MASK(pos);
+      regval |= (alt_setting << GPIO_AFR_SHIFT(pos));
+      putreg32(regval, base + regoffset);
+    }
+
   /* Now apply the configuration to the mode register */
 
   regval  = getreg32(base + STM32_GPIO_MODER_OFFSET);
@@ -234,32 +279,29 @@ int stm32_configgpio(uint32_t cfgset)
   regval |= (setting << GPIO_PUPDR_SHIFT(pin));
   putreg32(regval, base + STM32_GPIO_PUPDR_OFFSET);
 
-  /* Set the alternate function (Only alternate function pins) */
+  /* Set the alternate function (Only alternate function pins)
+   * This is done after configuring the the pin's connection
+   * on a change away from an Alternate function.
+   */
 
-  if (pinmode == GPIO_MODER_ALT)
-    {
-      setting = (cfgset & GPIO_AF_MASK) >> GPIO_AF_SHIFT;
-    }
-  else
-    {
-      setting = 0;
-    }
+  if (alt_setting == 0)
+      {
+        if (pin < 8)
+          {
+            regoffset = STM32_GPIO_AFRL_OFFSET;
+            pos       = pin;
+          }
+        else
+          {
+            regoffset = STM32_GPIO_AFRH_OFFSET;
+            pos       = pin - 8;
+          }
 
-  if (pin < 8)
-    {
-      regoffset = STM32_GPIO_AFRL_OFFSET;
-      pos       = pin;
-    }
-  else
-    {
-      regoffset = STM32_GPIO_AFRH_OFFSET;
-      pos       = pin - 8;
-    }
-
-  regval  = getreg32(base + regoffset);
-  regval &= ~GPIO_AFR_MASK(pos);
-  regval |= (setting << GPIO_AFR_SHIFT(pos));
-  putreg32(regval, base + regoffset);
+        regval  = getreg32(base + regoffset);
+        regval &= ~GPIO_AFR_MASK(pos);
+        regval |= (alt_setting << GPIO_AFR_SHIFT(pos));
+        putreg32(regval, base + regoffset);
+      }
 
   /* Set speed (Only outputs and alternate function pins) */
 
@@ -448,5 +490,45 @@ bool stm32_gpioread(uint32_t pinset)
 
   return 0;
 }
+
+/****************************************************************************
+ * Name: stm32_iocompensation
+ *
+ * Description:
+ *   Enable I/O compensation.
+ *
+ *   By default the I/O compensation cell is not used. However when the I/O
+ *   output buffer speed is configured in 50 MHz or 100 MHz mode, it is
+ *   recommended to use the compensation cell for slew rate control on I/O
+ *   tf(IO)out)/tr(IO)out commutation to reduce the I/O noise on power
+ *   supply.
+ *
+ *   The I/O compensation cell can be used only when the supply voltage
+ *   ranges from 2.4 to 3.6 V.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_STM32H7_SYSCFG_IOCOMPENSATION
+void stm32_iocompensation(void)
+{
+  /* Enable I/O Compensation.  Writing '1' to the CMPCR power-down bit
+   * enables the I/O compensation cell.
+   */
+
+  putreg32(SYSCFG_CCCSR_EN, STM32_SYSCFG_CCCSR);
+
+  /* Wait for compensation cell to become ready */
+
+  while ((getreg32(STM32_SYSCFG_CCCSR) & SYSCFG_CCCSR_READY) == 0)
+    {
+    }
+}
+#endif
 
 #endif /* CONFIG_STM32H7_STM32H7X3XX || CONFIG_STM32H7_STM32H7X7XX */

@@ -314,6 +314,12 @@ extern "C"
  * @{
  */
 
+/** Get the frame interval.
+ * Address pointing to struct v4l2_streamparm
+ */
+
+#define VIDIOC_G_PARM                 _VIDIOC(0x001e)
+
 #define VIDEO_HSIZE_QVGA        (320)   /**< QVGA    horizontal size */
 #define VIDEO_VSIZE_QVGA        (240)   /**< QVGA    vertical   size */
 #define VIDEO_HSIZE_VGA         (640)   /**< VGA     horizontal size */
@@ -329,7 +335,7 @@ extern "C"
 #define VIDEO_HSIZE_3M          (2048)  /**< 3M      horizontal size */
 #define VIDEO_VSIZE_3M          (1536)  /**< 3M      vertical   size */
 
-/**  Four-character-code (FOURCC) */
+/*  Four-character-code (FOURCC) */
 
 #define v4l2_fourcc(a, b, c, d)\
   ((uint32_t)(a)        | ((uint32_t)(b) << 8) | \

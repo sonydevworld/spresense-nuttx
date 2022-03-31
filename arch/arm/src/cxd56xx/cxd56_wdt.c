@@ -23,13 +23,12 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#ifdef CONFIG_DEBUG_FEATURES
-#include <debug.h>
-#endif
 #include <nuttx/arch.h>
 
 #include <inttypes.h>
 #include <stdint.h>
+#include <assert.h>
+#include <debug.h>
 #include <errno.h>
 
 #include <nuttx/irq.h>

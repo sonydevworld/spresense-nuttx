@@ -44,6 +44,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
+#include <assert.h>
 #include <errno.h>
 #include <time.h>
 #include <debug.h>
@@ -850,7 +851,7 @@ static int scd30_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case SNIOC_SET_INTERVAL:
         {
-          if (arg < 2 && arg > 1800)
+          if (arg < 2 || arg > 1800)
             {
               ret = -EINVAL;
               break;
@@ -866,7 +867,7 @@ static int scd30_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case SNIOC_SET_TEMP_OFFSET:
         {
-          if (arg < 0 && arg > UINT16_MAX)
+          if (arg > UINT16_MAX)
             {
               ret = -EINVAL;
               break;
@@ -882,7 +883,7 @@ static int scd30_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case SNIOC_SET_PRESSURE_COMP:
         {
-          if (arg != 0 && arg < 700 && arg > 1200)
+          if (arg != 0 && (arg < 700 || arg > 1200))
             {
               ret = -EINVAL;
               break;
@@ -906,7 +907,7 @@ static int scd30_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case SNIOC_SET_ALTITUDE_COMP:
         {
-          if (arg < 0 && arg > UINT16_MAX)
+          if (arg > UINT16_MAX)
             {
               ret = -EINVAL;
               break;
@@ -923,7 +924,7 @@ static int scd30_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case SNIOC_SET_FRC:
         {
-          if (arg < 0 && arg > UINT16_MAX)
+          if (arg > UINT16_MAX)
             {
               ret = -EINVAL;
               break;

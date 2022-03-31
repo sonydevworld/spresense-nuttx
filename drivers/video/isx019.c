@@ -30,10 +30,12 @@
 #include <errno.h>
 #include <debug.h>
 #include <nuttx/i2c/i2c_master.h>
+#include <nuttx/signal.h>
 #include <arch/board/board.h>
 #include <nuttx/video/isx019.h>
 #include <nuttx/video/imgsensor.h>
 #include <math.h>
+#include <nuttx/semaphore.h>
 
 #include "isx019_reg.h"
 #include "isx019_range.h"
@@ -41,6 +43,11 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+/* Wait time on power on sequence. */
+
+#define TRANSITION_TIME_TO_STARTUP   (120 * 1000) /* unit : usec */
+#define TRANSITION_TIME_TO_STREAMING (30 * 1000)  /* unit : usec */
 
 /* For get_supported_value() I/F */
 
@@ -81,7 +88,8 @@
                                   COMPARE_FRAMESIZE((w), (h),  640, 480) || \
                                   COMPARE_FRAMESIZE((w), (h),  640, 360) || \
                                   COMPARE_FRAMESIZE((w), (h),  480, 360) || \
-                                  COMPARE_FRAMESIZE((w), (h),  320, 240))
+                                  COMPARE_FRAMESIZE((w), (h),  320, 240) || \
+                                  COMPARE_FRAMESIZE((w), (h),  160, 120))
 
 #define VALIDATE_THUMNAIL_SIZE(m, s) (((s) != 0) && \
                                       ((m) % (s) == 0) && \
@@ -127,6 +135,24 @@
 
 #define JPEG_DQT_ARRAY_SIZE (64)
 
+/* ISX019 standard master clock */
+
+#define ISX019_STANDARD_MASTER_CLOCK (27000000)
+
+/* Vivid colors setting */
+
+#define VIVID_COLORS_SATURATION (0xf0)
+#define VIVID_COLORS_SHARPNESS  (0x20)
+
+/* Black white colors setting */
+
+#define BW_COLORS_SATURATION (0x00)
+
+/* Definition for calculation of extended frame number */
+
+#define VTIME_PER_FRAME    (30518)
+#define INTERVAL_PER_FRAME (33333)
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -171,7 +197,10 @@ typedef struct isx019_rect_s isx019_rect_t;
 
 struct isx019_dev_s
 {
+  sem_t fpga_lock;
+  sem_t i2c_lock;
   FAR struct i2c_master_s *i2c;
+  float clock_ratio;
   isx019_default_value_t  default_value;
   imgsensor_stream_type_t stream;
   imgsensor_white_balance_t wb_mode;
@@ -182,6 +211,7 @@ struct isx019_dev_s
   int32_t iso;
   double  gamma;
   int32_t jpg_quality;
+  imgsensor_colorfx_t colorfx;
 };
 
 typedef struct isx019_dev_s isx019_dev_t;
@@ -242,12 +272,19 @@ static int isx019_start_capture(imgsensor_stream_type_t type,
                                 FAR imgsensor_format_t *datafmts,
                                 FAR imgsensor_interval_t *interval);
 static int isx019_stop_capture(imgsensor_stream_type_t type);
+static int isx019_get_frame_interval(imgsensor_stream_type_t type,
+                                     FAR imgsensor_interval_t *interval);
 static int isx019_get_supported_value
              (uint32_t id, FAR imgsensor_supported_value_t *value);
 static int isx019_get_value
              (uint32_t id, uint32_t size, FAR imgsensor_value_t *value);
 static int isx019_set_value
              (uint32_t id, uint32_t size, imgsensor_value_t value);
+static int initialize_jpg_quality(void);
+static int send_read_cmd(struct i2c_config_s *config,
+                         uint8_t cat,
+                         uint16_t addr,
+                         uint8_t size);
 
 /****************************************************************************
  * Private Data
@@ -264,6 +301,7 @@ static struct imgsensor_ops_s g_isx019_ops =
   .validate_frame_setting = isx019_validate_frame_setting,
   .start_capture          = isx019_start_capture,
   .stop_capture           = isx019_stop_capture,
+  .get_frame_interval     = isx019_get_frame_interval,
   .get_supported_value    = isx019_get_supported_value,
   .get_value              = isx019_get_value,
   .set_value              = isx019_set_value,
@@ -706,16 +744,68 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
 #define NR_JPGSETTING_TBL \
         (sizeof(g_isx019_jpg_quality) / sizeof(isx019_fpga_jpg_quality_t))
 
+int32_t g_isx019_colorfx[] =
+{
+  IMGSENSOR_COLORFX_NONE,
+  IMGSENSOR_COLORFX_BW,
+  IMGSENSOR_COLORFX_VIVID,
+};
+
+#define NR_COLORFX (sizeof(g_isx019_colorfx) / sizeof(int32_t))
+
+int32_t g_isx019_wbmode[] =
+{
+  IMGSENSOR_WHITE_BALANCE_AUTO,
+  IMGSENSOR_WHITE_BALANCE_INCANDESCENT,
+  IMGSENSOR_WHITE_BALANCE_FLUORESCENT,
+  IMGSENSOR_WHITE_BALANCE_DAYLIGHT,
+  IMGSENSOR_WHITE_BALANCE_CLOUDY,
+  IMGSENSOR_WHITE_BALANCE_SHADE,
+};
+
+#define NR_WBMODE (sizeof(g_isx019_wbmode) / sizeof(int32_t))
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+static void i2c_lock(void)
+{
+  nxsem_wait_uninterruptible(&g_isx019_private.i2c_lock);
+}
+
+static void i2c_unlock(void)
+{
+  nxsem_post(&g_isx019_private.i2c_lock);
+}
+
+static void fpga_lock(void)
+{
+  nxsem_wait_uninterruptible(&g_isx019_private.fpga_lock);
+}
+
+static void fpga_unlock(void)
+{
+  nxsem_post(&g_isx019_private.fpga_lock);
+}
 
 static int fpga_i2c_write(uint8_t addr, uint8_t *data, uint8_t size)
 {
   struct i2c_config_s config;
   static uint8_t buf[FPGA_I2C_REGSIZE_MAX + FPGA_I2C_REGADDR_LEN];
+  int ret;
 
   DEBUGASSERT(size <= FPGA_I2C_REGSIZE_MAX);
+
+  config.frequency = ISX019_I2C_FREQUENCY;
+  config.address   = ISX019_I2C_SLVADDR;
+  config.addrlen   = ISX019_I2C_SLVADDR_LEN;
+
+  i2c_lock();
+
+  /* ISX019 requires that send read command to ISX019 before FPGA access. */
+
+  send_read_cmd(&config, CAT_VERSION, ROM_VERSION, 1);
 
   config.frequency = FPGA_I2C_FREQUENCY;
   config.address   = FPGA_I2C_SLVADDR;
@@ -723,10 +813,13 @@ static int fpga_i2c_write(uint8_t addr, uint8_t *data, uint8_t size)
 
   buf[FPGA_I2C_OFFSET_ADDR] = addr;
   memcpy(&buf[FPGA_I2C_OFFSET_WRITEDATA], data, size);
-  return i2c_write(g_isx019_private.i2c,
-                   &config,
-                   buf,
-                   size + FPGA_I2C_REGADDR_LEN);
+  ret = i2c_write(g_isx019_private.i2c,
+                  &config,
+                  buf,
+                  size + FPGA_I2C_REGADDR_LEN);
+  i2c_unlock();
+
+  return ret;
 }
 
 static int fpga_i2c_read(uint8_t addr, uint8_t *data, uint8_t size)
@@ -736,6 +829,16 @@ static int fpga_i2c_read(uint8_t addr, uint8_t *data, uint8_t size)
 
   DEBUGASSERT(size <= FPGA_I2C_REGSIZE_MAX);
 
+  config.frequency = ISX019_I2C_FREQUENCY;
+  config.address   = ISX019_I2C_SLVADDR;
+  config.addrlen   = ISX019_I2C_SLVADDR_LEN;
+
+  i2c_lock();
+
+  /* ISX019 requires that send read command to ISX019 before FPGA access. */
+
+  send_read_cmd(&config, CAT_VERSION, ROM_VERSION, 1);
+
   config.frequency = FPGA_I2C_FREQUENCY;
   config.address   = FPGA_I2C_SLVADDR;
   config.addrlen   = FPGA_I2C_SLVADDR_LEN;
@@ -744,12 +847,14 @@ static int fpga_i2c_read(uint8_t addr, uint8_t *data, uint8_t size)
                   &config,
                   &addr,
                   FPGA_I2C_REGADDR_LEN);
-  if (ret < 0)
+  if (ret >= 0)
     {
-      return ret;
+      ret = i2c_read(g_isx019_private.i2c, &config, data, size);
     }
 
-  return i2c_read(g_isx019_private.i2c, &config, data, size);
+  i2c_unlock();
+
+  return ret;
 }
 
 static void fpga_activate_setting(void)
@@ -880,7 +985,10 @@ static int send_write_cmd(struct i2c_config_s *config,
   return i2c_write(g_isx019_private.i2c, config, buf, len);
 }
 
-int isx019_i2c_write(uint8_t cat, uint16_t addr, uint8_t *data, uint8_t size)
+static int isx019_i2c_write(uint8_t cat,
+                            uint16_t addr,
+                            uint8_t *data,
+                            uint8_t size)
 {
   int ret;
   struct i2c_config_s config;
@@ -891,12 +999,15 @@ int isx019_i2c_write(uint8_t cat, uint16_t addr, uint8_t *data, uint8_t size)
   config.address   = ISX019_I2C_SLVADDR;
   config.addrlen   = ISX019_I2C_SLVADDR_LEN;
 
+  i2c_lock();
+
   ret = send_write_cmd(&config, cat, addr, data, size);
   if (ret == OK)
     {
       ret = recv_write_response(&config);
     }
 
+  i2c_unlock();
   return ret;
 }
 
@@ -929,7 +1040,10 @@ static int send_read_cmd(struct i2c_config_s *config,
   return ret;
 }
 
-int isx019_i2c_read(uint8_t cat, uint16_t addr, uint8_t *data, uint8_t size)
+static int isx019_i2c_read(uint8_t  cat,
+                           uint16_t addr,
+                           uint8_t  *data,
+                           uint8_t  size)
 {
   int ret;
   struct i2c_config_s config;
@@ -940,11 +1054,15 @@ int isx019_i2c_read(uint8_t cat, uint16_t addr, uint8_t *data, uint8_t size)
   config.address   = ISX019_I2C_SLVADDR;
   config.addrlen   = ISX019_I2C_SLVADDR_LEN;
 
+  i2c_lock();
+
   ret = send_read_cmd(&config, cat, addr, size);
   if (ret == OK)
     {
       ret = recv_read_response(&config, data, size);
     }
+
+  i2c_unlock();
 
   return ret;
 }
@@ -965,8 +1083,6 @@ static void fpga_init(void)
 
 static int set_drive_mode(void)
 {
-  int ret;
-  uint8_t buf;
   uint8_t drv[] =
     {
 #ifdef CONFIG_VIDEO_ISX019_DOL2
@@ -976,15 +1092,15 @@ static int set_drive_mode(void)
 #endif
     };
 
+  nxsig_usleep(TRANSITION_TIME_TO_STARTUP);
+
   isx019_i2c_write(CAT_CONFIG, MODE_SENSSEL,      &drv[INDEX_SENS], 1);
   isx019_i2c_write(CAT_CONFIG, MODE_POSTSEL,      &drv[INDEX_POST], 1);
   isx019_i2c_write(CAT_CONFIG, MODE_SENSPOST_SEL, &drv[INDEX_SENSPOST], 1);
-  isx019_i2c_write(CAT_CONFIG, MODE_IOSEL,        &drv[INDEX_IO], 1);
 
-  buf = AEWDMODE_NORMAL;
-  ret = isx019_i2c_write(CAT_AEWD, AEWDMODE, &buf, 1);
+  nxsig_usleep(TRANSITION_TIME_TO_STREAMING);
 
-  return ret;
+  return OK;
 }
 
 static bool try_repeat(int sec, int usec, int (* trial_func)(void))
@@ -1111,10 +1227,17 @@ static void store_default_value(void)
 
 static int isx019_init(void)
 {
+  uint32_t clk;
+
   power_on();
   set_drive_mode();
   fpga_init();
+  initialize_jpg_quality();
   store_default_value();
+  clk = board_isx019_get_master_clock();
+  g_isx019_private.clock_ratio
+    = (float)clk / ISX019_STANDARD_MASTER_CLOCK;
+
   return OK;
 }
 
@@ -1126,7 +1249,19 @@ static int isx019_uninit(void)
 
 static const char *isx019_get_driver_name(void)
 {
+#ifdef CONFIG_VIDEO_ISX019_NAME_WITH_VERSION
+  static char name[16];
+  uint8_t f_ver = 0;
+  uint16_t is_ver = 0;
+
+  isx019_i2c_read(CAT_VERSION, ROM_VERSION, (uint8_t *)&is_ver, 2);
+  fpga_i2c_read(FPGA_VERSION, &f_ver, 1);
+  snprintf(name, sizeof(name), "ISX019 v%04x_%02d", is_ver, f_ver);
+
+  return name;
+#else
   return "ISX019";
+#endif
 }
 
 static int validate_format(int nr_fmt, FAR imgsensor_format_t *fmt)
@@ -1137,6 +1272,16 @@ static int validate_format(int nr_fmt, FAR imgsensor_format_t *fmt)
   uint16_t main_h;
   uint16_t sub_w;
   uint16_t sub_h;
+
+  if ((nr_fmt < 1) || (nr_fmt > 2))
+    {
+      return -EINVAL;
+    }
+
+  if (fmt == NULL)
+    {
+      return -EINVAL;
+    }
 
   main_w = fmt[IMGSENSOR_FMT_MAIN].width;
   main_h = fmt[IMGSENSOR_FMT_MAIN].height;
@@ -1181,9 +1326,14 @@ static int validate_frameinterval(FAR imgsensor_interval_t *interval)
 {
   int ret = -EINVAL;
 
+  if (interval == NULL)
+    {
+      return -EINVAL;
+    }
+
   /* Avoid multiplication overflow */
 
-  if ((interval->denominator * 2) / 2 != interval->denominator)
+  if ((interval->denominator * 10) / 10 != interval->denominator)
     {
       return -EINVAL;
     }
@@ -1195,12 +1345,12 @@ static int validate_frameinterval(FAR imgsensor_interval_t *interval)
       return -EINVAL;
     }
 
-  switch ((interval->denominator * 2) / interval->numerator)
+  switch ((interval->denominator * 10) / interval->numerator)
     {
-      case 60:  /* 30FPS  */
-      case 30:  /* 15FPS  */
-      case 20:  /* 10FPS  */
-      case 10:  /* 7.5FPS */
+      case 300:  /* 30FPS  */
+      case 150:  /* 15FPS  */
+      case 100:  /* 10FPS  */
+      case 75:   /* 7.5FPS */
         ret = OK;
         break;
 
@@ -1219,35 +1369,13 @@ static int isx019_validate_frame_setting(imgsensor_stream_type_t type,
 {
   int ret = OK;
 
-  if ((fmt == NULL) ||
-      (interval == NULL))
-    {
-      return -EINVAL;
-    }
-
-  if ((nr_fmt < 1) || (nr_fmt > 2))
-    {
-      return -EINVAL;
-    }
-
   ret = validate_format(nr_fmt, fmt);
-  ret = validate_frameinterval(interval);
-
-  switch ((interval->denominator * 2) / interval->numerator)
+  if (ret != OK)
     {
-      case 60:  /* 30FPS  */
-      case 30:  /* 15FPS  */
-      case 20:  /* 10FPS  */
-      case 10:  /* 7.5FPS */
-        ret = OK;
-        break;
-
-      default:  /* otherwise  */
-        ret = -EINVAL;
-        break;
+      return ret;
     }
 
-  return ret;
+  return validate_frameinterval(interval);
 }
 
 static int activate_flip(imgsensor_stream_type_t type)
@@ -1373,6 +1501,8 @@ static int isx019_start_capture(imgsensor_stream_type_t type,
       return ret;
     }
 
+  fpga_lock();
+
   /* Update FORMAT_AND_SCALE register of FPGA */
 
   switch (fmt[IMGSENSOR_FMT_MAIN].pixelformat)
@@ -1456,22 +1586,30 @@ static int isx019_start_capture(imgsensor_stream_type_t type,
         }
     }
 
-  switch ((interval->denominator * 2) / interval->numerator)
+  switch ((interval->denominator * 10) / interval->numerator)
     {
-      case 60:  /* 30FPS */
+      case 300:  /* 30FPS */
         regval |= FPGA_FPS_1_1;
         break;
 
-      case 30:  /* 15FPS */
+      case 150:  /* 15FPS */
         regval |= FPGA_FPS_1_2;
         break;
 
-      case 20:  /* 10FPS */
+      case 100:  /* 10FPS */
         regval |= FPGA_FPS_1_3;
         break;
 
-      default:  /* 7.5FPS */
+      case 75:   /* 7.5FPS */
         regval |= FPGA_FPS_1_4;
+        break;
+
+      default:   /* otherwise */
+
+        /* It may not come here because the value has already been validated
+         * in validate_frameinterval().
+         */
+
         break;
     }
 
@@ -1481,7 +1619,7 @@ static int isx019_start_capture(imgsensor_stream_type_t type,
   fpga_i2c_write(FPGA_DATA_OUTPUT, &regval, 1);
 
   fpga_activate_setting();
-
+  fpga_unlock();
   g_isx019_private.stream = type;
 
   return OK;
@@ -1492,8 +1630,90 @@ static int isx019_stop_capture(imgsensor_stream_type_t type)
   uint8_t regval;
 
   regval = FPGA_DATA_OUTPUT_STOP;
+  fpga_lock();
   fpga_i2c_write(FPGA_DATA_OUTPUT, &regval, 1);
   fpga_activate_setting();
+  fpga_unlock();
+  return OK;
+}
+
+static int calc_gcm(int a, int b)
+{
+  int r;
+
+  DEBUGASSERT((a != 0) && (b != 0));
+
+  while ((r = a % b) != 0)
+    {
+      a = b;
+      b = r;
+    }
+
+  return b;
+}
+
+static int isx019_get_frame_interval(imgsensor_stream_type_t type,
+                                     FAR imgsensor_interval_t *interval)
+{
+  uint32_t vtime = VTIME_PER_FRAME;
+  uint32_t frame = 1;
+  uint8_t  fps   = FPGA_FPS_1_1;
+  int decimation = 1;
+  int gcm;
+
+  if (interval == NULL)
+    {
+      return -EINVAL;
+    }
+
+  /* ISX019's base frame interval = 1/30. */
+
+  interval->denominator = 30;
+  interval->numerator = 1;
+
+  /* ISX019 has the frame extension feature, which automatically
+   * exposes longer than one frame in dark environment.
+   * The number of extended frame is calculated from V_TIME register,
+   * which has the value
+   *   VTIME_PER_FRAME + INTERVAL_PER_FRAME * (frame number - 1)
+   */
+
+  isx019_i2c_read(CAT_AESOUT, V_TIME, (uint8_t *)&vtime, 4);
+  frame = 1 + (vtime - VTIME_PER_FRAME) / INTERVAL_PER_FRAME;
+  interval->numerator *= frame;
+
+  /* Also, consider frame decimation by FPGA.
+   * decimation amount is gotten from FPGA register.
+   */
+
+  fpga_i2c_read(FPGA_FPS_AND_THUMBNAIL, &fps, 1);
+  switch (fps & FPGA_FPS_BITS)
+    {
+      case FPGA_FPS_1_1:
+        decimation = 1;
+        break;
+
+      case FPGA_FPS_1_2:
+        decimation = 2;
+        break;
+
+      case FPGA_FPS_1_3:
+        decimation = 3;
+        break;
+
+      default: /* FPGA_FPS_1_4 */
+        decimation = 4;
+        break;
+    }
+
+  interval->numerator *= decimation;
+
+  /* Reduce the fraction. */
+
+  gcm = calc_gcm(30, frame * decimation);
+  interval->denominator /= gcm;
+  interval->numerator   /= gcm;
+
   return OK;
 }
 
@@ -1579,6 +1799,14 @@ static int isx019_get_supported_value
                                 STEP_SHARPNESS, def->sharpness);
         break;
 
+      case IMGSENSOR_ID_COLORFX:
+        val->type = IMGSENSOR_CTRL_TYPE_INTEGER_MENU;
+        SET_DISCRETE(val->u.discrete,
+                     NR_COLORFX,
+                     g_isx019_colorfx,
+                     IMGSENSOR_COLORFX_NONE);
+        break;
+
       case IMGSENSOR_ID_EXPOSURE_AUTO:
         val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
         SET_RANGE(val->u.range, MIN_AE, MAX_AE,
@@ -1592,9 +1820,11 @@ static int isx019_get_supported_value
         break;
 
       case IMGSENSOR_ID_AUTO_N_PRESET_WB:
-        val->type = IMGSENSOR_CTRL_TYPE_INTEGER;
-        SET_RANGE(val->u.range, MIN_WBMODE, MAX_WBMODE,
-                                STEP_WBMODE, def->wbmode);
+        val->type = IMGSENSOR_CTRL_TYPE_INTEGER_MENU;
+        SET_DISCRETE(val->u.discrete,
+                     NR_WBMODE,
+                     g_isx019_wbmode,
+                     IMGSENSOR_WHITE_BALANCE_AUTO);
         break;
 
       case IMGSENSOR_ID_WIDE_DYNAMIC_RANGE:
@@ -1685,9 +1915,19 @@ static int32_t convert_hue_reg2is(int32_t val)
   return (val * 128) / 90;
 }
 
+static int32_t convert_awb_is2reg(int32_t val)
+{
+  return (val == 1) ? 0 : 2;
+}
+
+static int32_t convert_awb_reg2is(int32_t val)
+{
+  return (val == 0) ? 1 : 0;
+}
+
 static int32_t convert_hdr_is2reg(int32_t val)
 {
-  int32_t ret;
+  int32_t ret = AEWDMODE_AUTO;
 
   switch (val)
     {
@@ -1696,11 +1936,18 @@ static int32_t convert_hdr_is2reg(int32_t val)
         break;
 
       case 1:
+        ret = AEWDMODE_AUTO;
+        break;
+
+      case 2:
         ret = AEWDMODE_HDR;
         break;
 
-      default: /* 2 */
-        ret = AEWDMODE_AUTO;
+      default:
+        /* It may not come here because the value has already been validated
+         * in validate_value().
+         */
+
         break;
     }
 
@@ -1717,11 +1964,11 @@ static int32_t convert_hdr_reg2is(int32_t val)
         ret = 0;
         break;
 
-      case AEWDMODE_HDR:
+      case AEWDMODE_AUTO:
         ret = 1;
         break;
 
-      default: /* AEWDMODE_AUTO */
+      default: /* AEWDMODE_HDR */
         ret = 2;
         break;
     }
@@ -1760,7 +2007,7 @@ static convert_t get_reginfo(uint32_t id, bool is_set, isx019_reginfo_t *reg)
 
       case IMGSENSOR_ID_AUTO_WHITE_BALANCE:
         SET_REGINFO(reg, CAT_CATAWB, AWBMODE, 1);
-        cvrt = is_set ? convert_hue_is2reg : convert_hue_reg2is;
+        cvrt = is_set ? convert_awb_is2reg : convert_awb_reg2is;
         break;
 
       case IMGSENSOR_ID_EXPOSURE:
@@ -1836,6 +2083,60 @@ static int set_vflip_still(imgsensor_value_t val)
   return OK;
 }
 
+static int set_colorfx(imgsensor_value_t val)
+{
+  int ret = -EINVAL;
+  isx019_default_value_t *def = &g_isx019_private.default_value;
+  int32_t sat;
+  int32_t sharp;
+
+  /* ISX019 realize color effects by adjusting saturation and sharpness. */
+
+  switch (val.value32)
+    {
+      case IMGSENSOR_COLORFX_NONE:
+
+        sat   = def->saturation;
+        sharp = def->sharpness;
+        break;
+
+      case IMGSENSOR_COLORFX_BW:
+
+        sat   = BW_COLORS_SATURATION;
+        sharp = def->sharpness;
+        break;
+
+      case IMGSENSOR_COLORFX_VIVID:
+
+        sat   = VIVID_COLORS_SATURATION;
+        sharp = VIVID_COLORS_SHARPNESS;
+        break;
+
+      default:
+
+        /* It may not come here because the value has already been validated
+         * in validate_value().
+         */
+
+        break;
+    }
+
+  ret = isx019_i2c_write(CAT_PICTTUNE, UISATURATION, (uint8_t *)&sat, 1);
+  if (ret == OK)
+    {
+      ret = isx019_i2c_write(CAT_PICTTUNE,
+                             UISHARPNESS,
+                             (uint8_t *)&sharp,
+                             1);
+      if (ret == OK)
+        {
+          g_isx019_private.colorfx = val.value32;
+        }
+    }
+
+  return ret;
+}
+
 static int set_ae(imgsensor_value_t val)
 {
   uint32_t regval = 0;
@@ -1856,12 +2157,12 @@ static int set_exptime(imgsensor_value_t val)
 {
   uint32_t regval;
 
-  /* Convert unit.
+  /* Take into account the master clock and convert unit.
    *   image sensor I/F : 100usec
    *   register         :   1usec
    */
 
-  regval = val.value32 * 100;
+  regval = val.value32 * 100 * g_isx019_private.clock_ratio;
 
   return isx019_i2c_write(CAT_CATAE, SHT_PRIMODE, (uint8_t *)&regval, 4);
 }
@@ -2056,6 +2357,7 @@ static int set_iso(imgsensor_value_t val)
 
 static int set_iso_auto(imgsensor_value_t val)
 {
+  uint8_t  buf;
   uint16_t gain;
 
   if (val.value32 == IMGSENSOR_ISO_SENSITIVITY_AUTO)
@@ -2076,8 +2378,8 @@ static int set_iso_auto(imgsensor_value_t val)
            *        So, convert the unit to 0.1dB.
            */
 
-          isx019_i2c_read(CAT_AECOM, GAIN_LEVEL, (uint8_t *)&gain, 2);
-          gain *= 3;
+          isx019_i2c_read(CAT_AECOM, GAIN_LEVEL, &buf, 1);
+          gain = buf * 3;
         }
 
       g_isx019_private.iso = val.value32;
@@ -2163,6 +2465,16 @@ static void search_dqt_data(int32_t quality,
   *c_head = NULL;
   *c_calc = NULL;
 
+  /* Search approximate DQT data from a table by rounding quality. */
+
+  quality = ((quality + 5) / 10) * 10;
+  if (quality == 0)
+    {
+      /* Set the minimum value of quality to 10. */
+
+      quality = 10;
+    }
+
   for (i = 0; i < NR_JPGSETTING_TBL; i++)
     {
       if (quality == jpg->quality)
@@ -2207,8 +2519,6 @@ int set_dqt(uint8_t component, uint8_t target, uint8_t *buf)
       fpga_i2c_write(data, &buf[i], 1);
     }
 
-  fpga_activate_setting();
-
   return OK;
 }
 
@@ -2230,13 +2540,35 @@ static int set_jpg_quality(imgsensor_value_t val)
       return -EINVAL;
     }
 
+  fpga_lock();
+
+  /* Update DQT data and activate them. */
+
+  set_dqt(FPGA_DQT_LUMA,   FPGA_DQT_DATA, y_head);
+  set_dqt(FPGA_DQT_CHROMA, FPGA_DQT_DATA, c_head);
+  set_dqt(FPGA_DQT_LUMA,   FPGA_DQT_CALC_DATA, y_calc);
+  set_dqt(FPGA_DQT_CHROMA, FPGA_DQT_CALC_DATA, c_calc);
+  fpga_activate_setting();
+
+  /* Update non-active side in preparation for other activation trigger. */
+
   set_dqt(FPGA_DQT_LUMA,   FPGA_DQT_DATA, y_head);
   set_dqt(FPGA_DQT_CHROMA, FPGA_DQT_DATA, c_head);
   set_dqt(FPGA_DQT_LUMA,   FPGA_DQT_CALC_DATA, y_calc);
   set_dqt(FPGA_DQT_CHROMA, FPGA_DQT_CALC_DATA, c_calc);
 
+  fpga_unlock();
+
   g_isx019_private.jpg_quality = val.value32;
   return OK;
+}
+
+static int initialize_jpg_quality(void)
+{
+  imgsensor_value_t val;
+
+  val.value32 = CONFIG_VIDEO_ISX019_INITIAL_JPEG_QUALITY;
+  return set_jpg_quality(val);
 }
 
 static bool validate_clip_setting(uint32_t *clip)
@@ -2314,6 +2646,10 @@ static setvalue_t set_value_func(uint32_t id)
 
       case IMGSENSOR_ID_VFLIP_STILL:
         func = set_vflip_still;
+        break;
+
+      case IMGSENSOR_ID_COLORFX:
+        func = set_colorfx;
         break;
 
       case IMGSENSOR_ID_EXPOSURE_AUTO:
@@ -2418,6 +2754,17 @@ static int get_vflip_still(imgsensor_value_t *val)
   return OK;
 }
 
+static int get_colorfx(imgsensor_value_t *val)
+{
+  if (val == NULL)
+    {
+      return -EINVAL;
+    }
+
+  val->value32 = g_isx019_private.colorfx;
+  return OK;
+}
+
 static int get_ae(imgsensor_value_t *val)
 {
   uint32_t regval;
@@ -2439,23 +2786,14 @@ static int get_exptime(imgsensor_value_t *val)
 {
   uint32_t regval;
 
-  isx019_i2c_read(CAT_CATAE, SHT_PRIMODE, (uint8_t *)&regval, 4);
+  isx019_i2c_read(CAT_AESOUT, SHT_TIME, (uint8_t *)&regval, 4);
 
-  if (regval == 0)
-    {
-      /* register value = 0 means auto.
-       * Then, Current value is gotten from auto adjusted value register.
-       */
-
-      isx019_i2c_read(CAT_AESOUT, SHT_TIME, (uint8_t *)&regval, 4);
-    }
-
-  /* Convert unit.
-   *   image sensor I/F : 100usec
-   *   register         :   1usec
+  /* Round up to the nearest 100usec for eliminating errors in reverting to
+   * application value because this driver converts application value to
+   * value that takes into account the clock ratio and unit difference.
    */
 
-  val->value32 = regval / 100;
+  val->value32 = ((regval / g_isx019_private.clock_ratio) + 99) / 100;
 
   return OK;
 }
@@ -2608,7 +2946,7 @@ static double calc_iso(double gain)
 
 static int get_iso(imgsensor_value_t *val)
 {
-  uint16_t gain;
+  uint8_t buf = 0;
 
   if (val == NULL)
     {
@@ -2622,9 +2960,8 @@ static int get_iso(imgsensor_value_t *val)
        * which has the unit 0.3dB, and convert the gain to ISO.
        */
 
-      isx019_i2c_read(CAT_AECOM, GAIN_LEVEL, (uint8_t *)&gain, 2);
-      gain *= 3;
-      val->value32 = calc_iso((double)gain / 10) * 1000;
+      isx019_i2c_read(CAT_AECOM, GAIN_LEVEL, &buf, 1);
+      val->value32 = calc_iso((double)buf * 0.3) * 1000;
     }
   else
     {
@@ -2697,6 +3034,10 @@ static getvalue_t get_value_func(uint32_t id)
 
       case IMGSENSOR_ID_VFLIP_STILL:
         func = get_vflip_still;
+        break;
+
+      case IMGSENSOR_ID_COLORFX:
+        func = get_colorfx;
         break;
 
       case IMGSENSOR_ID_EXPOSURE_AUTO:
@@ -2960,11 +3301,35 @@ static int isx019_set_value(uint32_t id,
 int isx019_initialize(void)
 {
   imgsensor_register(&g_isx019_ops);
+  nxsem_init(&g_isx019_private.i2c_lock, 0, 1);
+  nxsem_init(&g_isx019_private.fpga_lock, 0, 1);
   return OK;
 }
 
 int isx019_uninitialize()
 {
+  nxsem_destroy(&g_isx019_private.i2c_lock);
+  nxsem_destroy(&g_isx019_private.fpga_lock);
   return OK;
 }
 
+#ifdef CONFIG_VIDEO_ISX019_REGDEBUG
+int isx019_read_register(uint8_t  cat,
+                         uint16_t addr,
+                         uint8_t  *buf,
+                         uint8_t  size)
+{
+  int ret = -EINVAL;
+
+  if (cat == 0xff)
+    {
+      ret = fpga_i2c_read((uint8_t)addr, buf, size);
+    }
+  else
+    {
+      ret = isx019_i2c_read(cat, addr, buf, size);
+    }
+
+  return ret;
+}
+#endif

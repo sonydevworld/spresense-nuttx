@@ -93,33 +93,6 @@ __start:
   la   t0, __trap_vec
   csrw mtvec, t0
 
-#ifdef CONFIG_STACK_COLORATION
-
-  /* Write a known value to the IDLE thread stack to support stack
-   * monitoring logic
-   */
-
-  lui  t0, %hi(C906_IDLESTACK_BASE)
-  addi t0, t0, %lo(C906_IDLESTACK_BASE)
-
-  lui  t1, %hi(C906_IDLESTACK_TOP)
-  addi t1, t1, %lo(C906_IDLESTACK_TOP)
-
-  lui  t2, %hi(STACK_COLOR)
-  addi t2, t2, %lo(STACK_COLOR)
-
-  bgeu t0, t1, 2f
-
-  /* t0 = start of IDLE stack; t1 = Size of tack; t2 = coloration */
-
-1:
-  sw   t2, 0(t0)
-  addi t0, t0, 4
-  bne  t0, t1, 1b
-2:
-
-#endif
-
   /* Jump to __c906_start with mhartid */
 
   j    __c906_start
@@ -199,11 +172,11 @@ exception_common:
   /* Switch to interrupt stack */
 
   bnez s0, 3f
-  la   sp, g_intstackbase
+  la   sp, g_intstacktop
   j    4f
 3:
-  la   sp, g_intstackbase
-  addi sp, sp, -((CONFIG_ARCH_INTERRUPTSTACK) & ~15)
+  la   sp, g_intstacktop
+  addi sp, sp, -(CONFIG_ARCH_INTERRUPTSTACK & ~15)
 4:
 
 #endif
@@ -261,20 +234,19 @@ exception_common:
   mret
 
 /************************************************************************************
- *  Name: g_intstackalloc and g_intstackbase
+ *  Name: g_intstackalloc and g_intstacktop
  ************************************************************************************/
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 15
   .bss
   .balign 16
   .global g_intstackalloc
-  .global g_intstackbase
+  .global g_intstacktop
   .type   g_intstackalloc, object
-  .type   g_intstackbase, object
+  .type   g_intstacktop, object
 g_intstackalloc:
   .skip  ((CONFIG_ARCH_INTERRUPTSTACK + 8) & ~15)
-g_intstackbase:
-  .skip  8
-  .size  g_intstackbase, 8
+g_intstacktop:
+  .size  g_intstacktop, 0
   .size  g_intstackalloc, (CONFIG_ARCH_INTERRUPTSTACK & ~15)
 #endif

@@ -77,19 +77,24 @@ exception_common:
   addi s0, sp, XCPTCONTEXT_SIZE
   sw   s0,  2*4(sp)   /* original SP */
 
-  /* Setup arg0(exception cause), arg1(context) */
-
-  csrr a0, mcause  /* exception cause */
   csrr s0, mepc
   sw   s0, 0(sp)   /* exception PC */
 
+#ifdef CONFIG_STACK_OVERFLOW_CHECK
+  la t0, __cyg_profile_func_enter
+  jalr x1, 0(t0)
+#endif
+
+  /* Setup arg0(exception cause), arg1(context) */
+
+  csrr a0, mcause  /* exception cause */
   mv   a1, sp      /* context = sp */
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 15
   /* Switch to interrupt stack */
 
-  lui  sp, %hi(g_intstackbase)
-  addi sp, sp, %lo(g_intstackbase)
+  lui  sp, %hi(g_intstacktop)
+  addi sp, sp, %lo(g_intstacktop)
 #ifdef CONFIG_STACK_OVERFLOW_CHECK
   la s11, g_intstackalloc
 #endif
@@ -147,20 +152,19 @@ exception_common:
   mret
 
 /************************************************************************************
- *  Name: g_intstackalloc and g_intstackbase
+ *  Name: g_intstackalloc and g_intstacktop
  ************************************************************************************/
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 15
   .bss
   .balign 16
   .global g_intstackalloc
-  .global g_intstackbase
+  .global g_intstacktop
   .type   g_intstackalloc, object
-  .type   g_intstackbase, object
+  .type   g_intstacktop, object
 g_intstackalloc:
   .skip  ((CONFIG_ARCH_INTERRUPTSTACK + 8) & ~15)
-g_intstackbase:
-  .skip  4
-  .size  g_intstackbase, 4
+g_intstacktop:
+  .size  g_intstacktop, 0
   .size  g_intstackalloc, (CONFIG_ARCH_INTERRUPTSTACK & ~15)
 #endif

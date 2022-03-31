@@ -59,7 +59,7 @@ CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM
 # Set up build environment
 
 WGET ?= wget
-UNZIP ?= unzip
+UNPACK := unzip
 TARGET_WIZNET_SHA1 = cbf5b6e908cfd3e74e03d1a4c9bddaac68ef77bb
 
 WIZNET_DIR := net$(DELIM)wiznet$(DELIM)
@@ -87,7 +87,7 @@ WIZNET_COPYSRCS = $(addprefix $(WIZNET_DIR),$(WIZNET_CSRCS) $(WIZNET_HEADERS))
 $(WIZNET_DIR)$(WIZNETSRC):
 	$(Q) echo "Downloading: $(WIZNET_DIR)$(WIZNETSRC)"
 	$(Q) $(WGET) -O $(WIZNET_DIR)$(DELIM)$(WIZNET_DL_FNAME) $(WIZNET_URL);
-	$(Q) cd $(WIZNET_DIR); $(UNZIP) $(WIZNET_DL_FNAME)
+	$(Q) cd $(WIZNET_DIR); $(UNPACK) $(WIZNET_DL_FNAME)
 	$(Q) cp $(WIZNETSRCDIR_ETHERNET)socket.h $(WIZNET_DIR)wiz_socket.h
 	$(Q) cp $(WIZNETSRCDIR_ETHERNET)socket.c $(WIZNET_DIR)wiz_socket.c
 	$(Q) cp $(WIZNETSRCDIR_ETHERNET)wizchip_conf.h $(WIZNET_DIR)wizchip_conf.h

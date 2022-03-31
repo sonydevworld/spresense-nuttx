@@ -39,6 +39,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 #include <errno.h>
 #include <debug.h>
 #include <poll.h>
@@ -215,6 +216,8 @@ static int     gs2200m_poll(FAR struct file *filep, FAR struct pollfd *fds,
 
 static int     gs2200m_irq(int irq, FAR void *context, FAR void *arg);
 static void    gs2200m_irq_worker(FAR void *arg);
+
+static void _remove_all_pkt(FAR struct gs2200m_dev_s *dev, uint8_t c);
 
 /****************************************************************************
  * Private Data
@@ -519,12 +522,21 @@ static void _check_pkt_q_empty(FAR struct gs2200m_dev_s *dev, char cid)
 
       while (pkt_dat)
         {
-          wlerr("=== error: found (type=%d msg[0]=%s|) \n",
-                pkt_dat->type, pkt_dat->msg[0]);
+          wlerr("=== error: found (cid=%c type=%d msg[0]=%s|)\n",
+                cid, pkt_dat->type, pkt_dat->msg[0]);
           pkt_dat = (FAR struct pkt_dat_s *)pkt_dat->dq.flink;
+
+          if (_cid_is_set(&dev->valid_cid_bits, cid))
+            {
+              wlerr("+++ error: cid=%c is still active !!!\n", cid);
+            }
+
+          /* NOTE: force to disable the cid to remove */
+
+          _enable_cid(&dev->valid_cid_bits, cid, false);
         }
 
-      ASSERT(false);
+      _remove_all_pkt(dev, c);
     }
 }
 
@@ -662,6 +674,12 @@ errout:
       /* Copy the source address and port */
 
       memcpy(&msg->addr, &pkt_dat->addr, sizeof(pkt_dat->addr));
+
+      /* Set the address family
+       * NOTE: gs2200m only supports IPv4
+       */
+
+      msg->addr.sin_family = AF_INET;
 
       /* In udp case, treat the packet separately */
 
@@ -863,18 +881,18 @@ retry:
 
   _write_data(dev, hdr, sizeof(hdr));
 
-  /* NOTE: busy wait 30us
-   * workaround to avoid an invalid frame response
-   */
-
-  up_udelay(30);
-
   /* Wait for data ready */
 
   while (!dev->lower->dready(NULL))
     {
       /* TODO: timeout */
     }
+
+  /* NOTE: busy wait 50us
+   * workaround to avoid an invalid frame response
+   */
+
+  up_udelay(50);
 
   /* Read frame response */
 
@@ -2380,6 +2398,7 @@ static int gs2200m_ioctl_send(FAR struct gs2200m_dev_s *dev,
     {
       wlinfo("+++ already closed \n");
       type = TYPE_DISCONNECT;
+      ret = -ENOTCONN;
       goto errout;
     }
 
@@ -2389,7 +2408,7 @@ static int gs2200m_ioctl_send(FAR struct gs2200m_dev_s *dev,
 
 errout:
 
-  if (type != TYPE_OK)
+  if (type != TYPE_OK && type != TYPE_DISCONNECT)
     {
       ret = -EINVAL;
     }
@@ -2524,13 +2543,20 @@ static int gs2200m_ioctl_accept(FAR struct gs2200m_dev_s *dev,
   uint8_t c;
   char s_cid;
   char c_cid;
+  int ret = OK;
   int n;
 
   wlinfo("+++ start: cid=%c \n", msg->cid);
 
   c = _cid_to_uint8(msg->cid);
   pkt_dat = (FAR struct pkt_dat_s *)dq_peek(&dev->pkt_q[c]);
-  ASSERT(pkt_dat);
+
+  if (NULL == pkt_dat)
+    {
+      wlerr("*** error: cid=%c not found\n", msg->cid);
+      ret = -EINVAL;
+      goto errout;
+    }
 
   n = sscanf(pkt_dat->msg[0], "CONNECT %c %c", &s_cid, &c_cid);
   ASSERT(2 == n);
@@ -2562,13 +2588,20 @@ static int gs2200m_ioctl_accept(FAR struct gs2200m_dev_s *dev,
   nmsg.local = 0;
   nmsg.cid = msg->cid;
   r = gs2200m_get_cstatus(dev, &nmsg);
-  ASSERT(TYPE_OK == r);
+
+  if (TYPE_OK != r)
+    {
+      wlerr("*** error: cid=%c not found\n", msg->cid);
+      ret = -EINVAL;
+      goto errout;
+    }
 
   msg->addr = nmsg.addr;
 
-  wlinfo("+++ end: type=%d (msg->cid=%c) \n", msg->type, msg->cid);
+errout:
+  wlinfo("+++ end: type=%d (msg->cid=%c)\n", msg->type, msg->cid);
 
-  return OK;
+  return ret;
 }
 
 /****************************************************************************

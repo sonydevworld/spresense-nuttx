@@ -51,20 +51,32 @@
  *
  ****************************************************************************/
 
-extern uintptr_t tux_mm_new_pd1(void);
-
 void up_initial_state(struct tcb_s *tcb)
 {
   struct xcptcontext *xcp = &tcb->xcp;
-  struct tcb_s *rtcb;
 
   /* Initialize the idle thread stack */
 
   if (tcb->pid == 0)
     {
-      tcb->stack_alloc_ptr = (void *)(g_idle_topstack -
-                                      CONFIG_IDLETHREAD_STACKSIZE);
-      tcb->adj_stack_ptr   = (void *)g_idle_topstack;
+      char *stack_ptr = (char *)(g_idle_topstack -
+                                 CONFIG_IDLETHREAD_STACKSIZE);
+#ifdef CONFIG_STACK_COLORATION
+      char *stack_end = (char *)up_getsp();
+
+      /* If stack debug is enabled, then fill the stack with a
+       * recognizable value that we can use later to test for high
+       * water marks.
+       */
+
+      while (stack_ptr < stack_end)
+        {
+          *--stack_end = 0xaa;
+        }
+#endif /* CONFIG_STACK_COLORATION */
+
+      tcb->stack_alloc_ptr = stack_ptr;
+      tcb->stack_base_ptr  = stack_ptr;
       tcb->adj_stack_size  = CONFIG_IDLETHREAD_STACKSIZE;
     }
 
@@ -80,17 +92,14 @@ void up_initial_state(struct tcb_s *tcb)
 
   xcp->regs[3]      = (uint64_t)0x0000000000001f80;
 
-  /* set page table to share space with current process */
-
-  rtcb = this_task();
-  UNUSED(rtcb);
-
   /* Save the initial stack pointer... the value of the stackpointer before
    * the "interrupt occurs."
    */
 
-  xcp->regs[REG_RSP]      = (uint64_t)tcb->adj_stack_ptr;
-  xcp->regs[REG_RBP]      = (uint64_t)tcb->adj_stack_ptr;
+  xcp->regs[REG_RSP]      = (uint64_t)tcb->stack_base_ptr +
+                                      tcb->adj_stack_size;
+  xcp->regs[REG_RBP]      = (uint64_t)tcb->stack_base_ptr +
+                                      tcb->adj_stack_size;
 
   /* Save the task entry point */
 

@@ -374,14 +374,6 @@ channel include:
      means that interrupt level SYSLOG output will be lost unless
      the interrupt buffer is enabled to support serialization.
 
-  -  ``CONFIG_SYSLOG_CHAR_CRLF``. If ``CONFIG_SYSLOG_CHAR_CRLF`` is
-     selected, then linefeeds in the SYSLOG output will be expanded
-     to Carriage Return plus Linefeed. Since the character device is
-     not a console device, the addition of carriage returns to line
-     feeds would not be performed otherwise. You would probably want
-     this expansion if you use a serial terminal program with the
-     character device output.
-
 References: ``drivers/syslog/syslog_devchannel.c`` and
 ``drivers/syslog/syslog_device.c``
 
@@ -400,7 +392,8 @@ mounting of the file systems.
 The interface ``syslog_file_channel()`` is used to configure the
 SYSLOG file channel:
 
-.. c:function:: int syslog_file_channel(FAR const char *devpath);
+.. c:function:: FAR struct syslog_channel_s *
+                    syslog_file_channel(FAR const char *devpath);
 
   Configure to use a file in a mounted file system
   at ``devpath`` as the SYSLOG channel.
@@ -431,8 +424,8 @@ SYSLOG file channel:
     ``syslog_file_channel()`` will create the file.
 
   :return:
-    Zero (``OK``) is returned on success; a
-    negated ``errno`` value is returned on any failure.
+    A pointer to the new syslog channel; ``NULL`` is returned
+    on any failure.
 
   References: ``drivers/syslog/syslog_filechannel.c``,
   ``drivers/syslog/syslog_device.c``, and
