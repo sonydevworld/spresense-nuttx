@@ -218,7 +218,7 @@ EXTERN const uintptr_t g_idle_topstack;
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
 EXTERN uint32_t g_intstackalloc; /* Allocated stack base */
-EXTERN uint32_t g_intstackbase;  /* Initial top of interrupt stack */
+EXTERN uint32_t g_intstacktop;   /* Initial top of interrupt stack */
 #endif
 
 /* These 'addresses' of these values are setup by the linker script.  They
@@ -253,7 +253,7 @@ EXTERN uint32_t _ebss;            /* End+1 of .bss */
 
 #ifdef CONFIG_ARCH_RAMFUNCS
 
-#  define __ramfunc__ __attribute__ ((section(".ramfunc"),long_call,noinline))
+#  define __ramfunc__ locate_code(".ramfunc") farcall_function noinline_function
 
 /* Functions declared in the .ramfunc section will be packaged together
  * by the linker script and stored in FLASH.  During boot-up, the start

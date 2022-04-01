@@ -69,7 +69,7 @@
 #define MAX_AE        (1)   
 #define STEP_AE       (1)     
 
-#define MIN_EXPOSURETIME        (0)     
+#define MIN_EXPOSURETIME        (1)
 #define MAX_EXPOSURETIME        (102000)   
 #define STEP_EXPOSURETIME       (1)     
 
@@ -78,7 +78,7 @@
 #define STEP_WBMODE       (1)     
 
 #define MIN_HDR           (0)     
-#define MAX_HDR           (1)   
+#define MAX_HDR           (2)
 #define STEP_HDR          (1)     
 
 #define MIN_METER        (0)     
@@ -114,9 +114,9 @@
 #define MAX_3ASTATUS        (3)   
 #define STEP_3ASTATUS       (1)     
 
-#define MIN_JPGQUALITY        (10)     
-#define MAX_JPGQUALITY        (100)   
-#define STEP_JPGQUALITY       (10)     
+#define MIN_JPGQUALITY        (1)
+#define MAX_JPGQUALITY        (100)
+#define STEP_JPGQUALITY       (1)
 
 #define NRELEM_CLIP           IMGSENSOR_CLIP_NELEM
 #define MIN_CLIP              (0)

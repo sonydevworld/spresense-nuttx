@@ -108,18 +108,6 @@ static struct calculated_checksum convert_ntoh(
 {
   struct calculated_checksum checksum;
 
-  if (hdr->ver == ALTCOM_VER1)
-    {
-      checksum.header_checksum = calc_checksum_v1((uint8_t *)hdr,
-       sizeof(struct altcom_cmdhdr_s) - sizeof(hdr->v1_checksum));
-    }
-  else if (hdr->ver == ALTCOM_VER4)
-    {
-      checksum.header_checksum = calc_checksum_v4((uint8_t *)hdr,
-        sizeof(struct altcom_cmdhdr_s) -
-        sizeof(hdr->v4_hdr_cksum) - sizeof(hdr->v4_data_cksum));
-    }
-
   hdr->cmdid = ntohs(hdr->cmdid);
   hdr->transid = ntohs(hdr->transid);
   hdr->datalen = ntohs(hdr->datalen);
@@ -128,25 +116,17 @@ static struct calculated_checksum convert_ntoh(
     {
       /* Only V1 has footer */
 
-      if (hdr->datalen <= ALTCOM_PAYLOAD_SIZE_MAX)
-        {
-          hdr->v1_options = ntohs(hdr->v1_options);
-          hdr->v1_checksum = ntohs(hdr->v1_checksum);
+      hdr->v1_options = ntohs(hdr->v1_options);
+      hdr->v1_checksum = ntohs(hdr->v1_checksum);
 
-          struct altcom_cmdfooter_s *footer
-            = (struct altcom_cmdfooter_s *)&hdr->payload[hdr->datalen];
+      struct altcom_cmdfooter_s *footer
+        = (struct altcom_cmdfooter_s *)&hdr->payload[hdr->datalen];
 
-          checksum.body_checksum = calc_checksum_v1(&hdr->payload[0],
-                sizeof(struct altcom_cmdfooter_s)-2 + hdr->datalen);
+      checksum.body_checksum = calc_checksum_v1(&hdr->payload[0],
+            sizeof(struct altcom_cmdfooter_s)-2 + hdr->datalen);
 
-          footer->reserve = ntohs(footer->reserve);
-          footer->checksum = ntohs(footer->checksum);
-        }
-      else
-        {
-          checksum.header_checksum++; /* Make intentional checksum error */
-          checksum.body_checksum = -1;
-        }
+      footer->reserve = ntohs(footer->reserve);
+      footer->checksum = ntohs(footer->checksum);
     }
   else
     {
@@ -162,7 +142,7 @@ static struct calculated_checksum convert_ntoh(
 }
 
 static int check_valid_pkt(FAR struct altcom_cmdhdr_s *hdr,
-  struct calculated_checksum csum)
+  uint16_t body_checksum)
 {
   int valid_version = ALTCOM_VERX;
 
@@ -171,34 +151,30 @@ static int check_valid_pkt(FAR struct altcom_cmdhdr_s *hdr,
       struct altcom_cmdfooter_s *footer
         = (struct altcom_cmdfooter_s *)&hdr->payload[hdr->datalen];
 
-      if ((hdr->v1_checksum == csum.header_checksum)
-          && (footer->checksum == csum.body_checksum))
+      if (footer->checksum == body_checksum)
         {
           valid_version = ALTCOM_VER1;
         }
       else
         {
           m_err("[V1] cmdid: 0x%04x cmdlen: %d, "
-            "header checksum: 0x%04x/0x%04x, body checksum: 0x%04x/0x%04x\n",
+            "body checksum: 0x%04x/0x%04x\n",
             hdr->cmdid,  hdr->datalen,
-            hdr->v1_checksum, csum.header_checksum,
-            footer->checksum, csum.body_checksum);
+            footer->checksum, body_checksum);
         }
     }
   else if(hdr->ver == ALTCOM_VER4)
     {
-      if ((hdr->v4_hdr_cksum == csum.header_checksum)
-          && (hdr->v4_data_cksum == csum.body_checksum))
+      if (hdr->v4_data_cksum == body_checksum)
         {
           valid_version = ALTCOM_VER4;
         }
       else
         {
           m_err("[V4] cmdid: 0x%04x cmdlen: %d, "
-            "header checksum: 0x%04x/0x%04x, body checksum: 0x%04x/0x%04x\n",
+            "body checksum: 0x%04x/0x%04x\n",
             hdr->cmdid,  hdr->datalen,
-            hdr->v4_hdr_cksum, csum.header_checksum,
-            hdr->v4_data_cksum, csum.body_checksum);
+            hdr->v4_data_cksum, body_checksum);
         }
     }
 
@@ -206,11 +182,11 @@ static int check_valid_pkt(FAR struct altcom_cmdhdr_s *hdr,
 }
 
 static int check_valid_reply(FAR struct altcom_cmdhdr_s *hdr,
-  struct calculated_checksum csum)
+  uint16_t body_checksum)
 {
   int valid_version = ALTCOM_VERX;
 
-  valid_version = check_valid_pkt(hdr, csum);
+  valid_version = check_valid_pkt(hdr, body_checksum);
   if (valid_version == ALTCOM_VER1)
     {
       if ((hdr->cmdid == (ALTCOM_CMDID_POWER_ON_V1 | ALTCOM_CMDID_REPLY_BIT))
@@ -239,6 +215,65 @@ static int check_valid_reply(FAR struct altcom_cmdhdr_s *hdr,
   return valid_version;
 }
 
+static bool is_header_ok(FAR struct altcom_cmdhdr_s *hdr)
+{
+  uint16_t checksum;
+
+  if (hdr->ver == ALTCOM_VER1)
+    {
+      checksum = calc_checksum_v1((uint8_t *)hdr,
+        sizeof(struct altcom_cmdhdr_s) - sizeof(hdr->v1_checksum));
+      if (ntohs(hdr->v1_checksum) == checksum)
+        {
+          if (ntohs(hdr->datalen) + sizeof(struct altcom_cmdhdr_s)
+              + sizeof(struct altcom_cmdfooter_s) <= ALTCOM_RX_PKT_SIZE_MAX)
+            {
+              return true;
+            }
+          else
+            {
+              m_err("[V1] Data length exceeding the buffer length: %d\n",
+                    ntohs(hdr->datalen));
+            }
+        }
+      else
+        {
+          m_err("[V1] cmdid: 0x%04x cmdlen: %d, "
+               "header checksum: 0x%04x/0x%04x\n",
+                ntohs(hdr->cmdid),  ntohs(hdr->datalen),
+                ntohs(hdr->v1_checksum), checksum);
+        }
+    }
+  else if (hdr->ver == ALTCOM_VER4)
+    {
+      checksum = calc_checksum_v4((uint8_t *)hdr,
+        sizeof(struct altcom_cmdhdr_s) - sizeof(hdr->v4_hdr_cksum) -
+        sizeof(hdr->v4_data_cksum));
+      if (ntohs(hdr->v4_hdr_cksum) == checksum)
+        {
+          if (ntohs(hdr->datalen) + sizeof(struct altcom_cmdhdr_s) <=
+              ALTCOM_RX_PKT_SIZE_MAX)
+            {
+              return true;
+            }
+          else
+            {
+              m_err("[V4] Data length exceeding the buffer length: %d\n",
+                    ntohs(hdr->datalen));
+            }
+        }
+      else
+        {
+          m_err("[V4] cmdid: 0x%04x cmdlen: %d, "
+               "header checksum: 0x%04x/0x%04x\n",
+                ntohs(hdr->cmdid),  ntohs(hdr->datalen),
+                ntohs(hdr->v4_hdr_cksum), checksum);
+        }
+    }
+
+  return false;
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -247,8 +282,13 @@ bool altcom_is_v1pkt_ok(struct altcom_cmdhdr_s *cmdhdr)
 {
   struct calculated_checksum checksum;
 
+  if (!is_header_ok(cmdhdr))
+    {
+      return false;
+    }
+
   checksum = convert_ntoh(cmdhdr);
-  return (check_valid_reply(cmdhdr, checksum) == ALTCOM_VER1)
+  return (check_valid_reply(cmdhdr, checksum.body_checksum) == ALTCOM_VER1)
     && (cmdhdr->payload[0] == LTE_RESULT_OK);
 }
 
@@ -256,8 +296,13 @@ bool altcom_is_v4pkt_ok(struct altcom_cmdhdr_s *cmdhdr)
 {
   struct calculated_checksum checksum;
 
+  if (!is_header_ok(cmdhdr))
+    {
+      return false;
+    }
+
   checksum = convert_ntoh(cmdhdr);
-  return (check_valid_reply(cmdhdr, checksum) == ALTCOM_VER4)
+  return (check_valid_reply(cmdhdr, checksum.body_checksum) == ALTCOM_VER4)
     && (cmdhdr->payload[0] == LTE_RESULT_OK);
 }
 
@@ -308,10 +353,36 @@ int altcom_is_pkt_ok(FAR uint8_t *pkt, int sz)
   struct calculated_checksum checksum;
   int ver;
   int ret = OK;
+  FAR struct altcom_cmdhdr_s *hdr = (FAR struct altcom_cmdhdr_s *)pkt;
+  int remlen;
+
+  if (!is_header_ok(hdr))
+    {
+      return -EPROTO;
+    }
+
+  remlen = get_pktlen(hdr->ver, ntohs(hdr->datalen)) - sz;
+  if (remlen > 0)
+    {
+      /* Cases in which fragmented packets are received. */
+
+      return remlen;
+    }
+  else if (remlen < 0)
+    {
+      /* The case where the received data length becomes
+       * larger than the payload length set in the header.
+       */
+
+      return -EPROTO;
+    }
+
+  /* Whole packets are received. So check the validity of the packets. */
 
   checksum = convert_ntoh((FAR struct altcom_cmdhdr_s *)pkt);
 
-  ver = check_valid_pkt((FAR struct altcom_cmdhdr_s *)pkt, checksum);
+  ver = check_valid_pkt((FAR struct altcom_cmdhdr_s *)pkt,
+                        checksum.body_checksum);
   if (ver == ALTCOM_VERX)
     {
       ret = -EPROTO;

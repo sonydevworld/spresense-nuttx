@@ -26,6 +26,8 @@
 #include <arch/rv32im/irq.h>
 
 #include "chip.h"
+#include "fe310_memorymap.h"
+#include "riscv_internal.h"
 
 /****************************************************************************
  * Public Symbols
@@ -44,8 +46,7 @@ __start:
 
   /* Set stack pointer to the idle thread stack */
 
-  lui  sp, %hi(FE310_IDLESTACK_TOP)
-  addi sp, sp, %lo(FE310_IDLESTACK_TOP)
+  la   sp, FE310_IDLESTACK_TOP
 
   /* Disable all interrupts (i.e. timer, external) in mie */
 
@@ -53,9 +54,8 @@ __start:
 
   /* Initialize the Machine Trap Vector */
 
-  lui  t0, %hi(__trap_vec)
-  addi t0, t0, %lo(__trap_vec)
-  csrw  mtvec, t0
+  la   t0, __trap_vec
+  csrw mtvec, t0
 
   /* Jump to __fe310_start */
 
@@ -129,8 +129,8 @@ exception_common:
 #if CONFIG_ARCH_INTERRUPTSTACK > 15
   /* Switch to interrupt stack */
 
-  lui  sp, %hi(g_intstackbase)
-  addi sp, sp, %lo(g_intstackbase)
+  lui  sp, %hi(g_intstacktop)
+  addi sp, sp, %lo(g_intstacktop)
 #endif
 
   /* Call interrupt handler in C */
@@ -185,20 +185,19 @@ exception_common:
   mret
 
 /************************************************************************************
- *  Name: g_intstackalloc and g_intstackbase
+ *  Name: g_intstackalloc and g_intstacktop
  ************************************************************************************/
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 15
   .bss
   .balign 16
   .global g_intstackalloc
-  .global g_intstackbase
+  .global g_intstacktop
   .type   g_intstackalloc, object
-  .type   g_intstackbase, object
+  .type   g_intstacktop, object
 g_intstackalloc:
   .skip  ((CONFIG_ARCH_INTERRUPTSTACK + 8) & ~15)
-g_intstackbase:
-  .skip  4
-  .size  g_intstackbase, 4
+g_intstacktop:
+  .size  g_intstacktop, 0
   .size  g_intstackalloc, (CONFIG_ARCH_INTERRUPTSTACK & ~15)
 #endif

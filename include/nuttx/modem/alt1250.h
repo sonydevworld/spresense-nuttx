@@ -145,6 +145,13 @@
 #define APICMDID_FW_GETDELTAIMGLEN      (0x1041)
 #define APICMDID_FW_EXECDELTAUPDATE     (0x1042)
 #define APICMDID_FW_GETUPDATERESULT     (0x1043)
+#define APICMDID_CLOGS                  (0x1023)
+#define APICMDID_LOGLIST                (0x1024)
+#define APICMDID_LOGOPEN                (0x1030)
+#define APICMDID_LOGCLOSE               (0x1031)
+#define APICMDID_LOGREAD                (0x1033)
+#define APICMDID_LOGREMOVE              (0x1034)
+#define APICMDID_LOGLSEEK               (0x1035)
 
 /* dummy ID because not support V1 */
 
@@ -201,6 +208,13 @@
 #define APICMDID_FW_GETDELTAIMGLEN_V4   (0x0271)
 #define APICMDID_FW_EXECDELTAUPDATE_V4  (0x0272)
 #define APICMDID_FW_GETUPDATERESULT_V4  (0x0273)
+#define APICMDID_CLOGS_V4               (0x0300)
+#define APICMDID_LOGLIST_V4             (0x0301)
+#define APICMDID_LOGOPEN_V4             (0x0280)
+#define APICMDID_LOGCLOSE_V4            (0x0281)
+#define APICMDID_LOGREAD_V4             (0x0283)
+#define APICMDID_LOGREMOVE_V4           (0x0284)
+#define APICMDID_LOGLSEEK_V4            (0x0285)
 
 #define APICMDID_SOCK_ACCEPT            (0x0080)
 #define APICMDID_SOCK_BIND              (0x0081)
@@ -291,6 +305,7 @@ struct alt1250_lower_s
 {
   FAR struct spi_dev_s * (*poweron)(void);
   void (*poweroff)(void);
+  void (*reset)(void);
   void (*irqattach)(xcpt_t handler);
   void (*irqenable)(bool enable);
   bool (*get_sready)(void);

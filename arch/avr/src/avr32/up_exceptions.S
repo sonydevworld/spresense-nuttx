@@ -36,7 +36,7 @@
 	.global		avr32_int2irqno			/* Returns IRQ number of INT2 event */
 	.global		avr32_int3irqno			/* Returns IRQ number of INT3 event */
 	.global		up_doirq				/* Dispatch an IRQ                  */
-	.global		up_fullcontextrestore	/* Restore new task contex          */
+	.global		up_fullcontextrestore	/* Restore new task context         */
 
 /****************************************************************************
  * Macros
@@ -287,7 +287,7 @@ avr32_common:
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
 	mov		r7, sp
-	lddpc	sp, .Linstackbaseptr
+	lddpc	sp, .Linstacktopptr
 #endif
 
 	/* Call up_doirq with r12=IRQ number and r11=register save area         */
@@ -303,7 +303,7 @@ avr32_common:
 #endif
 
 	/* On return, r12 will hold the new address of the register context     */
-	/* save area.  On an interrupt contex switch, this will (1) not be the  */
+	/* save area.  On an interrupt context switch, this will (1) not be the  */
 	/* same as the value of r12 passed to up_doirq(), and (2) may not       */
 	/* reside on a stack.                                                   */
 
@@ -335,8 +335,8 @@ avr32_common:
 	.word	up_fullcontextrestore
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
-.Linstackbaseptr:
-	.word	.Lintstackbase
+.Linstacktopptr:
+	.word	g_intstacktop
 #endif
 	.size	vectortab, .-vectortab
 
@@ -347,11 +347,13 @@ avr32_common:
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
 	.bss
 	.align	4
-	.globl	up_interruptstack
-	.type	up_interruptstack, object
-up_interruptstack:
+	.globl	g_intstackalloc
+	.type	g_intstackalloc, object
+	.globl	g_intstacktop
+	.type	g_intstacktop, object
+g_intstackalloc:
 	.skip	(CONFIG_ARCH_INTERRUPTSTACK & ~3)
-.Lintstackbase:
-	.size	up_interruptstack, .-up_interruptstack
+g_intstacktop:
+	.size	g_intstackalloc, .-g_intstackalloc
 #endif
 	.end

@@ -26,6 +26,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <assert.h>
 #include <debug.h>
 
 #include <nuttx/arch.h>
@@ -51,7 +52,7 @@ volatile uint64_t *g_current_regs[1];
 #endif
 
 #ifdef CONFIG_SMP
-extern int riscv_pause_handler(int irq, void *c, FAR void *arg);
+extern int riscv_pause_handler(int irq, void *c, void *arg);
 #endif
 
 /****************************************************************************
@@ -87,8 +88,7 @@ void up_irqinitialize(void)
 #else
   intstack_size = ((CONFIG_ARCH_INTERRUPTSTACK * CONFIG_SMP_NCPUS) & ~15);
 #endif
-  riscv_stack_color((FAR void *)((uintptr_t)&g_intstackbase - intstack_size),
-                 intstack_size);
+  riscv_stack_color((void *)&g_intstackalloc, intstack_size);
 #endif
 
   /* Set priority for all global interrupts to 1 (lowest) */
@@ -252,39 +252,6 @@ uint32_t riscv_get_newintctx(void)
 
 void riscv_ack_irq(int irq)
 {
-}
-
-/****************************************************************************
- * Name: up_irq_save
- *
- * Description:
- *   Return the current interrupt state and disable interrupts
- *
- ****************************************************************************/
-
-irqstate_t up_irq_save(void)
-{
-  uint64_t oldstat;
-
-  /* Read mstatus & clear machine interrupt enable (MIE) in mstatus */
-
-  asm volatile ("csrrc %0, mstatus, %1": "=r" (oldstat) : "r"(MSTATUS_MIE));
-  return oldstat;
-}
-
-/****************************************************************************
- * Name: up_irq_restore
- *
- * Description:
- *   Restore previous IRQ mask state
- *
- ****************************************************************************/
-
-void up_irq_restore(irqstate_t flags)
-{
-  /* Write flags to mstatus */
-
-  asm volatile("csrw mstatus, %0" : /* no output */ : "r" (flags));
 }
 
 /****************************************************************************

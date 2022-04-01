@@ -40,8 +40,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define IDLE_STACK ((uint32_t)&_ebss+CONFIG_IDLETHREAD_STACKSIZE-4)
-
 #ifdef CONFIG_ARCH_ADDRENV
 #if CONFIG_MM_PGSIZE != 4096
 #  error Only pages sizes of 4096 are currently supported (CONFIG_ARCH_ADDRENV)
@@ -73,10 +71,10 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: or1k_getsp
+ * Name: up_getsp
  ****************************************************************************/
 
-static inline uint32_t or1k_getsp(void)
+static inline uint32_t up_getsp(void)
 {
   uint32_t sp;
 

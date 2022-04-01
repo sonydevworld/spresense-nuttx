@@ -43,6 +43,7 @@
 #include "errno.h"
 #include "fcntl.h"
 #include "string.h"
+#include <debug.h>
 #include <netdb.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>

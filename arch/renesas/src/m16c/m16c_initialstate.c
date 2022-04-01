@@ -54,14 +54,30 @@ void up_initial_state(FAR struct tcb_s *tcb)
 {
   FAR struct xcptcontext *xcp  = &tcb->xcp;
   FAR uint8_t            *regs = xcp->regs;
+  uintptr_t               sp;
 
   /* Initialize the idle thread stack */
 
   if (tcb->pid == 0)
     {
-      tcb->stack_alloc_ptr = (void *)(g_idle_topstack -
-                                      CONFIG_IDLETHREAD_STACKSIZE);
-      tcb->adj_stack_ptr   = (void *)g_idle_topstack;
+      char *stack_ptr = (char *)(g_idle_topstack -
+                                 CONFIG_IDLETHREAD_STACKSIZE);
+#ifdef CONFIG_STACK_COLORATION
+      char *stack_end = (char *)up_getsp();
+
+      /* If stack debug is enabled, then fill the stack with a
+       * recognizable value that we can use later to test for high
+       * water marks.
+       */
+
+      while (stack_ptr < stack_end)
+        {
+          *--stack_end = 0xaa;
+        }
+#endif /* CONFIG_STACK_COLORATION */
+
+      tcb->stack_alloc_ptr = stack_ptr;
+      tcb->stack_base_ptr  = stack_ptr;
       tcb->adj_stack_size  = CONFIG_IDLETHREAD_STACKSIZE;
     }
 
@@ -90,7 +106,9 @@ void up_initial_state(FAR struct tcb_s *tcb)
 
   /* Offset 18-20: User stack pointer */
 
+  sp      = (uintptr_t)tcb->stack_base_ptr +
+                       tcb->adj_stack_size;
   regs    = &xcp->regs[REG_SP];
-  *regs++ = (uint32_t)tcb->adj_stack_ptr >> 8;  /* Bits 8-15 of SP */
-  *regs   = (uint32_t)tcb->adj_stack_ptr;       /* Bits 0-7 of SP */
+  *regs++ = sp >> 8; /* Bits 8-15 of SP */
+  *regs   = sp;      /* Bits 0-7 of SP */
 }

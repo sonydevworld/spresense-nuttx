@@ -27,15 +27,20 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <assert.h>
+#include <debug.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 #include <arch/irq.h>
 
 #include "xtensa.h"
+
 #include "hardware/esp32_iomux.h"
 #include "hardware/esp32_gpio.h"
-#include "esp32_cpuint.h"
+
+#include "esp32_irq.h"
+#include "esp32_rtc_gpio.h"
+
 #include "esp32_gpio.h"
 
 /****************************************************************************
@@ -51,7 +56,11 @@
  ****************************************************************************/
 
 #ifdef CONFIG_ESP32_GPIO_IRQ
-static int g_gpio_cpuint;
+#ifdef CONFIG_SMP
+static int g_gpio_cpuint[CONFIG_SMP_NCPUS];
+#else
+static int g_gpio_cpuint[1];
+#endif
 #endif
 
 static const uint8_t g_pin2func[40] =
@@ -66,6 +75,19 @@ static const uint8_t g_pin2func[40] =
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: rtc_gpio_is_valid_gpio
+ *
+ * Description:
+ *   Determine if the specified GPIO is a valid RTC GPIO.
+ *
+ ****************************************************************************/
+
+static inline bool rtc_gpio_is_valid_gpio(uint32_t gpio_num)
+{
+  return (gpio_num < GPIO_PIN_COUNT && g_rtc_io_num_map[gpio_num] >= 0);
+}
 
 /****************************************************************************
  * Name: gpio_dispatch
@@ -113,7 +135,7 @@ static void gpio_dispatch(int irq, uint32_t status, uint32_t *regs)
  ****************************************************************************/
 
 #ifdef CONFIG_ESP32_GPIO_IRQ
-static int gpio_interrupt(int irq, FAR void *context, FAR void *arg)
+static int gpio_interrupt(int irq, void *context, void *arg)
 {
   uint32_t status;
 
@@ -148,6 +170,18 @@ static int gpio_interrupt(int irq, FAR void *context, FAR void *arg)
  * Description:
  *   Configure a GPIO pin based on encoded pin attributes.
  *
+ * Input Parameters:
+ *   pin  - GPIO pin to be configured
+ *   attr - Attributes to be configured for the selected GPIO pin.
+ *          The following attributes are accepted:
+ *          - Direction (OUTPUT or INPUT)
+ *          - Pull (PULLUP, PULLDOWN or OPENDRAIN)
+ *          - Function (if not provided, assume function GPIO by default)
+ *          - Drive strength (if not provided, assume DRIVE_2 by default)
+ *
+ * Returned Value:
+ *   Zero (OK) on success, or -1 (ERROR) in case of failure.
+ *
  ****************************************************************************/
 
 int esp32_configgpio(int pin, gpio_pinattr_t attr)
@@ -178,7 +212,71 @@ int esp32_configgpio(int pin, gpio_pinattr_t attr)
 
       func |= FUN_IE;
 
-      if ((attr & PULLUP) != 0)
+      /* Some pins only support Pull-Up and Pull-Down resistor on RTC GPIO */
+
+      if (rtc_gpio_is_valid_gpio(pin))
+        {
+          uint32_t rtc_gpio_idx = g_rtc_io_num_map[pin];
+
+          if (rtc_gpio_idx >= RTCIO_GPIO34_IDX)
+            {
+              gpioerr("Pins 34-39 don't support PullUp/PullDown\n");
+            }
+          else
+            {
+              uint32_t regval;
+              uint32_t rtc_gpio_pin;
+              bool en_pu = false;
+              bool en_pd = false;
+
+              if ((attr & PULLUP) != 0)
+                {
+                  en_pu = true;
+                }
+              else if ((attr & PULLDOWN) != 0)
+                {
+                  en_pd = true;
+                }
+
+              /* Get the pin register */
+
+              rtc_gpio_pin = g_rtc_io_desc[rtc_gpio_idx];
+
+              /* Read the current value from RTC GPIO pin */
+
+              regval = getreg32(rtc_gpio_pin);
+
+              /* RTC_IO_X32P (GPIO32) uses different PU/PD bits */
+
+              if (rtc_gpio_idx == RTCIO_GPIO32_IDX)
+                {
+                  /* First, disable PU/PD */
+
+                  regval &= ~SPECIAL_RTC_PU_BIT;
+                  regval &= ~SPECIAL_RTC_PD_BIT;
+
+                  /* Enable PU/PD, if needed */
+
+                  regval |= en_pu ? SPECIAL_RTC_PU_BIT : 0;
+                  regval |= en_pd ? SPECIAL_RTC_PD_BIT : 0;
+                }
+              else
+                {
+                  /* First, disable PU/PD */
+
+                  regval &= ~DEFAULT_RTC_PU_BIT;
+                  regval &= ~DEFAULT_RTC_PD_BIT;
+
+                  /* Enable PU/PD, if needed */
+
+                  regval |= en_pu ? DEFAULT_RTC_PU_BIT : 0;
+                  regval |= en_pd ? DEFAULT_RTC_PD_BIT : 0;
+                }
+
+              putreg32(regval, rtc_gpio_pin);
+            }
+        }
+      else if ((attr & PULLUP) != 0)
         {
           func |= FUN_PU;
         }
@@ -202,21 +300,32 @@ int esp32_configgpio(int pin, gpio_pinattr_t attr)
         }
     }
 
-  /* Add drivers */
-
-  func |= (uint32_t)(2ul << FUN_DRV_S);
-
-  /* Select the pad's function.  If no function was given, consider it a
-   * normal input or output (i.e. function3).
-   */
+  /* Configure the pad's function */
 
   if ((attr & FUNCTION_MASK) != 0)
     {
-      func |= (uint32_t)(((attr >> FUNCTION_SHIFT) - 1) << MCU_SEL_S);
+      uint32_t val = ((attr & FUNCTION_MASK) >> FUNCTION_SHIFT) - 1;
+      func |= val << MCU_SEL_S;
     }
   else
     {
+      /* Function not provided, assuming function GPIO by default */
+
       func |= (uint32_t)(PIN_FUNC_GPIO << MCU_SEL_S);
+    }
+
+  /* Configure the pad's drive strength */
+
+  if ((attr & DRIVE_MASK) != 0)
+    {
+      uint32_t val = ((attr & DRIVE_MASK) >> DRIVE_SHIFT) - 1;
+      func |= val << FUN_DRV_S;
+    }
+  else
+    {
+      /* Drive strength not provided, assuming strength 2 by default */
+
+      func |= UINT32_C(2) << FUN_DRV_S;
     }
 
   if ((attr & OPEN_DRAIN) != 0)
@@ -304,32 +413,24 @@ bool esp32_gpioread(int pin)
  ****************************************************************************/
 
 #ifdef CONFIG_ESP32_GPIO_IRQ
-void esp32_gpioirqinitialize(void)
+void esp32_gpioirqinitialize(int cpu)
 {
-  int cpu;
-
-  /* Allocate a level-sensitive, priority 1 CPU interrupt */
-
-  g_gpio_cpuint = esp32_alloc_levelint(1);
-  DEBUGASSERT(g_gpio_cpuint >= 0);
-
-  /* Set up to receive peripheral interrupts on the current CPU */
-
 #ifdef CONFIG_SMP
-  cpu = up_cpu_index();
+  DEBUGASSERT(cpu >= 0 && cpu <= CONFIG_SMP_NCPUS);
 #else
-  cpu = 0;
+  DEBUGASSERT(cpu == 0);
 #endif
 
-  /* Attach the GPIO peripheral to the allocated CPU interrupt */
+  /* Setup the GPIO interrupt. */
 
-  up_disable_irq(g_gpio_cpuint);
-  esp32_attach_peripheral(cpu, ESP32_PERIPH_CPU_GPIO, g_gpio_cpuint);
+  g_gpio_cpuint[cpu] = esp32_setup_irq(cpu, ESP32_PERIPH_CPU_GPIO,
+                                       1, ESP32_CPUINT_LEVEL);
+  DEBUGASSERT(g_gpio_cpuint[cpu] >= 0);
 
   /* Attach and enable the interrupt handler */
 
-  DEBUGVERIFY(irq_attach(ESP32_IRQ_CPU_GPIO, gpio_interrupt, NULL));
-  up_enable_irq(g_gpio_cpuint);
+  DEBUGVERIFY(irq_attach(esp32_irq_gpio(cpu), gpio_interrupt, NULL));
+  up_enable_irq(esp32_irq_gpio(cpu));
 }
 #endif
 
@@ -346,10 +447,8 @@ void esp32_gpioirqenable(int irq, gpio_intrtype_t intrtype)
 {
   uintptr_t regaddr;
   uint32_t regval;
-#ifdef CONFIG_SMP
-  int cpu;
-#endif
   int pin;
+  int cpu = up_cpu_index();
 
   DEBUGASSERT(irq >= ESP32_FIRST_GPIOIRQ && irq <= ESP32_LAST_GPIOIRQ);
 
@@ -359,7 +458,7 @@ void esp32_gpioirqenable(int irq, gpio_intrtype_t intrtype)
 
   /* Get the address of the GPIO PIN register for this pin */
 
-  up_disable_irq(g_gpio_cpuint);
+  up_disable_irq(esp32_irq_gpio(cpu));
 
   regaddr = GPIO_REG(pin);
   regval  = getreg32(regaddr);
@@ -375,7 +474,6 @@ void esp32_gpioirqenable(int irq, gpio_intrtype_t intrtype)
    */
 
 #ifdef CONFIG_SMP
-  cpu = up_cpu_index();
   if (cpu != 0)
     {
       /* APP_CPU */
@@ -393,7 +491,7 @@ void esp32_gpioirqenable(int irq, gpio_intrtype_t intrtype)
   regval |= (intrtype << GPIO_PIN_INT_TYPE_S);
   putreg32(regval, regaddr);
 
-  up_enable_irq(g_gpio_cpuint);
+  up_enable_irq(esp32_irq_gpio(cpu));
 }
 #endif
 
@@ -411,6 +509,7 @@ void esp32_gpioirqdisable(int irq)
   uintptr_t regaddr;
   uint32_t regval;
   int pin;
+  int cpu = up_cpu_index();
 
   DEBUGASSERT(irq >= ESP32_FIRST_GPIOIRQ && irq <= ESP32_LAST_GPIOIRQ);
 
@@ -420,14 +519,14 @@ void esp32_gpioirqdisable(int irq)
 
   /* Get the address of the GPIO PIN register for this pin */
 
-  up_disable_irq(g_gpio_cpuint);
+  up_disable_irq(esp32_irq_gpio(cpu));
 
   regaddr = GPIO_REG(pin);
   regval  = getreg32(regaddr);
   regval &= ~(GPIO_PIN_INT_ENA_M | GPIO_PIN_INT_TYPE_M);
   putreg32(regval, regaddr);
 
-  up_enable_irq(g_gpio_cpuint);
+  up_enable_irq(esp32_irq_gpio(cpu));
 }
 #endif
 
@@ -503,4 +602,3 @@ void esp32_gpio_matrix_out(uint32_t gpio, uint32_t signal_idx, bool out_inv,
 
   putreg32(regval, regaddr);
 }
-

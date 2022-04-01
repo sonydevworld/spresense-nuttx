@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <string.h>
+#include <assert.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/tls.h>
@@ -66,8 +67,8 @@
  *   - adj_stack_size: Stack size after adjustment for hardware, processor,
  *     etc.  This value is retained only for debug purposes.
  *   - stack_alloc_ptr: Pointer to allocated stack
- *   - adj_stack_ptr: Adjusted stack_alloc_ptr for HW.  The initial value of
- *     the stack pointer.
+ *   - stack_base_ptr: Adjusted stack base pointer after the TLS Data and
+ *     Arguments has been removed from the stack allocation.
  *
  * Input Parameters:
  *   - tcb: The TCB of new task
@@ -91,10 +92,6 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
   FAR uint8_t *stack_alloc_ptr;
   int ret = ERROR;
 
-  /* Add the size of the TLS information structure */
-
-  stack_size += sizeof(struct tls_info_s);
-
 #ifdef CONFIG_TLS_ALIGNED
   /* The allocated stack size must not exceed the maximum possible for the
    * TLS feature.
@@ -109,43 +106,25 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
 
   /* Move up to next even word boundary if necessary */
 
-  size_t adj_stack_size  = STACK_ALIGN_UP(stack_size);
+  size_t adj_stack_size = STACK_ALIGN_UP(stack_size);
 
   /* Allocate the memory for the stack */
 
 #ifdef CONFIG_TLS_ALIGNED
-  stack_alloc_ptr = (FAR uint8_t *)kumm_memalign(TLS_STACK_ALIGN,
-                                                 adj_stack_size);
+  stack_alloc_ptr = kumm_memalign(TLS_STACK_ALIGN, adj_stack_size);
 #else
-  stack_alloc_ptr = (FAR uint8_t *)kumm_malloc(adj_stack_size);
+  stack_alloc_ptr = kumm_malloc(adj_stack_size);
 #endif
 
   /* Was the allocation successful? */
 
   if (stack_alloc_ptr)
     {
-#if defined(CONFIG_STACK_COLORATION)
-      uintptr_t stack_base;
-#endif
-
-      /* This is the address of the last aligned word in the allocation.
-       * NOTE that stack_alloc_ptr + adj_stack_size may lie one byte
-       * outside of the stack.  This is okay for an initial state; the
-       * first pushed values will be within the stack allocation.
-       */
-
-      uintptr_t adj_stack_addr =
-        STACK_ALIGN_DOWN((uintptr_t)stack_alloc_ptr + adj_stack_size);
-
       /* Save the values in the TCB */
 
       tcb->adj_stack_size  = adj_stack_size;
       tcb->stack_alloc_ptr = stack_alloc_ptr;
-      tcb->adj_stack_ptr   = (FAR void *)adj_stack_addr;
-
-      /* Initialize the TLS data structure */
-
-      memset(stack_alloc_ptr, 0, sizeof(struct tls_info_s));
+      tcb->stack_base_ptr  = tcb->stack_alloc_ptr;
 
 #ifdef CONFIG_STACK_COLORATION
       /* If stack debug is enabled, then fill the stack with a
@@ -153,12 +132,9 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
        * water marks.
        */
 
-      stack_base = (uintptr_t)tcb->stack_alloc_ptr +
-                   sizeof(struct tls_info_s);
-      stack_size = tcb->adj_stack_size - sizeof(struct tls_info_s);
-      up_stack_color((FAR void *)stack_base, stack_size);
-
+      up_stack_color(tcb->stack_base_ptr, tcb->adj_stack_size);
 #endif /* CONFIG_STACK_COLORATION */
+      tcb->flags |= TCB_FLAG_FREE_STACK;
 
       ret = OK;
     }
@@ -175,12 +151,14 @@ int up_create_stack(FAR struct tcb_s *tcb, size_t stack_size, uint8_t ttype)
  ****************************************************************************/
 
 #ifdef CONFIG_STACK_COLORATION
-void up_stack_color(FAR void *stackbase, size_t nbytes)
+void nostackprotect_function up_stack_color(FAR void *stackbase,
+                                            size_t nbytes)
 {
   /* Take extra care that we do not write outsize the stack boundaries */
 
   uint32_t *stkptr = (uint32_t *)(((uintptr_t)stackbase + 3) & ~3);
-  uintptr_t stkend = (((uintptr_t)stackbase + nbytes) & ~3);
+  uintptr_t stkend = nbytes ? (((uintptr_t)stackbase + nbytes) & ~3) :
+                     up_getsp(); /* 0: colorize the running stack */
   size_t    nwords = (stkend - (uintptr_t)stackbase) >> 2;
 
   /* Set the entire stack to the coloration value */

@@ -27,6 +27,8 @@
 
 #include <nuttx/config.h>
 
+#include <nuttx/sched.h>
+#include <nuttx/lib/getopt.h>
 #include <sys/types.h>
 
 /****************************************************************************
@@ -59,6 +61,43 @@
  * Public Types
  ****************************************************************************/
 
+/* type tls_ndxset_t & tls_dtor_t *******************************************/
+
+/* Smallest addressable type that can hold the entire configured number of
+ * TLS data indexes.
+ */
+
+#if CONFIG_TLS_NELEM > 0
+#  if CONFIG_TLS_NELEM > 32
+#    error Too many TLS elements
+#  elif CONFIG_TLS_NELEM > 16
+     typedef uint32_t tls_ndxset_t;
+#  elif CONFIG_TLS_NELEM > 8
+     typedef uint16_t tls_ndxset_t;
+#  else
+     typedef uint8_t tls_ndxset_t;
+#  endif
+
+typedef CODE void (*tls_dtor_t)(FAR void *);
+
+#endif
+
+struct task_info_s
+{
+  sem_t           ta_sem;
+#if CONFIG_TLS_NELEM > 0
+  tls_ndxset_t    ta_tlsset;                    /* Set of TLS indexes allocated */
+  tls_dtor_t      ta_tlsdtor[CONFIG_TLS_NELEM]; /* List of TLS destructors      */
+#endif
+#ifndef CONFIG_BUILD_KERNEL
+  struct getopt_s ta_getopt; /* Globals used by getopt() */
+  mode_t          ta_umask;  /* File mode creation mask */
+#  ifdef CONFIG_LIBC_LOCALE
+  char            ta_domain[NAME_MAX]; /* Current domain for gettext */
+#  endif
+#endif
+};
+
 /* When TLS is enabled, up_createstack() will align allocated stacks to the
  * TLS_STACK_ALIGN value.  An instance of the following structure will be
  * implicitly positioned at the "lower" end of the stack.  Assuming a
@@ -71,14 +110,45 @@
  *
  * The stack memory is fully accessible to user mode threads.  TLS is not
  * available from interrupt handlers (nor from the IDLE thread).
+ *
+ * The following diagram represent the typic stack layout:
+ *
+ *      Push Down             Push Up
+ *   +-------------+      +-------------+ <- Stack memory allocation
+ *   | Task Data*  |      | Task Data*  |
+ *   +-------------+      +-------------+
+ *   |  TLS Data   |      |  TLS Data   |
+ *   +-------------+      +-------------+
+ *   |  Arguments  |      |  Arguments  |
+ *   +-------------+      +-------------+ |
+ *   |             |      |             | v
+ *   | Available   |      | Available   |
+ *   |   Stack     |      |   Stack     |
+ *   |             |      |             |
+ *   |             |      |             |
+ *   |             | ^    |             |
+ *   +-------------+ |    +-------------+
+ *
+ *  Task data is a pointer that pointed to a user space memory region.
  */
 
 struct tls_info_s
 {
+  FAR struct task_info_s * tl_task;
+
 #if CONFIG_TLS_NELEM > 0
   uintptr_t tl_elem[CONFIG_TLS_NELEM]; /* TLS elements */
 #endif
-  FAR struct libvars_s *tl_libvars;    /* Task-specific C library data */
+
+#ifdef CONFIG_PTHREAD_CLEANUP
+  /* tos   - The index to the next available entry at the top of the stack.
+   * stack - The pre-allocated clean-up stack memory.
+   */
+
+  uint8_t tos;
+  struct pthread_cleanup_s stack[CONFIG_PTHREAD_CLEANUP_STACKSIZE];
+#endif
+
   int tl_errno;                        /* Per-thread error number */
 };
 
@@ -93,7 +163,7 @@ struct tls_info_s
  *   Allocate a group-unique TLS data index
  *
  * Input Parameters:
- *   None
+ *   dtor     - The destructor of TLS data element
  *
  * Returned Value:
  *   A TLS index that is unique for use within this task group.
@@ -101,7 +171,7 @@ struct tls_info_s
  ****************************************************************************/
 
 #if CONFIG_TLS_NELEM > 0
-int tls_alloc(void);
+int tls_alloc(CODE void (*dtor)(FAR void *));
 #endif
 
 /****************************************************************************
@@ -188,5 +258,40 @@ int tls_set_value(int tlsindex, uintptr_t tlsvalue);
 #ifndef CONFIG_TLS_ALIGNED
 FAR struct tls_info_s *tls_get_info(void);
 #endif
+
+/****************************************************************************
+ * Name: tls_destruct
+ *
+ * Description:
+ *   Destruct all TLS data element associated with allocated key
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   A set of allocated TLS index
+ *
+ ****************************************************************************/
+
+#if CONFIG_TLS_NELEM > 0
+void tls_destruct(void);
+#endif
+
+/****************************************************************************
+ * Name: task_get_info
+ *
+ * Description:
+ *   Return a reference to the task_info_s structure.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   A reference to the task-specific task_info_s structure is return on
+ *   success.  NULL would be returned in the event of any failure.
+ *
+ ****************************************************************************/
+
+FAR struct task_info_s *task_get_info(void);
 
 #endif /* __INCLUDE_NUTTX_TLS_H */

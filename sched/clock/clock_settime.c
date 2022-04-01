@@ -51,8 +51,10 @@
 
 int clock_settime(clockid_t clock_id, FAR const struct timespec *tp)
 {
+#ifndef CONFIG_CLOCK_TIMEKEEPING
   struct timespec bias;
   irqstate_t flags;
+#endif
   int ret = OK;
 
   sinfo("clock_id=%d\n", clock_id);
@@ -62,7 +64,8 @@ int clock_settime(clockid_t clock_id, FAR const struct timespec *tp)
    * time clock.
    */
 
-  if (clock_id == CLOCK_REALTIME)
+  if (clock_id == CLOCK_REALTIME &&
+      tp->tv_nsec >= 0 && tp->tv_nsec < 1000000000)
     {
 #ifndef CONFIG_CLOCK_TIMEKEEPING
       /* Interrupts are disabled here so that the in-memory time

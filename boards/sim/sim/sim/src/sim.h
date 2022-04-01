@@ -93,7 +93,7 @@ int sim_bringup(void);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_LIB_ZONEINFO_ROMFS
+#ifdef CONFIG_LIBC_ZONEINFO_ROMFS
 int sim_zoneinfo(int minor);
 #endif
 
@@ -128,6 +128,21 @@ int sim_gpio_initialize(void);
 
 #if defined(CONFIG_SIM_X11FB) && defined(CONFIG_SIM_TOUCHSCREEN)
 int sim_tsc_setup(int minor);
+#endif
+
+/****************************************************************************
+ * Name: sim_foc_setup
+ *
+ * Description:
+ *   Initialize the FOC controller driver.
+ *
+ * Returned Value:
+ *   0 on success, a negated errno value on failure
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SIM_MOTOR_FOC
+int sim_foc_setup(void);
 #endif
 
 #endif /* __BOARDS_SIM_SIM_SIM_SRC_SIM_H */

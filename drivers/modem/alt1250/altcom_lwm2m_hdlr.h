@@ -38,7 +38,24 @@ typedef int32_t (*lwm2mstub_hndl_t)(FAR uint8_t *, size_t,
                           FAR void **, size_t);
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: lwm2mstub_get_handler
+ *
+ * Description:
+ *   Get handler for lwm2m stub.
+ *
+ * Input Parameters:
+ *   pktbuf   - Pointer to the received packet.
+ *   pktsz    - Pointer to the data size after parsing the received packet.
+ *   lcmdid   - Pointer to a variable that stores the lwm2m LAPI command ID.
+ *
+ * Returned Value:
+ *   If a lwm2m handler associated with the received packet is found, the
+ *   function pointer of the handler is returned. If not found, returns NULL.
+ *
  ****************************************************************************/
 
 lwm2mstub_hndl_t lwm2mstub_get_handler(FAR uint8_t **pktbuf, size_t *pktsz,

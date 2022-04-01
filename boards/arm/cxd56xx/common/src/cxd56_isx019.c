@@ -35,6 +35,7 @@
 #include "cxd56_gpio.h"
 #include "cxd56_pinconfig.h"
 #include "cxd56_i2c.h"
+#include "cxd56_clock.h"
 
 #include <arch/board/board.h>
 
@@ -48,9 +49,10 @@
 #  error "IMAGER_RST must be defined in board.h !!"
 #endif
 
-#define POWER_CHECK_TIME             (1*1000)  /* ms */
+#define POWER_CHECK_TIME            (1 * 1000)   /* ms */
+#define POWER_OFF_TIME              (50 * 1000)  /* ms */
 
-#define POWER_CHECK_RETRY            (10)
+#define POWER_CHECK_RETRY           (10)
 
 /****************************************************************************
  * Public Functions
@@ -97,6 +99,10 @@ int board_isx019_power_off(void)
       return -ENODEV;
     }
 
+  /* Need to wait for power-off to be reflected */
+
+  nxsig_usleep(POWER_OFF_TIME);
+
   ret = -ETIMEDOUT;
   for (i = 0; i < POWER_CHECK_RETRY; i++)
     {
@@ -124,10 +130,28 @@ void board_isx019_release_reset(void)
 
 struct i2c_master_s *board_isx019_initialize(void)
 {
+  int     retry = 50;
+
   _info("Initializing ISX019...\n");
+
+  while (!g_rtc_enabled && 0 < retry--)
+    {
+      /* ISX019 requires stable RTC */
+
+      nxsig_usleep(100 * 1000);
+    }
 
   cxd56_gpio_config(IMAGER_RST, false);
   board_isx019_set_reset();
+
+  /* To avoid IS_DATA0 and IS_DATA7 being Hi-Z state during FPGA config,
+   * output these pins to LOW.
+   */
+
+  cxd56_gpio_config(PIN_IS_DATA0, false);
+  cxd56_gpio_config(PIN_IS_DATA7, false);
+  cxd56_gpio_write(PIN_IS_DATA0, false);
+  cxd56_gpio_write(PIN_IS_DATA7, false);
 
   /* Initialize i2c device */
 
@@ -140,7 +164,14 @@ int board_isx019_uninitialize(struct i2c_master_s *i2c)
 
   _info("Uninitializing ISX019...\n");
 
-  /* Initialize i2c device */
+  /* Restore IS_DATA0 and IS_DATA7 to Hi-Z state */
+
+  cxd56_gpio_config(PIN_IS_DATA0, false);
+  cxd56_gpio_config(PIN_IS_DATA7, false);
+  cxd56_gpio_write_hiz(PIN_IS_DATA0);
+  cxd56_gpio_write_hiz(PIN_IS_DATA7);
+
+  /* Uninitialize i2c device */
 
   ret = isx019_uninitialize();
   if (ret < 0)
@@ -165,3 +196,9 @@ int board_isx019_uninitialize(struct i2c_master_s *i2c)
 
   return ret;
 }
+
+uint32_t board_isx019_get_master_clock(void)
+{
+  return cxd56_get_xosc_clock();
+}
+

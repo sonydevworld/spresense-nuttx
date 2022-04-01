@@ -32,7 +32,41 @@
  * Public Function Prototypes
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: alt1250_composehdlr
+ *
+ * Description:
+ *   Get the function pointer of the compose handler associated with the
+ *   LAPI command ID.
+ *
+ * Input Parameters:
+ *   cmdid   - ID of the LAPI command.
+ *
+ * Returned Value:
+ *   Returns a function pointer for the compose handler. If there is no
+ *   compose handler associated with the LAPI command ID, NULL is returned.
+ *
+ ****************************************************************************/
+
 compose_handler_t alt1250_composehdlr(uint32_t cmdid);
+
+/****************************************************************************
+ * Name: alt1250_parsehdlr
+ *
+ * Description:
+ *   Get the function pointer of the parse handler associated with the
+ *   ALTCOM command ID.
+ *
+ * Input Parameters:
+ *   altcid   - ID of the ALTCOM command.
+ *   altver   - Version of the ALTCOM command.
+ *
+ * Returned Value:
+ *   Returns a function pointer for the parse handler. If there is no
+ *   parse handler associated with the ALTCOM command ID, NULL is returned.
+ *
+ ****************************************************************************/
+
 parse_handler_t alt1250_parsehdlr(uint16_t altcid, uint8_t altver);
 
 #endif  /* __DRIVERS_MODEM_ALT1250_ALTCOM_HDLR_H__ */

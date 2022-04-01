@@ -96,6 +96,7 @@ bool altmdm_is_valid_spipkt_header(FAR altmdm_spipkt_t *pkt)
   total_size = pkt_total_size(pkt);
 
   return ((actual_size <= ALTSPI_MAX_PKTSIZE) &&
+    (actual_size <= pkt->buff_size) &&
     (((actual_size + (ALTSPI_PKT_WORDSIZE - 1)) & ~(ALTSPI_PKT_WORDSIZE - 1))
      == total_size));
 }

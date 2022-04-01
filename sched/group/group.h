@@ -73,6 +73,7 @@ void weak_function task_initialize(void);
 /* Task group data structure management */
 
 int  group_allocate(FAR struct task_tcb_s *tcb, uint8_t ttype);
+void group_deallocate(FAR struct task_group_s *group);
 int  group_initialize(FAR struct task_tcb_s *tcb);
 #ifndef CONFIG_DISABLE_PTHREAD
 int  group_bind(FAR struct pthread_tcb_s *tcb);
@@ -138,12 +139,6 @@ int  group_setupidlefiles(FAR struct task_tcb_s *tcb);
 int  group_setuptaskfiles(FAR struct task_tcb_s *tcb);
 #ifdef CONFIG_FILE_STREAM
 int  group_setupstreams(FAR struct task_tcb_s *tcb);
-#endif
-
-#ifndef CONFIG_BUILD_KERNEL
-/* Task specific data */
-
-void tls_set_taskdata(FAR struct tcb_s *tcb);
 #endif
 
 #endif /* __SCHED_GROUP_GROUP_H */

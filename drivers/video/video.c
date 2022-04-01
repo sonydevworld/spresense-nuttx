@@ -626,16 +626,18 @@ static void get_clipped_format(uint8_t              nr_fmt,
                  &fmt[VIDEO_FMT_SUB],
                  sizeof(video_format_t));
 
-          c_fmt[VIDEO_FMT_SUB].width *= clip->width;
-          c_fmt[VIDEO_FMT_SUB].width /= fmt[VIDEO_FMT_MAIN].width;
+          c_fmt[VIDEO_FMT_SUB].width
+            = (uint32_t)c_fmt[VIDEO_FMT_SUB].width
+              * clip->width / fmt[VIDEO_FMT_MAIN].width;
 
-          c_fmt[VIDEO_FMT_SUB].height *= clip->height;
-          c_fmt[VIDEO_FMT_SUB].height /= fmt[VIDEO_FMT_MAIN].height;
+          c_fmt[VIDEO_FMT_SUB].height
+            = (uint32_t)c_fmt[VIDEO_FMT_SUB].height
+              * clip->height / fmt[VIDEO_FMT_MAIN].height;
         }
     }
   else
     {
-      memcpy(c_fmt, fmt, sizeof(video_format_t));
+      memcpy(c_fmt, fmt, nr_fmt * sizeof(video_format_t));
     }
 }
 
@@ -1322,6 +1324,16 @@ static int video_cancel_dqbuf(FAR struct video_mng_s *vmng,
   return OK;
 }
 
+static bool validate_clip_range(int32_t pos, uint32_t c_sz, uint16_t frm_sz)
+{
+  if ((pos < 0) || (c_sz > frm_sz) || (pos + c_sz > frm_sz))
+    {
+      return false;
+    }
+
+  return true;
+}
+
 static bool validate_clip_setting(FAR struct v4l2_rect *clip,
                                  FAR video_format_t *fmt)
 {
@@ -1331,10 +1343,8 @@ static bool validate_clip_setting(FAR struct v4l2_rect *clip,
 
   /* Not permit the setting which do not fit inside frame size. */
 
-  if ((clip->left < 0) ||
-      (clip->top  < 0) ||
-      (clip->left + clip->width > fmt->width) ||
-      (clip->top + clip->height > fmt->height))
+  if (!validate_clip_range(clip->left, clip->width,  fmt->width) ||
+      !validate_clip_range(clip->top,  clip->height, fmt->height))
     {
       ret = false;
     }
@@ -1642,6 +1652,46 @@ static int video_s_parm(FAR struct video_mng_s *priv,
          sizeof(struct v4l2_fract));
 
   return ret;
+}
+
+static int video_g_parm(FAR struct video_mng_s *vmng,
+                        FAR struct v4l2_streamparm *parm)
+{
+  int ret = -EINVAL;
+  FAR video_type_inf_t *type_inf;
+
+  DEBUGASSERT(vmng && g_video_sensor_ops);
+
+  type_inf = get_video_type_inf(vmng, parm->type);
+  if (type_inf == NULL)
+    {
+      return -EINVAL;
+    }
+
+  if ((type_inf->state == VIDEO_STATE_CAPTURE) &&
+      (g_video_sensor_ops->get_frame_interval != NULL))
+    {
+      /* If capture is started and lower driver has the get_frame_interval(),
+       * query lower driver.
+       */
+
+      memset(&parm->parm, 0, sizeof(parm->parm));
+
+      ret = g_video_sensor_ops->get_frame_interval
+              (parm->type,
+               (imgsensor_interval_t *)&parm->parm.capture.timeperframe);
+    }
+
+  if (ret != OK)
+    {
+      /* In no capture state or error case, return stored value. */
+
+      memcpy(&parm->parm.capture.timeperframe,
+             &type_inf->frame_interval,
+             sizeof(struct v4l2_fract));
+    }
+
+  return OK;
 }
 
 static int video_streamon(FAR struct video_mng_s *vmng,
@@ -2969,6 +3019,11 @@ static int video_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case VIDIOC_S_PARM:
         ret = video_s_parm(priv, (FAR struct v4l2_streamparm *)arg);
+
+        break;
+
+      case VIDIOC_G_PARM:
+        ret = video_g_parm(priv, (FAR struct v4l2_streamparm *)arg);
 
         break;
 

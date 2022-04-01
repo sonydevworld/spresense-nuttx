@@ -51,9 +51,7 @@
  * ARM EABI requires 64 bit stack alignment.
  */
 
-#define IDLE_STACKSIZE (CONFIG_IDLETHREAD_STACKSIZE & ~7)
-#define IDLE_STACK     ((uintptr_t)&_ebss + IDLE_STACKSIZE)
-#define HEAP_BASE      ((uintptr_t)&_ebss + IDLE_STACKSIZE)
+#define HEAP_BASE      ((uintptr_t)&_ebss + CONFIG_IDLETHREAD_STACKSIZE)
 
 /****************************************************************************
  * Public Data
@@ -124,7 +122,7 @@ static inline void lpc17_40_fpuconfig(void)
    */
 
   regval = getcontrol();
-  regval |= (1 << 2);
+  regval |= CONTROL_FPCA;
   setcontrol(regval);
 
   /* Ensure that FPCCR.LSPEN is disabled, so that we don't have to contend
@@ -133,13 +131,13 @@ static inline void lpc17_40_fpuconfig(void)
    */
 
   regval = getreg32(NVIC_FPCCR);
-  regval &= ~((1 << 31) | (1 << 30));
+  regval &= ~(NVIC_FPCCR_ASPEN | NVIC_FPCCR_LSPEN);
   putreg32(regval, NVIC_FPCCR);
 
   /* Enable full access to CP10 and CP11 */
 
   regval = getreg32(NVIC_CPACR);
-  regval |= ((3 << (2 * 10)) | (3 << (2 * 11)));
+  regval |= NVIC_CPACR_CP_FULL(10) | NVIC_CPACR_CP_FULL(11);
   putreg32(regval, NVIC_CPACR);
 }
 
@@ -154,7 +152,7 @@ static inline void lpc17_40_fpuconfig(void)
    */
 
   regval = getcontrol();
-  regval &= ~(1 << 2);
+  regval &= ~CONTROL_FPCA;
   setcontrol(regval);
 
   /* Ensure that FPCCR.LSPEN is disabled, so that we don't have to contend
@@ -163,13 +161,13 @@ static inline void lpc17_40_fpuconfig(void)
    */
 
   regval = getreg32(NVIC_FPCCR);
-  regval &= ~((1 << 31) | (1 << 30));
+  regval &= ~(NVIC_FPCCR_ASPEN | NVIC_FPCCR_LSPEN);
   putreg32(regval, NVIC_FPCCR);
 
   /* Enable full access to CP10 and CP11 */
 
   regval = getreg32(NVIC_CPACR);
-  regval |= ((3 << (2 * 10)) | (3 << (2 * 11)));
+  regval |= NVIC_CPACR_CP_FULL(10) | NVIC_CPACR_CP_FULL(11);
   putreg32(regval, NVIC_CPACR);
 }
 
@@ -186,7 +184,7 @@ static inline void lpc17_40_fpuconfig(void)
 #ifdef CONFIG_ARMV7M_STACKCHECK
 /* we need to get r10 set before we can allow instrumentation calls */
 
-void __start(void) __attribute__ ((no_instrument_function));
+void __start(void) noinstrument_function;
 #endif
 
 /****************************************************************************

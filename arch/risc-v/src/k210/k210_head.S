@@ -26,6 +26,8 @@
 #include <arch/rv64gc/irq.h>
 
 #include "chip.h"
+#include "k210_memorymap.h"
+#include "riscv_internal.h"
 
 /****************************************************************************
  * Public Symbols
@@ -53,6 +55,12 @@ __start:
   j    2f
 1:
   la   sp, K210_IDLESTACK1_TOP
+
+  /* In case of single CPU config, stop here */
+
+#if !(defined CONFIG_SMP) || (CONFIG_SMP_NCPUS == 1)
+  wfi
+#endif
 2:
 
   /* Disable all interrupts (i.e. timer, external) in mie */
@@ -151,11 +159,11 @@ normal_irq:
   /* Switch to interrupt stack */
 
   bnez s0, 3f
-  la   sp, g_intstackbase
+  la   sp, g_intstacktop
   j    4f
 3:
-  la   sp, g_intstackbase
-  addi sp, sp, -((CONFIG_ARCH_INTERRUPTSTACK) & ~15)
+  la   sp, g_intstacktop
+  addi sp, sp, -(CONFIG_ARCH_INTERRUPTSTACK & ~15)
 4:
 
 #endif
@@ -212,25 +220,24 @@ normal_irq:
   mret
 
 /************************************************************************************
- *  Name: g_intstackalloc and g_intstackbase
+ *  Name: g_intstackalloc and g_intstacktop
  ************************************************************************************/
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 15
   .bss
   .balign 16
   .global g_intstackalloc
-  .global g_intstackbase
+  .global g_intstacktop
   .type   g_intstackalloc, object
-  .type   g_intstackbase, object
+  .type   g_intstacktop, object
 g_intstackalloc:
 #ifndef CONFIG_SMP
   .skip  ((CONFIG_ARCH_INTERRUPTSTACK + 8) & ~15)
 #else
   .skip  (((CONFIG_ARCH_INTERRUPTSTACK * CONFIG_SMP_NCPUS) + 8) & ~15)
 #endif
-g_intstackbase:
-  .skip  8
-  .size  g_intstackbase, 8
+g_intstacktop:
+  .size  g_intstacktop, 0
 #ifndef CONFIG_SMP
   .size  g_intstackalloc, (CONFIG_ARCH_INTERRUPTSTACK & ~15)
 #else

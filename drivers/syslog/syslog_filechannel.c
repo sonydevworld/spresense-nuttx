@@ -25,12 +25,18 @@
 #include <nuttx/config.h>
 
 #include <sys/stat.h>
+#include <unistd.h>
 #include <sched.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
 
 #include <nuttx/syslog/syslog.h>
-#include <nuttx/compiler.h>
+#include <nuttx/kmalloc.h>
+#include <nuttx/fs/fs.h>
 
 #include "syslog.h"
 
@@ -44,28 +50,8 @@
 #define OPEN_MODE  (S_IROTH | S_IRGRP | S_IRUSR | S_IWUSR)
 
 /****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-
-/* SYSLOG channel methods */
-
-static int syslog_file_force(FAR struct syslog_channel_s *channel, int ch);
-
-/****************************************************************************
  * Private Data
  ****************************************************************************/
-
-/* This structure describes the channel's operations. */
-
-static const struct syslog_channel_ops_s g_syslog_ops =
-{
-  syslog_dev_putc,
-  syslog_file_force,
-  syslog_dev_flush,
-#ifdef CONFIG_SYSLOG_WRITE
-  syslog_dev_write,
-#endif
-};
 
 /* Handle to the SYSLOG channel */
 
@@ -75,19 +61,78 @@ FAR static struct syslog_channel_s *g_syslog_file_channel;
  * Private Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: syslog_file_force
- *
- * Description:
- *   A dummy FORCE method
- *
- ****************************************************************************/
-
-static int syslog_file_force(FAR struct syslog_channel_s *channel, int ch)
+#ifdef CONFIG_SYSLOG_FILE_SEPARATE
+static void log_separate(FAR const char *log_file)
 {
-  UNUSED(channel);
-  return ch;
+  struct file fp;
+
+  if (file_open(&fp, log_file, O_WRONLY) < 0)
+    {
+      return;
+    }
+
+  file_write(&fp, "\n\n", 2);
+
+  file_close(&fp);
 }
+#endif
+
+#if CONFIG_SYSLOG_FILE_ROTATIONS > 0
+static void log_rotate(FAR const char *log_file)
+{
+  int i;
+  off_t size;
+  struct stat f_stat;
+  size_t name_size;
+  FAR char *rotate_to;
+  FAR char *rotate_from;
+
+  /* Get the size of the current log file. */
+
+  if (stat(log_file, &f_stat) < 0)
+    {
+      return;
+    }
+
+  size = f_stat.st_size;
+
+  /* If it does not exceed the limit we are OK. */
+
+  if (size < CONFIG_SYSLOG_FILE_SIZE_LIMIT)
+    {
+      return;
+    }
+
+  /* Rotated file names. */
+
+  name_size = strlen(log_file) + 8;
+  rotate_to = kmm_malloc(name_size);
+  rotate_from = kmm_malloc(name_size);
+  if ((rotate_to == NULL) || (rotate_from == NULL))
+    {
+      goto end;
+    }
+
+  /* Rotate the logs. */
+
+  for (i = (CONFIG_SYSLOG_FILE_ROTATIONS - 1); i > 0; i--)
+    {
+      snprintf(rotate_to, name_size, "%s.%d", log_file, i);
+      snprintf(rotate_from, name_size, "%s.%d", log_file, i - 1);
+
+      rename(rotate_from, rotate_to);
+    }
+
+  snprintf(rotate_to, name_size, "%s.0", log_file);
+
+  rename(log_file, rotate_to);
+
+end:
+
+  kmm_free(rotate_to);
+  kmm_free(rotate_from);
+}
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -124,15 +169,12 @@ static int syslog_file_force(FAR struct syslog_channel_s *channel, int ch)
  *     file.
  *
  * Returned Value:
- *   Zero (OK) is returned on success; a negated errno value is returned on
- *   any failure.
+ *   A pointer to the new SYSLOG channel; NULL is returned on any failure.
  *
  ****************************************************************************/
 
-int syslog_file_channel(FAR const char *devpath)
+FAR struct syslog_channel_s *syslog_file_channel(FAR const char *devpath)
 {
-  int ret;
-
   /* Reset the default SYSLOG channel so that we can safely modify the
    * SYSLOG device.  This is an atomic operation and we should be safe
    * after the default channel has been selected.
@@ -150,29 +192,40 @@ int syslog_file_channel(FAR const char *devpath)
       syslog_dev_uninitialize(g_syslog_file_channel);
     }
 
+  /* Rotate the log file, if needed. */
+
+#if CONFIG_SYSLOG_FILE_ROTATIONS > 0
+  log_rotate(devpath);
+#endif
+
+  /* Separate the old log entries. */
+
+#ifdef CONFIG_SYSLOG_FILE_SEPARATE
+  log_separate(devpath);
+#endif
+
   /* Then initialize the file interface */
 
   g_syslog_file_channel = syslog_dev_initialize(devpath, OPEN_FLAGS,
                                                 OPEN_MODE);
   if (g_syslog_file_channel == NULL)
     {
-      ret = -ENOMEM;
       goto errout_with_lock;
     }
-
-  /* Register the channel operations */
-
-  g_syslog_file_channel->sc_ops = &g_syslog_ops;
 
   /* Use the file as the SYSLOG channel. If this fails we are pretty much
    * screwed.
    */
 
-  ret = syslog_channel(g_syslog_file_channel);
+  if (syslog_channel(g_syslog_file_channel) != OK)
+    {
+      syslog_dev_uninitialize(g_syslog_file_channel);
+      g_syslog_file_channel = NULL;
+    }
 
 errout_with_lock:
   sched_unlock();
-  return ret;
+  return g_syslog_file_channel;
 }
 
 #endif /* CONFIG_SYSLOG_FILE */

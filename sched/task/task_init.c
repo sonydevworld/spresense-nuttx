@@ -28,11 +28,12 @@
 #include <stdint.h>
 #include <sched.h>
 #include <queue.h>
+#include <assert.h>
 #include <errno.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/sched.h>
-#include <nuttx/lib/libvars.h>
+#include <nuttx/tls.h>
 
 #include "sched/sched.h"
 #include "group/group.h"
@@ -85,9 +86,7 @@ int nxtask_init(FAR struct task_tcb_s *tcb, const char *name, int priority,
                 main_t entry, FAR char * const argv[])
 {
   uint8_t ttype = tcb->cmn.flags & TCB_FLAG_TTYPE_MASK;
-#ifndef CONFIG_BUILD_KERNEL
-  FAR struct task_group_s *group;
-#endif
+  FAR struct tls_info_s *info;
   int ret;
 
 #ifndef CONFIG_DISABLE_PTHREAD
@@ -122,7 +121,9 @@ int nxtask_init(FAR struct task_tcb_s *tcb, const char *name, int priority,
     {
       /* Allocate the stack for the TCB */
 
-      ret = up_create_stack(&tcb->cmn, stack_size, ttype);
+      ret = up_create_stack(&tcb->cmn,
+                            sizeof(struct tls_info_s) + stack_size,
+                            ttype);
     }
 
   if (ret < OK)
@@ -130,21 +131,18 @@ int nxtask_init(FAR struct task_tcb_s *tcb, const char *name, int priority,
       goto errout_with_group;
     }
 
-#ifndef CONFIG_BUILD_KERNEL
-  /* Allocate a stack frame to hold task-specific data */
+  /* Initialize thread local storage */
 
-  group = tcb->cmn.group;
-  group->tg_libvars = up_stack_frame(&tcb->cmn, sizeof(struct libvars_s));
-  DEBUGASSERT(group->tg_libvars != NULL);
+  info = up_stack_frame(&tcb->cmn, sizeof(struct tls_info_s));
+  if (info == NULL)
+    {
+      ret = -ENOMEM;
+      goto errout_with_group;
+    }
 
-  /* Initialize the task-specific data */
+  DEBUGASSERT(info == tcb->cmn.stack_alloc_ptr);
 
-  memset(group->tg_libvars, 0, sizeof(struct libvars_s));
-
-  /* Save the allocated task data in TLS */
-
-  tls_set_taskdata(&tcb->cmn);
-#endif
+  info->tl_task = tcb->cmn.group->tg_info;
 
   /* Initialize the task control block */
 

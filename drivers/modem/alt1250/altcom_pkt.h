@@ -48,6 +48,8 @@
 #define ALTCOM_PKT_SIZE_MAX        (ALTCOM_PAYLOAD_SIZE_MAX \
                                     + sizeof(struct altcom_cmdhdr_s) \
                                     + sizeof(struct altcom_cmdfooter_s))
+#define ALTCOM_RX_PKT_SIZE_MAX     (ALTCOM_PAYLOAD_SIZE_MAX_V4 \
+                                    + sizeof(struct altcom_cmdhdr_s))
 
 #define LTE_RESULT_OK     (0)      /**< Result code on success */
 #define LTE_RESULT_ERROR  (1)      /**< Result code on failure */
@@ -258,6 +260,23 @@ static inline uint16_t convert_cid2v1(uint16_t cid)
       return APICMDID_TLS_CONFIG_VERIFY_CALLBACK;
     }
 
+  if (cid == APICMDID_CLOGS_V4)
+    {
+      return APICMDID_CLOGS;
+    }
+
+  if (cid == APICMDID_LOGLIST_V4)
+    {
+      return APICMDID_LOGLIST;
+    }
+
+#ifdef CONFIG_MODEM_ALT1250_LOG_ACCESS
+  if ((cid >= APICMDID_LOGOPEN_V4) && (cid <= APICMDID_LOGLSEEK_V4))
+    {
+      return cid + (APICMDID_LOGOPEN - APICMDID_LOGOPEN_V4);
+    }
+#endif /* CONFIG_MODEM_ALT1250_LOG_ACCESS */
+
   return APICMDID_UNKNOWN;
 }
 
@@ -265,13 +284,130 @@ static inline uint16_t convert_cid2v1(uint16_t cid)
  * Public Function Prototypes
  ****************************************************************************/
 
-FAR void *altcom_make_poweron_cmd_v1(int *);
-FAR void *altcom_make_poweron_cmd_v4(int *);
+/****************************************************************************
+ * Name: altcom_make_poweron_cmd_v1
+ *
+ * Description:
+ *   Create an ALTCOM command for POWER_ON_REQ of protocol version 1.
+ *
+ * Input Parameters:
+ *   sz         - Variable to put the length of the command created.
+ *
+ * Returned Value:
+ *   Returns the buffer pointer of the created command.
+ *
+ ****************************************************************************/
+
+FAR void *altcom_make_poweron_cmd_v1(int *sz);
+
+/****************************************************************************
+ * Name: altcom_make_poweron_cmd_v4
+ *
+ * Description:
+ *   Create an ALTCOM command for POWER_ON_REQ of protocol version 4.
+ *
+ * Input Parameters:
+ *   sz         - Variable to put the length of the command created.
+ *
+ * Returned Value:
+ *   Returns the buffer pointer of the created command.
+ *
+ ****************************************************************************/
+
+FAR void *altcom_make_poweron_cmd_v4(int *sz);
+
+/****************************************************************************
+ * Name: altcom_is_v1pkt_ok
+ *
+ * Description:
+ *   Check if the POWER_ON_RES command of protocol version 1 is OK.
+ *
+ * Input Parameters:
+ *   cmdhdr      - Pointer to the received packet.
+ *
+ * Returned Value:
+ *   Returns true if the POWER_ON_RES command of protocol version 1 is OK,
+ *   false otherwise.
+ *
+ ****************************************************************************/
+
 bool altcom_is_v1pkt_ok(struct altcom_cmdhdr_s *cmdhdr);
+
+/****************************************************************************
+ * Name: altcom_is_v4pkt_ok
+ *
+ * Description:
+ *   Check if the POWER_ON_RES command of protocol version 4 is OK.
+ *
+ * Input Parameters:
+ *   cmdhdr      - Pointer to the received packet.
+ *
+ * Returned Value:
+ *   Returns true if the POWER_ON_RES command of protocol version 4 is OK,
+ *   false otherwise.
+ *
+ ****************************************************************************/
+
 bool altcom_is_v4pkt_ok(struct altcom_cmdhdr_s *cmdhdr);
+
+/****************************************************************************
+ * Name: altcom_is_pkt_ok
+ *
+ * Description:
+ *   Check the validity of the ALTCOM command received from ALT1250.
+ *   In the case of a fragmented packet, returns the length of the remaining
+ *   fragmented packets.
+ *
+ * Input Parameters:
+ *   pkt      - Pointer to the received packet.
+ *   sz       - Size of received packets.
+ *
+ * Returned Value:
+ *   If the received packet is valid, 0 is returned. If the received packet
+ *   is a fragmented packet, the length of the remaining fragmented packet is
+ *   returned. If the received packet is not valid, a negative value is
+ *   returned.
+ *
+ ****************************************************************************/
+
 int altcom_is_pkt_ok(FAR uint8_t *pkt, int sz);
+
+/****************************************************************************
+ * Name: altcom_set_header_top
+ *
+ * Description:
+ *   Set the version and command ID among the ALTCOM command headers.
+ *
+ * Input Parameters:
+ *   hdr      - Pointer to ALTCOM command header.
+ *   ver      - ALTCOM protocol version.
+ *   cid      - ALTCOM command ID.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
 void altcom_set_header_top(FAR struct altcom_cmdhdr_s *hdr,
   uint8_t ver, uint16_t cid);
+
+/****************************************************************************
+ * Name: altcom_make_header
+ *
+ * Description:
+ *   Create ALTCOM command header.
+ *
+ * Input Parameters:
+ *   hdr      - Pointer to ALTCOM command header.
+ *   ver      - ALTCOM protocol version.
+ *   cid      - ALTCOM command ID.
+ *   sz       - Body size of the ALTCOM command.
+ *
+ * Returned Value:
+ *   Returns the transaction ID of the ALTCOM command.
+ *
+ ****************************************************************************/
+
 uint16_t altcom_make_header(FAR struct altcom_cmdhdr_s *hdr,
   uint8_t ver, uint16_t cid, uint16_t sz);
 

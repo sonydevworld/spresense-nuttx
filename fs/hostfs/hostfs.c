@@ -1,35 +1,20 @@
 /****************************************************************************
  * fs/hostfs/hostfs.c
  *
- *   Copyright (C) 2015 Ken Pettit. All rights reserved.
- *   Author: Ken Pettit <pettitkd@gmail.com>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -87,6 +72,8 @@ static int     hostfs_dup(FAR const struct file *oldp,
                         FAR struct file *newp);
 static int     hostfs_fstat(FAR const struct file *filep,
                         FAR struct stat *buf);
+static int     hostfs_fchstat(FAR const struct file *filep,
+                        FAR const struct stat *buf, int flags);
 static int     hostfs_ftruncate(FAR struct file *filep,
                         off_t length);
 
@@ -117,6 +104,9 @@ static int     hostfs_rename(FAR struct inode *mountpt,
                         FAR const char *newrelpath);
 static int     hostfs_stat(FAR struct inode *mountpt,
                         FAR const char *relpath, FAR struct stat *buf);
+static int     hostfs_chstat(FAR struct inode *mountpt,
+                        FAR const char *relpath,
+                        FAR const struct stat *buf, int flags);
 
 /****************************************************************************
  * Private Data
@@ -146,6 +136,7 @@ const struct mountpt_operations hostfs_operations =
   hostfs_sync,          /* sync */
   hostfs_dup,           /* dup */
   hostfs_fstat,         /* fstat */
+  hostfs_fchstat,       /* fchstat */
   hostfs_ftruncate,     /* ftruncate */
 
   hostfs_opendir,       /* opendir */
@@ -161,7 +152,8 @@ const struct mountpt_operations hostfs_operations =
   hostfs_mkdir,         /* mkdir */
   hostfs_rmdir,         /* rmdir */
   hostfs_rename,        /* rename */
-  hostfs_stat           /* stat */
+  hostfs_stat,          /* stat */
+  hostfs_chstat,        /* chstat */
 };
 
 /****************************************************************************
@@ -753,6 +745,52 @@ static int hostfs_fstat(FAR const struct file *filep, FAR struct stat *buf)
 }
 
 /****************************************************************************
+ * Name: hostfs_fchstat
+ *
+ * Description:
+ *   Change information about an open file associated with the file
+ *   descriptor 'fd'.
+ *
+ ****************************************************************************/
+
+static int hostfs_fchstat(FAR const struct file *filep,
+                          FAR const struct stat *buf, int flags)
+{
+  FAR struct inode *inode;
+  FAR struct hostfs_mountpt_s *fs;
+  FAR struct hostfs_ofile_s *hf;
+  int ret = OK;
+
+  /* Sanity checks */
+
+  DEBUGASSERT(filep != NULL && buf != NULL);
+
+  /* Recover our private data from the struct file instance */
+
+  DEBUGASSERT(filep->f_priv != NULL && filep->f_inode != NULL);
+  hf    = filep->f_priv;
+  inode = filep->f_inode;
+
+  fs    = inode->i_private;
+  DEBUGASSERT(fs != NULL);
+
+  /* Take the semaphore */
+
+  ret = hostfs_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* Call the host to perform the change */
+
+  ret = host_fchstat(hf->fd, buf, flags);
+
+  hostfs_semgive(fs);
+  return ret;
+}
+
+/****************************************************************************
  * Name: hostfs_ftruncate
  *
  * Description:
@@ -1337,6 +1375,46 @@ static int hostfs_stat(FAR struct inode *mountpt, FAR const char *relpath,
   /* Call the host FS to do the stat operation */
 
   ret = host_stat(path, buf);
+
+  hostfs_semgive(fs);
+  return ret;
+}
+
+/****************************************************************************
+ * Name: hostfs_chstat
+ *
+ * Description: Change information about a file or directory
+ *
+ ****************************************************************************/
+
+static int hostfs_chstat(FAR struct inode *mountpt, FAR const char *relpath,
+                         FAR const struct stat *buf, int flags)
+{
+  FAR struct hostfs_mountpt_s *fs;
+  char path[HOSTFS_MAX_PATH];
+  int ret;
+
+  /* Sanity checks */
+
+  DEBUGASSERT(mountpt && mountpt->i_private);
+
+  /* Get the mountpoint private data from the inode structure */
+
+  fs = mountpt->i_private;
+
+  ret = hostfs_semtake(fs);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* Append to the host's root directory */
+
+  hostfs_mkpath(fs, relpath, path, sizeof(path));
+
+  /* Call the host FS to do the chstat operation */
+
+  ret = host_chstat(path, buf, flags);
 
   hostfs_semgive(fs);
   return ret;
