@@ -46,8 +46,8 @@
 
 /* Wait time on power on sequence. */
 
-#define TRANSITION_TIME_TO_STARTUP   (120 * 1000) /* unit : usec */
-#define TRANSITION_TIME_TO_STREAMING (30 * 1000)  /* unit : usec */
+#define TRANSITION_TIME_TO_STARTUP   (130 * 1000) /* unit : usec */
+#define TRANSITION_TIME_TO_STREAMING (40 * 1000)  /* unit : usec */
 
 /* For get_supported_value() I/F */
 
