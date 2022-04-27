@@ -1446,7 +1446,7 @@ static int activate_clip(imgsensor_stream_type_t type,
 
         break;
 
-      default: /* 640 */
+      case 640:
         if (clip->width == 640)
           {
             /* In this case, clip->height == 360 */
@@ -1473,6 +1473,12 @@ static int activate_clip(imgsensor_stream_type_t type,
               }
           }
 
+        break;
+
+      default: /* Otherwise, clear clip setting. */
+        size = FPGA_CLIP_NON;
+        top  = 0;
+        left = 0;
         break;
     }
 
@@ -1535,30 +1541,27 @@ static int isx019_start_capture(imgsensor_stream_type_t type,
     }
 
   switch (fmt[IMGSENSOR_FMT_MAIN].width)
-   {
-     case 1280:
-       regval |= FPGA_SCALE_1280_960;
-       activate_clip(type,
-                     fmt[IMGSENSOR_FMT_MAIN].width,
-                     fmt[IMGSENSOR_FMT_MAIN].height);
-       break;
+    {
+      case 1280:
+        regval |= FPGA_SCALE_1280_960;
+        break;
 
-     case 640:
-       regval |= FPGA_SCALE_640_480;
-       activate_clip(type,
-                     fmt[IMGSENSOR_FMT_MAIN].width,
-                     fmt[IMGSENSOR_FMT_MAIN].height);
-       break;
+      case 640:
+        regval |= FPGA_SCALE_640_480;
+        break;
 
-     case 320:
-       regval |= FPGA_SCALE_320_240;
-       break;
+      case 320:
+        regval |= FPGA_SCALE_320_240;
+        break;
 
-     default: /* 160 */
+      default: /* 160 */
+        regval |= FPGA_SCALE_160_120;
+        break;
+    }
 
-       regval |= FPGA_SCALE_160_120;
-       break;
-   }
+  activate_clip(type,
+               fmt[IMGSENSOR_FMT_MAIN].width,
+               fmt[IMGSENSOR_FMT_MAIN].height);
 
   fpga_i2c_write(FPGA_FORMAT_AND_SCALE, &regval, 1);
 
