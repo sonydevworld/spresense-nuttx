@@ -919,43 +919,65 @@ static void calc_clip_regval(uint16_t pos,
     }
 }
 
+static bool is_clipped(isx012_rect_t *clip)
+{
+  DEBUGASSERT(clip);
+
+  if ((clip->left   == 0) &&
+      (clip->top    == 0) &&
+      (clip->width  == 0) &&
+      (clip->height == 0))
+    {
+      return false;
+    }
+
+  return true;
+}
+
 static void activate_clip(isx012_dev_t *priv,
                           uint16_t w,
                           uint16_t h,
                           isx012_rect_t *clip)
 {
-  uint32_t r_x;
-  uint32_t r_y;
-  int32_t  x;
-  int32_t  y;
+  uint8_t  hvfree = 0;
+  uint32_t r_x = ZOOM_UNIT;
+  uint32_t r_y = ZOOM_UNIT;
+  int32_t  x   = 0;
+  int32_t  y   = 0;
 
   DEBUGASSERT(priv && clip);
 
-  calc_clip_regval
-    (clip->left, clip->width,  w, BASE_HSIZE_FOR_CLIP_OFFSET, &r_x, &x);
-  calc_clip_regval
-    (clip->top,  clip->height, h, BASE_VSIZE_FOR_CLIP_OFFSET, &r_y, &y);
-
-  if (w * 3 > h * 4)
+  if (is_clipped(clip))
     {
-      /* In case that aspect ratio is longer horizontally than 4:3,
-       * re-scaling vertical component setting.
-       */
+      hvfree = 1;
 
-      r_y = RESCALE_FOR_CLIP(r_y, w * 3, h * 4);
-      y   = RESCALE_FOR_CLIP(y,   h * 4, w * 3);
+      calc_clip_regval
+        (clip->left, clip->width,  w, BASE_HSIZE_FOR_CLIP_OFFSET, &r_x, &x);
+      calc_clip_regval
+        (clip->top,  clip->height, h, BASE_VSIZE_FOR_CLIP_OFFSET, &r_y, &y);
+
+      if (w * 3 > h * 4)
+        {
+          /* In case that aspect ratio is longer horizontally than 4:3,
+           * re-scaling vertical component setting.
+           */
+
+          r_y = RESCALE_FOR_CLIP(r_y, w * 3, h * 4);
+          y   = RESCALE_FOR_CLIP(y,   h * 4, w * 3);
+        }
+      else if (w * 3 < h * 4)
+        {
+          /* In case that aspect ratio is longer vertically than 4:3,
+           * re-scaling horizontal component setting.
+           */
+
+          r_x = RESCALE_FOR_CLIP(r_x, h * 4, w * 3);
+          x   = RESCALE_FOR_CLIP(x,   w * 3, h * 4);
+        }
     }
-  else if (w * 3 < h * 4)
-    {
-      /* In case that aspect ratio is longer vertically than 4:3,
-       * re-scaling horizontal component setting.
-       */
 
-      r_x = RESCALE_FOR_CLIP(r_x, h * 4, w * 3);
-      x   = RESCALE_FOR_CLIP(x,   w * 3, h * 4);
-    }
-
-  isx012_putreg(priv, HVFREEZOOM, 1, 1);
+  isx012_putreg(priv, HVFREEZOOM, hvfree, 1);
+  isx012_putreg(priv, EZOOM_MAG,  ZOOM_UNIT,     sizeof(uint16_t));
   isx012_putreg(priv, EZOOM_HMAG, (uint16_t)r_x, sizeof(uint16_t));
   isx012_putreg(priv, EZOOM_VMAG, (uint16_t)r_y, sizeof(uint16_t));
   isx012_putreg(priv, OFFSET_X, (int16_t)x, sizeof(int16_t));
