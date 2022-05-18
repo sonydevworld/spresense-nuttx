@@ -46,8 +46,9 @@
 
 /* Wait time on power on sequence. */
 
-#define TRANSITION_TIME_TO_STARTUP   (120 * 1000) /* unit : usec */
-#define TRANSITION_TIME_TO_STREAMING (30 * 1000)  /* unit : usec */
+#define TRANSITION_TIME_TO_STARTUP   (130 * 1000) /* unit : usec */
+#define TRANSITION_TIME_TO_STREAMING (40 * 1000)  /* unit : usec */
+#define DELAY_TIME_JPEGDQT_SWAP      (35 * 1000)  /* unit : usec */
 
 /* For get_supported_value() I/F */
 
@@ -281,6 +282,7 @@ static int isx019_get_value
 static int isx019_set_value
              (uint32_t id, uint32_t size, imgsensor_value_t value);
 static int initialize_jpg_quality(void);
+static void initialize_wbmode(void);
 static int send_read_cmd(struct i2c_config_s *config,
                          uint8_t cat,
                          uint16_t addr,
@@ -312,7 +314,7 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
   {
     10,
       {
-         21,  15,  15,  26,  18,  26,  43,  21,
+         21,  16,  16,  26,  18,  26,  43,  21,
          21,  43,  43,  43,  32,  43,  43,  43,
          43,  43,  43,  43,  43,  64,  43,  43,
          43,  43,  43,  64,  64,  64,  64,  64,
@@ -355,8 +357,8 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
   {
     20,
       {
-         18,  14,  14,  14,  15,  14,  21,  15,
-         15,  21,  32,  21,  18,  21,  32,  32,
+         18,  14,  14,  14,  16,  14,  21,  16,
+         16,  21,  32,  21,  16,  21,  32,  32,
          26,  21,  21,  26,  32,  32,  26,  26,
          26,  26,  26,  32,  43,  32,  32,  32,
          32,  32,  32,  43,  43,  43,  43,  43,
@@ -367,7 +369,7 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
       {
         135, 137, 137,   3,   2,   2,   2, 131,
         137,   4,   4,   3, 133, 133,   2, 131,
-        137,   4, 135,   3, 133,   2, 131,   1,
+        137,   4,   4,   3, 133,   2, 131,   1,
           3,   3,   3, 133,   2, 131,   1,   1,
           2, 133, 133,   2, 131,   1,   1,   1,
           2, 133,   2, 131,   1,   1,   1,   1,
@@ -398,9 +400,9 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
   {
     30,
       {
-         15,  11,  11,  11,  12,  11,  15,  12,
-         12,  15,  21,  15,  13,  15,  21,  26,
-         21,  15,  15,  21,  26,  32,  21,  21,
+         16,  11,  11,  11,  12,  11,  16,  12,
+         12,  16,  21,  14,  13,  14,  21,  26,
+         21,  16,  16,  21,  26,  32,  21,  21,
          21,  21,  21,  32,  32,  21,  26,  26,
          26,  26,  21,  32,  32,  32,  32,  43,
          32,  32,  32,  43,  43,  43,  43,  43,
@@ -408,18 +410,18 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
          64,  64,  64,  64,  64,  64,  64,  64,
       },
       {
-          4,  12,  12,   4,   3, 133,   2,   2,
-         12, 139, 139,   4,   3,   3,   3,   2,
-         12, 139,   5,   4,   3, 133,   2, 131,
-          4,   4,   4,   3, 133,   2, 131,   1,
+          4,   6,   6,   4,   3, 133,   2,   2,
+          6, 139, 139, 137,   3,   3,   3,   2,
+          6, 139,   5,   4,   3, 133,   2, 131,
+          4, 137,   4,   3, 133,   2, 131,   1,
           3,   3,   3, 133, 131, 131,   1,   1,
         133,   3, 133,   2, 131,   1,   1,   1,
           2,   3,   2, 131,   1,   1,   1,   1,
           2,   2, 131,   1,   1,   1,   1,   1,
       },
       {
-         18,  15,  15,  18,  18,  18,  21,  18,
-         18,  21,  21,  18,  21,  18,  21,  26,
+         16,  14,  14,  16,  18,  16,  21,  18,
+         18,  21,  21,  16,  21,  16,  21,  26,
          21,  21,  21,  21,  26,  43,  26,  26,
          26,  26,  26,  43,  43,  32,  32,  32,
          32,  32,  32,  43,  43,  43,  43,  43,
@@ -428,10 +430,10 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
          64,  64,  64,  64,  64,  64,  64,  64,
       },
       {
-        135,   4, 135,   3,   3, 133, 131, 131,
-          4, 135, 135, 135,   3, 133,   2, 131,
-        135, 135,   3,   3, 133,   2, 131, 131,
-          3, 135,   3, 133,   2, 131, 131,   1,
+          4, 137,   4,   3,   3, 133, 131, 131,
+        137, 135, 135,   4,   3, 133,   2, 131,
+          4, 135,   3,   3, 133,   2, 131, 131,
+          3,   4,   3, 133,   2, 131, 131,   1,
           3,   3, 133,   2, 131, 131,   1,   1,
         133, 133,   2, 131, 131,   1,   1,   1,
         131,   2, 131, 131,   1,   1,   1,   1,
@@ -442,8 +444,8 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
     40,
       {
          12,   8,   8,   8,   9,   8,  12,   9,
-          9,  12,  18,  11,  10,  11,  18,  21,
-         15,  12,  12,  15,  21,  26,  18,  18,
+          9,  12,  16,  11,  10,  11,  16,  21,
+         14,  12,  12,  14,  21,  26,  18,  18,
          21,  18,  18,  26,  21,  18,  21,  21,
          21,  21,  18,  21,  21,  26,  26,  32,
          26,  26,  21,  32,  32,  43,  43,  32,
@@ -451,19 +453,19 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
          64,  64,  64,  64,  64,  64,  64,  64,
       },
       {
-        139,   8,   8, 139, 135,   3, 133,   3,
-          8,   7,   7,  12,   4, 135, 135,   3,
+        139,   8,   8, 139,   4,   3, 133,   3,
+          8,   7,   7,   6, 137, 135, 135,   3,
           8,   7, 141, 139, 135,   3, 133,   2,
-        139,  12, 139,   3,   3, 133,   2, 131,
-        135,   4, 135,   3,   2, 131, 131,   1,
+        139,   6, 139,   3,   3, 133,   2, 131,
+          4, 137, 135,   3,   2, 131, 131,   1,
           3, 135,   3, 133, 131, 131,   1,   1,
         133, 135, 133,   2, 131,   1,   1,   1,
           3,   3,   2, 131,   1,   1,   1,   1,
       },
       {
-         13,  11,  11,  13,  14,  13,  15,  14,
-         14,  15,  21,  14,  15,  14,  21,  21,
-         15,  18,  18,  15,  21,  26,  21,  21,
+         13,  11,  11,  13,  14,  13,  16,  14,
+         14,  16,  21,  14,  14,  14,  21,  21,
+         16,  16,  16,  16,  21,  26,  21,  21,
          21,  21,  21,  26,  32,  26,  21,  21,
          21,  21,  26,  32,  32,  32,  32,  32,
          32,  32,  32,  43,  43,  32,  32,  43,
@@ -471,10 +473,10 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
          64,  64,  64,  64,  64,  64,  64,  64,
       },
       {
-          5,  12,   5,   4,   3,   3, 133,   2,
-         12, 137, 137, 137,   4,   3, 133,   2,
-          5, 137,   4, 135,   3,   3,   2, 131,
-          4, 137, 135,   3,   3,   2, 131, 131,
+          5,   6,   5,   4,   3,   3, 133,   2,
+          6, 137, 137, 137,   4,   3, 133,   2,
+          5, 137, 137,   4,   3,   3,   2, 131,
+          4, 137,   4,   3,   3,   2, 131, 131,
           3,   4,   3,   3,   2,   2, 131,   1,
           3,   3,   3,   2,   2, 131,   1,   1,
         133, 133,   2, 131, 131,   1,   1,   1,
@@ -486,41 +488,41 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
       {
           8,   6,   6,   6,   6,   6,   8,   6,
           6,   8,  12,   8,   7,   8,  12,  14,
-         10,   8,   8,  10,  14,  15,  13,  13,
-         14,  13,  13,  15,  18,  12,  14,  13,
-         13,  14,  12,  18,  15,  18,  18,  21,
-         18,  18,  15,  26,  26,  26,  26,  26,
+         10,   8,   8,  10,  14,  16,  13,  13,
+         14,  13,  13,  16,  16,  12,  14,  13,
+         13,  14,  12,  16,  14,  18,  18,  21,
+         18,  18,  14,  26,  26,  26,  26,  26,
          26,  32,  32,  32,  32,  32,  43,  43,
          43,  43,  43,  43,  43,  43,  43,  43,
       },
       {
-          8,  11,  11,   8, 139, 137,   4, 135,
-         11,  11,  11,   8, 141,   5, 139,   4,
+          8,  11,  11,   8, 139, 137,   4,   4,
+         11,  11,  11,   8, 141,   5, 139, 137,
          11,  11,   9,   8,   5, 137, 135, 133,
           8,   8,   8, 137,   5, 135, 133,   2,
         139, 141,   5,   5,   3, 133,   2, 131,
         137,   5, 137, 135, 133,   2, 131, 131,
           4, 139, 135, 133,   2, 131, 131, 131,
-        135,   4, 133,   2, 131, 131, 131, 131,
+          4, 137, 133,   2, 131, 131, 131, 131,
       },
       {
           9,   8,   8,   9,  10,   9,  11,   9,
-          9,  11,  14,  11,  13,  11,  14,  18,
-         14,  14,  14,  14,  18,  18,  13,  13,
-         14,  13,  13,  18,  26,  18,  15,  15,
-         15,  15,  18,  26,  21,  21,  21,  21,
+          9,  11,  14,  11,  13,  11,  14,  16,
+         14,  14,  14,  14,  16,  18,  13,  13,
+         14,  13,  13,  18,  26,  16,  14,  14,
+         14,  14,  16,  26,  21,  21,  21,  21,
          21,  21,  21,  26,  26,  26,  26,  26,
          26,  32,  32,  32,  32,  32,  43,  43,
          43,  43,  43,  43,  43,  43,  43,  43,
       },
       {
-          7,   8,   7,  12, 137, 135, 135, 133,
-          8, 141,   7,  12, 137,   5, 135,   3,
-          7,   7,   5, 137,   5,   4,   3, 133,
-         12,  12, 137, 137,   4,   3, 133,   2,
-        137, 137,   5,   4,   3, 133,   2, 131,
-        135,   5,   4,   3, 133,   2, 131, 131,
-        135, 135,   3, 133,   2, 131, 131, 131,
+          7,   8,   7,   6, 137,   4, 135, 133,
+          8, 141,   7,   6, 137,   5,   4,   3,
+          7,   7,   5, 137,   5, 137,   3, 133,
+          6,   6, 137, 137, 137,   3, 133,   2,
+        137, 137,   5, 137,   3, 133,   2, 131,
+          4,   5, 137,   3, 133,   2, 131, 131,
+        135,   4,   3, 133,   2, 131, 131, 131,
         133,   3, 133,   2, 131, 131, 131, 131,
       }
   },
@@ -530,25 +532,25 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
           6,   4,   4,   4,   5,   4,   6,   5,
           5,   6,   9,   6,   5,   6,   9,  11,
           8,   6,   6,   8,  11,  12,  10,  10,
-         11,  10,  10,  12,  15,  12,  12,  12,
-         12,  12,  12,  15,  12,  14,  15,  15,
-         15,  14,  12,  18,  18,  21,  21,  18,
+         11,  10,  10,  12,  16,  12,  12,  12,
+         12,  12,  12,  16,  12,  14,  14,  16,
+         14,  14,  12,  18,  18,  21,  21,  18,
          18,  26,  26,  26,  26,  26,  32,  32,
          32,  32,  32,  32,  32,  32,  32,  32,
       },
       {
-         11,  16,  16,  11,   7,  12, 139,   4,
+         11,  16,  16,  11,   7,   6, 139,   4,
          16,  13,  13,  11,   8, 141, 139, 139,
          16,  13,  13,  11, 141, 139, 137, 135,
-         11,  11,  11,  12, 139,   4, 135, 133,
+         11,  11,  11,   6, 139, 137, 135, 133,
           7,   8, 141, 139,   4,   3, 133,   2,
-         12, 141, 139,   4,   3, 133,   2,   2,
+          6, 141, 139, 137,   3, 133,   2,   2,
         139, 139, 137, 135, 133,   2,   2,   2,
           4, 139, 135, 133,   2,   2,   2,   2,
       },
       {
-          7,   7,   7,  13,  12,  13,  26,  15,
-         15,  26,  26,  21,  18,  21,  26,  32,
+          7,   7,   7,  13,  12,  13,  26,  16,
+         16,  26,  26,  21,  16,  21,  26,  32,
          32,  32,  32,  32,  32,  32,  32,  32,
          32,  32,  32,  32,  32,  32,  32,  32,
          32,  32,  32,  32,  32,  32,  32,  32,
@@ -559,7 +561,7 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
       {
           9,   9,   5, 133, 133,   2,   2,   2,
           9, 139,   4,   3,   2,   2,   2,   2,
-          5,   4, 135,   2,   2,   2,   2,   2,
+          5,   4,   4,   2,   2,   2,   2,   2,
         133,   3,   2,   2,   2,   2,   2,   2,
         133,   2,   2,   2,   2,   2,   2,   2,
           2,   2,   2,   2,   2,   2,   2,   2,
@@ -576,22 +578,22 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
           7,   6,   6,   8,  10,   8,   9,   9,
           9,   9,   8,  10,  10,  12,  12,  12,
          12,  12,  10,  12,  12,  13,  13,  12,
-         12,  18,  18,  18,  18,  18,  21,  21,
+         12,  16,  16,  16,  16,  16,  21,  21,
          21,  21,  21,  21,  21,  21,  21,  21,
       },
       {
          16,  21,  21,  16,  11,   9,   8, 141,
          21,  21,  21,  16,  13,  11,   8, 141,
          21,  21,  21,  16,  11,   7, 139, 139,
-         16,  16,  16,   9,   7, 139, 139, 135,
-         11,  13,  11,   7, 139,   5, 135,   3,
-          9,  11,   7, 139,   5, 135,   3,   3,
-          8,   8, 139, 139, 135,   3,   3,   3,
-        141, 141, 139, 135,   3,   3,   3,   3,
+         16,  16,  16,   9,   7, 139, 139,   4,
+         11,  13,  11,   7, 139,   5,   4,   3,
+          9,  11,   7, 139,   5,   4,   3,   3,
+          8,   8, 139, 139,   4,   3,   3,   3,
+        141, 141, 139,   4,   3,   3,   3,   3,
       },
       {
-          4,   5,   5,   8,   7,   8,  15,  10,
-         10,  15,  21,  14,  14,  14,  21,  21,
+          4,   5,   5,   8,   7,   8,  14,  10,
+         10,  14,  21,  14,  14,  14,  21,  21,
          21,  21,  21,  21,  21,  21,  21,  21,
          21,  21,  21,  21,  21,  21,  21,  21,
          21,  21,  21,  21,  21,  21,  21,  21,
@@ -600,10 +602,10 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
          21,  21,  21,  21,  21,  21,  21,  21,
       },
       {
-         16,  13,   8,   4,   3,   3,   3,   3,
+         16,  13,   8, 137,   3,   3,   3,   3,
          13,   9, 141, 137,   3,   3,   3,   3,
           8, 141, 137,   3,   3,   3,   3,   3,
-          4, 137,   3,   3,   3,   3,   3,   3,
+        137, 137,   3,   3,   3,   3,   3,   3,
           3,   3,   3,   3,   3,   3,   3,   3,
           3,   3,   3,   3,   3,   3,   3,   3,
           3,   3,   3,   3,   3,   3,   3,   3,
@@ -634,23 +636,23 @@ static isx019_fpga_jpg_quality_t g_isx019_jpg_quality[] =
       },
       {
           3,   3,   3,   5,   4,   5,   9,   6,
-          6,   9,  13,  11,   9,  11,  13,  15,
-         14,  14,  14,  14,  15,  15,  12,  12,
-         12,  12,  12,  15,  15,  12,  12,  12,
-         12,  12,  12,  15,  12,  12,  12,  12,
+          6,   9,  13,  11,   9,  11,  13,  14,
+         14,  14,  14,  14,  14,  14,  12,  12,
+         12,  12,  12,  14,  14,  12,  12,  12,
+         12,  12,  12,  14,  12,  12,  12,  12,
          12,  12,  12,  12,  12,  12,  12,  12,
          12,  12,  12,  12,  12,  12,  12,  12,
          12,  12,  12,  12,  12,  12,  12,  12,
       },
       {
-         21,  21,  13,   7,   5,   4,   4,   4,
-         21,  16,  11,  12, 137, 139, 139, 139,
+         21,  21,  13,   7,   5, 137, 137, 137,
+         21,  16,  11,   6, 137, 139, 139, 139,
          13,  11,   7, 137, 139, 139, 139, 139,
-          7,  12, 137, 139, 139, 139, 139, 139,
+          7,   6, 137, 139, 139, 139, 139, 139,
           5, 137, 139, 139, 139, 139, 139, 139,
-          4, 139, 139, 139, 139, 139, 139, 139,
-          4, 139, 139, 139, 139, 139, 139, 139,
-          4, 139, 139, 139, 139, 139, 139, 139,
+        137, 139, 139, 139, 139, 139, 139, 139,
+        137, 139, 139, 139, 139, 139, 139, 139,
+        137, 139, 139, 139, 139, 139, 139, 139,
       }
   },
   {
@@ -1232,6 +1234,7 @@ static int isx019_init(void)
   power_on();
   set_drive_mode();
   fpga_init();
+  initialize_wbmode();
   initialize_jpg_quality();
   store_default_value();
   clk = board_isx019_get_master_clock();
@@ -1444,7 +1447,7 @@ static int activate_clip(imgsensor_stream_type_t type,
 
         break;
 
-      default: /* 640 */
+      case 640:
         if (clip->width == 640)
           {
             /* In this case, clip->height == 360 */
@@ -1471,6 +1474,12 @@ static int activate_clip(imgsensor_stream_type_t type,
               }
           }
 
+        break;
+
+      default: /* Otherwise, clear clip setting. */
+        size = FPGA_CLIP_NON;
+        top  = 0;
+        left = 0;
         break;
     }
 
@@ -1533,30 +1542,27 @@ static int isx019_start_capture(imgsensor_stream_type_t type,
     }
 
   switch (fmt[IMGSENSOR_FMT_MAIN].width)
-   {
-     case 1280:
-       regval |= FPGA_SCALE_1280_960;
-       activate_clip(type,
-                     fmt[IMGSENSOR_FMT_MAIN].width,
-                     fmt[IMGSENSOR_FMT_MAIN].height);
-       break;
+    {
+      case 1280:
+        regval |= FPGA_SCALE_1280_960;
+        break;
 
-     case 640:
-       regval |= FPGA_SCALE_640_480;
-       activate_clip(type,
-                     fmt[IMGSENSOR_FMT_MAIN].width,
-                     fmt[IMGSENSOR_FMT_MAIN].height);
-       break;
+      case 640:
+        regval |= FPGA_SCALE_640_480;
+        break;
 
-     case 320:
-       regval |= FPGA_SCALE_320_240;
-       break;
+      case 320:
+        regval |= FPGA_SCALE_320_240;
+        break;
 
-     default: /* 160 */
+      default: /* 160 */
+        regval |= FPGA_SCALE_160_120;
+        break;
+    }
 
-       regval |= FPGA_SCALE_160_120;
-       break;
-   }
+  activate_clip(type,
+               fmt[IMGSENSOR_FMT_MAIN].width,
+               fmt[IMGSENSOR_FMT_MAIN].height);
 
   fpga_i2c_write(FPGA_FORMAT_AND_SCALE, &regval, 1);
 
@@ -1915,16 +1921,6 @@ static int32_t convert_hue_reg2is(int32_t val)
   return (val * 128) / 90;
 }
 
-static int32_t convert_awb_is2reg(int32_t val)
-{
-  return (val == 1) ? 0 : 2;
-}
-
-static int32_t convert_awb_reg2is(int32_t val)
-{
-  return (val == 0) ? 1 : 0;
-}
-
 static int32_t convert_hdr_is2reg(int32_t val)
 {
   int32_t ret = AEWDMODE_AUTO;
@@ -2003,11 +1999,6 @@ static convert_t get_reginfo(uint32_t id, bool is_set, isx019_reginfo_t *reg)
       case IMGSENSOR_ID_HUE:
         SET_REGINFO(reg, CAT_PICTTUNE, UIHUE, 1);
         cvrt = is_set ? convert_hue_is2reg : convert_hue_reg2is;
-        break;
-
-      case IMGSENSOR_ID_AUTO_WHITE_BALANCE:
-        SET_REGINFO(reg, CAT_CATAWB, AWBMODE, 1);
-        cvrt = is_set ? convert_awb_is2reg : convert_awb_reg2is;
         break;
 
       case IMGSENSOR_ID_EXPOSURE:
@@ -2167,7 +2158,18 @@ static int set_exptime(imgsensor_value_t val)
   return isx019_i2c_write(CAT_CATAE, SHT_PRIMODE, (uint8_t *)&regval, 4);
 }
 
-static int set_wbmode(imgsensor_value_t val)
+static int set_awb_hold(void)
+{
+  uint8_t mode = AWBMODE_HOLD;
+  return isx019_i2c_write(CAT_CATAWB, AWBMODE, &mode, 1);
+}
+
+static void initialize_wbmode(void)
+{
+  g_isx019_private.wb_mode = IMGSENSOR_WHITE_BALANCE_AUTO;
+}
+
+static int update_wbmode_reg(int32_t val)
 {
   /*  AWBMODE     mode0 : auto, mode4 : user defined white balance
    *  AWBUSER_NO  definition number for AWBMODE = mode4
@@ -2195,7 +2197,7 @@ static int set_wbmode(imgsensor_value_t val)
       toggle = true;
     }
 
-  switch (val.value32)
+  switch (val)
     {
       case IMGSENSOR_WHITE_BALANCE_AUTO:
         mode = AWBMODE_AUTO;
@@ -2237,7 +2239,53 @@ static int set_wbmode(imgsensor_value_t val)
   isx019_i2c_write(CAT_CATAWB, AWBUSER_NO, (uint8_t *)&toggle, 1);
   isx019_i2c_write(CAT_CATAWB, AWBMODE, &mode, 1);
 
+  return OK;
+}
+
+static bool is_awb_enable(void)
+{
+  uint8_t mode = AWBMODE_AUTO;
+
+  isx019_i2c_read(CAT_CATAWB, AWBMODE, &mode, 1);
+
+  return (mode == AWBMODE_HOLD) ? false : true;
+}
+
+static int set_wbmode(imgsensor_value_t val)
+{
+  /* Update register only if IMGSENSOR_ID_AUTO_WHITE_BALANCE = 1. */
+
+  if (is_awb_enable())
+    {
+      update_wbmode_reg(val.value32);
+    }
+
   g_isx019_private.wb_mode = val.value32;
+  return OK;
+}
+
+static int set_awb(imgsensor_value_t val)
+{
+  /* true  -> false : Update regster to HOLD
+   * false -> true  : Update register
+   *                  with IMGSENSOR_ID_AUTO_N_PRESET_WB setting
+   * otherwise      : Nothing to do
+   */
+
+  if (is_awb_enable())
+    {
+      if (val.value32 == 0)
+        {
+          set_awb_hold();
+        }
+    }
+  else
+    {
+      if (val.value32 == 1)
+        {
+          update_wbmode_reg(g_isx019_private.wb_mode);
+        }
+    }
 
   return OK;
 }
@@ -2550,6 +2598,10 @@ static int set_jpg_quality(imgsensor_value_t val)
   set_dqt(FPGA_DQT_CHROMA, FPGA_DQT_CALC_DATA, c_calc);
   fpga_activate_setting();
 
+  /* Wait for swap of non-active side and active side. */
+
+  nxsig_usleep(DELAY_TIME_JPEGDQT_SWAP);
+
   /* Update non-active side in preparation for other activation trigger. */
 
   set_dqt(FPGA_DQT_LUMA,   FPGA_DQT_DATA, y_head);
@@ -2658,6 +2710,10 @@ static setvalue_t set_value_func(uint32_t id)
 
       case IMGSENSOR_ID_EXPOSURE_ABSOLUTE:
         func = set_exptime;
+        break;
+
+      case IMGSENSOR_ID_AUTO_WHITE_BALANCE:
+        func = set_awb;
         break;
 
       case IMGSENSOR_ID_AUTO_N_PRESET_WB:
@@ -2796,6 +2852,20 @@ static int get_exptime(imgsensor_value_t *val)
   val->value32 = ((regval / g_isx019_private.clock_ratio) + 99) / 100;
 
   return OK;
+}
+
+static int get_awb(imgsensor_value_t *val)
+{
+  int ret;
+
+  if (val == NULL)
+    {
+      return -EINVAL;
+    }
+
+  val->value32 = is_awb_enable();
+
+  return ret;
 }
 
 static int get_wbmode(imgsensor_value_t *val)
@@ -3046,6 +3116,10 @@ static getvalue_t get_value_func(uint32_t id)
 
       case IMGSENSOR_ID_EXPOSURE_ABSOLUTE:
         func = get_exptime;
+        break;
+
+      case IMGSENSOR_ID_AUTO_WHITE_BALANCE:
+        func = get_awb;
         break;
 
       case IMGSENSOR_ID_AUTO_N_PRESET_WB:

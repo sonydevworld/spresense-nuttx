@@ -31,6 +31,7 @@
 #include <errno.h>
 
 #include <nuttx/board.h>
+#include <nuttx/signal.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/modem/alt1250.h>
 #include <nuttx/wdog.h>
@@ -43,6 +44,7 @@
  ****************************************************************************/
 
 #define RESET_INTERVAL_TIMEOUT MSEC2TICK(1)
+#define POWERON_DELAY_USEC     10 * 1000
 
 /****************************************************************************
  * Private Data
@@ -71,6 +73,12 @@ void board_alt1250_poweron(void)
   cxd56_gpio_write(ALT1250_LTE_POWER_BUTTON, false);
 
   cxd56_gpio_config(ALT1250_SHUTDOWN, false);
+
+  /* Workaround: Shutdown pin set to low before power on */
+
+  cxd56_gpio_write(ALT1250_SHUTDOWN, false);
+  nxsig_usleep(POWERON_DELAY_USEC);
+
   cxd56_gpio_write(ALT1250_SHUTDOWN, true);
 
   board_power_control(POWER_LTE, true);
