@@ -236,7 +236,7 @@ static int32_t write_request_hndl(FAR uint8_t *pktbuf, size_t pktsz,
   strcpy_until((char *)cb_args[3], (int)cb_args[5], (char **)&pktbuf,
                "\",\r\n");
 
-  *((int *)cb_args[4]) = strlen((char *)cb_args[3]);
+  cb_args[4] = (void *)strlen((char *)cb_args[3]);
 
   return 0;
 }
