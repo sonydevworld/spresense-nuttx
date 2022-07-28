@@ -81,6 +81,10 @@ void board_alt1250_poweron(void)
 
   cxd56_gpio_write(ALT1250_SHUTDOWN, true);
 
+  /* Workaround: Power button pin set to high before power on */
+
+  cxd56_gpio_write(ALT1250_LTE_POWER_BUTTON, true);
+
   board_power_control(POWER_LTE, true);
 }
 
