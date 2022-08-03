@@ -2856,8 +2856,6 @@ static int get_exptime(imgsensor_value_t *val)
 
 static int get_awb(imgsensor_value_t *val)
 {
-  int ret;
-
   if (val == NULL)
     {
       return -EINVAL;
@@ -2865,7 +2863,7 @@ static int get_awb(imgsensor_value_t *val)
 
   val->value32 = is_awb_enable();
 
-  return ret;
+  return OK;
 }
 
 static int get_wbmode(imgsensor_value_t *val)
