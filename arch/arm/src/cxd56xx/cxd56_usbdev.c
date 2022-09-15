@@ -758,14 +758,6 @@ static int cxd56_epwrite(FAR struct cxd56_ep_s *privep, FAR uint8_t *buf,
   /* Set Poll bit to ready to send */
 
   ctrl = getreg32(CXD56_USB_IN_EP_CONTROL(epphy));
-
-  /* Send NULL packet request */
-
-  if (privep->txnullpkt)
-    {
-      ctrl |= USB_SENDNULL;
-    }
-
   putreg32(ctrl | USB_P | USB_CNAK, CXD56_USB_IN_EP_CONTROL(epphy));
 
   return nbytes;
